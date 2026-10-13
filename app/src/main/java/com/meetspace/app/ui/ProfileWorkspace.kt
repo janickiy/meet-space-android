@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.*
@@ -40,6 +41,8 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.ui.unit.Density
@@ -52,6 +55,8 @@ import java.net.URI
 
 private enum class AccountSection(val title: String, val hint: String, val icon: ImageVector) {
     PROFILE("Профиль", "Имя и данные аккаунта", Icons.Outlined.PersonOutline),
+    ACCOUNTS("Аккаунты", "Добавление и переключение", Icons.Outlined.People),
+    ADD_ACCOUNT("Добавить аккаунт", "", Icons.Outlined.PersonAdd),
     AUDIO("Аудио", "Микрофон, динамик и звук", Icons.Outlined.MicNone),
     VIDEO("Видео", "Камера и участники", Icons.Outlined.Videocam),
     NOTIFICATIONS("Уведомления", "События и каналы доставки", Icons.Outlined.NotificationsNone),
@@ -76,25 +81,38 @@ fun ProfileWorkspace(
     messagingActions: MessagingActions = MessagingActions(),
     onServerAddress: ((String) -> Unit)? = null,
     initialSection: String? = null,
+    onSelectAccount: (String) -> Unit = {},
+    onAddAccount: (String, String, String, String?, String) -> Unit = { _, _, _, _, _ -> },
+    registeredAccountEmail: String? = null,
+    onDeleteAccount: (String) -> Unit = {},
 ) {
-    var section by rememberSaveable { mutableStateOf(AccountSection.entries.find { it.name.equals(initialSection, true) } ?: AccountSection.PROFILE) }
+    var section by rememberSaveable { mutableStateOf(AccountSection.entries.find { it.name.equals(initialSection?.replace('-', '_'), true) } ?: AccountSection.PROFILE) }
     var detailOpen by rememberSaveable { mutableStateOf(initialSection != null) }
     var logout by remember { mutableStateOf(false) }
     var privacy by remember { mutableStateOf(false) }
+    var deleteAccountDialog by remember { mutableStateOf(false) }
+    var deletePassword by remember(repository.selectedProfileId) { mutableStateOf("") }
     val user = repository.session?.user
     val origin = repository.selectedProfile?.origin.orEmpty()
     val name = user?.displayLabel.orEmpty()
     val host = remember(origin) { runCatching { URI(origin).host }.getOrNull() ?: origin }
     val density = LocalDensity.current
     val device = settings.devicePreferences
+    LaunchedEffect(initialSection) {
+        AccountSection.entries.find { it.name.equals(initialSection?.replace('-', '_'), true) }?.let {
+            section = it; detailOpen = true
+        }
+    }
     LaunchedEffect(section, detailOpen) { if (section == AccountSection.NOTIFICATIONS) messagingActions.loadNotifications() }
     CompositionLocalProvider(LocalDensity provides Density(density.density, density.fontScale * device.textScale.coerceIn(.75f, 2f)),
         LocalTextStyle provides MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 21.sp)) {
         BoxWithConstraints(Modifier.fillMaxSize().testTag("profile")) {
             val wide = maxWidth >= 780.dp
+            val twoColumnForm = maxWidth >= 1000.dp
             val panelPadding = (maxWidth * .04f).coerceIn(26.dp, 54.dp)
             val sidebarWidth = if (maxWidth >= 1100.dp) 270.dp else 240.dp
-            BackHandler(!wide && detailOpen) { detailOpen = false }
+            val back = { if (section == AccountSection.ADD_ACCOUNT) section = AccountSection.ACCOUNTS else detailOpen = false }
+            BackHandler(section == AccountSection.ADD_ACCOUNT || !wide && detailOpen) { if (!busy) back() }
             val choose: (AccountSection) -> Unit = { section = it; detailOpen = true }
             val shape = RoundedCornerShape(topStart = 25.dp, topEnd = 25.dp)
             Surface(Modifier.fillMaxSize().padding(horizontal = if (wide) 24.dp else 0.dp).testTag(if (wide) "profile-wide" else "profile-compact"),
@@ -102,7 +120,8 @@ fun ProfileWorkspace(
                 border = if (wide) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant) else null) {
                 Row(Modifier.fillMaxSize()) {
                     if (wide || !detailOpen) {
-                        AccountSidebar(name, user?.email.orEmpty(), host, section, wide, busy, choose, { logout = true }, { privacy = true },
+                        AccountSidebar(name, user?.email.orEmpty(), host, section, wide, busy, repository.profiles.filter { it.accountId != null },
+                            repository.selectedProfileId, onSelectAccount, choose, { logout = true }, { privacy = true },
                             settings.versionName, Modifier.then(if (wide) Modifier.width(sidebarWidth) else Modifier.fillMaxWidth()).fillMaxHeight())
                     }
                     if (wide || detailOpen) {
@@ -110,8 +129,8 @@ fun ProfileWorkspace(
                             .padding(horizontal = if (wide) panelPadding else 20.dp, vertical = if (wide) 36.dp else 18.dp)
                             .testTag("account-panel-${section.name.lowercase()}"), verticalArrangement = Arrangement.spacedBy(0.dp)) {
                             if (!wide) {
-                                TextButton({ detailOpen = false }, contentPadding = PaddingValues(0.dp), modifier = Modifier.heightIn(min = 44.dp).testTag("account-back")) {
-                                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, null, Modifier.size(19.dp)); Spacer(Modifier.width(8.dp)); Text("Все настройки", fontSize = 12.6.sp)
+                                TextButton({ back() }, enabled = !busy, contentPadding = PaddingValues(0.dp), modifier = Modifier.heightIn(min = 44.dp).testTag("account-back")) {
+                                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, null, Modifier.size(19.dp)); Spacer(Modifier.width(8.dp)); Text(if (section == AccountSection.ADD_ACCOUNT) "Аккаунты" else "Все настройки", fontSize = 12.6.sp)
                                 }
                                 Spacer(Modifier.height(22.dp))
                             }
@@ -137,6 +156,10 @@ fun ProfileWorkspace(
                                         Text(registration?.let { "Регистрация: $it" } ?: "Аккаунт в пространстве команды", fontSize = 11.5.sp, lineHeight = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
                                 }
+                                AccountSection.ACCOUNTS -> AccountListPanel(repository, wide, busy, onSelectAccount,
+                                    { section = AccountSection.ADD_ACCOUNT }, { deleteAccountDialog = true })
+                                AccountSection.ADD_ACCOUNT -> AccountAddPanel(origin, wide, twoColumnForm, busy, registeredAccountEmail, onAddAccount,
+                                    { section = AccountSection.ACCOUNTS })
                                 AccountSection.AUDIO -> AccountAudioPanel(settings, settingsActions)
                                 AccountSection.VIDEO -> AccountVideoPanel(name, settings, settingsActions)
                                 AccountSection.NOTIFICATIONS -> {
@@ -148,10 +171,13 @@ fun ProfileWorkspace(
                                         TextButton(messagingActions.loadNotifications) { Text("Обновить") }
                                     } else draft?.let { prefs ->
                                         AccountSectionLabel("События")
-                                        AccountCheck("Приглашения и изменения встреч", prefs.invitation, { draft = prefs.copy(invitation = it) }, "notification-pref-invitation")
-                                        AccountCheck("Напоминания о встречах", prefs.reminder, { draft = prefs.copy(reminder = it) }, "notification-pref-reminder")
-                                        AccountCheck("Готовность записи", prefs.recording, { draft = prefs.copy(recording = it) }, "notification-pref-recording")
-                                        AccountCheck("Расшифровка и итоги встречи", prefs.summary, { draft = prefs.copy(summary = it) }, "notification-pref-summary")
+                                        AccountToggle("Приглашения и изменения встреч", prefs.invitation, { draft = prefs.copy(invitation = it) }, tag = "notification-pref-invitation")
+                                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                                        AccountToggle("Напоминания о встречах", prefs.reminder, { draft = prefs.copy(reminder = it) }, tag = "notification-pref-reminder")
+                                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                                        AccountToggle("Готовность записи", prefs.recording, { draft = prefs.copy(recording = it) }, tag = "notification-pref-recording")
+                                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                                        AccountToggle("Расшифровка и итоги встречи", prefs.summary, { draft = prefs.copy(summary = it) }, tag = "notification-pref-summary")
                                         AccountDivider(); AccountSectionLabel("Звук уведомлений")
                                         AccountNotificationSound(settingsActions)
                                         AccountDivider(); AccountSectionLabel("Каналы доставки")
@@ -200,11 +226,147 @@ fun ProfileWorkspace(
     }
     if (logout) AlertDialog(onDismissRequest = { logout = false }, title = { Text("Выйти из аккаунта?") }, text = { Text("Чтобы вернуться в пространство, потребуется войти снова.") },
         confirmButton = { TextButton({ logout = false; onLogout() }, enabled = !busy, modifier = Modifier.testTag("logout-confirm")) { Text("Выйти") } }, dismissButton = { TextButton({ logout = false }) { Text("Отмена") } })
+    if (deleteAccountDialog) AlertDialog(onDismissRequest = { if (!busy) { deleteAccountDialog = false; deletePassword = "" } },
+        title = { Text("Удалить аккаунт MeetSpace?") },
+        text = { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Удалить ${user?.email.orEmpty()} с сервера $host? Удаление нельзя отменить. Общие сообщения и записи других участников сохранятся. Введите пароль этого аккаунта.")
+            OutlinedTextField(value = deletePassword, onValueChange = { deletePassword = it.take(1024) }, singleLine = true,
+                label = { Text("Пароль") }, visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password), enabled = !busy,
+                modifier = Modifier.fillMaxWidth().testTag("account-delete-password"))
+        } },
+        confirmButton = { TextButton(onClick = { val password = deletePassword; deletePassword = ""; deleteAccountDialog = false; onDeleteAccount(password) },
+            enabled = !busy && deletePassword.isNotEmpty(), modifier = Modifier.testTag("account-delete-confirm")) { Text("Удалить") } },
+        dismissButton = { TextButton({ deleteAccountDialog = false; deletePassword = "" }, enabled = !busy) { Text("Отмена") } })
     if (privacy) AlertDialog(onDismissRequest = { privacy = false }, title = { Text("MeetSpace ${settings.versionName}") }, text = { Column(Modifier.verticalScroll(rememberScrollState())) { PrivacyContents() } }, confirmButton = { TextButton({ privacy = false }) { Text("Готово") } })
 }
 
+@Composable private fun AccountListPanel(repository: RepositoryState, wide: Boolean, busy: Boolean,
+    select: (String) -> Unit, add: () -> Unit, delete: () -> Unit) {
+    val accounts = repository.profiles.filter { it.accountId != null }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(Modifier.weight(1f)) {
+            AccountEyebrow("ВАШИ ПРОСТРАНСТВА")
+            AccountHeading("Аккаунты", "Выберите аккаунт для встреч и общения.", wide)
+        }
+        Box(Modifier.size(42.dp).background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
+            Text(accounts.size.toString(), fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
+        }
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        accounts.forEach { account ->
+            val current = account.id == repository.selectedProfileId
+            val name = (if (current) repository.session?.user?.displayLabel else null)
+                ?: account.accountName ?: account.accountEmail.orEmpty()
+            val host = runCatching { URI(account.origin).authority }.getOrNull() ?: account.origin
+            Surface(onClick = { if (!current) select(account.id) }, enabled = !busy,
+                shape = RoundedCornerShape(if (wide) 18.dp else 15.dp),
+                color = if (current) lerp(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.primaryContainer, .45f) else MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, if (current) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
+                modifier = Modifier.fillMaxWidth().testTag("account-card-${account.id}")) {
+                Row(Modifier.padding(horizontal = if (wide) 18.dp else 12.dp, vertical = if (wide) 18.dp else 14.dp),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (wide) 14.dp else 10.dp)) {
+                    AccountAvatar(name, if (wide) 54 else 42)
+                    Column(Modifier.weight(1f)) {
+                        Text(name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        Text(account.accountEmail.orEmpty(), fontSize = 12.2.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 3.dp))
+                        Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Outlined.Dns, null, Modifier.size(13.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(host, fontSize = 10.6.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        val tint = if (current) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        Icon(if (current) Icons.Outlined.CheckCircleOutline else Icons.AutoMirrored.Outlined.ArrowForward, null, Modifier.size(21.dp), tint = tint)
+                        Text(if (current) "Текущий" else "Выбрать", fontSize = 9.4.sp, color = tint)
+                    }
+                }
+            }
+        }
+    }
+    Button(add, enabled = !busy, shape = RoundedCornerShape(13.dp),
+        modifier = Modifier.padding(top = 18.dp).then(if (wide) Modifier else Modifier.fillMaxWidth()).heightIn(min = 50.dp).testTag("account-add")) {
+        Icon(Icons.Outlined.Add, null, Modifier.size(19.dp)); Spacer(Modifier.width(9.dp)); Text("Добавить аккаунт", fontSize = 13.2.sp)
+    }
+    AccountNote("Можно добавить аккаунты с одного или разных серверов. История общения и сессии входа хранятся отдельно.")
+    HorizontalDivider(Modifier.padding(top = 30.dp), color = MaterialTheme.colorScheme.outlineVariant)
+    Row(Modifier.padding(top = 22.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+        Box(Modifier.size(35.dp).background(MaterialTheme.colorScheme.error.copy(alpha = .09f), RoundedCornerShape(11.dp)), contentAlignment = Alignment.Center) {
+            Icon(Icons.Outlined.DeleteOutline, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error)
+        }
+        Column(Modifier.weight(1f)) {
+            Text("Удаление аккаунта", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            val host = runCatching { URI(repository.selectedProfile?.origin.orEmpty()).authority }.getOrNull().orEmpty()
+            Text("Удалить ${repository.session?.user?.email.orEmpty()} с сервера $host.", fontSize = 11.6.sp, lineHeight = 19.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 7.dp))
+            TextButton(delete, enabled = !busy && repository.selectedProfile?.accountId != null, contentPadding = PaddingValues(0.dp),
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error), modifier = Modifier.testTag("account-delete")) {
+                Text("Удалить аккаунт с сервера", fontSize = 12.sp); Spacer(Modifier.width(6.dp)); Icon(Icons.Outlined.NorthEast, null, Modifier.size(16.dp))
+            }
+        }
+    }
+}
+
+@Composable private fun AccountEyebrow(label: String) {
+    Text(label, fontSize = 9.sp, letterSpacing = 1.5.sp, fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 10.dp))
+}
+
+@Composable private fun AccountAddPanel(origin: String, wide: Boolean, twoColumns: Boolean, busy: Boolean, registeredEmail: String?,
+    submit: (String, String, String, String?, String) -> Unit, cancel: () -> Unit) {
+    var register by rememberSaveable { mutableStateOf(false) }
+    var server by rememberSaveable { mutableStateOf(origin) }
+    var name by rememberSaveable { mutableStateOf("") }
+    var email by rememberSaveable { mutableStateOf("") }
+    // Passwords deliberately never enter saved-instance state or preferences.
+    var password by remember { mutableStateOf("") }
+    var confirmation by remember { mutableStateOf("") }
+    LaunchedEffect(registeredEmail) {
+        if (registeredEmail != null) { email = registeredEmail; register = false; password = ""; confirmation = "" }
+    }
+    AccountEyebrow("ЕЩЁ ОДНО ПРОСТРАНСТВО")
+    AccountHeading("Добавить аккаунт", if (register) "Создайте аккаунт на выбранном сервере." else "Войдите в существующий аккаунт.", wide)
+    Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background, RoundedCornerShape(13.dp)).padding(4.dp).selectableGroup()) {
+        listOf(false to "Войти", true to "Создать аккаунт").forEach { (mode, label) ->
+            Box(Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).background(if (mode == register) MaterialTheme.colorScheme.surface else Color.Transparent)
+                .selectable(mode == register, enabled = !busy, role = Role.Tab, onClick = { register = mode; password = ""; confirmation = "" })
+                .heightIn(min = 44.dp).testTag(if (mode) "account-add-register-tab" else "account-add-login-tab"), contentAlignment = Alignment.Center) {
+                Text(label, fontSize = 12.6.sp, fontWeight = FontWeight.SemiBold, color = if (mode == register) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+    Spacer(Modifier.height(24.dp))
+    val fields = buildList<@Composable () -> Unit> {
+        if (register) add { AccountField("Имя для встреч", name, { name = it.take(200) }, "account-add-name", !busy) }
+        add { AccountField("Электронная почта", email, { email = it.take(254) }, "account-add-email", !busy, keyboardType = KeyboardType.Email) }
+        add { AccountField("Пароль", password, { password = it.take(1024) }, "account-add-password", !busy,
+            hint = if (register) "От 8 до 128 символов." else null, keyboardType = KeyboardType.Password, password = true) }
+        if (register) add { AccountField("Повторите пароль", confirmation, { confirmation = it.take(1024) }, "account-add-confirm", !busy, keyboardType = KeyboardType.Password, password = true) }
+        add {
+            Button({ submit(server, email, password, name.takeIf { register }, confirmation) },
+                enabled = !busy && server.isNotBlank() && email.isNotBlank() && password.isNotEmpty() && (!register || name.isNotBlank() && confirmation.isNotEmpty()),
+                shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp).testTag("account-add-submit")) {
+                Text(if (busy) "Подключаемся…" else if (register) "Создать и добавить" else "Войти и добавить", fontSize = 13.2.sp)
+                Spacer(Modifier.width(9.dp)); Icon(Icons.AutoMirrored.Outlined.ArrowForward, null, Modifier.size(18.dp))
+            }
+        }
+        add { OutlinedButton(cancel, enabled = !busy, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp).testTag("account-add-cancel")) { Text("Отмена") } }
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(if (wide) 20.dp else 17.dp)) {
+        AccountField("Адрес сервера", server, { server = it.take(2048) }, "account-add-server", !busy, keyboardType = KeyboardType.Uri)
+        fields.chunked(if (twoColumns) 2 else 1).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+                row.forEach { field -> Box(Modifier.weight(1f)) { field() } }
+                if (twoColumns && row.size == 1) Spacer(Modifier.weight(1f))
+            }
+        }
+    }
+}
+
 @Composable private fun AccountSidebar(name: String, email: String, host: String, section: AccountSection, wide: Boolean, busy: Boolean,
+    profiles: List<com.meetspace.core.model.ServerProfile>, selectedProfileId: String?, onSelectAccount: (String) -> Unit,
     choose: (AccountSection) -> Unit, logout: () -> Unit, about: () -> Unit, version: String, modifier: Modifier) {
+    var accountMenu by remember { mutableStateOf(false) }
     BoxWithConstraints(modifier.background(if (wide) lerp(MaterialTheme.colorScheme.background, MaterialTheme.colorScheme.surface, .35f) else MaterialTheme.colorScheme.surface)) {
         val availableHeight = maxHeight
         val accent = MaterialTheme.colorScheme.primary
@@ -213,10 +375,25 @@ fun ProfileWorkspace(
                 AccountAvatar(name, if (wide) 42 else 54)
                 Column(Modifier.weight(1f)) { Text(name, fontSize = if (wide) 12.6.sp else 16.sp, lineHeight = if (wide) 18.sp else 23.sp, fontWeight = FontWeight.SemiBold); Text(email, fontSize = if (wide) 10.8.sp else 12.6.sp, lineHeight = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 3.dp)) }
             }
+            if (wide && profiles.size > 1) Box(Modifier.padding(start = 48.dp, top = 4.dp)) {
+                TextButton(onClick = { accountMenu = true }, contentPadding = PaddingValues(horizontal = 6.dp, vertical = 3.dp), modifier = Modifier.testTag("account-switch-menu")) {
+                    Text("Сменить аккаунт", fontSize = 10.8.sp); Icon(Icons.Outlined.ExpandMore, null, Modifier.size(16.dp))
+                }
+                DropdownMenu(expanded = accountMenu, onDismissRequest = { accountMenu = false }) {
+                    profiles.forEach { profile ->
+                        DropdownMenuItem(text = { Text(profile.accountName ?: profile.accountEmail ?: "${profile.origin}", maxLines = 1) },
+                            onClick = { accountMenu = false; if (profile.id != selectedProfileId) onSelectAccount(profile.id) },
+                            leadingIcon = { if (profile.id == selectedProfileId) Icon(Icons.Outlined.Check, null) else Icon(Icons.Outlined.PersonOutline, null) })
+                    }
+                    HorizontalDivider()
+                    DropdownMenuItem(text = { Text("Управление аккаунтами") }, onClick = { accountMenu = false; choose(AccountSection.ACCOUNTS) },
+                        leadingIcon = { Icon(Icons.Outlined.Settings, null) })
+                }
+            }
             Spacer(Modifier.height(if (wide) 30.dp else 26.dp))
             Text("НАСТРОЙКИ АККАУНТА", fontSize = if (wide) 8.5.sp else 9.5.sp, lineHeight = if (wide) 13.sp else 14.sp, letterSpacing = 1.3.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = if (wide) 12.dp else 0.dp, bottom = 10.dp).heightIn(min = (if (wide) 13.dp else 14.dp) * LocalDensity.current.fontScale))
-            AccountSection.entries.filter { it != AccountSection.CONNECTION }.forEach { item ->
-                val active = wide && section == item
+            AccountSection.entries.filter { it != AccountSection.CONNECTION && it != AccountSection.ADD_ACCOUNT }.forEach { item ->
+                val active = wide && (section == item || section == AccountSection.ADD_ACCOUNT && item == AccountSection.ACCOUNTS)
                 Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(if (wide) 10.dp else 0.dp)).background(if (active) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
                     .drawBehind { if (active) drawRect(accent, size = Size(3.dp.toPx(), size.height)) }
                     .clickable { choose(item) }.heightIn(min = if (wide) 52.dp else 74.dp).testTag("profile-${item.name.lowercase()}")
@@ -253,7 +430,7 @@ fun ProfileWorkspace(
 }
 
 @Composable private fun AccountAvatar(name: String, size: Int) {
-    val initials = name.trim().split(Regex("\\s+")).take(2).mapNotNull { it.firstOrNull()?.uppercaseChar() }.joinToString("")
+    val initials = name.trim().split(Regex("\\s+")).mapNotNull { it.firstOrNull(Char::isLetterOrDigit)?.uppercaseChar() }.take(2).joinToString("")
     Box(Modifier.size(size.dp).clip(RoundedCornerShape(if (size <= 42) 14.dp else if (size >= 64) 20.dp else 18.dp)).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
         Text(initials, fontSize = if (size <= 42) 15.sp else if (size >= 64) 23.sp else 20.sp, lineHeight = if (size <= 42) 20.sp else 28.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
     }
@@ -264,11 +441,13 @@ fun ProfileWorkspace(
         avatar?.let { AccountAvatar(it, if (wide) 70 else 64) }
     }
 }
-@Composable private fun AccountField(label: String, value: String, change: (String) -> Unit, tag: String, enabled: Boolean = true, readOnly: Boolean = false, hint: String? = null, error: Boolean = false, keyboardType: KeyboardType = KeyboardType.Text) {
+@Composable private fun AccountField(label: String, value: String, change: (String) -> Unit, tag: String, enabled: Boolean = true, readOnly: Boolean = false, hint: String? = null, error: Boolean = false, keyboardType: KeyboardType = KeyboardType.Text, password: Boolean = false) {
     var focused by remember { mutableStateOf(false) }
+    var reveal by remember { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(label, fontSize = 14.sp, lineHeight = 21.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.heightIn(min = 21.dp * LocalDensity.current.fontScale))
         BasicTextField(value, change, singleLine = true, enabled = enabled, readOnly = readOnly, keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+            visualTransformation = if (password && !reveal) PasswordVisualTransformation() else VisualTransformation.None,
             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
             textStyle = MaterialTheme.typography.bodyMedium.copy(lineHeight = 20.sp, color = if (readOnly) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface),
             modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp).clip(RoundedCornerShape(12.dp))
@@ -276,7 +455,13 @@ fun ProfileWorkspace(
                 .border(if (focused) 2.dp else 1.dp, if (error) MaterialTheme.colorScheme.error else if (focused) MaterialTheme.colorScheme.primary else lerp(MaterialTheme.colorScheme.outlineVariant, MaterialTheme.colorScheme.onSurfaceVariant, .65f), RoundedCornerShape(12.dp))
                 .onFocusChanged { focused = it.isFocused }
                 .testTag(tag).semantics { contentDescription = label },
-            decorationBox = { field -> Box(Modifier.padding(horizontal = 14.dp, vertical = 12.dp), contentAlignment = Alignment.CenterStart) { field() } })
+            decorationBox = { field -> Row(Modifier.padding(start = 14.dp, end = if (password) 2.dp else 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.weight(1f).padding(vertical = 12.dp)) { field() }
+                if (password) IconButton({ reveal = !reveal }, enabled = enabled) {
+                    Icon(if (reveal) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                        if (reveal) "Скрыть $label" else "Показать $label", Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            } })
         hint?.let { Text(it, fontSize = 11.6.sp, lineHeight = 19.sp, color = if (error) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.heightIn(min = 19.dp * LocalDensity.current.fontScale)) }
     }
 }
@@ -287,7 +472,7 @@ fun ProfileWorkspace(
 @Composable private fun AccountSectionLabel(label: String) { Text(label, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 16.dp)) }
 @Composable private fun AccountDivider() { HorizontalDivider(Modifier.padding(vertical = 24.dp), color = MaterialTheme.colorScheme.outlineVariant) }
 @Composable private fun AccountNote(text: String) { Row(Modifier.padding(top = 20.dp), horizontalArrangement = Arrangement.spacedBy(9.dp)) { Icon(Icons.Outlined.Info, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant); Text(text, fontSize = 11.2.sp, lineHeight = 18.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) } }
-@Composable private fun AccountToggle(label: String, value: Boolean, change: (Boolean) -> Unit, hint: String? = null, enabled: Boolean = true, tag: String) {
+@Composable internal fun AccountToggle(label: String, value: Boolean, change: (Boolean) -> Unit, hint: String? = null, enabled: Boolean = true, tag: String) {
     Row(Modifier.fillMaxWidth().padding(vertical = 16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
         Column(Modifier.weight(1f)) { Text(label, fontSize = 13.4.sp, lineHeight = 21.sp); hint?.let { Text(it, fontSize = 11.5.sp, lineHeight = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp)) } }
         val track = (if (value) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant).copy(alpha = if (enabled) 1f else .45f)
@@ -298,9 +483,6 @@ fun ProfileWorkspace(
                 drawCircle(Color.White.copy(alpha = if (enabled) 1f else .6f), 10.dp.toPx(), Offset((if (value) 33 else 15).dp.toPx(), size.height / 2))
             })
     }
-}
-@Composable private fun AccountCheck(label: String, value: Boolean, change: (Boolean) -> Unit, tag: String) {
-    Row(Modifier.fillMaxWidth().clickable { change(!value) }.padding(vertical = 4.dp).testTag(tag), verticalAlignment = Alignment.CenterVertically) { Checkbox(value, null); Spacer(Modifier.width(8.dp)); Text(label, fontSize = 13.4.sp, lineHeight = 21.sp) }
 }
 @Composable private fun AccountChoice(label: String, value: String, options: List<String>, change: (String) -> Unit, tag: String) {
     var open by remember { mutableStateOf(false) }

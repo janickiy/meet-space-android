@@ -109,6 +109,49 @@ class FoundationViewModelTest {
         assertEquals(0, repository.registerCalls)
     }
 
+    @Test fun addingAccountStaysInWorkspaceAndReturnsToAccounts() = runTest(dispatcher) {
+        val repository = FakeRepository().apply {
+            state.value = RepositoryState(listOf(profile), profile.id, ServerVersion("test", "unknown", "unknown"), session)
+        }
+        val model = FoundationViewModel(repository)
+        runCurrent()
+        model.addAccount("https://example.test", "other@example.test", "synthetic-password", null, "")
+        runCurrent()
+        assertEquals(FoundationScreen.WORKSPACE, model.state.value.screen)
+        assertEquals("accounts", model.state.value.accountSection)
+        assertEquals(1, repository.accountAdds)
+        assertNotNull(model.state.value.repository.session)
+    }
+
+    @Test fun failedAccountAdditionPreservesCurrentWorkspace() = runTest(dispatcher) {
+        val repository = FakeRepository().apply {
+            state.value = RepositoryState(listOf(profile), profile.id, ServerVersion("test", "unknown", "unknown"), session)
+            connectFailure = AppFailure(FailureKind.INVALID_CREDENTIALS, "Неверный пароль.")
+        }
+        val model = FoundationViewModel(repository)
+        runCurrent()
+        model.addAccount("https://example.test", "other@example.test", "wrong", null, "")
+        runCurrent()
+        assertEquals(FoundationScreen.WORKSPACE, model.state.value.screen)
+        assertEquals(session, model.state.value.repository.session)
+        assertEquals(profile, model.state.value.repository.selectedProfile)
+        assertEquals("Неверный пароль.", model.state.value.error)
+    }
+
+    @Test fun newlyCreatedAccountWithFailedSignInLeavesCurrentWorkspaceAndOffersLogin() = runTest(dispatcher) {
+        val repository = FakeRepository().apply {
+            state.value = RepositoryState(listOf(profile), profile.id, ServerVersion("test", "unknown", "unknown"), session)
+            registrationResult = RegistrationResult(User("new-user", "new@example.test"), false, "Попробуйте войти.")
+        }
+        val model = FoundationViewModel(repository)
+        runCurrent()
+        model.addAccount("https://example.test", "new@example.test", "synthetic-password", "Новое имя", "synthetic-password")
+        runCurrent()
+        assertEquals(FoundationScreen.WORKSPACE, model.state.value.screen)
+        assertEquals(session, model.state.value.repository.session)
+        assertEquals("new@example.test", model.state.value.accountCreatedEmail)
+    }
+
     @Test fun failedInstallationServerProbeNeverOpensRegistration() = runTest(dispatcher) {
         val repository = FakeRepository().apply {
             connectFailure = AppFailure(FailureKind.NETWORK, "Сервер недоступен.")
@@ -231,6 +274,7 @@ class FoundationViewModelTest {
         var loginCalls = 0
         var themeFailure: AppFailure? = null
         var connectExpired = false
+        var accountAdds = 0
         var connectFailure: AppFailure? = null
         var connectCalls = 0
         var loginEmail: String? = null
@@ -248,6 +292,11 @@ class FoundationViewModelTest {
                 throw AppFailure(FailureKind.SESSION_EXPIRED, "Войдите снова.")
             }
             return profile
+        }
+        override suspend fun addAccount(rawUrl: String, email: String, password: String, displayName: String?): RegistrationResult {
+            accountAdds++
+            connectFailure?.let { throw it }
+            return registrationResult
         }
         override suspend fun selectServer(profileId: String) { state.value = state.value.copy(selectedProfileId = profileId) }
         override suspend fun removeServer(profileId: String) { state.value = RepositoryState() }

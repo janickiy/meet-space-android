@@ -29,15 +29,17 @@ import org.junit.Test
 @OptIn(ExperimentalTestApi::class)
 class ProfileDesignTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
-    private val server = ServerProfile("test-server", "https://team.example")
+    private val server = ServerProfile("test-server", "https://team.example", "test-user", "member@example.test", "Александр Соколов")
     private val repository = RepositoryState(profiles = listOf(server), selectedProfileId = server.id,
         session = AccountSession(User("test-user", "member@example.test", "Александр Соколов", createdAt = "2026-10-03T16:17:00Z"), Capabilities(), true), theme = ThemeMode.DARK)
-    private val settings = AppSettingsUiState("0.9.3", 11, true, true, false, false, false)
+    private val settings = AppSettingsUiState("0.2.0-beta", 17, true, true, false, false, false)
 
-    @Composable private fun Profile(repo: RepositoryState = repository, onTheme: (ThemeMode) -> Unit = {}, onLogout: () -> Unit = {}, onFolders: () -> Unit = {}, updateName: (String) -> Unit = {}, section: String? = null) {
+    @Composable private fun Profile(repo: RepositoryState = repository, onTheme: (ThemeMode) -> Unit = {}, onLogout: () -> Unit = {}, onFolders: () -> Unit = {}, updateName: (String) -> Unit = {}, section: String? = null,
+        onSelectAccount: (String) -> Unit = {}, onAddAccount: (String, String, String, String?, String) -> Unit = { _, _, _, _, _ -> }, onDeleteAccount: (String) -> Unit = {}) {
         ProfileWorkspace(repo, MeetingsUiState(), MeetingsActions(updateProfile = updateName), settings, AppSettingsActions(),
             onTheme = onTheme, onLogout = onLogout, onServers = {}, onFolders = onFolders,
-            initialSection = section, messaging = MessagingUiState(notificationPreferences = MessagingLoad(NotificationPreferences())), onServerAddress = {})
+            initialSection = section, messaging = MessagingUiState(notificationPreferences = MessagingLoad(NotificationPreferences())), onServerAddress = {},
+            onSelectAccount = onSelectAccount, onAddAccount = onAddAccount, onDeleteAccount = onDeleteAccount)
     }
     @Test fun tabletProfileUsesSidebarAndCompactShowsMenu() {
         var width by mutableStateOf(780.dp)
@@ -82,10 +84,46 @@ class ProfileDesignTest {
             messaging = MessagingUiState(notificationPreferences = MessagingLoad(prefs)), messagingActions = MessagingActions(saveNotificationPreferences = { saved = it })) } }
         compose.onNodeWithTag("account-notification-save").performScrollTo().assertIsNotEnabled()
         compose.onNodeWithTag("notification-pref-reminder").performScrollTo().performClick()
+        compose.onNodeWithTag("notification-pref-reminder").assertIsOff().assert(SemanticsMatcher.expectValue(androidx.compose.ui.semantics.SemanticsProperties.Role, androidx.compose.ui.semantics.Role.Switch))
         assertNull(saved)
         compose.onNodeWithTag("account-notification-save").performScrollTo().performClick()
         assertEquals(prefs.copy(reminder = false), saved)
     }
+    @Test fun accountsCanBeSwitchedAddedAndDeletedAfterPasswordConfirmation() {
+        val second = server.copy(id = "second", accountId = "second-user", accountEmail = "second@example.test", accountName = "Мария Полякова")
+        var selected: String? = null; var added = 0; var deleted: String? = null
+        compose.setContent { MeetSpaceTheme { Profile(repo = repository.copy(profiles = listOf(server.copy(accountId = "test-user", accountEmail = "member@example.test", accountName = "Александр Соколов"), second)),
+            section = "accounts", onSelectAccount = { selected = it }, onAddAccount = { _, _, _, _, _ -> added++ }, onDeleteAccount = { deleted = it }) } }
+        compose.onNodeWithTag("account-card-second").performScrollTo().performClick()
+        assertEquals("second", selected)
+        compose.onNodeWithTag("account-add").performScrollTo().performClick()
+        assertEquals(0, added)
+        compose.onNodeWithTag("account-add-email").performScrollTo().performTextInput("second@example.test")
+        compose.onNodeWithTag("account-add-password").performScrollTo().performTextInput("synthetic-password")
+        compose.onNodeWithTag("account-add-submit").performScrollTo().performClick()
+        assertEquals(1, added)
+        compose.onNodeWithTag("account-add-cancel").performScrollTo().performClick()
+        compose.onNodeWithTag("account-delete").performScrollTo().performClick()
+        compose.onNodeWithTag("account-delete-password").performTextInput("synthetic-password")
+        compose.onNodeWithTag("account-delete-confirm").performClick()
+        assertEquals("synthetic-password", deleted)
+    }
+    @Test fun registrationFormPassesFieldsAndCancelDoesNotCreateAccount() {
+        var submitted: List<String?>? = null
+        compose.setContent { DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(390.dp, 700.dp))) { MeetSpaceTheme { Profile(
+            section = "add-account", onAddAccount = { server, email, password, name, confirmation -> submitted = listOf(server, email, password, name, confirmation) }) } } }
+        compose.onNodeWithTag("account-add-register-tab").performScrollTo().performClick()
+        compose.onNodeWithTag("account-add-name").performScrollTo().performTextInput("Новое имя")
+        compose.onNodeWithTag("account-add-email").performScrollTo().performTextInput("new@example.test")
+        compose.onNodeWithTag("account-add-password").performScrollTo().performTextInput("synthetic-password")
+        compose.onNodeWithTag("account-add-confirm").performScrollTo().performTextInput("synthetic-password")
+        assertNull(submitted)
+        compose.onNodeWithTag("account-add-submit").performScrollTo().performClick()
+        assertEquals(listOf("https://team.example", "new@example.test", "synthetic-password", "Новое имя", "synthetic-password"), submitted)
+        compose.onNodeWithTag("account-add-cancel").performScrollTo().performClick()
+        compose.onNodeWithTag("account-add").performScrollTo().assertIsDisplayed()
+    }
+
     @Test fun connectionRejectsNonHttpsAndOnlySavesChangedAddress() {
         var saved: String? = null
         compose.setContent { MeetSpaceTheme { ProfileWorkspace(repository, MeetingsUiState(), MeetingsActions(), settings, AppSettingsActions(),
@@ -117,15 +155,17 @@ class ProfileDesignTest {
         assumeTrue(args.getString("designScreenshots") == "true")
         val screen = args.getString("designScreen", "profile")
         val theme = args.getString("designTheme", "dark")
+        val captureRepository = if (screen.startsWith("account-")) repository.copy(profiles = repository.profiles +
+            ServerProfile("studio", "https://studio.example.test", "studio-user", "alex@studio.example.test", "Александр · Студия")) else repository
         compose.runOnUiThread { compose.activity.enableEdgeToEdge() }
         compose.setContent { MeetSpaceTheme(if (theme == "dark") ThemeMode.DARK else ThemeMode.LIGHT) {
             val light = MaterialTheme.colorScheme.background.luminance() > .5f
             SideEffect { WindowCompat.getInsetsController(compose.activity.window, compose.activity.window.decorView).apply { isAppearanceLightStatusBars = light; isAppearanceLightNavigationBars = light } }
             when (screen) {
-                "profile", "account-profile", "account-audio", "account-video", "account-notifications", "account-appearance", "account-connection", "welcome", "connect", "login" -> FoundationUi(FoundationUiState(when (screen) {
+                "profile", "account-profile", "account-accounts", "account-add-account", "account-audio", "account-video", "account-notifications", "account-appearance", "account-connection", "welcome", "connect", "login" -> FoundationUi(FoundationUiState(when (screen) {
                     "welcome" -> FoundationScreen.WELCOME; "connect" -> FoundationScreen.CONNECT; "login" -> FoundationScreen.LOGIN; else -> FoundationScreen.WORKSPACE
                 }, repository.copy(theme = if (theme == "dark") ThemeMode.DARK else ThemeMode.LIGHT)), {}, {}, {}, {_,_->}, {}, {}, {}, {},
-                    workspaceContent = { _, _ -> Profile(repository.copy(theme = if (theme == "dark") ThemeMode.DARK else ThemeMode.LIGHT), section = screen.removePrefix("account-").takeIf { screen.startsWith("account-") }) })
+                    workspaceContent = { _, _ -> Profile(captureRepository.copy(theme = if (theme == "dark") ThemeMode.DARK else ThemeMode.LIGHT), section = screen.removePrefix("account-").takeIf { screen.startsWith("account-") }) })
                 "deploy", "hostkey", "sshauth", "preflight" -> SshWizardUi(sshFixture(screen), {_,_,_,_->}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
                 else -> InstallerUi(installFixture(screen), {}, {_,_,_->}, {_,_,_->}, {}, {}, {}, {})
             }

@@ -136,6 +136,12 @@ internal class MeetSpaceApi(
         return response.user.asAccount()
     }
 
+    suspend fun deleteAccount(origin: String, token: String, jar: SessionCookieJar, password: String) {
+        val response = decode<StatusResponse>(authenticatedRequest(origin, listOf("auth", "me"), token,
+            method = "DELETE", payload = wireJson.encodeToString(DeleteAccountRequest(password)), jar = jar))
+        if (response.status != "success") throw InvalidContract()
+    }
+
     /** Every segment/query value is encoded separately and retains the selected HTTPS origin. */
     internal suspend fun authenticatedRequest(
         origin: String,
@@ -241,6 +247,8 @@ private data class LoginRequest(val email: String, val password: String)
 private data class RegisterRequest(val email: String, val password: String, val displayName: String)
 @Serializable
 private data class ProfileRequest(val displayName: String)
+@Serializable
+private data class DeleteAccountRequest(val password: String)
 @Serializable
 private data class UserDto(
     val id: String,

@@ -50,14 +50,38 @@ class FoundationViewModel(private val repository: FoundationRepository,
         } else routeFromSession()
     }
 
+    fun addAccount(url: String, email: String, password: String, name: String?, confirmation: String) = identityOperation {
+        name?.let { RegistrationValidation.error(it, email, password, confirmation)?.let { failure ->
+            throw AppFailure(FailureKind.VALIDATION, failure.message)
+        } }
+        mutableState.update { it.copy(accountCreatedEmail = null) }
+        val result = repository.addAccount(url, email, password, name)
+        if (result.signedIn) {
+            routeFromSession()
+            mutableState.update { it.copy(accountSection = "accounts", notice = "Аккаунт добавлен и выбран.") }
+        } else {
+            mutableState.update { it.copy(accountCreatedEmail = result.user.email,
+                notice = "Аккаунт создан. Войдите с указанными email и паролем. ${result.signInFailure.orEmpty()}".trim()) }
+        }
+    }
+
     fun selectProfile(id: String) = identityOperation {
         repository.selectServer(id)
         routeFromSession()
+        mutableState.update { it.copy(accountSection = "accounts") }
     }
 
     fun removeProfile(id: String) = identityOperation {
         repository.removeServer(id)
         routeFromSession()
+    }
+
+    fun deleteAccount(password: String) = identityOperation {
+        repository.deleteAccount(password)
+        routeFromSession()
+        if (repository.state.value.session == null && repository.state.value.selectedProfile != null) {
+            mutableState.update { it.copy(notice = "Аккаунт удалён. Войдите в другой сохранённый аккаунт.") }
+        }
     }
 
     fun login(email: String, password: String) = identityOperation {

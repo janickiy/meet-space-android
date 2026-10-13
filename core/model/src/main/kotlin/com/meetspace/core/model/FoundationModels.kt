@@ -12,6 +12,7 @@ data class ServerProfile(
     val origin: String,
     val accountId: String? = null,
     val accountEmail: String? = null,
+    val accountName: String? = null,
 )
 
 @Serializable

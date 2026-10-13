@@ -41,7 +41,7 @@ class SettingsUiTest {
     @Test fun missingFirebaseNeverClaimsBackgroundPushDelivery() {
         compose.setContent { Screen(settings) }
         compose.onNodeWithTag("settings-push-state").assertTextContains("Фоновые push пока не подключены", substring = true)
-        compose.onNodeWithTag("settings-version").performScrollTo().assertTextEquals("Версия 0.8.0 (7)")
+        compose.onNodeWithTag("settings-version").performScrollTo().assertTextEquals("Версия 0.2.0-beta (17)")
     }
 
     @Test fun connectedPushStateIsScopedToCurrentAccount() {
@@ -70,6 +70,6 @@ class SettingsUiTest {
         }
     }
     companion object {
-        private val settings = AppSettingsUiState("0.8.0", 7, false, true, false, false, false)
+        private val settings = AppSettingsUiState("0.2.0-beta", 17, false, true, false, false, false)
     }
 }

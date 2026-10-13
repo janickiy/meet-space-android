@@ -145,6 +145,8 @@ data class FoundationUiState(
     val notice: String? = null,
     val loginEmail: String? = null,
     val loginEmailProfileId: String? = null,
+    val accountSection: String? = null,
+    val accountCreatedEmail: String? = null,
 )
 
 /** All connection and authentication effects belong to the ViewModel/repository. */

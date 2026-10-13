@@ -431,6 +431,170 @@ class FoundationRepositoryTest {
         assertEquals("Bearer second-access", take().getHeader("Authorization"))
     }
 
+    @Test fun `same server accounts keep isolated sessions and deletion switches to the next saved account`() = runBlocking {
+        enqueueVersion()
+        val first = repository.addServer(origin)
+        enqueueLogin("first-access", "first-cookie"); enqueueMe(); enqueueCapabilities()
+        repository.login("test@example.com", "synthetic-password")
+        repeat(4) { take() }
+
+        enqueueVersion()
+        server.enqueue(json(loginBody("second-access", "user-b").replace("test@example.com", "other@example.com"))
+            .addHeader("Set-Cookie", "$SESSION_COOKIE=second-cookie; Path=$AUTH_PATH; Secure; HttpOnly; Max-Age=3600"))
+        server.enqueue(json(ME.replace("user-a", "user-b").replace("test@example.com", "other@example.com")))
+        enqueueCapabilities()
+        repository.addAccount(origin, "other@example.com", "another-password")
+        val second = repository.state.value.selectedProfile!!
+        assertEquals(2, repository.state.value.profiles.size)
+        assertEquals(first.origin, second.origin)
+        assertEquals("/version", take().path)
+        val secondLogin = take()
+        assertEquals("$AUTH_PATH/login", secondLogin.path)
+        assertNull(secondLogin.getHeader("Cookie")); assertNull(secondLogin.getHeader("Authorization"))
+        take(); take()
+        assertEquals("first-cookie", credentials.values[SessionScope(origin, "user-a")]!!.value)
+        assertEquals("second-cookie", credentials.values[SessionScope(origin, "user-b")]!!.value)
+
+        // A fresh process must accept multiple identities on the same origin.
+        enqueueVersion(); enqueueLogin("restart-access", "restart-cookie", "user-b")
+        server.enqueue(json(ME.replace("user-a", "user-b").replace("test@example.com", "other@example.com")))
+        enqueueCapabilities()
+        repository = newRepository()
+        repository.restore()
+        assertEquals(2, repository.state.value.profiles.size)
+        assertEquals("user-b", repository.state.value.session!!.user.id)
+        take()
+        assertEquals("$SESSION_COOKIE=second-cookie", take().getHeader("Cookie"))
+        take(); take()
+
+        // Switching restores the first account using only its own stored cookie.
+        enqueueVersion(); enqueueLogin("first-refresh", "first-rotated"); enqueueMe(); enqueueCapabilities()
+        repository.selectServer(first.id)
+        assertEquals("user-a", repository.state.value.session!!.user.id)
+        assertEquals("/version", take().path)
+        val firstRefresh = take()
+        assertEquals("$AUTH_PATH/refresh", firstRefresh.path)
+        assertEquals("$SESSION_COOKIE=first-cookie", firstRefresh.getHeader("Cookie"))
+        take(); take()
+
+        server.enqueue(json("""{"status":"success"}"""))
+        enqueueVersion(); enqueueLogin("second-refresh", "second-rotated", "user-b")
+        server.enqueue(json(ME.replace("user-a", "user-b").replace("test@example.com", "other@example.com")))
+        enqueueCapabilities()
+        repository.deleteAccount("synthetic-password")
+        val deletion = take()
+        assertEquals("DELETE", deletion.method)
+        assertEquals("$AUTH_PATH/me", deletion.path)
+        assertEquals("Bearer first-refresh", deletion.getHeader("Authorization"))
+        assertEquals("$SESSION_COOKIE=first-rotated", deletion.getHeader("Cookie"))
+        assertTrue(deletion.body.readUtf8().contains("\"password\":\"synthetic-password\""))
+        assertEquals("/version", take().path)
+        val nextRefresh = take()
+        assertEquals("$AUTH_PATH/refresh", nextRefresh.path)
+        assertEquals("$SESSION_COOKIE=restart-cookie", nextRefresh.getHeader("Cookie"))
+        take(); take()
+        assertEquals(listOf(second.id), repository.state.value.profiles.map { it.id })
+        assertEquals("user-b", repository.state.value.session!!.user.id)
+        assertNull(credentials.values[SessionScope(origin, "user-a")])
+        assertEquals("second-rotated", credentials.values[SessionScope(origin, "user-b")]!!.value)
+    }
+
+    @Test fun `failed second login leaves the current account and persistent sessions intact`() = runBlocking {
+        connectAndLogin(); repeat(4) { take() }
+        val before = repository.state.value
+        enqueueVersion(); server.enqueue(json("{}", 401))
+        assertEquals(FailureKind.INVALID_CREDENTIALS, failure { repository.addAccount(origin, "other@example.com", "wrong-password") }.kind)
+        assertEquals(before, repository.state.value)
+        assertEquals(before.profiles, preferences.value.profiles)
+        assertEquals("first-cookie", credentials.values[SessionScope(origin, "user-a")]!!.value)
+        take()
+        assertNull(take().getHeader("Cookie"))
+    }
+
+    @Test fun `adding existing identity replaces its profile without duplicating it and survives restart`() = runBlocking {
+        connectAndLogin(); repeat(4) { take() }
+        enqueueVersion(); enqueueLogin("second-access", "second-cookie"); enqueueMe(); enqueueCapabilities()
+        repository.addAccount(origin, "test@example.com", "synthetic-password")
+        repeat(4) { take() }
+        assertEquals(1, repository.state.value.profiles.size)
+        enqueueVersion(); enqueueLogin("restored-access", "restored-cookie"); enqueueMe(); enqueueCapabilities()
+        val restarted = newRepository()
+        restarted.restore()
+        assertEquals(repository.state.value.profiles, restarted.state.value.profiles)
+        assertEquals("user-a", restarted.state.value.session!!.user.id)
+        take()
+        assertEquals("$SESSION_COOKIE=second-cookie", take().getHeader("Cookie"))
+    }
+
+    @Test fun `server conflict keeps the account and never reports deletion as successful`() = runBlocking {
+        connectAndLogin(); repeat(4) { take() }
+        server.enqueue(json("{}", 409))
+        assertEquals(FailureKind.CONFLICT, failure { repository.deleteAccount("synthetic-password") }.kind)
+        assertNotNull(repository.state.value.session)
+        assertNotNull(credentials.values[SessionScope(origin, "user-a")])
+    }
+
+    @Test fun `deleting last account clears the selected profile and credentials`() = runBlocking {
+        connectAndLogin(); repeat(4) { take() }
+        server.enqueue(json("""{"status":"success"}"""))
+        repository.deleteAccount("synthetic-password")
+        assertNull(repository.state.value.session)
+        assertNull(repository.state.value.selectedProfileId)
+        assertTrue(preferences.value.profiles.isEmpty())
+        assertTrue(credentials.values.isEmpty())
+    }
+
+    @Test fun `expired token refreshes without replaying account deletion`() = runBlocking {
+        connectAndLogin(); repeat(4) { take() }
+        server.enqueue(json("{}", 401)); enqueueLogin("fresh-token", "fresh-cookie")
+        assertEquals(FailureKind.CONFLICT, failure { repository.deleteAccount("synthetic-password") }.kind)
+        assertEquals("DELETE", take().method)
+        assertEquals("$AUTH_PATH/refresh", take().path)
+        assertEquals(6, server.requestCount)
+        assertNotNull(repository.state.value.session)
+        server.enqueue(json("""{"status":"success"}"""))
+        repository.deleteAccount("synthetic-password")
+        assertEquals("Bearer fresh-token", take().getHeader("Authorization"))
+        assertTrue(repository.state.value.profiles.isEmpty())
+    }
+
+    @Test fun `confirmed deletion stays removed from memory even when settings write fails`() = runBlocking {
+        connectAndLogin(); repeat(4) { take() }
+        server.enqueue(json("""{"status":"success"}"""))
+        preferences.failWrite = true
+        assertEquals(FailureKind.STORAGE, failure { repository.deleteAccount("synthetic-password") }.kind)
+        assertNull(repository.state.value.session)
+        assertNull(repository.state.value.selectedProfile)
+        assertTrue(credentials.values.isEmpty())
+    }
+
+    @Test fun `failed account persistence rolls credentials back and preserves current workspace`() = runBlocking {
+        connectAndLogin(); repeat(4) { take() }
+        val before = repository.state.value
+        enqueueVersion(); enqueueLogin("other-token", "other-cookie", "user-b")
+        server.enqueue(json(ME.replace("user-a", "user-b"))); enqueueCapabilities()
+        preferences.failWrite = true
+        assertEquals(FailureKind.STORAGE, failure { repository.addAccount(origin, "other@example.com", "synthetic-password") }.kind)
+        assertEquals(before, repository.state.value)
+        assertEquals(setOf(SessionScope(origin, "user-a")), credentials.values.keys)
+        assertEquals("first-cookie", credentials.values.values.single().value)
+    }
+
+    @Test fun `wrong password does not remove account or local credentials`() = runBlocking {
+        connectAndLogin()
+        repeat(4) { take() }
+        server.enqueue(json("{}", 422))
+        val failure = failure { repository.deleteAccount("wrong-password") }
+        assertEquals(FailureKind.INVALID_CREDENTIALS, failure.kind)
+        assertTrue(failure.message.contains("неверный пароль", ignoreCase = true))
+        assertEquals("user-a", repository.state.value.selectedProfile?.accountId)
+        assertNotNull(repository.state.value.session)
+        assertNotNull(credentials.values[SessionScope(origin, "user-a")])
+        val request = take()
+        assertEquals("DELETE", request.method)
+        assertEquals("$AUTH_PATH/me", request.path)
+    }
+
     @Test fun `redirects cannot forward login credentials to another origin`() = runBlocking {
         enqueueVersion(); repository.addServer(origin)
         val destination = MockWebServer().apply { start() }

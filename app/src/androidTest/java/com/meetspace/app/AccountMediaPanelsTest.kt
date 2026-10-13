@@ -78,7 +78,7 @@ class AccountMediaPanelsTest {
 
     @Test fun notificationSoundReflectsAndroidAndDoesNotAutoplay() {
         compose.setContent { Frame { AccountNotificationSound(AppSettingsActions()) } }
-        compose.onNodeWithTag("account-sound-enabled").assertIsEnabled()
+        compose.onNodeWithTag("account-sound-enabled").assertIsEnabled().assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, androidx.compose.ui.semantics.Role.Switch))
         compose.onNodeWithTag("account-test-ringtone").assertIsEnabled()
         compose.onNodeWithTag("account-ringtone-test-status").assertDoesNotExist()
         compose.onNodeWithTag("account-ringtone-meter").assert(SemanticsMatcher.expectValue(SemanticsProperties.ProgressBarRangeInfo, ProgressBarRangeInfo(0f, 0f..1f)))

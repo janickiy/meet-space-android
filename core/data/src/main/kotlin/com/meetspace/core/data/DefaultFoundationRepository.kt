@@ -341,7 +341,9 @@ internal class DefaultFoundationRepository(
             throw InvalidContract()
         }
         context.jar.stored()?.let { credentials.write(context.scope, it) }
-        mutableState.value = state.value.copy(session = previous.copy(user = user))
+        persist(state.value.copy(session = previous.copy(user = user), profiles = state.value.profiles.map {
+            if (it.id == state.value.selectedProfileId) it.copy(accountName = user.displayLabel) else it
+        }))
         user
     }
 
@@ -386,8 +388,8 @@ internal class DefaultFoundationRepository(
     private suspend fun expire(context: AuthContext) = withContext(NonCancellable) {
         clearMemory()
         val cleared = state.value.copy(profiles = state.value.profiles.map {
-            if (it.origin == context.scope.origin && it.accountId == context.scope.accountId)
-                it.copy(accountId = null, accountEmail = null) else it
+                if (it.origin == context.scope.origin && it.accountId == context.scope.accountId)
+                it.copy(accountId = null, accountEmail = null, accountName = null) else it
         })
         mutableState.value = cleared
         var cleanupFailed = false
@@ -433,6 +435,38 @@ internal class DefaultFoundationRepository(
         }
     }
 
+    /** Authenticate a separate jar first. Failed additions leave the current identity untouched. */
+    override suspend fun addAccount(rawUrl: String, email: String, password: String, displayName: String?): RegistrationResult = mutex.withLock {
+        protect {
+            loadSettings()
+            val origin = ServerOrigin.normalize(rawUrl)
+            val address = email.trim().lowercase(Locale.ROOT)
+            if (address.isEmpty() || address.length > 254 || '@' !in address ||
+                address.any { it.isWhitespace() || it.isISOControl() } || password.isEmpty() || password.length > 1024) {
+                throw AppFailure(FailureKind.VALIDATION, "Введите email и пароль учётной записи.")
+            }
+            displayName?.let { RegistrationValidation.error(it, address, password)?.let { error ->
+                throw AppFailure(FailureKind.VALIDATION, error.message)
+            } }
+            val sameOrigin = state.value.profiles.filter { it.origin == origin && it.accountId != null }
+            if (sameOrigin.size >= MAX_ACCOUNTS_PER_SERVER && sameOrigin.none { it.accountEmail.equals(address, true) }) {
+                throw AppFailure(FailureKind.CONFLICT, "На этом сервере уже сохранено максимальное число аккаунтов.")
+            }
+            val version = api.version(origin)
+            val created = displayName?.let { protect(isRegistration = true) {
+                api.register(origin, it.trim(), address, password).also { user -> if (user.email != address) throw InvalidContract() }
+            } }
+            val profile = ServerProfile(UUID.randomUUID().toString(), origin)
+            try {
+                val user = protect(isLogin = true) { signIn(profile, address, password, created?.id, version) }
+                RegistrationResult(user, signedIn = true)
+            } catch (failure: AppFailure) {
+                if (created == null) throw failure
+                RegistrationResult(created, signedIn = false, signInFailure = failure.message)
+            }
+        }
+    }
+
     override suspend fun selectServer(profileId: String) = mutex.withLock {
         protect {
             loadSettings()
@@ -460,6 +494,63 @@ internal class DefaultFoundationRepository(
         }
     }
 
+    /** Permanently deletes the signed-in account on the server, then removes its local session. */
+    override suspend fun deleteAccount(password: String) = mutex.withLock {
+        protect {
+            loadSettings()
+            if (password.isEmpty() || password.length > 1024) throw AppFailure(
+                FailureKind.VALIDATION, "Введите пароль текущего аккаунта.")
+            val profile = selected()
+            val context = active?.takeIf { it.scope.origin == profile.origin && it.scope.accountId == profile.accountId }
+                ?: throw AppFailure(FailureKind.SESSION_EXPIRED, "Войдите в аккаунт ещё раз перед удалением.")
+            try {
+                api.deleteAccount(profile.origin, context.token, context.jar, password)
+            } catch (failure: HttpFailure) {
+                if (failure.statusCode == 401) {
+                    if (context.jar.stored() == null) { expire(context); throw failure }
+                    try {
+                        val fresh = api.refresh(context.scope.origin, context.jar)
+                        if (fresh.user.id != context.scope.accountId) throw InvalidContract()
+                        credentials.write(context.scope, context.jar.stored() ?: throw InvalidContract())
+                        context.token = fresh.token
+                    } catch (refreshFailure: HttpFailure) {
+                        if (refreshFailure.statusCode == 401) expire(context)
+                        throw refreshFailure
+                    } catch (invalid: InvalidContract) {
+                        expire(context)
+                        throw invalid
+                    }
+                    // Never retry a destructive request automatically.
+                    throw AppFailure(FailureKind.CONFLICT, "Сессия обновлена. Подтвердите удаление ещё раз.")
+                }
+                throw when (failure.statusCode) {
+                    422 -> AppFailure(FailureKind.INVALID_CREDENTIALS, "Неверный пароль. Аккаунт не удалён.")
+                    409 -> AppFailure(FailureKind.CONFLICT, "Сначала завершите активные встречи и звонки и передайте владение группами.")
+                    else -> failure
+                }
+            }
+
+            val scope = profile.scope()
+            clearMemory()
+            var cleanupFailed = false
+            withContext(NonCancellable) {
+                try { scope?.let { credentials.delete(it) } } catch (_: Exception) { cleanupFailed = true }
+                val remaining = state.value.profiles.filterNot { it.id == profile.id }
+                val nextId = remaining.firstOrNull { it.accountId != null }?.id ?: remaining.firstOrNull()?.id
+                val cleared = state.value.copy(profiles = remaining, selectedProfileId = nextId, version = null, session = null)
+                mutableState.value = cleared
+                try { persist(cleared) } catch (_: Exception) { cleanupFailed = true }
+            }
+            // Deletion is already confirmed. A failure while restoring another account must not
+            // make the UI claim that the deleted account still exists.
+            try { if (state.value.selectedProfileId != null) restoreCurrent(probe = true) }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { mutableState.value = state.value.copy(version = null, session = null) }
+            if (cleanupFailed) throw AppFailure(FailureKind.STORAGE,
+                "Аккаунт удалён на сервере, но локальную сессию не удалось очистить. Очистите данные приложения.")
+        }
+    }
+
     override suspend fun login(email: String, password: String) = mutex.withLock {
         protect(isLogin = true) {
             loadSettings()
@@ -474,6 +565,7 @@ internal class DefaultFoundationRepository(
                 mutableState.value = state.value.copy(version = api.version(profile.origin))
             }
             signIn(profile, address, password)
+            Unit
         }
     }
 
@@ -505,24 +597,44 @@ internal class DefaultFoundationRepository(
         }
     }
 
-    private suspend fun signIn(profile: ServerProfile, address: String, password: String, expectedUserId: String? = null) {
+    private suspend fun signIn(profile: ServerProfile, address: String, password: String, expectedUserId: String? = null,
+        version: ServerVersion? = null): User {
         val jar = SessionCookieJar(profile.origin)
-        val signedIn = api.login(profile.origin, address, password, jar)
-        if (expectedUserId != null && signedIn.user.id != expectedUserId) throw InvalidContract()
-        val candidate = AuthContext(SessionScope(profile.origin, signedIn.user.id), signedIn.token, jar)
-        val user = authenticatedGet(candidate) { api.me(profile.origin, candidate.token, jar) }
-        if (user.id != candidate.scope.accountId) throw InvalidContract()
-        val capabilities = authenticatedGet(candidate) { api.capabilities(profile.origin, candidate.token, jar) }
-        val stored = jar.stored()
-        val updatedProfile = profile.copy(accountId = user.id, accountEmail = user.email)
-        if (stored != null) credentials.write(candidate.scope, stored) else credentials.delete(candidate.scope)
-        profile.scope()?.takeIf { it != candidate.scope }?.let { credentials.delete(it) }
-        persist(state.value.copy(
-            profiles = state.value.profiles.map { if (it.id == profile.id) updatedProfile else it },
-            session = AccountSession(user, capabilities, stored != null),
-        ))
-        clearMemory(clearSessionState = false)
-        active = candidate
+        try {
+            val signedIn = api.login(profile.origin, address, password, jar)
+            if (expectedUserId != null && signedIn.user.id != expectedUserId) throw InvalidContract()
+            val candidate = AuthContext(SessionScope(profile.origin, signedIn.user.id), signedIn.token, jar)
+            val user = authenticatedGet(candidate) { api.me(profile.origin, candidate.token, jar) }
+            if (user.id != candidate.scope.accountId) throw InvalidContract()
+            val capabilities = authenticatedGet(candidate) { api.capabilities(profile.origin, candidate.token, jar) }
+            val stored = jar.stored()
+            val updatedProfile = profile.copy(accountId = user.id, accountEmail = user.email, accountName = user.displayLabel)
+            val otherProfiles = state.value.profiles.filterNot {
+                it.id == profile.id || it.origin == profile.origin && (it.accountId == user.id || it.accountId == null)
+            }
+            // Commit the credential and profile together; cancellation cannot leave half an identity.
+            withContext(NonCancellable) {
+                val previousCredential = credentials.read(candidate.scope)
+                try {
+                    if (stored != null) credentials.write(candidate.scope, stored) else credentials.delete(candidate.scope)
+                    persist(state.value.copy(
+                        profiles = otherProfiles + updatedProfile, selectedProfileId = profile.id, version = version ?: state.value.version,
+                        session = AccountSession(user, capabilities, stored != null),
+                    ))
+                } catch (failure: Exception) {
+                    try {
+                        if (previousCredential != null) credentials.write(candidate.scope, previousCredential) else credentials.delete(candidate.scope)
+                    } catch (_: Exception) { throw storageFailure() }
+                    throw failure
+                }
+                clearMemory(clearSessionState = false)
+                active = candidate
+                profile.scope()?.takeIf { it != candidate.scope }?.let { credentials.delete(it) }
+            }
+            return user
+        } finally {
+            if (active?.jar !== jar) jar.clear()
+        }
     }
 
     override suspend fun restore() = mutex.withLock {
@@ -556,7 +668,7 @@ internal class DefaultFoundationRepository(
                 withContext(NonCancellable) {
                     clearMemory()
                     val cleared = state.value.copy(profiles = state.value.profiles.map {
-                        if (it.id == profile.id) it.copy(accountId = null, accountEmail = null) else it
+                        if (it.id == profile.id) it.copy(accountId = null, accountEmail = null, accountName = null) else it
                     })
                     mutableState.value = cleared
                     // Try both durable protections. A failed file deletion must not leave a profile
@@ -596,7 +708,7 @@ internal class DefaultFoundationRepository(
             val fresh = jar.stored() ?: throw InvalidContract()
             credentials.write(scope, fresh)
             persist(state.value.copy(
-                profiles = state.value.profiles.map { if (it.id == profile.id) it.copy(accountEmail = user.email) else it },
+                profiles = state.value.profiles.map { if (it.id == profile.id) it.copy(accountEmail = user.email, accountName = user.displayLabel) else it },
                 session = AccountSession(user, capabilities, supportsPersistentSession = true),
             ))
             active = candidate
@@ -631,9 +743,11 @@ internal class DefaultFoundationRepository(
         val saved = preferences.read()
         // Treat a corrupt/hand-edited profile file as unavailable, never as a credential routing source.
         if (saved.profiles.map { it.id }.distinct().size != saved.profiles.size ||
-            saved.profiles.map { it.origin }.distinct().size != saved.profiles.size ||
+            saved.profiles.filter { it.accountId != null }.let { accounts -> accounts.map { it.origin to it.accountId }.distinct().size != accounts.size } ||
             saved.profiles.any { it.id.isBlank() || ServerOrigin.normalize(it.origin) != it.origin ||
-                it.accountId?.let { id -> id.isBlank() || id.length > 128 || id.any(Char::isISOControl) } == true }) throw storageFailure()
+                it.accountId?.let { id -> id.isBlank() || id.length > 128 || id.any(Char::isISOControl) } == true ||
+                it.accountEmail?.let { email -> email.length > 254 || email.any(Char::isISOControl) } == true ||
+                it.accountName?.let { name -> name.length > 256 || name.any(Char::isISOControl) } == true }) throw storageFailure()
         mutableState.value = RepositoryState(saved.profiles,
             saved.selectedProfileId?.takeIf { id -> saved.profiles.any { it.id == id } }, theme = saved.theme)
         initialized = true
@@ -696,4 +810,6 @@ internal class DefaultFoundationRepository(
         val jar: SessionCookieJar,
         var refreshed: Boolean = false,
     )
+
+    private companion object { const val MAX_ACCOUNTS_PER_SERVER = 5 }
 }

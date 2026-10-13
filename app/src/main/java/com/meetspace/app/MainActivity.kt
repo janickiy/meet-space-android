@@ -234,13 +234,24 @@ class MainActivity : ComponentActivity() {
                                     if (intent.action == MessagingNotifications.OPEN_INBOX) setIntent(Intent(intent).setAction(null))
                                 })
                             else if (tab == com.meetspace.app.ui.WorkspaceTab.PROFILE) SettingsHost(pushState, content = { settings, settingsActions ->
+                                val changeAccount: (() -> Unit) -> Unit = { action ->
+                                    when {
+                                        directSession.active -> directCalls.message("Сначала завершите личный звонок, чтобы изменить аккаунт.")
+                                        callState.visible -> meetSpace.callEngine.message("Сначала завершите встречу, чтобы изменить аккаунт.")
+                                        else -> action()
+                                    }
+                                }
                                 ProfileWorkspace(state.repository, meetingsState, meetingsModel.actions, settings, settingsActions,
                                     busy = state.busy, onTheme = model::theme,
                                     onLogout = { recordingsModel.close(); meetingsModel.suspendWork(); messagingModel.suspendWork(); meetSpace.messagingNotifications.clear(); model.logout() },
                                     onServers = { model.navigate(FoundationScreen.CONNECT) },
                                     onFolders = { foldersRequested.value = true; onTab(com.meetspace.app.ui.WorkspaceTab.MESSAGES) },
                                     messaging = messagingState, messagingActions = messagingModel.actions,
-                                    onServerAddress = { origin -> recordingsModel.close(); meetingsModel.suspendWork(); messagingModel.suspendWork(); model.connect(origin) })
+                                    onServerAddress = { origin -> recordingsModel.close(); meetingsModel.suspendWork(); messagingModel.suspendWork(); model.connect(origin) },
+                                    onSelectAccount = { id -> changeAccount { model.selectProfile(id) } },
+                                    initialSection = state.accountSection, registeredAccountEmail = state.accountCreatedEmail,
+                                    onAddAccount = { url, email, password, name, confirmation -> changeAccount { model.addAccount(url, email, password, name, confirmation) } },
+                                    onDeleteAccount = { password -> changeAccount { model.deleteAccount(password) } })
                             }) { openInbox.value = true; onTab(com.meetspace.app.ui.WorkspaceTab.MESSAGES) }
                             else {
                                 MeetingsWorkspace(tab, meetingsState, state.repository, meetingsModel.actions.copy(call = { meeting ->

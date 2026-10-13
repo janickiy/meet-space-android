@@ -1,0 +1,43 @@
+{
+  "apk": "/Users/aleksandranickij/htdocs/Android/dist/MeetSpace-0.2.0-beta.apk",
+  "variant": "debug",
+  "versionName": "0.2.0-beta",
+  "versionCode": 17,
+  "sizeBytes": 78176769,
+  "sha256": "5d4f793c3a0adcdbce582edbf3b7a6cbd23161450716f2f29318131775304ba2",
+  "signatureVerified": true,
+  "sameSignerAsPreviousApk": true,
+  "jvmTests": {
+    "app": {
+      "tests": 163,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    "core/data": {
+      "tests": 169,
+      "skipped": 12,
+      "failures": 0,
+      "errors": 0
+    }
+  },
+  "lint": {
+    "Error": 0,
+    "Warning": 55
+  },
+  "androidTests": {
+    "passed": 19,
+    "skipped": 4,
+    "failed": 0,
+    "screenshotRunsPassed": 8,
+    "emulator": "MeetSpace_Tablet_API_36",
+    "viewportDp": [
+      "390x844",
+      "1194x834"
+    ]
+  },
+  "notVerified": [
+    "Live-backend account registration/switch/deletion E2E",
+    "Physical Android device"
+  ]
+}

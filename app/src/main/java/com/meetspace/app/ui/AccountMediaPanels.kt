@@ -173,14 +173,8 @@ fun AccountNotificationSound(actions: AppSettingsActions) {
         NotificationManagerCompat.from(context).areNotificationsEnabled() && sound != null && (channel == null || channel.importance != NotificationManager.IMPORTANCE_NONE)
     }
     Column(Modifier.fillMaxWidth().testTag("account-notification-sound")) {
-        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).toggleable(audible, role = Role.Checkbox, onValueChange = { openAccountSoundSettings(context, actions) }).testTag("account-sound-enabled"), verticalAlignment = Alignment.CenterVertically) {
-            Checkbox(audible, null)
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text("Звуковой сигнал", fontSize = 13.4.sp, lineHeight = 21.sp)
-                Text("Управляется в настройках уведомлений Android", fontSize = 11.5.sp, lineHeight = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
+        AccountToggle("Звуковой сигнал", audible, { openAccountSoundSettings(context, actions) },
+            hint = "Управляется в настройках уведомлений Android", tag = "account-sound-enabled")
         DeviceTestRow("ringtone", Icons.Outlined.VolumeUp, "Проверить звук", probe) {
             if (probe.kind == AudioProbeKind.RINGTONE) probe.stop() else probe.ringtone(sound)
         }
