@@ -1,0 +1,225 @@
+{
+  "at": 1791695065,
+  "completedPhases": [
+    "docker",
+    "source",
+    "images",
+    "configuration",
+    "dependencies",
+    "backup",
+    "migrations",
+    "https",
+    "services",
+    "readiness"
+  ],
+  "errorCode": null,
+  "events": [
+    {
+      "at": 1791694972,
+      "errorCode": null,
+      "phase": "queued",
+      "sequence": 1,
+      "state": "running"
+    },
+    {
+      "at": 1791694972,
+      "errorCode": null,
+      "phase": "docker",
+      "sequence": 2,
+      "state": "running"
+    },
+    {
+      "at": 1791694972,
+      "errorCode": null,
+      "phase": "docker",
+      "sequence": 3,
+      "state": "running"
+    },
+    {
+      "at": 1791694972,
+      "errorCode": null,
+      "phase": "source",
+      "sequence": 4,
+      "state": "running"
+    },
+    {
+      "at": 1791695028,
+      "errorCode": null,
+      "phase": "source",
+      "sequence": 5,
+      "state": "running"
+    },
+    {
+      "at": 1791695028,
+      "errorCode": null,
+      "phase": "images",
+      "sequence": 6,
+      "state": "running"
+    },
+    {
+      "at": 1791695035,
+      "errorCode": null,
+      "phase": "images:api",
+      "sequence": 7,
+      "state": "running"
+    },
+    {
+      "at": 1791695036,
+      "errorCode": null,
+      "phase": "images:media-worker",
+      "sequence": 8,
+      "state": "running"
+    },
+    {
+      "at": 1791695036,
+      "errorCode": null,
+      "phase": "images:worker",
+      "sequence": 9,
+      "state": "running"
+    },
+    {
+      "at": 1791695036,
+      "errorCode": null,
+      "phase": "images:product-worker",
+      "sequence": 10,
+      "state": "running"
+    },
+    {
+      "at": 1791695036,
+      "errorCode": null,
+      "phase": "images:live-worker",
+      "sequence": 11,
+      "state": "running"
+    },
+    {
+      "at": 1791695037,
+      "errorCode": null,
+      "phase": "images:frontend",
+      "sequence": 12,
+      "state": "running"
+    },
+    {
+      "at": 1791695037,
+      "errorCode": null,
+      "phase": "images:minio",
+      "sequence": 13,
+      "state": "running"
+    },
+    {
+      "at": 1791695037,
+      "errorCode": null,
+      "phase": "images",
+      "sequence": 14,
+      "state": "running"
+    },
+    {
+      "at": 1791695037,
+      "errorCode": null,
+      "phase": "configuration",
+      "sequence": 15,
+      "state": "running"
+    },
+    {
+      "at": 1791695038,
+      "errorCode": null,
+      "phase": "configuration",
+      "sequence": 16,
+      "state": "running"
+    },
+    {
+      "at": 1791695038,
+      "errorCode": null,
+      "phase": "dependencies",
+      "sequence": 17,
+      "state": "running"
+    },
+    {
+      "at": 1791695046,
+      "errorCode": null,
+      "phase": "dependencies",
+      "sequence": 18,
+      "state": "running"
+    },
+    {
+      "at": 1791695046,
+      "errorCode": null,
+      "phase": "backup",
+      "sequence": 19,
+      "state": "running"
+    },
+    {
+      "at": 1791695046,
+      "errorCode": null,
+      "phase": "backup",
+      "sequence": 20,
+      "state": "running"
+    },
+    {
+      "at": 1791695046,
+      "errorCode": null,
+      "phase": "migrations",
+      "sequence": 21,
+      "state": "running"
+    },
+    {
+      "at": 1791695047,
+      "errorCode": null,
+      "phase": "migrations",
+      "sequence": 22,
+      "state": "running"
+    },
+    {
+      "at": 1791695047,
+      "errorCode": null,
+      "phase": "https",
+      "sequence": 23,
+      "state": "running"
+    },
+    {
+      "at": 1791695050,
+      "errorCode": null,
+      "phase": "https",
+      "sequence": 24,
+      "state": "running"
+    },
+    {
+      "at": 1791695050,
+      "errorCode": null,
+      "phase": "services",
+      "sequence": 25,
+      "state": "running"
+    },
+    {
+      "at": 1791695064,
+      "errorCode": null,
+      "phase": "services",
+      "sequence": 26,
+      "state": "running"
+    },
+    {
+      "at": 1791695064,
+      "errorCode": null,
+      "phase": "readiness",
+      "sequence": 27,
+      "state": "running"
+    },
+    {
+      "at": 1791695065,
+      "errorCode": null,
+      "phase": "readiness",
+      "sequence": 28,
+      "state": "running"
+    },
+    {
+      "at": 1791695065,
+      "errorCode": null,
+      "phase": "readiness",
+      "sequence": 29,
+      "state": "completed"
+    }
+  ],
+  "jobId": "01558ea5-76b0-4d29-af59-fe4cc91776fe",
+  "phase": "readiness",
+  "sequence": 29,
+  "state": "completed"
+}

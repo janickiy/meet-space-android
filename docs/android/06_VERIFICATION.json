@@ -1,0 +1,157 @@
+{
+  "date": "2026-10-11",
+  "versionName": "0.6.0",
+  "versionCode": 5,
+  "backendCommit": "6ecd8b648a2aa94fc9bcc844d57784423e2c6f69",
+  "environment": "Android 16 API 36 ARM64 emulator; emulated cameras and silent Opus; real HTTPS/WSS/Pion SFU/TURN/Redis/PostgreSQL",
+  "jvm": {
+    "total": {
+      "tests": 173,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "modules": {
+      "app": {
+        "tests": 44,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "core/ssh": {
+        "tests": 57,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "core/data": {
+        "tests": 58,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "core/media": {
+        "tests": 14,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    }
+  },
+  "androidUi": {
+    "tabletTestsPassed": 40,
+    "compactFont150TestsPassed": 5,
+    "finalChangedCallTestsTabletPassed": 5
+  },
+  "liveMedia": {
+    "uniqueScenariosPassed": [
+      "nativeCameraRelayReconnectAndCleanup",
+      "screenConsentBackgroundAndStop",
+      "lostNetworkReconnectsWithDevicesOff",
+      "unreachableTurnFailsAndRetryRecovers",
+      "deniedCameraAllowsListening"
+    ],
+    "participantCounts": [
+      2,
+      5
+    ],
+    "forcedAndroidTurnRelayVerified": true,
+    "decodedVp8AndReceivedOpusVerified": true,
+    "realMediaProjectionPublished": true,
+    "remoteScreenSourceReceivedAndRendered": true,
+    "portraitLandscapeAndActivityRecreationVerified": true,
+    "networkFailureMethod": "emulator Wi-Fi and mobile data disabled/re-enabled; not physical Wi-Fi/cellular handover",
+    "twoPeerEvidence": "evidence/06/two-peer-media.txt",
+    "fivePeerEvidence": "evidence/06/stage06-native-evidence.txt",
+    "screenRtpEvidence": "evidence/06/five-peer-pion-receivers.json",
+    "remoteScreenEvidence": "evidence/06/remote-screen-media.txt",
+    "cleanupCounters": {
+      "roomsActive": 0,
+      "mediaPeersActive": 0,
+      "tracksPublished": 0,
+      "subscriptions": 0,
+      "peerConnectionTotal": 49,
+      "peerConnectionFailures": 1,
+      "relayConnections": 19,
+      "directConnections": 25,
+      "packetsForwarded": 48277,
+      "bytesForwarded": 19662101,
+      "packetsDropped": 0,
+      "recordingOutputs": 0,
+      "recordingDrops": 0,
+      "audioTaps": 0,
+      "audioTapDrops": 0
+    }
+  },
+  "build": {
+    "debug": true,
+    "debugAndroidTest": true,
+    "minifiedUnsignedRelease": true,
+    "lintErrors": 0,
+    "lintWarnings": 23,
+    "lintWarningCategories": "dependency and build tooling updates only",
+    "debugApkSignature": "v2 verified",
+    "apkZip16KiBAlignment": "debug and release verified",
+    "native64BitElf16KiBAlignment": true
+  },
+  "artifacts": [
+    {
+      "path": "app/build/outputs/apk/debug/app-debug.apk",
+      "bytes": 71382677,
+      "sha256": "ad189e3699d92f1fb1f761be1ee84f34e25c18c445b7bf7477d0b9f791378b51",
+      "fixtureSecretsAbsent": true,
+      "privateFilesAbsent": true,
+      "installerAssetsUnchanged": 5,
+      "webRtcLicensesPresent": true
+    },
+    {
+      "path": "app/build/outputs/apk/release/app-release-unsigned.apk",
+      "bytes": 50471939,
+      "sha256": "7d7e43298b82f253c00db9ab6adcb105447fb036855b4de57c106d6c95fdfa7c",
+      "fixtureSecretsAbsent": true,
+      "privateFilesAbsent": true,
+      "installerAssetsUnchanged": 5,
+      "webRtcLicensesPresent": true
+    }
+  ],
+  "cleanup": {
+    "privateFixtureRemoved": true,
+    "fixturePortsFree": [
+      15466,
+      18466,
+      16366,
+      18966,
+      50166,
+      13466
+    ],
+    "mediaProjectionActive": false,
+    "foregroundServicesActive": false,
+    "privateAndroidTestFilesRemoved": true,
+    "userDockerContainersPreserved": true,
+    "fixtureStartStopReproduced": true,
+    "restoredEmulator": {
+      "size": "Physical size: 2560x1600",
+      "density": "Physical density: 320",
+      "fontScale": "1.0",
+      "wifi": "1",
+      "mobileData": "1"
+    }
+  },
+  "notVerified": [
+    "physical cameras/microphone and audio quality",
+    "Bluetooth classic/BLE/wired/USB on physical devices",
+    "physical Wi-Fi/LTE/5G handover",
+    "Android API 26–35",
+    "real 16KiB-page hardware runtime",
+    "long-duration thermal/background sessions",
+    "actual system multiwindow and PiP",
+    "production server calls",
+    "installed minified release runtime"
+  ],
+  "outOfScope": [
+    "chat",
+    "recordings",
+    "system-audio screen capture",
+    "publication signing"
+  ]
+}

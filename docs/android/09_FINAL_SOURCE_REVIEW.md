@@ -1,0 +1,25 @@
+# Независимый review финальных изменений исходников
+
+Проверка 2026-10-11, read-only. Область: изменённые production-пути относительно SHA-инвентаризации `.audit/stage09/source-before.json`, с отдельным разбором владения WSS в `CallEngine` и освобождения `RecordingPlayer`. Новые сборки, Gradle, adb, эмулятор и сетевые эксперименты в рамках этого review не запускались. Фактические функциональные/heap результаты ведутся отдельно в [09_LIFECYCLE_AUDIT.md](09_LIFECYCLE_AUDIT.md) и [09_TESTING.md](09_TESTING.md).
+
+## Результат
+
+Новых actionable дефектов в рассмотренных исправлениях не обнаружено. Это заключение о коде и границах владения ресурсами, а не дополнительный runtime PASS.
+
+| Изменение | Проверенный путь | Вывод и предел |
+| --- | --- | --- |
+| `CallEngine.open()` | `repository.openCall()` → присвоение `signaling` → `CallProtocol.ice()`; ошибка connect попадает в `fail()` → `disposeAll()` → `closeNetwork()` | Уже созданный signaling принадлежит cleanup даже при отклонённой ICE-конфигурации. В reconnect исключение снова проходит через `reconnect()`/`closeNetwork()`. Production `ScopedCallSignaling.close()` идемпотентно закрывает канал, закрывает/отменяет OkHttp WebSocket. Это не доказывает, что каждый тестовый вызов `newWebSocket` успел завершить handshake. |
+| Порядок открытия/повтора звонка | Connect допускается из PREJOIN/FAILED; failed cleanup и reconnect закрывают предыдущую сеть; callbacks сверяют generation | Перенос присвоения не создаёт нового пути наложения двух принадлежащих engine signaling-сессий. Восстановление прежнего порядка строк и удаление нового комментария даёт точный SHA baseline `CallEngine.kt`: это подтверждает узкую область изменения. |
+| `RecordingPlayer` disposal | Сначала сохранены `currentPosition` и `playWhenReady`; затем удалены observer/listener приложения; `stop()` выполняется перед `release()` в `finally` | Значения для следующего player сохранены до изменения его состояния. `release()` вызывается и при исключении `stop()`. Этот review не повторяет измерение timer retention Media3; основание и результаты приведены в lifecycle audit. |
+| Пауза, фон, recreation | Listener сохраняет пользовательский `playWhenReady`; ON_STOP сохраняет позицию и ставит паузу вне configuration change; retained `RecordingPlayback` передаёт позицию/флаг новому player | Новый cleanup не меняет сохранённый пользовательский выбор: listener удалён до `stop()`. При обычном уходе в фон пауза остаётся, при recreation используется сохранённое состояние. Функциональные pause/seek/rotation утверждения требуют отдельного реального теста. |
+| View/lease | `AndroidView.onRelease` убирает player и keepScreenOn; ExoPlayer использует applicationContext; VM закрывает lease при закрытии playback/смене scope | Configuration recreation освобождает старый player, сохраняя VM-owned доступ для нового. Явное закрытие/смена scope закрывают capability. Порядок stop/release не расширяет доступ к данным и не передаёт signed URL в UI. |
+
+Ранее в этом этапе отдельно просмотрены атомарная публикация installer и foreground gate: полный bundle/plan/state/marker готовится до rename, чужой непустой/symlink ROOT не присваивается; observation generation и `ensureActive()` отвергают поздние результаты отменённого SSH poll. Новых замечаний в этих изменениях review не выявил. Полноценный Linux power-loss/systemd rehearsal и фоновые battery/network измерения этим не заменяются.
+
+## SHA-инвентаризация и её границы
+
+[source-after.json](evidence/09/source-after.json) содержит только относительные пути и SHA-256 публичных исходников/конфигурации на момент снимка. [source-changes.json](evidence/09/source-changes.json) содержит baseline hash, текущий hash и статус для исходно охваченных файлов, а также отдельный перечень current-only файлов. Никакие credential values, heap dumps, device logs, исходные тексты или приватные абсолютные пути не экспортируются.
+
+Первичная инвентаризация содержала 140 entries и не охватывала `app/src/test`, `app/src/androidTest`, `.github` и документацию `docs/android`. Поэтому отсутствие этих путей в baseline **не означает**, что файлы добавлены на этапе09. Они обозначены `outside-baseline-coverage`; файлы внутри охваченных деревьев, которых нет в исходной карте, обозначены `not-present-in-baseline`, без утверждения об их дате создания. Два `.DS_Store` исключены из опубликованного source comparison как служебные metadata. Generated build outputs, `.audit`, caches, machine-specific `local.properties`, Firebase/keystore inputs и docs evidence не входят в снимок.
+
+Baseline SHA доказывает изменение файла, но не восстанавливает исходный текст. Для `CallEngine` точная реконструкция узкой правки проверена хешем; для `RecordingPlayer` заявленный stop/release фрагмент сам по себе не реконструировал baseline SHA, поэтому полный textual diff не утверждается. Проверены текущий код disposal и связанные неизменённые VM/data-пути. Снимок фиксирует момент проверки; последующее редактирование требует нового согласованного снимка и не должно тихо менять исторические результаты.

@@ -1,0 +1,24 @@
+{
+  "backendCommit": "6ecd8b648a2aa94fc9bcc844d57784423e2c6f69",
+  "transport": "HTTPS with test-fixture CA and normal hostname verification",
+  "api": "Actual backend Gin handlers/auth JWT/session middleware and PostgreSQL repositories with real migrations",
+  "tests": 1,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "timeSeconds": 0.282,
+  "verified": [
+    "Two normal authenticated accounts",
+    "Owner-only transitions and resource access denial",
+    "Create/read/start/join/leave/finish",
+    "History and recording counts",
+    "Waiting-room flag and valid-invite immediate admission",
+    "Invalid active cancellation returns409",
+    "Create/schedule/future range and cancellation",
+    "Past cursor pagination without duplicate IDs",
+    "Profile displayName",
+    "Durable cookie refresh and restore",
+    "Remote logout and local credential erasure"
+  ],
+  "scope": "Disposable localhost staging only; public server unchanged"
+}

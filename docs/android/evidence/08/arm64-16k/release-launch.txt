@@ -1,0 +1,7 @@
+Starting: Intent { cmp=com.meetspace.app/.MainActivity }
+Status: ok
+LaunchState: COLD
+Activity: com.meetspace.app/.MainActivity
+TotalTime: 297
+WaitTime: 305
+Complete

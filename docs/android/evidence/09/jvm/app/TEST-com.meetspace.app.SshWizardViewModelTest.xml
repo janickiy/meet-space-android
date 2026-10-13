@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.meetspace.app.SshWizardViewModelTest" tests="10" skipped="0" failures="0" errors="0" timestamp="2026-10-11T16:25:07.026Z" hostname="MacBook-Air-janickiy.local" time="0.047">
+  <testcase name="changedHostCannotBeConfirmedOrAuthenticated" classname="com.meetspace.app.SshWizardViewModelTest" time="0.011" />
+  <testcase name="privateKeyImportRejectsOversizedFileAndClosesStream" classname="com.meetspace.app.SshWizardViewModelTest" time="0.01" />
+  <testcase name="cancelledPreflightDestroysOperationCredentialsAndDoesNotPublishResult" classname="com.meetspace.app.SshWizardViewModelTest" time="0.002" />
+  <testcase name="genericFailureDoesNotExposeRawException" classname="com.meetspace.app.SshWizardViewModelTest" time="0.009" />
+  <testcase name="importedKeyIsClearedOnBackAndCannotAuthenticateLater" classname="com.meetspace.app.SshWizardViewModelTest" time="0.004" />
+  <testcase name="hostKeyChangeDuringAuthReturnsBothFingerprintsAndBlocksRetry" classname="com.meetspace.app.SshWizardViewModelTest" time="0.001" />
+  <testcase name="firstHostRequiresExplicitTrustBeforeCredentials" classname="com.meetspace.app.SshWizardViewModelTest" time="0.001" />
+  <testcase name="cancellingChangedKeyReprobeCannotReenableTrustedAuthentication" classname="com.meetspace.app.SshWizardViewModelTest" time="0.001" />
+  <testcase name="successfulPreflightDestroysCredentialsAndReturnsStructuredReport" classname="com.meetspace.app.SshWizardViewModelTest" time="0.006" />
+  <testcase name="invalidInputsNeverStartHandshake" classname="com.meetspace.app.SshWizardViewModelTest" time="0.001" />
+  </testsuite>

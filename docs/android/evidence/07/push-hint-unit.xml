@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.meetspace.app.PushHintTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-10-11T13:57:31.983Z" hostname="MacBook-Air-janickiy.local" time="0.018">
+  <properties/>
+  <testcase name="oversized malformed and control character payloads are dropped" classname="com.meetspace.app.PushHintTest" time="0.011"/>
+  <testcase name="foreign origin user info insecure transport and misleading host never authorize a hint" classname="com.meetspace.app.PushHintTest" time="0.001"/>
+  <testcase name="unexpected resources invalid ids extra query and fragments are rejected" classname="com.meetspace.app.PushHintTest" time="0.004"/>
+  <testcase name="actual gateway conference link and conversation extension are accepted as hints" classname="com.meetspace.app.PushHintTest" time="0.002"/>
+  <testcase name="explicit default TLS port is same origin and alternate server port must match" classname="com.meetspace.app.PushHintTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

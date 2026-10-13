@@ -1,0 +1,1493 @@
+{
+  "schemaVersion": 1,
+  "verifiedAtUtc": "2026-10-11T16:54:09.377784+00:00",
+  "expectedApplication": {
+    "package": "com.meetspace.app",
+    "versionName": "0.9.0",
+    "versionCode": 8
+  },
+  "tools": {
+    "androidBuildTools": "35.0.0",
+    "bundletoolVersion": "1.18.3",
+    "bundletoolSha256": "a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29"
+  },
+  "scope": "Packaging and known-private-material checks of current unsigned release outputs. No publication, permanent signing identity, complete vulnerability scan or runtime compatibility claim.",
+  "privateScan": {
+    "knownInputFilesChecked": 31,
+    "needlesChecked": 588,
+    "limitation": "Clean CI has no local private fixture credentials; only available known values and test markers are scanned. This is not an exhaustive secret audit."
+  },
+  "artifacts": [
+    {
+      "variant": "debug",
+      "path": "app/build/outputs/apk/debug/app-debug.apk",
+      "bytes": 82468478,
+      "sha256": "721cd11273e9d60984a195922d34a77196c86c20e6774d88c56dead48b288864",
+      "zipalign16KiB": {
+        "passed": true,
+        "exitCode": 0
+      },
+      "signature": {
+        "verified": true,
+        "expected": "debug",
+        "apkSigningBlockPresent": true,
+        "v2Verified": true,
+        "certificateSha256": "5472281448cf33dea7fe8a4b119683701cd43815d5e038bb34fad92e22b1e471",
+        "debugCertificate": true,
+        "confirmedUnsigned": false
+      },
+      "manifest": {
+        "package": "com.meetspace.app",
+        "versionName": "0.9.0",
+        "versionCode": 8,
+        "allowBackup": false,
+        "usesCleartextTraffic": false,
+        "debuggable": true,
+        "fcmServicePresent": true,
+        "fcmServiceEnabled": false,
+        "fcmServiceExported": false,
+        "fcmFallbackServiceAbsent": true,
+        "disabledFirebaseMetadata": {
+          "firebase_messaging_auto_init_enabled": true,
+          "firebase_messaging_notification_delegation_enabled": true,
+          "delivery_metrics_exported_to_big_query_enabled": true,
+          "firebase_analytics_collection_enabled": true
+        },
+        "broadStoragePermissionsAbsent": true,
+        "permissions": [
+          "android.permission.ACCESS_NETWORK_STATE",
+          "android.permission.BLUETOOTH",
+          "android.permission.BLUETOOTH_CONNECT",
+          "android.permission.CAMERA",
+          "android.permission.FOREGROUND_SERVICE",
+          "android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION",
+          "android.permission.INTERNET",
+          "android.permission.MODIFY_AUDIO_SETTINGS",
+          "android.permission.POST_NOTIFICATIONS",
+          "android.permission.RECEIVE_BOOT_COMPLETED",
+          "android.permission.RECORD_AUDIO",
+          "android.permission.WAKE_LOCK",
+          "com.google.android.c2dm.permission.RECEIVE",
+          "com.meetspace.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+        ],
+        "instrumentationAbsent": true
+      },
+      "nativeLibraries": {
+        "count": 12,
+        "entries": [
+          {
+            "path": "lib/arm64-v8a/libandroidx.graphics.path.so",
+            "abi": "arm64-v8a",
+            "sha256": "41e9a793c43a0f4fddb19e33f346bace464f30f888ba7b9eaf96294ea115bfb6",
+            "storedUncompressed": true,
+            "loadSegments": [
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              }
+            ],
+            "allLoadSegmentsCompatibleWith16KiB": true,
+            "gnuRelroSegments": [
+              {
+                "endAddressModulo16KiB": 8192,
+                "aligned": false
+              }
+            ],
+            "allGnuRelroEndsAlignedTo16KiB": false
+          },
+          {
+            "path": "lib/arm64-v8a/libdatastore_shared_counter.so",
+            "abi": "arm64-v8a",
+            "sha256": "deed4546c8dafad0e68ea2c25e4c0a62ca97343614ae386b7ed2af6abb7fa999",
+            "storedUncompressed": true,
+            "loadSegments": [
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              }
+            ],
+            "allLoadSegmentsCompatibleWith16KiB": true,
+            "gnuRelroSegments": [
+              {
+                "endAddressModulo16KiB": 0,
+                "aligned": true
+              }
+            ],
+            "allGnuRelroEndsAlignedTo16KiB": true
+          },
+          {
+            "path": "lib/arm64-v8a/libjingle_peerconnection_so.so",
+            "abi": "arm64-v8a",
+            "sha256": "5d68547da3fad7679846187577a0333c10d9ff4d39322bce61f366426924612e",
+            "storedUncompressed": true,
+            "loadSegments": [
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              }
+            ],
+            "allLoadSegmentsCompatibleWith16KiB": true,
+            "gnuRelroSegments": [
+              {
+                "endAddressModulo16KiB": 0,
+                "aligned": true
+              }
+            ],
+            "allGnuRelroEndsAlignedTo16KiB": true
+          },
+          {
+            "path": "lib/armeabi-v7a/libandroidx.graphics.path.so",
+            "abi": "armeabi-v7a",
+            "sha256": "41399eba6fc2a60f6f14642375c1824f3cf25eb8fec7397d753730a3ceda3e2b",
+            "storedUncompressed": true,
+            "loadSegments": [
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              }
+            ],
+            "allLoadSegmentsCompatibleWith16KiB": true,
+            "gnuRelroSegments": [
+              {
+                "endAddressModulo16KiB": 8192,
+                "aligned": false
+              }
+            ],
+            "allGnuRelroEndsAlignedTo16KiB": false
+          },
+          {
+            "path": "lib/armeabi-v7a/libdatastore_shared_counter.so",
+            "abi": "armeabi-v7a",
+            "sha256": "f51d0b6801896a20be66bd389a024f30be3284b757ac02377833d20e70b9c628",
+            "storedUncompressed": true,
+            "loadSegments": [
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              }
+            ],
+            "allLoadSegmentsCompatibleWith16KiB": true,
+            "gnuRelroSegments": [
+              {
+                "endAddressModulo16KiB": 0,
+                "aligned": true
+              }
+            ],
+            "allGnuRelroEndsAlignedTo16KiB": true
+          },
+          {
+            "path": "lib/armeabi-v7a/libjingle_peerconnection_so.so",
+            "abi": "armeabi-v7a",
+            "sha256": "58e3fd27ef738fb11a66f8d8548dc7aed4225986207d3b32b498125ce6735815",
+            "storedUncompressed": true,
+            "loadSegments": [
+              {
+                "alignmentBytes": 4096,
+                "compatibleWith16KiB": false
+              },
+              {
+                "alignmentBytes": 4096,
+                "compatibleWith16KiB": false
+              },
+              {
+                "alignmentBytes": 4096,
+                "compatibleWith16KiB": false
+              }
+            ],
+            "allLoadSegmentsCompatibleWith16KiB": false,
+            "gnuRelroSegments": [
+              {
+                "endAddressModulo16KiB": 0,
+                "aligned": true
+              }
+            ],
+            "allGnuRelroEndsAlignedTo16KiB": true
+          },
+          {
+            "path": "lib/x86/libandroidx.graphics.path.so",
+            "abi": "x86",
+            "sha256": "eb0570b41fd3bff25d8204a967c03bd7550719e768b791f680cc40cbe35f29af",
+            "storedUncompressed": true,
+            "loadSegments": [
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              }
+            ],
+            "allLoadSegmentsCompatibleWith16KiB": true,
+            "gnuRelroSegments": [
+              {
+                "endAddressModulo16KiB": 8192,
+                "aligned": false
+              }
+            ],
+            "allGnuRelroEndsAlignedTo16KiB": false
+          },
+          {
+            "path": "lib/x86/libdatastore_shared_counter.so",
+            "abi": "x86",
+            "sha256": "c38104bd173ef2e405d32e90ef753725c54aaeca08f2e9a57820df8782f4d790",
+            "storedUncompressed": true,
+            "loadSegments": [
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              }
+            ],
+            "allLoadSegmentsCompatibleWith16KiB": true,
+            "gnuRelroSegments": [
+              {
+                "endAddressModulo16KiB": 0,
+                "aligned": true
+              }
+            ],
+            "allGnuRelroEndsAlignedTo16KiB": true
+          },
+          {
+            "path": "lib/x86/libjingle_peerconnection_so.so",
+            "abi": "x86",
+            "sha256": "d14971f27acc4f4c242cc6b77f4077a665d45b3dff33b026c3c42a61fccb00e7",
+            "storedUncompressed": true,
+            "loadSegments": [
+              {
+                "alignmentBytes": 4096,
+                "compatibleWith16KiB": false
+              },
+              {
+                "alignmentBytes": 4096,
+                "compatibleWith16KiB": false
+              },
+              {
+                "alignmentBytes": 4096,
+                "compatibleWith16KiB": false
+              }
+            ],
+            "allLoadSegmentsCompatibleWith16KiB": false,
+            "gnuRelroSegments": [
+              {
+                "endAddressModulo16KiB": 0,
+                "aligned": true
+              }
+            ],
+            "allGnuRelroEndsAlignedTo16KiB": true
+          },
+          {
+            "path": "lib/x86_64/libandroidx.graphics.path.so",
+            "abi": "x86_64",
+            "sha256": "4e56c996f13670e70082658de7880c4020eabf4f25e43387f88ed78a713fc9f0",
+            "storedUncompressed": true,
+            "loadSegments": [
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              }
+            ],
+            "allLoadSegmentsCompatibleWith16KiB": true,
+            "gnuRelroSegments": [
+              {
+                "endAddressModulo16KiB": 12288,
+                "aligned": false
+              }
+            ],
+            "allGnuRelroEndsAlignedTo16KiB": false
+          },
+          {
+            "path": "lib/x86_64/libdatastore_shared_counter.so",
+            "abi": "x86_64",
+            "sha256": "c3973140a0e6144a83e7dd7ee3c4e161f42181591feda254e12c8395d3bbacd0",
+            "storedUncompressed": true,
+            "loadSegments": [
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              }
+            ],
+            "allLoadSegmentsCompatibleWith16KiB": true,
+            "gnuRelroSegments": [
+              {
+                "endAddressModulo16KiB": 0,
+                "aligned": true
+              }
+            ],
+            "allGnuRelroEndsAlignedTo16KiB": true
+          },
+          {
+            "path": "lib/x86_64/libjingle_peerconnection_so.so",
+            "abi": "x86_64",
+            "sha256": "6fa42eba21bcf4d02234d63e007b58966d9919d0d1eb0c887b8ef005964f7158",
+            "storedUncompressed": true,
+            "loadSegments": [
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              }
+            ],
+            "allLoadSegmentsCompatibleWith16KiB": true,
+            "gnuRelroSegments": [
+              {
+                "endAddressModulo16KiB": 8192,
+                "aligned": false
+              }
+            ],
+            "allGnuRelroEndsAlignedTo16KiB": false
+          }
+        ],
+        "all64BitLoadSegmentsCompatibleWith16KiB": true,
+        "all64BitGnuRelroEndsAlignedTo16KiB": false
+      },
+      "privateMaterial": {
+        "knownCredentialsCertificatesAndTestClassesAbsent": true,
+        "matchedEntryCount": 0,
+        "privateFixtureFilesAbsent": true,
+        "privateFilenameMatchCount": 0,
+        "googleServicesJsonAbsent": true
+      },
+      "installerAssets": [
+        {
+          "path": "assets/docker.asc",
+          "sha256": "1500c1f56fa9e26b9b8f42452a553675796ade0807cdce11975eb98170b3a570",
+          "matchesSource": true
+        },
+        {
+          "path": "assets/release.json",
+          "sha256": "0d441454b83bb4dc4ed0a742a01fc994485ae9a5acc745c23a3af748848b6da0",
+          "matchesSource": true
+        },
+        {
+          "path": "assets/release.sig",
+          "sha256": "5b838a294dfce97520ea9ea25112cf3e781c5d2d552c395b52fe713a79e675d7",
+          "matchesSource": true
+        },
+        {
+          "path": "assets/runner.py",
+          "sha256": "3d9b5baec40eeac4f9cb6243e9a6aa08b7aa0a7f46aced6d9719c32c140fba19",
+          "matchesSource": true
+        },
+        {
+          "path": "assets/trust-root.pem",
+          "sha256": "9f16201125cd17dc9fb90a7579e78589c76ecbfdb1ee80df3428ee34d6b90dfc",
+          "matchesSource": true
+        }
+      ],
+      "thirdPartyLicenses": [
+        {
+          "path": "assets/licenses/WEBRTC.md",
+          "sha256": "d1f9382c6878ac024155fd6d44a5977329108bb8b0a01cea40e4a2f1d7de252e",
+          "matchesSource": true
+        },
+        {
+          "path": "assets/licenses/jsch-LICENSE.txt",
+          "sha256": "9c3537ab0b485b391b887b95fdff761de3dd3273a6931e8a1942dde4d2093cc5",
+          "matchesSource": true
+        },
+        {
+          "path": "assets/licenses/webrtc-sdk-LICENSE.txt",
+          "sha256": "e6b282fe6c0fb353928923470457f31b44cbab203effd60c0cde4a5bb96c8aec",
+          "matchesSource": true
+        }
+      ],
+      "requiredThirdPartyLicenses": [
+        {
+          "path": "assets/licenses/jsch-LICENSE.txt",
+          "sha256": "9c3537ab0b485b391b887b95fdff761de3dd3273a6931e8a1942dde4d2093cc5",
+          "expectedSha256": "9c3537ab0b485b391b887b95fdff761de3dd3273a6931e8a1942dde4d2093cc5",
+          "matchesPinnedNotice": true
+        }
+      ],
+      "jarSignatureEntriesAbsent": true,
+      "expectedVersionCodeMatches": true,
+      "staticPackagingChecksPassed": true
+    },
+    {
+      "variant": "release",
+      "path": "app/build/outputs/apk/release/app-release-unsigned.apk",
+      "bytes": 52002471,
+      "sha256": "aec4056dd7f4055299048068d52351116c8f81e8f87fc231b8ca01e183ab2c59",
+      "zipalign16KiB": {
+        "passed": true,
+        "exitCode": 0
+      },
+      "signature": {
+        "verified": false,
+        "expected": "unsigned",
+        "apkSigningBlockPresent": false,
+        "confirmedUnsigned": true
+      },
+      "manifest": {
+        "package": "com.meetspace.app",
+        "versionName": "0.9.0",
+        "versionCode": 8,
+        "allowBackup": false,
+        "usesCleartextTraffic": false,
+        "debuggable": false,
+        "fcmServicePresent": true,
+        "fcmServiceEnabled": false,
+        "fcmServiceExported": false,
+        "fcmFallbackServiceAbsent": true,
+        "disabledFirebaseMetadata": {
+          "firebase_messaging_auto_init_enabled": true,
+          "firebase_messaging_notification_delegation_enabled": true,
+          "delivery_metrics_exported_to_big_query_enabled": true,
+          "firebase_analytics_collection_enabled": true
+        },
+        "broadStoragePermissionsAbsent": true,
+        "permissions": [
+          "android.permission.ACCESS_NETWORK_STATE",
+          "android.permission.BLUETOOTH",
+          "android.permission.BLUETOOTH_CONNECT",
+          "android.permission.CAMERA",
+          "android.permission.FOREGROUND_SERVICE",
+          "android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION",
+          "android.permission.INTERNET",
+          "android.permission.MODIFY_AUDIO_SETTINGS",
+          "android.permission.POST_NOTIFICATIONS",
+          "android.permission.RECEIVE_BOOT_COMPLETED",
+          "android.permission.RECORD_AUDIO",
+          "android.permission.WAKE_LOCK",
+          "com.google.android.c2dm.permission.RECEIVE",
+          "com.meetspace.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+        ],
+        "instrumentationAbsent": true
+      },
+      "nativeLibraries": {
+        "count": 12,
+        "entries": [
+          {
+            "path": "lib/arm64-v8a/libandroidx.graphics.path.so",
+            "abi": "arm64-v8a",
+            "sha256": "41e9a793c43a0f4fddb19e33f346bace464f30f888ba7b9eaf96294ea115bfb6",
+            "storedUncompressed": true,
+            "loadSegments": [
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              }
+            ],
+            "allLoadSegmentsCompatibleWith16KiB": true,
+            "gnuRelroSegments": [
+              {
+                "endAddressModulo16KiB": 8192,
+                "aligned": false
+              }
+            ],
+            "allGnuRelroEndsAlignedTo16KiB": false
+          },
+          {
+            "path": "lib/arm64-v8a/libdatastore_shared_counter.so",
+            "abi": "arm64-v8a",
+            "sha256": "deed4546c8dafad0e68ea2c25e4c0a62ca97343614ae386b7ed2af6abb7fa999",
+            "storedUncompressed": true,
+            "loadSegments": [
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              }
+            ],
+            "allLoadSegmentsCompatibleWith16KiB": true,
+            "gnuRelroSegments": [
+              {
+                "endAddressModulo16KiB": 0,
+                "aligned": true
+              }
+            ],
+            "allGnuRelroEndsAlignedTo16KiB": true
+          },
+          {
+            "path": "lib/arm64-v8a/libjingle_peerconnection_so.so",
+            "abi": "arm64-v8a",
+            "sha256": "5d68547da3fad7679846187577a0333c10d9ff4d39322bce61f366426924612e",
+            "storedUncompressed": true,
+            "loadSegments": [
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              }
+            ],
+            "allLoadSegmentsCompatibleWith16KiB": true,
+            "gnuRelroSegments": [
+              {
+                "endAddressModulo16KiB": 0,
+                "aligned": true
+              }
+            ],
+            "allGnuRelroEndsAlignedTo16KiB": true
+          },
+          {
+            "path": "lib/armeabi-v7a/libandroidx.graphics.path.so",
+            "abi": "armeabi-v7a",
+            "sha256": "41399eba6fc2a60f6f14642375c1824f3cf25eb8fec7397d753730a3ceda3e2b",
+            "storedUncompressed": true,
+            "loadSegments": [
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              }
+            ],
+            "allLoadSegmentsCompatibleWith16KiB": true,
+            "gnuRelroSegments": [
+              {
+                "endAddressModulo16KiB": 8192,
+                "aligned": false
+              }
+            ],
+            "allGnuRelroEndsAlignedTo16KiB": false
+          },
+          {
+            "path": "lib/armeabi-v7a/libdatastore_shared_counter.so",
+            "abi": "armeabi-v7a",
+            "sha256": "f51d0b6801896a20be66bd389a024f30be3284b757ac02377833d20e70b9c628",
+            "storedUncompressed": true,
+            "loadSegments": [
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              }
+            ],
+            "allLoadSegmentsCompatibleWith16KiB": true,
+            "gnuRelroSegments": [
+              {
+                "endAddressModulo16KiB": 0,
+                "aligned": true
+              }
+            ],
+            "allGnuRelroEndsAlignedTo16KiB": true
+          },
+          {
+            "path": "lib/armeabi-v7a/libjingle_peerconnection_so.so",
+            "abi": "armeabi-v7a",
+            "sha256": "58e3fd27ef738fb11a66f8d8548dc7aed4225986207d3b32b498125ce6735815",
+            "storedUncompressed": true,
+            "loadSegments": [
+              {
+                "alignmentBytes": 4096,
+                "compatibleWith16KiB": false
+              },
+              {
+                "alignmentBytes": 4096,
+                "compatibleWith16KiB": false
+              },
+              {
+                "alignmentBytes": 4096,
+                "compatibleWith16KiB": false
+              }
+            ],
+            "allLoadSegmentsCompatibleWith16KiB": false,
+            "gnuRelroSegments": [
+              {
+                "endAddressModulo16KiB": 0,
+                "aligned": true
+              }
+            ],
+            "allGnuRelroEndsAlignedTo16KiB": true
+          },
+          {
+            "path": "lib/x86/libandroidx.graphics.path.so",
+            "abi": "x86",
+            "sha256": "eb0570b41fd3bff25d8204a967c03bd7550719e768b791f680cc40cbe35f29af",
+            "storedUncompressed": true,
+            "loadSegments": [
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              }
+            ],
+            "allLoadSegmentsCompatibleWith16KiB": true,
+            "gnuRelroSegments": [
+              {
+                "endAddressModulo16KiB": 8192,
+                "aligned": false
+              }
+            ],
+            "allGnuRelroEndsAlignedTo16KiB": false
+          },
+          {
+            "path": "lib/x86/libdatastore_shared_counter.so",
+            "abi": "x86",
+            "sha256": "c38104bd173ef2e405d32e90ef753725c54aaeca08f2e9a57820df8782f4d790",
+            "storedUncompressed": true,
+            "loadSegments": [
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              }
+            ],
+            "allLoadSegmentsCompatibleWith16KiB": true,
+            "gnuRelroSegments": [
+              {
+                "endAddressModulo16KiB": 0,
+                "aligned": true
+              }
+            ],
+            "allGnuRelroEndsAlignedTo16KiB": true
+          },
+          {
+            "path": "lib/x86/libjingle_peerconnection_so.so",
+            "abi": "x86",
+            "sha256": "d14971f27acc4f4c242cc6b77f4077a665d45b3dff33b026c3c42a61fccb00e7",
+            "storedUncompressed": true,
+            "loadSegments": [
+              {
+                "alignmentBytes": 4096,
+                "compatibleWith16KiB": false
+              },
+              {
+                "alignmentBytes": 4096,
+                "compatibleWith16KiB": false
+              },
+              {
+                "alignmentBytes": 4096,
+                "compatibleWith16KiB": false
+              }
+            ],
+            "allLoadSegmentsCompatibleWith16KiB": false,
+            "gnuRelroSegments": [
+              {
+                "endAddressModulo16KiB": 0,
+                "aligned": true
+              }
+            ],
+            "allGnuRelroEndsAlignedTo16KiB": true
+          },
+          {
+            "path": "lib/x86_64/libandroidx.graphics.path.so",
+            "abi": "x86_64",
+            "sha256": "4e56c996f13670e70082658de7880c4020eabf4f25e43387f88ed78a713fc9f0",
+            "storedUncompressed": true,
+            "loadSegments": [
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              }
+            ],
+            "allLoadSegmentsCompatibleWith16KiB": true,
+            "gnuRelroSegments": [
+              {
+                "endAddressModulo16KiB": 12288,
+                "aligned": false
+              }
+            ],
+            "allGnuRelroEndsAlignedTo16KiB": false
+          },
+          {
+            "path": "lib/x86_64/libdatastore_shared_counter.so",
+            "abi": "x86_64",
+            "sha256": "c3973140a0e6144a83e7dd7ee3c4e161f42181591feda254e12c8395d3bbacd0",
+            "storedUncompressed": true,
+            "loadSegments": [
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              }
+            ],
+            "allLoadSegmentsCompatibleWith16KiB": true,
+            "gnuRelroSegments": [
+              {
+                "endAddressModulo16KiB": 0,
+                "aligned": true
+              }
+            ],
+            "allGnuRelroEndsAlignedTo16KiB": true
+          },
+          {
+            "path": "lib/x86_64/libjingle_peerconnection_so.so",
+            "abi": "x86_64",
+            "sha256": "6fa42eba21bcf4d02234d63e007b58966d9919d0d1eb0c887b8ef005964f7158",
+            "storedUncompressed": true,
+            "loadSegments": [
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              }
+            ],
+            "allLoadSegmentsCompatibleWith16KiB": true,
+            "gnuRelroSegments": [
+              {
+                "endAddressModulo16KiB": 8192,
+                "aligned": false
+              }
+            ],
+            "allGnuRelroEndsAlignedTo16KiB": false
+          }
+        ],
+        "all64BitLoadSegmentsCompatibleWith16KiB": true,
+        "all64BitGnuRelroEndsAlignedTo16KiB": false
+      },
+      "privateMaterial": {
+        "knownCredentialsCertificatesAndTestClassesAbsent": true,
+        "matchedEntryCount": 0,
+        "privateFixtureFilesAbsent": true,
+        "privateFilenameMatchCount": 0,
+        "googleServicesJsonAbsent": true
+      },
+      "installerAssets": [
+        {
+          "path": "assets/docker.asc",
+          "sha256": "1500c1f56fa9e26b9b8f42452a553675796ade0807cdce11975eb98170b3a570",
+          "matchesSource": true
+        },
+        {
+          "path": "assets/release.json",
+          "sha256": "0d441454b83bb4dc4ed0a742a01fc994485ae9a5acc745c23a3af748848b6da0",
+          "matchesSource": true
+        },
+        {
+          "path": "assets/release.sig",
+          "sha256": "5b838a294dfce97520ea9ea25112cf3e781c5d2d552c395b52fe713a79e675d7",
+          "matchesSource": true
+        },
+        {
+          "path": "assets/runner.py",
+          "sha256": "3d9b5baec40eeac4f9cb6243e9a6aa08b7aa0a7f46aced6d9719c32c140fba19",
+          "matchesSource": true
+        },
+        {
+          "path": "assets/trust-root.pem",
+          "sha256": "9f16201125cd17dc9fb90a7579e78589c76ecbfdb1ee80df3428ee34d6b90dfc",
+          "matchesSource": true
+        }
+      ],
+      "thirdPartyLicenses": [
+        {
+          "path": "assets/licenses/WEBRTC.md",
+          "sha256": "d1f9382c6878ac024155fd6d44a5977329108bb8b0a01cea40e4a2f1d7de252e",
+          "matchesSource": true
+        },
+        {
+          "path": "assets/licenses/jsch-LICENSE.txt",
+          "sha256": "9c3537ab0b485b391b887b95fdff761de3dd3273a6931e8a1942dde4d2093cc5",
+          "matchesSource": true
+        },
+        {
+          "path": "assets/licenses/webrtc-sdk-LICENSE.txt",
+          "sha256": "e6b282fe6c0fb353928923470457f31b44cbab203effd60c0cde4a5bb96c8aec",
+          "matchesSource": true
+        }
+      ],
+      "requiredThirdPartyLicenses": [
+        {
+          "path": "assets/licenses/jsch-LICENSE.txt",
+          "sha256": "9c3537ab0b485b391b887b95fdff761de3dd3273a6931e8a1942dde4d2093cc5",
+          "expectedSha256": "9c3537ab0b485b391b887b95fdff761de3dd3273a6931e8a1942dde4d2093cc5",
+          "matchesPinnedNotice": true
+        }
+      ],
+      "jarSignatureEntriesAbsent": true,
+      "expectedVersionCodeMatches": true,
+      "staticPackagingChecksPassed": true
+    },
+    {
+      "variant": "releaseBundle",
+      "path": "app/build/outputs/bundle/release/app-release.aab",
+      "bytes": 30742731,
+      "sha256": "ddc48905ab5054bfdaaf6ecc7f58a21955d3a8483fc94fafa079ad75704ea21f",
+      "bundletoolValidation": {
+        "passed": true,
+        "exitCode": 0
+      },
+      "manifest": {
+        "package": "com.meetspace.app",
+        "versionName": "0.9.0",
+        "versionCode": 8,
+        "allowBackup": false,
+        "usesCleartextTraffic": false,
+        "debuggable": false,
+        "fcmServicePresent": true,
+        "fcmServiceEnabled": false,
+        "fcmServiceExported": false,
+        "fcmFallbackServiceAbsent": true,
+        "disabledFirebaseMetadata": {
+          "firebase_messaging_auto_init_enabled": true,
+          "firebase_messaging_notification_delegation_enabled": true,
+          "delivery_metrics_exported_to_big_query_enabled": true,
+          "firebase_analytics_collection_enabled": true
+        },
+        "broadStoragePermissionsAbsent": true,
+        "permissions": [
+          "android.permission.ACCESS_NETWORK_STATE",
+          "android.permission.BLUETOOTH",
+          "android.permission.BLUETOOTH_CONNECT",
+          "android.permission.CAMERA",
+          "android.permission.FOREGROUND_SERVICE",
+          "android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION",
+          "android.permission.INTERNET",
+          "android.permission.MODIFY_AUDIO_SETTINGS",
+          "android.permission.POST_NOTIFICATIONS",
+          "android.permission.RECEIVE_BOOT_COMPLETED",
+          "android.permission.RECORD_AUDIO",
+          "android.permission.WAKE_LOCK",
+          "com.google.android.c2dm.permission.RECEIVE",
+          "com.meetspace.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+        ],
+        "instrumentationAbsent": true
+      },
+      "bundleRequests16KiBAlignment": true,
+      "signature": {
+        "expected": "unsigned",
+        "jarIsUnsigned": true,
+        "toolExitCode": 0,
+        "confirmedUnsigned": true
+      },
+      "nativeLibraries": {
+        "count": 12,
+        "entries": [
+          {
+            "path": "base/lib/arm64-v8a/libandroidx.graphics.path.so",
+            "abi": "arm64-v8a",
+            "sha256": "41e9a793c43a0f4fddb19e33f346bace464f30f888ba7b9eaf96294ea115bfb6",
+            "storedUncompressed": false,
+            "loadSegments": [
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              }
+            ],
+            "allLoadSegmentsCompatibleWith16KiB": true,
+            "gnuRelroSegments": [
+              {
+                "endAddressModulo16KiB": 8192,
+                "aligned": false
+              }
+            ],
+            "allGnuRelroEndsAlignedTo16KiB": false
+          },
+          {
+            "path": "base/lib/arm64-v8a/libdatastore_shared_counter.so",
+            "abi": "arm64-v8a",
+            "sha256": "deed4546c8dafad0e68ea2c25e4c0a62ca97343614ae386b7ed2af6abb7fa999",
+            "storedUncompressed": false,
+            "loadSegments": [
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              }
+            ],
+            "allLoadSegmentsCompatibleWith16KiB": true,
+            "gnuRelroSegments": [
+              {
+                "endAddressModulo16KiB": 0,
+                "aligned": true
+              }
+            ],
+            "allGnuRelroEndsAlignedTo16KiB": true
+          },
+          {
+            "path": "base/lib/arm64-v8a/libjingle_peerconnection_so.so",
+            "abi": "arm64-v8a",
+            "sha256": "5d68547da3fad7679846187577a0333c10d9ff4d39322bce61f366426924612e",
+            "storedUncompressed": false,
+            "loadSegments": [
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              }
+            ],
+            "allLoadSegmentsCompatibleWith16KiB": true,
+            "gnuRelroSegments": [
+              {
+                "endAddressModulo16KiB": 0,
+                "aligned": true
+              }
+            ],
+            "allGnuRelroEndsAlignedTo16KiB": true
+          },
+          {
+            "path": "base/lib/armeabi-v7a/libandroidx.graphics.path.so",
+            "abi": "armeabi-v7a",
+            "sha256": "41399eba6fc2a60f6f14642375c1824f3cf25eb8fec7397d753730a3ceda3e2b",
+            "storedUncompressed": false,
+            "loadSegments": [
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              }
+            ],
+            "allLoadSegmentsCompatibleWith16KiB": true,
+            "gnuRelroSegments": [
+              {
+                "endAddressModulo16KiB": 8192,
+                "aligned": false
+              }
+            ],
+            "allGnuRelroEndsAlignedTo16KiB": false
+          },
+          {
+            "path": "base/lib/armeabi-v7a/libdatastore_shared_counter.so",
+            "abi": "armeabi-v7a",
+            "sha256": "f51d0b6801896a20be66bd389a024f30be3284b757ac02377833d20e70b9c628",
+            "storedUncompressed": false,
+            "loadSegments": [
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              }
+            ],
+            "allLoadSegmentsCompatibleWith16KiB": true,
+            "gnuRelroSegments": [
+              {
+                "endAddressModulo16KiB": 0,
+                "aligned": true
+              }
+            ],
+            "allGnuRelroEndsAlignedTo16KiB": true
+          },
+          {
+            "path": "base/lib/armeabi-v7a/libjingle_peerconnection_so.so",
+            "abi": "armeabi-v7a",
+            "sha256": "58e3fd27ef738fb11a66f8d8548dc7aed4225986207d3b32b498125ce6735815",
+            "storedUncompressed": false,
+            "loadSegments": [
+              {
+                "alignmentBytes": 4096,
+                "compatibleWith16KiB": false
+              },
+              {
+                "alignmentBytes": 4096,
+                "compatibleWith16KiB": false
+              },
+              {
+                "alignmentBytes": 4096,
+                "compatibleWith16KiB": false
+              }
+            ],
+            "allLoadSegmentsCompatibleWith16KiB": false,
+            "gnuRelroSegments": [
+              {
+                "endAddressModulo16KiB": 0,
+                "aligned": true
+              }
+            ],
+            "allGnuRelroEndsAlignedTo16KiB": true
+          },
+          {
+            "path": "base/lib/x86/libandroidx.graphics.path.so",
+            "abi": "x86",
+            "sha256": "eb0570b41fd3bff25d8204a967c03bd7550719e768b791f680cc40cbe35f29af",
+            "storedUncompressed": false,
+            "loadSegments": [
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              }
+            ],
+            "allLoadSegmentsCompatibleWith16KiB": true,
+            "gnuRelroSegments": [
+              {
+                "endAddressModulo16KiB": 8192,
+                "aligned": false
+              }
+            ],
+            "allGnuRelroEndsAlignedTo16KiB": false
+          },
+          {
+            "path": "base/lib/x86/libdatastore_shared_counter.so",
+            "abi": "x86",
+            "sha256": "c38104bd173ef2e405d32e90ef753725c54aaeca08f2e9a57820df8782f4d790",
+            "storedUncompressed": false,
+            "loadSegments": [
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              }
+            ],
+            "allLoadSegmentsCompatibleWith16KiB": true,
+            "gnuRelroSegments": [
+              {
+                "endAddressModulo16KiB": 0,
+                "aligned": true
+              }
+            ],
+            "allGnuRelroEndsAlignedTo16KiB": true
+          },
+          {
+            "path": "base/lib/x86/libjingle_peerconnection_so.so",
+            "abi": "x86",
+            "sha256": "d14971f27acc4f4c242cc6b77f4077a665d45b3dff33b026c3c42a61fccb00e7",
+            "storedUncompressed": false,
+            "loadSegments": [
+              {
+                "alignmentBytes": 4096,
+                "compatibleWith16KiB": false
+              },
+              {
+                "alignmentBytes": 4096,
+                "compatibleWith16KiB": false
+              },
+              {
+                "alignmentBytes": 4096,
+                "compatibleWith16KiB": false
+              }
+            ],
+            "allLoadSegmentsCompatibleWith16KiB": false,
+            "gnuRelroSegments": [
+              {
+                "endAddressModulo16KiB": 0,
+                "aligned": true
+              }
+            ],
+            "allGnuRelroEndsAlignedTo16KiB": true
+          },
+          {
+            "path": "base/lib/x86_64/libandroidx.graphics.path.so",
+            "abi": "x86_64",
+            "sha256": "4e56c996f13670e70082658de7880c4020eabf4f25e43387f88ed78a713fc9f0",
+            "storedUncompressed": false,
+            "loadSegments": [
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              }
+            ],
+            "allLoadSegmentsCompatibleWith16KiB": true,
+            "gnuRelroSegments": [
+              {
+                "endAddressModulo16KiB": 12288,
+                "aligned": false
+              }
+            ],
+            "allGnuRelroEndsAlignedTo16KiB": false
+          },
+          {
+            "path": "base/lib/x86_64/libdatastore_shared_counter.so",
+            "abi": "x86_64",
+            "sha256": "c3973140a0e6144a83e7dd7ee3c4e161f42181591feda254e12c8395d3bbacd0",
+            "storedUncompressed": false,
+            "loadSegments": [
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              }
+            ],
+            "allLoadSegmentsCompatibleWith16KiB": true,
+            "gnuRelroSegments": [
+              {
+                "endAddressModulo16KiB": 0,
+                "aligned": true
+              }
+            ],
+            "allGnuRelroEndsAlignedTo16KiB": true
+          },
+          {
+            "path": "base/lib/x86_64/libjingle_peerconnection_so.so",
+            "abi": "x86_64",
+            "sha256": "6fa42eba21bcf4d02234d63e007b58966d9919d0d1eb0c887b8ef005964f7158",
+            "storedUncompressed": false,
+            "loadSegments": [
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              },
+              {
+                "alignmentBytes": 16384,
+                "compatibleWith16KiB": true
+              }
+            ],
+            "allLoadSegmentsCompatibleWith16KiB": true,
+            "gnuRelroSegments": [
+              {
+                "endAddressModulo16KiB": 8192,
+                "aligned": false
+              }
+            ],
+            "allGnuRelroEndsAlignedTo16KiB": false
+          }
+        ],
+        "all64BitLoadSegmentsCompatibleWith16KiB": true,
+        "all64BitGnuRelroEndsAlignedTo16KiB": false
+      },
+      "privateMaterial": {
+        "knownCredentialsCertificatesAndTestClassesAbsent": true,
+        "matchedEntryCount": 0,
+        "privateFixtureFilesAbsent": true,
+        "privateFilenameMatchCount": 0,
+        "googleServicesJsonAbsent": true
+      },
+      "installerAssets": [
+        {
+          "path": "base/assets/docker.asc",
+          "sha256": "1500c1f56fa9e26b9b8f42452a553675796ade0807cdce11975eb98170b3a570",
+          "matchesSource": true
+        },
+        {
+          "path": "base/assets/release.json",
+          "sha256": "0d441454b83bb4dc4ed0a742a01fc994485ae9a5acc745c23a3af748848b6da0",
+          "matchesSource": true
+        },
+        {
+          "path": "base/assets/release.sig",
+          "sha256": "5b838a294dfce97520ea9ea25112cf3e781c5d2d552c395b52fe713a79e675d7",
+          "matchesSource": true
+        },
+        {
+          "path": "base/assets/runner.py",
+          "sha256": "3d9b5baec40eeac4f9cb6243e9a6aa08b7aa0a7f46aced6d9719c32c140fba19",
+          "matchesSource": true
+        },
+        {
+          "path": "base/assets/trust-root.pem",
+          "sha256": "9f16201125cd17dc9fb90a7579e78589c76ecbfdb1ee80df3428ee34d6b90dfc",
+          "matchesSource": true
+        }
+      ],
+      "thirdPartyLicenses": [
+        {
+          "path": "base/assets/licenses/WEBRTC.md",
+          "sha256": "d1f9382c6878ac024155fd6d44a5977329108bb8b0a01cea40e4a2f1d7de252e",
+          "matchesSource": true
+        },
+        {
+          "path": "base/assets/licenses/jsch-LICENSE.txt",
+          "sha256": "9c3537ab0b485b391b887b95fdff761de3dd3273a6931e8a1942dde4d2093cc5",
+          "matchesSource": true
+        },
+        {
+          "path": "base/assets/licenses/webrtc-sdk-LICENSE.txt",
+          "sha256": "e6b282fe6c0fb353928923470457f31b44cbab203effd60c0cde4a5bb96c8aec",
+          "matchesSource": true
+        }
+      ],
+      "requiredThirdPartyLicenses": [
+        {
+          "path": "base/assets/licenses/jsch-LICENSE.txt",
+          "sha256": "9c3537ab0b485b391b887b95fdff761de3dd3273a6931e8a1942dde4d2093cc5",
+          "expectedSha256": "9c3537ab0b485b391b887b95fdff761de3dd3273a6931e8a1942dde4d2093cc5",
+          "matchesPinnedNotice": true
+        }
+      ],
+      "jarSignatureEntriesAbsent": true,
+      "expectedVersionCodeMatches": true,
+      "staticPackagingChecksPassed": true
+    }
+  ],
+  "staticPackagingChecksPassed": true,
+  "all64BitGnuRelroEndsAlignedTo16KiB": false,
+  "runtime16KiBVerified": true,
+  "runtimeAssessment": "ARM64 only: debug JNI loads for three libraries, WebRTC factory create/dispose, and recording playback; release APK from current AAB launches without test CA. API36 graphics-path UI uses the system PathIterator, so its native path-iteration operations are not established by this test. x86_64 and all other native operations/devices remain unverified.",
+  "runtime16KiBVerifiedForAbi": {
+    "arm64-v8a": true,
+    "x86_64": null
+  },
+  "references": {
+    "bundletool": "https://developer.android.com/tools/bundletool",
+    "pageSizes": "https://developer.android.com/guide/practices/page-sizes",
+    "bundletoolRelease": "https://github.com/google/bundletool/releases/tag/1.18.3"
+  },
+  "runtimeEvidence": {
+    "abi": "arm64-v8a",
+    "pageSizeBytes": 16384,
+    "androidApi": 36,
+    "linkerCompatibilityEnabled": false,
+    "packageManagerCompatibilityDisabled": true,
+    "application": {
+      "packageName": "com.meetspace.app",
+      "versionName": "0.9.0",
+      "versionCode": 8
+    },
+    "artifacts": {
+      "debugApkSha256": "721cd11273e9d60984a195922d34a77196c86c20e6774d88c56dead48b288864",
+      "releaseApkSha256": "aec4056dd7f4055299048068d52351116c8f81e8f87fc231b8ca01e183ab2c59",
+      "releaseBundleSha256": "ddc48905ab5054bfdaaf6ecc7f58a21955d3a8483fc94fafa079ad75704ea21f",
+      "releaseSmokeApkSha256": "4206c9124d81c421bbb08f8b27963f5e576546c1e7a3040a60e197ea28b1ac58"
+    },
+    "debug": {
+      "nativeLibrariesLoaded": [
+        "androidx.graphics.path",
+        "datastore_shared_counter",
+        "jingle_peerconnection_so"
+      ],
+      "webRtcFactoryCreatedAndDisposed": true,
+      "recordingPlaybackPassed": true
+    },
+    "releaseSmoke": {
+      "launchPassed": true
+    },
+    "smokeDexNativeAndAssetsMatchCurrentBundle": true,
+    "bundleEntriesCompared": 21,
+    "evidenceSha256": "fe0758478c0ae424d5abb4fa452bd6ffee3bc0c323305565d554561fa0dd4354",
+    "scope": "ARM64 only: debug JNI loads for three libraries, WebRTC factory create/dispose, and recording playback; release APK from current AAB launches without test CA. API36 graphics-path UI uses the system PathIterator, so its native path-iteration operations are not established by this test. x86_64 and all other native operations/devices remain unverified."
+  },
+  "status": "STATIC_PACKAGING_CHECKS_PASSED_WITH_RELRO_FINDINGS"
+}

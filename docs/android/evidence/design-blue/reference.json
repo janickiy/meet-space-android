@@ -1,0 +1,26 @@
+{
+  "path": "/Users/aleksandranickij/htdocs/go-recorder/design/meetspace-android-20261010",
+  "url": "http://127.0.0.1:8766/index.html?screen=messages&view=compare&theme=light",
+  "sha256": {
+    "account-settings.css": "6c9ac7b80a88de533150056fd4b54e630953be869db79e119425134db79a3503",
+    "account-settings.js": "c447f2f871dc162fbde58a304f216e928f44b604d783fee8dc4a7e492f4c8426",
+    "app.css": "335d246598d74ab72229917f87ab2385ed2bc3d2b0c416ca7c7c7df4fa948008",
+    "assets/icons.js": "6078c94b3fd1e8bed0928bfadd71f41886ed731822621ab43881998d2a267f68",
+    "four-tabs.html": "2fc90da79fc03a4d97a882a42ebba7e1b9f1cc95f91a1fe21974e7a3babe2a80",
+    "gallery.css": "907905c0e184b5f6025d1a6198033e60f47534e56dd57d94f49f7b772ace2531",
+    "gallery.js": "004d92cc21c9681b8b18243961d5638248a48da82a596df4e3c7a0bd00376cd1",
+    "handoff.css": "83bd07fd24fae740b38f113f7e2edb4527602b623233d28b67b93bf475652b54",
+    "handoff.html": "5710785102952af696d005e00822d2518405e6f2f91dc15ecffa78fa6fa9c11f",
+    "home.css": "eaf1ed2e927a5f5d4189f891b5cbf0377405c629f191faa6283042856cda516b",
+    "index.html": "cab9abcc58d06ec0f85ce81275ed9b9e70d44162db983b0999f8c5aabb861353",
+    "meetings.css": "d4e9c3e9bab21d33247cebfb92a698da657b81b8c79d5f0d2ed63b463b5e846c",
+    "meetings.js": "a26195f2485eb05970c9ccd4688a7f43656b4a59dc8da5737c2e710e60a4dac3",
+    "onboarding.css": "5e73ad48bfe2570f307d693ec38929c77ad7283c517be02a9878f9d1fa44bf10",
+    "onboarding.js": "f5a710bd754e6a088d23bf06e4ba2a280f531140d54f1901e1aaa7d0c7564b8f",
+    "preview.html": "21daa142cd88d78171b6065a228732c44063d2bd9ed9facacf1551969565e63e",
+    "runtime.js": "e63afdfcf6ce9f8c5a72a156c28f8063f4146a6d63633b1e4495bd1b60ac8d80",
+    "screens.js": "43cb9305470f4c94f76c54b57749c0a99767f8dd64132e0b59116cf2c0c029cd",
+    "telemost.css": "2bcb36767c605b39f1c83b297a84db8533b07ed0214d53f1835b73f4ff0f0c1e",
+    "three-tabs.html": "ff9728975ec2097e80b1c29a9fb4cccdd23935094506bfadc1c686a55ef8286d"
+  }
+}

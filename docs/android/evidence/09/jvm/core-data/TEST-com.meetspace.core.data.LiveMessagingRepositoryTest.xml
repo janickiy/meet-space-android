@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.meetspace.core.data.LiveMessagingRepositoryTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-11T16:25:08.234Z" hostname="MacBook-Air-janickiy.local" time="0.682">
+  <testcase name="actual private MinIO direct and group attachments preserve bytes and access scope" classname="com.meetspace.core.data.LiveMessagingRepositoryTest" time="0.276" />
+  <testcase name="actual personal folders mixed items notification preferences and noop push contracts" classname="com.meetspace.core.data.LiveMessagingRepositoryTest" time="0.169" />
+  <testcase name="actual account WSS plus idempotent message reply edit read removal and reconnect" classname="com.meetspace.core.data.LiveMessagingRepositoryTest" time="0.237" />
+  </testsuite>

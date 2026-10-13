@@ -1,0 +1,28 @@
+test_archive_path_traversal_and_links_rejected (test_runner.InstallerTests.test_archive_path_traversal_and_links_rejected) ... ok
+test_atomic_public_permissions_survive_private_umask (test_runner.InstallerTests.test_atomic_public_permissions_survive_private_umask) ... ok
+test_bundle_signature_and_integrity (test_runner.InstallerTests.test_bundle_signature_and_integrity) ... ok
+test_cancel_journal_checkpoint_and_resume (test_runner.InstallerTests.test_cancel_journal_checkpoint_and_resume) ... ok
+test_canonical_hash_independent_of_dict_order (test_runner.InstallerTests.test_canonical_hash_independent_of_dict_order) ... ok
+test_compose_only_expected_public_services_and_immutable_images (test_runner.InstallerTests.test_compose_only_expected_public_services_and_immutable_images) ... ok
+test_control_entry_failure_is_nonzero_for_systemd_renewal (test_runner.InstallerTests.test_control_entry_failure_is_nonzero_for_systemd_renewal) ... ok
+test_dns_mismatch_and_ipv6_rejected (test_runner.InstallerTests.test_dns_mismatch_and_ipv6_rejected) ... ok
+test_docker_trust_key_tamper_rejected (test_runner.InstallerTests.test_docker_trust_key_tamper_rejected) ... ok
+test_dockerfile_pins_all_external_stages (test_runner.InstallerTests.test_dockerfile_pins_all_external_stages) ... ok
+test_domain_injection_rejected (test_runner.InstallerTests.test_domain_injection_rejected) ... ok
+test_duplicate_json_keys_rejected (test_runner.InstallerTests.test_duplicate_json_keys_rejected) ... ok
+test_existing_symlink_rejected (test_runner.InstallerTests.test_existing_symlink_rejected) ... ok
+test_extra_bootstrap_file_cannot_be_written (test_runner.InstallerTests.test_extra_bootstrap_file_cannot_be_written) ... ok
+test_extracted_public_source_is_readable_inside_non_root_images (test_runner.InstallerTests.test_extracted_public_source_is_readable_inside_non_root_images) ... ok
+test_modified_manifest_rejected (test_runner.InstallerTests.test_modified_manifest_rejected) ... ok
+test_modified_runner_rejected (test_runner.InstallerTests.test_modified_runner_rejected) ... ok
+test_non_object_and_oversize_json_rejected (test_runner.InstallerTests.test_non_object_and_oversize_json_rejected) ... ok
+test_plan_rejects_unconfirmed_and_tampered (test_runner.InstallerTests.test_plan_rejects_unconfirmed_and_tampered) ... ok
+test_production_rejects_private_ip (test_runner.InstallerTests.test_production_rejects_private_ip) ... ok
+test_ss_reads_local_not_peer_port (test_runner.InstallerTests.test_ss_reads_local_not_peer_port) ... ok
+test_test_profile_is_separate_signed_metadata (test_runner.InstallerTests.test_test_profile_is_separate_signed_metadata) ... ok
+test_uuid_cannot_be_path_or_command (test_runner.InstallerTests.test_uuid_cannot_be_path_or_command) ... ok
+
+----------------------------------------------------------------------
+Ran 23 tests in 0.026s
+
+OK

@@ -1,0 +1,16 @@
+{
+  "url": "http://127.0.0.1:8767/index.html?screen=home&view=compare&theme=dark",
+  "sourceFilesSha256": {
+    "home.css": "9426ac13336485cdccb772fd6070ed5a68c2630da371cd013b540ec6a0754ccc",
+    "telemost.css": "fe6c638207b5ddc3096038661255b79798055f680cbacabc479d248172d0cd34",
+    "app.css": "54a8cbec21c74e4c9bc6d917b12b4c06b8901001f58fe28bedd4d498d7e21b42",
+    "screens.js": "c2f50215593cdaee00107603b1c3db709c3a86e745d940c950c8e3e1f73396f7"
+  },
+  "nativeLayoutBreakpointDp": 780,
+  "topLevelTabs": [
+    "Главная",
+    "Звонки",
+    "Чаты",
+    "Профиль"
+  ]
+}

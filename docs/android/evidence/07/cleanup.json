@@ -1,0 +1,22 @@
+{
+  "fixtureHomeRemoved": true,
+  "fixtureContainersRunning": 0,
+  "preexistingContainersUnchanged": true,
+  "preexistingContainerCount": 11,
+  "fixturePortsListening": {
+    "15477": false,
+    "16377": false,
+    "18477": false,
+    "19077": false,
+    "19477": false
+  },
+  "userWebSocketConnectionsBeforeStop": 0,
+  "androidPrivateFilesRemoved": true,
+  "androidTestDownloadsRemaining": 0,
+  "display": "Physical size: 2560x1600",
+  "density": "Physical density: 320",
+  "fontScale": "1.0",
+  "showImeWithHardwareKeyboard": "0",
+  "wifi": "1",
+  "mobileData": "1"
+}

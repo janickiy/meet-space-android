@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>MeetSpace 0.9.4 — проверка видеозвонка</title>
+<style>
+:root{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#17263f;background:#f3f6fc;font-synthesis:none;--blue:#3569e8;--muted:#62728b;--line:#dce4f1}
+*{box-sizing:border-box}body{margin:0}a{color:inherit}button,select{font:inherit}button,a,select{-webkit-tap-highlight-color:transparent}a:focus-visible,button:focus-visible,select:focus-visible{outline:3px solid #3a70f0;outline-offset:4px}a:focus-visible{border-radius:8px}button{cursor:pointer}main,.masthead{max-width:1440px;margin:auto;padding-inline:40px}.masthead{padding-top:30px;display:flex;align-items:center;justify-content:space-between;gap:20px}.brand{display:flex;gap:11px;align-items:center;font-size:20px;font-weight:720;letter-spacing:-.6px}.brand-icon{display:grid;place-items:center;width:36px;height:36px;background:var(--blue);color:#fff;border-radius:12px}.brand-icon svg{width:24px;height:24px}.version{font-size:12px;font-weight:650;background:#e4ecff;color:#365dbe;padding:8px 12px;border-radius:20px;white-space:nowrap}.hero{padding-top:60px;padding-bottom:34px;display:grid;grid-template-columns:1fr auto;align-items:end;gap:30px}.eyebrow{text-transform:uppercase;font-size:11px;letter-spacing:1.7px;font-weight:700;color:var(--blue);margin:0 0 16px}h1{font-size:clamp(32px,3.5vw,49px);line-height:1.1;letter-spacing:-1.8px;margin:0;max-width:800px;font-weight:720}.intro{max-width:740px;font-size:16px;line-height:1.75;color:var(--muted);margin:21px 0 0}.hero-actions{display:flex;flex-direction:column;gap:10px;min-width:210px}.button{min-height:48px;display:flex;align-items:center;justify-content:center;text-decoration:none;padding:13px 18px;border-radius:13px;font-size:14px;font-weight:650;border:1px solid var(--line);background:white}.button.primary{background:var(--blue);border-color:var(--blue);color:white;box-shadow:0 7px 18px #3267e81b}.button:hover{filter:brightness(.97)}.button.primary span{font-size:19px;margin-right:9px}.matrix{border-block:1px solid var(--line);display:flex;align-items:center;gap:33px;padding:21px 0;margin-bottom:28px;flex-wrap:wrap}.metric{font-size:13px;color:var(--muted);display:flex;align-items:baseline;gap:9px}.metric strong{font-size:24px;color:#203450;letter-spacing:-.6px}.metric-note{font-size:12px;color:var(--muted);margin-left:auto;max-width:320px;line-height:1.5}.controls{padding:20px;background:#fff;border:1px solid var(--line);border-radius:18px;display:grid;grid-template-columns:1fr 1.4fr .7fr .7fr auto;align-items:end;gap:14px}.filter label{display:block;font-size:12px;font-weight:650;color:#536681;margin-bottom:8px}select{width:100%;min-height:46px;padding:10px 32px 10px 12px;border-radius:10px;border:1px solid var(--line);background:#f9fbff;color:#243750;font-size:13px;cursor:pointer}#reset{height:46px;border:0;background:#edf3ff;color:#3b62b3;border-radius:10px;padding:0 15px;font-size:13px;font-weight:600}.results{margin:22px 2px 16px;display:flex;justify-content:space-between;gap:20px;font-size:12px;color:var(--muted)}#result-count{font-weight:650;color:#425876}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px}.capture{border:1px solid var(--line);background:white;border-radius:18px;overflow:hidden;box-shadow:0 3px 10px #14264703}.capture[hidden]{display:none}.preview{position:relative;min-width:0;display:flex;align-items:center;justify-content:center;aspect-ratio:1.26;padding:18px;text-decoration:none;overflow:hidden;border-bottom:1px solid var(--line)}.preview.light{background:#edf1f8}.preview.dark{background:#18202d;border-bottom-color:#263346}.preview img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 6px 9px #07112116);transition:transform .2s}.preview:hover img{transform:scale(1.02)}.zoom{position:absolute;right:11px;bottom:11px;border:1px solid #ffffff66;background:#ffffffed;width:29px;height:29px;border-radius:9px;display:grid;place-items:center;font-size:18px;color:#345481}.caption{padding:18px}.card-heading{display:flex;align-items:baseline;justify-content:space-between;gap:12px}h2{font-size:16px;line-height:1.35;letter-spacing:-.2px;margin:0;font-weight:680}.theme-label{font-size:11px;color:var(--muted);white-space:nowrap}.caption p{font-size:12px;color:var(--muted);line-height:1.6;margin:7px 0 14px}.meta{display:flex;flex-wrap:wrap;gap:7px}.meta span{font-size:11px;font-weight:600;line-height:1.2;background:#eef3fb;padding:6px 9px;border-radius:6px;color:#476184}.device-label{display:block;color:#77849a;font-size:11px;margin-top:10px}.missing{color:#c9d9f0;text-align:center;line-height:1.6;font-size:14px}.light .missing{color:#5d708c}.missing small{font-size:11px}.missing[hidden]{display:none}#empty{padding:55px;text-align:center;color:var(--muted);border:1px dashed #bfcee5;border-radius:18px;background:white}.notes{margin:40px 0 26px;padding:26px 28px;border:1px solid var(--line);border-radius:18px;background:#eaf0fa;display:grid;grid-template-columns:1fr 1fr;gap:28px}.notes h2{font-size:14px;margin-bottom:9px}.notes p{font-size:13px;line-height:1.75;color:#5c6c83;margin:0}.notes a{color:#3a60b5;text-underline-offset:3px}.footer{padding:0 0 32px;display:flex;gap:20px;justify-content:space-between;color:#8290a5;font-size:11px;line-height:1.5}.footer a{color:#5d7499;text-underline-offset:3px}noscript p{padding:16px;border-radius:10px;background:#fff4d9;color:#6d571b;font-size:14px}@media(min-width:1650px){.grid{grid-template-columns:repeat(4,minmax(0,1fr))}}@media(max-width:1100px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.controls{grid-template-columns:1fr 1.3fr 1fr}.hero{align-items:start}.hero-actions{min-width:190px}.metric-note{margin-left:0;max-width:none}}@media(max-width:740px){main,.masthead{padding-inline:20px}.masthead{padding-top:22px}.hero{padding-top:40px;grid-template-columns:1fr;gap:22px}h1{letter-spacing:-1px}.intro{font-size:14px;line-height:1.7;margin-top:17px}.hero-actions{flex-direction:row;flex-wrap:wrap}.hero-actions .button{flex:1;white-space:nowrap}.matrix{gap:19px}.metric strong{font-size:20px}.metric{font-size:12px}.controls{grid-template-columns:1fr 1fr;padding:16px;gap:12px}.filter.device{grid-column:1/-1;grid-row:2}#reset{grid-column:1/-1}.grid{grid-template-columns:1fr}.results span:last-child{display:none}.notes{grid-template-columns:1fr;gap:20px;padding:22px}.footer{flex-direction:column;gap:9px}.preview{aspect-ratio:1.16;max-height:470px}}@media(prefers-reduced-motion:reduce){.preview img{transition:none}}
+</style>
+</head>
+<body>
+<header class="masthead"><div class="brand"><span class="brand-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="12" height="12" rx="4" fill="currentColor"/><path d="m16 9 4-2v10l-4-2V9Z" fill="currentColor"/></svg></span>MeetSpace</div><span class="version">Android · 0.9.4</span></header>
+<main>
+<section class="hero" aria-labelledby="page-title"><div><p class="eyebrow">Визуальная проверка · 12 октября 2026</p><h1 id="page-title">Видеозвонок,<br>чат и комментарии</h1><p class="intro">Снимки нативного Android-приложения на телефонах и планшетах. Проверьте общий вид звонка, панели обсуждения, участников и демонстрацию экрана в разных размерах и темах.</p></div><div class="hero-actions"><a class="button primary" href="../../../../dist/MeetSpace-0.9.4.apk" download><span aria-hidden="true">↓</span>Скачать APK 0.9.4</a><a class="button" href="verification.json">Результаты проверок ↗</a></div></section>
+<div class="matrix" aria-label="Матрица визуальной проверки"><div class="metric"><strong>37</strong>снимков в матрице</div><div class="metric"><strong>7</strong>конфигураций</div><div class="metric"><strong>6</strong>состояний экрана</div><div class="metric-note">Светлая и тёмная темы · шрифт 100% и 150% · портретная и альбомная ориентация</div></div>
+<section class="controls" aria-label="Фильтры снимков">
+<div class="filter"><label for="scene">Экран</label><select id="scene"><option value="all">Все экраны</option><option value="call">Видеозвонок</option><option value="call-chat">Чат встречи</option><option value="call-comments">Комментарии</option><option value="call-share">Демонстрация экрана</option><option value="call-participants">Участники</option><option value="prejoin">Перед входом</option></select></div>
+<div class="filter device"><label for="device">Размер и устройство</label><select id="device"><option value="all">Все устройства</option><option value="1194x834">1194 × 834 · Планшет · альбомный</option><option value="390x844">390 × 844 · Телефон</option><option value="834x1112">834 × 1112 · Планшет · портретный</option><option value="780x800">780 × 800 · Порог адаптации · 780 dp</option><option value="430x932">430 × 932 · Телефон · крупный шрифт</option><option value="844x390">844 × 390 · Телефон · альбомный</option></select></div>
+<div class="filter"><label for="theme">Тема</label><select id="theme"><option value="all">Обе темы</option><option value="light">Светлая</option><option value="dark">Тёмная</option></select></div>
+<div class="filter"><label for="font">Размер шрифта</label><select id="font"><option value="all">Любой</option><option value="1.0">100%</option><option value="1.5">150%</option></select></div>
+<button id="reset" type="button">Сбросить</button>
+</section>
+<noscript><p>Без JavaScript показаны все снимки. Нажмите на изображение, чтобы открыть полный PNG.</p></noscript>
+<div class="results"><span id="result-count" aria-live="polite">Показано 37 из 37</span><span>Нажмите на снимок, чтобы открыть полный PNG ↗</span></div>
+<section class="grid" aria-label="Снимки интерфейса"><article class="capture" data-scene="call" data-device="1194x834" data-theme="light" data-font="1.0">
+  <a class="preview light" href="screenshots/call-light-1194x834-font1.0.png" target="_blank" rel="noopener" aria-label="Видеозвонок — 1194 × 834, светлая тема, шрифт 100%. Открыть полный PNG">
+    <img src="screenshots/call-light-1194x834-font1.0.png" alt="Видеозвонок — 1194 × 834, светлая тема, шрифт 100%" loading="eager" decoding="async">
+    <span class="missing" hidden>PNG пока недоступен<br><small>Обновите страницу после завершения съёмки</small></span>
+    <span class="zoom" aria-hidden="true">↗</span>
+  </a>
+  <div class="caption"><div class="card-heading"><h2>Видеозвонок</h2><span class="theme-label">Светлая</span></div>
+    <p>Сетка участников и управление звонком</p><div class="meta"><span>1194 × 834</span><span>Шрифт 100%</span></div>
+    <span class="device-label">Планшет · альбомный</span>
+  </div>
+</article>
+<article class="capture" data-scene="call-chat" data-device="1194x834" data-theme="light" data-font="1.0">
+  <a class="preview light" href="screenshots/call-chat-light-1194x834-font1.0.png" target="_blank" rel="noopener" aria-label="Чат встречи — 1194 × 834, светлая тема, шрифт 100%. Открыть полный PNG">
+    <img src="screenshots/call-chat-light-1194x834-font1.0.png" alt="Чат встречи — 1194 × 834, светлая тема, шрифт 100%" loading="eager" decoding="async">
+    <span class="missing" hidden>PNG пока недоступен<br><small>Обновите страницу после завершения съёмки</small></span>
+    <span class="zoom" aria-hidden="true">↗</span>
+  </a>
+  <div class="caption"><div class="card-heading"><h2>Чат встречи</h2><span class="theme-label">Светлая</span></div>
+    <p>Общая история сообщений встречи</p><div class="meta"><span>1194 × 834</span><span>Шрифт 100%</span></div>
+    <span class="device-label">Планшет · альбомный</span>
+  </div>
+</article>
+<article class="capture" data-scene="call-comments" data-device="1194x834" data-theme="light" data-font="1.0">
+  <a class="preview light" href="screenshots/call-comments-light-1194x834-font1.0.png" target="_blank" rel="noopener" aria-label="Комментарии — 1194 × 834, светлая тема, шрифт 100%. Открыть полный PNG">
+    <img src="screenshots/call-comments-light-1194x834-font1.0.png" alt="Комментарии — 1194 × 834, светлая тема, шрифт 100%" loading="eager" decoding="async">
+    <span class="missing" hidden>PNG пока недоступен<br><small>Обновите страницу после завершения съёмки</small></span>
+    <span class="zoom" aria-hidden="true">↗</span>
+  </a>
+  <div class="caption"><div class="card-heading"><h2>Комментарии</h2><span class="theme-label">Светлая</span></div>
+    <p>Та же история в панели комментариев</p><div class="meta"><span>1194 × 834</span><span>Шрифт 100%</span></div>
+    <span class="device-label">Планшет · альбомный</span>
+  </div>
+</article>
+<article class="capture" data-scene="call-share" data-device="1194x834" data-theme="light" data-font="1.0">
+  <a class="preview light" href="screenshots/call-share-light-1194x834-font1.0.png" target="_blank" rel="noopener" aria-label="Демонстрация экрана — 1194 × 834, светлая тема, шрифт 100%. Открыть полный PNG">
+    <img src="screenshots/call-share-light-1194x834-font1.0.png" alt="Демонстрация экрана — 1194 × 834, светлая тема, шрифт 100%" loading="lazy" decoding="async">
+    <span class="missing" hidden>PNG пока недоступен<br><small>Обновите страницу после завершения съёмки</small></span>
+    <span class="zoom" aria-hidden="true">↗</span>
+  </a>
+  <div class="caption"><div class="card-heading"><h2>Демонстрация экрана</h2><span class="theme-label">Светлая</span></div>
+    <p>Показ экрана и участники</p><div class="meta"><span>1194 × 834</span><span>Шрифт 100%</span></div>
+    <span class="device-label">Планшет · альбомный</span>
+  </div>
+</article>
+<article class="capture" data-scene="call-participants" data-device="1194x834" data-theme="light" data-font="1.0">
+  <a class="preview light" href="screenshots/call-participants-light-1194x834-font1.0.png" target="_blank" rel="noopener" aria-label="Участники — 1194 × 834, светлая тема, шрифт 100%. Открыть полный PNG">
+    <img src="screenshots/call-participants-light-1194x834-font1.0.png" alt="Участники — 1194 × 834, светлая тема, шрифт 100%" loading="lazy" decoding="async">
+    <span class="missing" hidden>PNG пока недоступен<br><small>Обновите страницу после завершения съёмки</small></span>
+    <span class="zoom" aria-hidden="true">↗</span>
+  </a>
+  <div class="caption"><div class="card-heading"><h2>Участники</h2><span class="theme-label">Светлая</span></div>
+    <p>Список подключённых участников</p><div class="meta"><span>1194 × 834</span><span>Шрифт 100%</span></div>
+    <span class="device-label">Планшет · альбомный</span>
+  </div>
+</article>
+<article class="capture" data-scene="prejoin" data-device="1194x834" data-theme="light" data-font="1.0">
+  <a class="preview light" href="screenshots/prejoin-light-1194x834-font1.0.png" target="_blank" rel="noopener" aria-label="Перед входом — 1194 × 834, светлая тема, шрифт 100%. Открыть полный PNG">
+    <img src="screenshots/prejoin-light-1194x834-font1.0.png" alt="Перед входом — 1194 × 834, светлая тема, шрифт 100%" loading="lazy" decoding="async">
+    <span class="missing" hidden>PNG пока недоступен<br><small>Обновите страницу после завершения съёмки</small></span>
+    <span class="zoom" aria-hidden="true">↗</span>
+  </a>
+  <div class="caption"><div class="card-heading"><h2>Перед входом</h2><span class="theme-label">Светлая</span></div>
+    <p>Предпросмотр и выбор устройств</p><div class="meta"><span>1194 × 834</span><span>Шрифт 100%</span></div>
+    <span class="device-label">Планшет · альбомный</span>
+  </div>
+</article>
+<article class="capture" data-scene="call" data-device="390x844" data-theme="light" data-font="1.0">
+  <a class="preview light" href="screenshots/call-light-390x844-font1.0.png" target="_blank" rel="noopener" aria-label="Видеозвонок — 390 × 844, светлая тема, шрифт 100%. Открыть полный PNG">
+    <img src="screenshots/call-light-390x844-font1.0.png" alt="Видеозвонок — 390 × 844, светлая тема, шрифт 100%" loading="lazy" decoding="async">
+    <span class="missing" hidden>PNG пока недоступен<br><small>Обновите страницу после завершения съёмки</small></span>
+    <span class="zoom" aria-hidden="true">↗</span>
+  </a>
+  <div class="caption"><div class="card-heading"><h2>Видеозвонок</h2><span class="theme-label">Светлая</span></div>
+    <p>Сетка участников и управление звонком</p><div class="meta"><span>390 × 844</span><span>Шрифт 100%</span></div>
+    <span class="device-label">Телефон</span>
+  </div>
+</article>
+<article class="capture" data-scene="call-chat" data-device="390x844" data-theme="light" data-font="1.0">
+  <a class="preview light" href="screenshots/call-chat-light-390x844-font1.0.png" target="_blank" rel="noopener" aria-label="Чат встречи — 390 × 844, светлая тема, шрифт 100%. Открыть полный PNG">
+    <img src="screenshots/call-chat-light-390x844-font1.0.png" alt="Чат встречи — 390 × 844, светлая тема, шрифт 100%" loading="lazy" decoding="async">
+    <span class="missing" hidden>PNG пока недоступен<br><small>Обновите страницу после завершения съёмки</small></span>
+    <span class="zoom" aria-hidden="true">↗</span>
+  </a>
+  <div class="caption"><div class="card-heading"><h2>Чат встречи</h2><span class="theme-label">Светлая</span></div>
+    <p>Общая история сообщений встречи</p><div class="meta"><span>390 × 844</span><span>Шрифт 100%</span></div>
+    <span class="device-label">Телефон</span>
+  </div>
+</article>
+<article class="capture" data-scene="call-comments" data-device="390x844" data-theme="light" data-font="1.0">
+  <a class="preview light" href="screenshots/call-comments-light-390x844-font1.0.png" target="_blank" rel="noopener" aria-label="Комментарии — 390 × 844, светлая тема, шрифт 100%. Открыть полный PNG">
+    <img src="screenshots/call-comments-light-390x844-font1.0.png" alt="Комментарии — 390 × 844, светлая тема, шрифт 100%" loading="lazy" decoding="async">
+    <span class="missing" hidden>PNG пока недоступен<br><small>Обновите страницу после завершения съёмки</small></span>
+    <span class="zoom" aria-hidden="true">↗</span>
+  </a>
+  <div class="caption"><div class="card-heading"><h2>Комментарии</h2><span class="theme-label">Светлая</span></div>
+    <p>Та же история в панели комментариев</p><div class="meta"><span>390 × 844</span><span>Шрифт 100%</span></div>
+    <span class="device-label">Телефон</span>
+  </div>
+</article>
+<article class="capture" data-scene="call-share" data-device="390x844" data-theme="light" data-font="1.0">
+  <a class="preview light" href="screenshots/call-share-light-390x844-font1.0.png" target="_blank" rel="noopener" aria-label="Демонстрация экрана — 390 × 844, светлая тема, шрифт 100%. Открыть полный PNG">
+    <img src="screenshots/call-share-light-390x844-font1.0.png" alt="Демонстрация экрана — 390 × 844, светлая тема, шрифт 100%" loading="lazy" decoding="async">
+    <span class="missing" hidden>PNG пока недоступен<br><small>Обновите страницу после завершения съёмки</small></span>
+    <span class="zoom" aria-hidden="true">↗</span>
+  </a>
+  <div class="caption"><div class="card-heading"><h2>Демонстрация экрана</h2><span class="theme-label">Светлая</span></div>
+    <p>Показ экрана и участники</p><div class="meta"><span>390 × 844</span><span>Шрифт 100%</span></div>
+    <span class="device-label">Телефон</span>
+  </div>
+</article>
+<article class="capture" data-scene="call-participants" data-device="390x844" data-theme="light" data-font="1.0">
+  <a class="preview light" href="screenshots/call-participants-light-390x844-font1.0.png" target="_blank" rel="noopener" aria-label="Участники — 390 × 844, светлая тема, шрифт 100%. Открыть полный PNG">
+    <img src="screenshots/call-participants-light-390x844-font1.0.png" alt="Участники — 390 × 844, светлая тема, шрифт 100%" loading="lazy" decoding="async">
+    <span class="missing" hidden>PNG пока недоступен<br><small>Обновите страницу после завершения съёмки</small></span>
+    <span class="zoom" aria-hidden="true">↗</span>
+  </a>
+  <div class="caption"><div class="card-heading"><h2>Участники</h2><span class="theme-label">Светлая</span></div>
+    <p>Список подключённых участников</p><div class="meta"><span>390 × 844</span><span>Шрифт 100%</span></div>
+    <span class="device-label">Телефон</span>
+  </div>
+</article>
+<article class="capture" data-scene="prejoin" data-device="390x844" data-theme="light" data-font="1.0">
+  <a class="preview light" href="screenshots/prejoin-light-390x844-font1.0.png" target="_blank" rel="noopener" aria-label="Перед входом — 390 × 844, светлая тема, шрифт 100%. Открыть полный PNG">
+    <img src="screenshots/prejoin-light-390x844-font1.0.png" alt="Перед входом — 390 × 844, светлая тема, шрифт 100%" loading="lazy" decoding="async">
+    <span class="missing" hidden>PNG пока недоступен<br><small>Обновите страницу после завершения съёмки</small></span>
+    <span class="zoom" aria-hidden="true">↗</span>
+  </a>
+  <div class="caption"><div class="card-heading"><h2>Перед входом</h2><span class="theme-label">Светлая</span></div>
+    <p>Предпросмотр и выбор устройств</p><div class="meta"><span>390 × 844</span><span>Шрифт 100%</span></div>
+    <span class="device-label">Телефон</span>
+  </div>
+</article>
+<article class="capture" data-scene="call" data-device="834x1112" data-theme="dark" data-font="1.0">
+  <a class="preview dark" href="screenshots/call-dark-834x1112-font1.0.png" target="_blank" rel="noopener" aria-label="Видеозвонок — 834 × 1112, тёмная тема, шрифт 100%. Открыть полный PNG">
+    <img src="screenshots/call-dark-834x1112-font1.0.png" alt="Видеозвонок — 834 × 1112, тёмная тема, шрифт 100%" loading="lazy" decoding="async">
+    <span class="missing" hidden>PNG пока недоступен<br><small>Обновите страницу после завершения съёмки</small></span>
+    <span class="zoom" aria-hidden="true">↗</span>
+  </a>
+  <div class="caption"><div class="card-heading"><h2>Видеозвонок</h2><span class="theme-label">Тёмная</span></div>
+    <p>Сетка участников и управление звонком</p><div class="meta"><span>834 × 1112</span><span>Шрифт 100%</span></div>
+    <span class="device-label">Планшет · портретный</span>
+  </div>
+</article>
+<article class="capture" data-scene="call-chat" data-device="834x1112" data-theme="dark" data-font="1.0">
+  <a class="preview dark" href="screenshots/call-chat-dark-834x1112-font1.0.png" target="_blank" rel="noopener" aria-label="Чат встречи — 834 × 1112, тёмная тема, шрифт 100%. Открыть полный PNG">
+    <img src="screenshots/call-chat-dark-834x1112-font1.0.png" alt="Чат встречи — 834 × 1112, тёмная тема, шрифт 100%" loading="lazy" decoding="async">
+    <span class="missing" hidden>PNG пока недоступен<br><small>Обновите страницу после завершения съёмки</small></span>
+    <span class="zoom" aria-hidden="true">↗</span>
+  </a>
+  <div class="caption"><div class="card-heading"><h2>Чат встречи</h2><span class="theme-label">Тёмная</span></div>
+    <p>Общая история сообщений встречи</p><div class="meta"><span>834 × 1112</span><span>Шрифт 100%</span></div>
+    <span class="device-label">Планшет · портретный</span>
+  </div>
+</article>
+<article class="capture" data-scene="call-comments" data-device="834x1112" data-theme="dark" data-font="1.0">
+  <a class="preview dark" href="screenshots/call-comments-dark-834x1112-font1.0.png" target="_blank" rel="noopener" aria-label="Комментарии — 834 × 1112, тёмная тема, шрифт 100%. Открыть полный PNG">
+    <img src="screenshots/call-comments-dark-834x1112-font1.0.png" alt="Комментарии — 834 × 1112, тёмная тема, шрифт 100%" loading="lazy" decoding="async">
+    <span class="missing" hidden>PNG пока недоступен<br><small>Обновите страницу после завершения съёмки</small></span>
+    <span class="zoom" aria-hidden="true">↗</span>
+  </a>
+  <div class="caption"><div class="card-heading"><h2>Комментарии</h2><span class="theme-label">Тёмная</span></div>
+    <p>Та же история в панели комментариев</p><div class="meta"><span>834 × 1112</span><span>Шрифт 100%</span></div>
+    <span class="device-label">Планшет · портретный</span>
+  </div>
+</article>
+<article class="capture" data-scene="call-share" data-device="834x1112" data-theme="dark" data-font="1.0">
+  <a class="preview dark" href="screenshots/call-share-dark-834x1112-font1.0.png" target="_blank" rel="noopener" aria-label="Демонстрация экрана — 834 × 1112, тёмная тема, шрифт 100%. Открыть полный PNG">
+    <img src="screenshots/call-share-dark-834x1112-font1.0.png" alt="Демонстрация экрана — 834 × 1112, тёмная тема, шрифт 100%" loading="lazy" decoding="async">
+    <span class="missing" hidden>PNG пока недоступен<br><small>Обновите страницу после завершения съёмки</small></span>
+    <span class="zoom" aria-hidden="true">↗</span>
+  </a>
+  <div class="caption"><div class="card-heading"><h2>Демонстрация экрана</h2><span class="theme-label">Тёмная</span></div>
+    <p>Показ экрана и участники</p><div class="meta"><span>834 × 1112</span><span>Шрифт 100%</span></div>
+    <span class="device-label">Планшет · портретный</span>
+  </div>
+</article>
+<article class="capture" data-scene="call-participants" data-device="834x1112" data-theme="dark" data-font="1.0">
+  <a class="preview dark" href="screenshots/call-participants-dark-834x1112-font1.0.png" target="_blank" rel="noopener" aria-label="Участники — 834 × 1112, тёмная тема, шрифт 100%. Открыть полный PNG">
+    <img src="screenshots/call-participants-dark-834x1112-font1.0.png" alt="Участники — 834 × 1112, тёмная тема, шрифт 100%" loading="lazy" decoding="async">
+    <span class="missing" hidden>PNG пока недоступен<br><small>Обновите страницу после завершения съёмки</small></span>
+    <span class="zoom" aria-hidden="true">↗</span>
+  </a>
+  <div class="caption"><div class="card-heading"><h2>Участники</h2><span class="theme-label">Тёмная</span></div>
+    <p>Список подключённых участников</p><div class="meta"><span>834 × 1112</span><span>Шрифт 100%</span></div>
+    <span class="device-label">Планшет · портретный</span>
+  </div>
+</article>
+<article class="capture" data-scene="call" data-device="780x800" data-theme="light" data-font="1.0">
+  <a class="preview light" href="screenshots/call-light-780x800-font1.0.png" target="_blank" rel="noopener" aria-label="Видеозвонок — 780 × 800, светлая тема, шрифт 100%. Открыть полный PNG">
+    <img src="screenshots/call-light-780x800-font1.0.png" alt="Видеозвонок — 780 × 800, светлая тема, шрифт 100%" loading="lazy" decoding="async">
+    <span class="missing" hidden>PNG пока недоступен<br><small>Обновите страницу после завершения съёмки</small></span>
+    <span class="zoom" aria-hidden="true">↗</span>
+  </a>
+  <div class="caption"><div class="card-heading"><h2>Видеозвонок</h2><span class="theme-label">Светлая</span></div>
+    <p>Сетка участников и управление звонком</p><div class="meta"><span>780 × 800</span><span>Шрифт 100%</span></div>
+    <span class="device-label">Порог адаптации · 780 dp</span>
+  </div>
+</article>
+<article class="capture" data-scene="call-chat" data-device="780x800" data-theme="light" data-font="1.0">
+  <a class="preview light" href="screenshots/call-chat-light-780x800-font1.0.png" target="_blank" rel="noopener" aria-label="Чат встречи — 780 × 800, светлая тема, шрифт 100%. Открыть полный PNG">
+    <img src="screenshots/call-chat-light-780x800-font1.0.png" alt="Чат встречи — 780 × 800, светлая тема, шрифт 100%" loading="lazy" decoding="async">
+    <span class="missing" hidden>PNG пока недоступен<br><small>Обновите страницу после завершения съёмки</small></span>
+    <span class="zoom" aria-hidden="true">↗</span>
+  </a>
+  <div class="caption"><div class="card-heading"><h2>Чат встречи</h2><span class="theme-label">Светлая</span></div>
+    <p>Общая история сообщений встречи</p><div class="meta"><span>780 × 800</span><span>Шрифт 100%</span></div>
+    <span class="device-label">Порог адаптации · 780 dp</span>
+  </div>
+</article>
+<article class="capture" data-scene="call-comments" data-device="780x800" data-theme="light" data-font="1.0">
+  <a class="preview light" href="screenshots/call-comments-light-780x800-font1.0.png" target="_blank" rel="noopener" aria-label="Комментарии — 780 × 800, светлая тема, шрифт 100%. Открыть полный PNG">
+    <img src="screenshots/call-comments-light-780x800-font1.0.png" alt="Комментарии — 780 × 800, светлая тема, шрифт 100%" loading="lazy" decoding="async">
+    <span class="missing" hidden>PNG пока недоступен<br><small>Обновите страницу после завершения съёмки</small></span>
+    <span class="zoom" aria-hidden="true">↗</span>
+  </a>
+  <div class="caption"><div class="card-heading"><h2>Комментарии</h2><span class="theme-label">Светлая</span></div>
+    <p>Та же история в панели комментариев</p><div class="meta"><span>780 × 800</span><span>Шрифт 100%</span></div>
+    <span class="device-label">Порог адаптации · 780 dp</span>
+  </div>
+</article>
+<article class="capture" data-scene="call-share" data-device="780x800" data-theme="light" data-font="1.0">
+  <a class="preview light" href="screenshots/call-share-light-780x800-font1.0.png" target="_blank" rel="noopener" aria-label="Демонстрация экрана — 780 × 800, светлая тема, шрифт 100%. Открыть полный PNG">
+    <img src="screenshots/call-share-light-780x800-font1.0.png" alt="Демонстрация экрана — 780 × 800, светлая тема, шрифт 100%" loading="lazy" decoding="async">
+    <span class="missing" hidden>PNG пока недоступен<br><small>Обновите страницу после завершения съёмки</small></span>
+    <span class="zoom" aria-hidden="true">↗</span>
+  </a>
+  <div class="caption"><div class="card-heading"><h2>Демонстрация экрана</h2><span class="theme-label">Светлая</span></div>
+    <p>Показ экрана и участники</p><div class="meta"><span>780 × 800</span><span>Шрифт 100%</span></div>
+    <span class="device-label">Порог адаптации · 780 dp</span>
+  </div>
+</article>
+<article class="capture" data-scene="call-participants" data-device="780x800" data-theme="light" data-font="1.0">
+  <a class="preview light" href="screenshots/call-participants-light-780x800-font1.0.png" target="_blank" rel="noopener" aria-label="Участники — 780 × 800, светлая тема, шрифт 100%. Открыть полный PNG">
+    <img src="screenshots/call-participants-light-780x800-font1.0.png" alt="Участники — 780 × 800, светлая тема, шрифт 100%" loading="lazy" decoding="async">
+    <span class="missing" hidden>PNG пока недоступен<br><small>Обновите страницу после завершения съёмки</small></span>
+    <span class="zoom" aria-hidden="true">↗</span>
+  </a>
+  <div class="caption"><div class="card-heading"><h2>Участники</h2><span class="theme-label">Светлая</span></div>
+    <p>Список подключённых участников</p><div class="meta"><span>780 × 800</span><span>Шрифт 100%</span></div>
+    <span class="device-label">Порог адаптации · 780 dp</span>
+  </div>
+</article>
+<article class="capture" data-scene="call" data-device="430x932" data-theme="dark" data-font="1.5">
+  <a class="preview dark" href="screenshots/call-dark-430x932-font1.5.png" target="_blank" rel="noopener" aria-label="Видеозвонок — 430 × 932, тёмная тема, шрифт 150%. Открыть полный PNG">
+    <img src="screenshots/call-dark-430x932-font1.5.png" alt="Видеозвонок — 430 × 932, тёмная тема, шрифт 150%" loading="lazy" decoding="async">
+    <span class="missing" hidden>PNG пока недоступен<br><small>Обновите страницу после завершения съёмки</small></span>
+    <span class="zoom" aria-hidden="true">↗</span>
+  </a>
+  <div class="caption"><div class="card-heading"><h2>Видеозвонок</h2><span class="theme-label">Тёмная</span></div>
+    <p>Сетка участников и управление звонком</p><div class="meta"><span>430 × 932</span><span>Шрифт 150%</span></div>
+    <span class="device-label">Телефон · крупный шрифт</span>
+  </div>
+</article>
+<article class="capture" data-scene="call-chat" data-device="430x932" data-theme="dark" data-font="1.5">
+  <a class="preview dark" href="screenshots/call-chat-dark-430x932-font1.5.png" target="_blank" rel="noopener" aria-label="Чат встречи — 430 × 932, тёмная тема, шрифт 150%. Открыть полный PNG">
+    <img src="screenshots/call-chat-dark-430x932-font1.5.png" alt="Чат встречи — 430 × 932, тёмная тема, шрифт 150%" loading="lazy" decoding="async">
+    <span class="missing" hidden>PNG пока недоступен<br><small>Обновите страницу после завершения съёмки</small></span>
+    <span class="zoom" aria-hidden="true">↗</span>
+  </a>
+  <div class="caption"><div class="card-heading"><h2>Чат встречи</h2><span class="theme-label">Тёмная</span></div>
+    <p>Общая история сообщений встречи</p><div class="meta"><span>430 × 932</span><span>Шрифт 150%</span></div>
+    <span class="device-label">Телефон · крупный шрифт</span>
+  </div>
+</article>
+<article class="capture" data-scene="call-comments" data-device="430x932" data-theme="dark" data-font="1.5">
+  <a class="preview dark" href="screenshots/call-comments-dark-430x932-font1.5.png" target="_blank" rel="noopener" aria-label="Комментарии — 430 × 932, тёмная тема, шрифт 150%. Открыть полный PNG">
+    <img src="screenshots/call-comments-dark-430x932-font1.5.png" alt="Комментарии — 430 × 932, тёмная тема, шрифт 150%" loading="lazy" decoding="async">
+    <span class="missing" hidden>PNG пока недоступен<br><small>Обновите страницу после завершения съёмки</small></span>
+    <span class="zoom" aria-hidden="true">↗</span>
+  </a>
+  <div class="caption"><div class="card-heading"><h2>Комментарии</h2><span class="theme-label">Тёмная</span></div>
+    <p>Та же история в панели комментариев</p><div class="meta"><span>430 × 932</span><span>Шрифт 150%</span></div>
+    <span class="device-label">Телефон · крупный шрифт</span>
+  </div>
+</article>
+<article class="capture" data-scene="call-share" data-device="430x932" data-theme="dark" data-font="1.5">
+  <a class="preview dark" href="screenshots/call-share-dark-430x932-font1.5.png" target="_blank" rel="noopener" aria-label="Демонстрация экрана — 430 × 932, тёмная тема, шрифт 150%. Открыть полный PNG">
+    <img src="screenshots/call-share-dark-430x932-font1.5.png" alt="Демонстрация экрана — 430 × 932, тёмная тема, шрифт 150%" loading="lazy" decoding="async">
+    <span class="missing" hidden>PNG пока недоступен<br><small>Обновите страницу после завершения съёмки</small></span>
+    <span class="zoom" aria-hidden="true">↗</span>
+  </a>
+  <div class="caption"><div class="card-heading"><h2>Демонстрация экрана</h2><span class="theme-label">Тёмная</span></div>
+    <p>Показ экрана и участники</p><div class="meta"><span>430 × 932</span><span>Шрифт 150%</span></div>
+    <span class="device-label">Телефон · крупный шрифт</span>
+  </div>
+</article>
+<article class="capture" data-scene="call-participants" data-device="430x932" data-theme="dark" data-font="1.5">
+  <a class="preview dark" href="screenshots/call-participants-dark-430x932-font1.5.png" target="_blank" rel="noopener" aria-label="Участники — 430 × 932, тёмная тема, шрифт 150%. Открыть полный PNG">
+    <img src="screenshots/call-participants-dark-430x932-font1.5.png" alt="Участники — 430 × 932, тёмная тема, шрифт 150%" loading="lazy" decoding="async">
+    <span class="missing" hidden>PNG пока недоступен<br><small>Обновите страницу после завершения съёмки</small></span>
+    <span class="zoom" aria-hidden="true">↗</span>
+  </a>
+  <div class="caption"><div class="card-heading"><h2>Участники</h2><span class="theme-label">Тёмная</span></div>
+    <p>Список подключённых участников</p><div class="meta"><span>430 × 932</span><span>Шрифт 150%</span></div>
+    <span class="device-label">Телефон · крупный шрифт</span>
+  </div>
+</article>
+<article class="capture" data-scene="call" data-device="844x390" data-theme="dark" data-font="1.0">
+  <a class="preview dark" href="screenshots/call-dark-844x390-font1.0.png" target="_blank" rel="noopener" aria-label="Видеозвонок — 844 × 390, тёмная тема, шрифт 100%. Открыть полный PNG">
+    <img src="screenshots/call-dark-844x390-font1.0.png" alt="Видеозвонок — 844 × 390, тёмная тема, шрифт 100%" loading="lazy" decoding="async">
+    <span class="missing" hidden>PNG пока недоступен<br><small>Обновите страницу после завершения съёмки</small></span>
+    <span class="zoom" aria-hidden="true">↗</span>
+  </a>
+  <div class="caption"><div class="card-heading"><h2>Видеозвонок</h2><span class="theme-label">Тёмная</span></div>
+    <p>Сетка участников и управление звонком</p><div class="meta"><span>844 × 390</span><span>Шрифт 100%</span></div>
+    <span class="device-label">Телефон · альбомный</span>
+  </div>
+</article>
+<article class="capture" data-scene="call-chat" data-device="844x390" data-theme="dark" data-font="1.0">
+  <a class="preview dark" href="screenshots/call-chat-dark-844x390-font1.0.png" target="_blank" rel="noopener" aria-label="Чат встречи — 844 × 390, тёмная тема, шрифт 100%. Открыть полный PNG">
+    <img src="screenshots/call-chat-dark-844x390-font1.0.png" alt="Чат встречи — 844 × 390, тёмная тема, шрифт 100%" loading="lazy" decoding="async">
+    <span class="missing" hidden>PNG пока недоступен<br><small>Обновите страницу после завершения съёмки</small></span>
+    <span class="zoom" aria-hidden="true">↗</span>
+  </a>
+  <div class="caption"><div class="card-heading"><h2>Чат встречи</h2><span class="theme-label">Тёмная</span></div>
+    <p>Общая история сообщений встречи</p><div class="meta"><span>844 × 390</span><span>Шрифт 100%</span></div>
+    <span class="device-label">Телефон · альбомный</span>
+  </div>
+</article>
+<article class="capture" data-scene="call-comments" data-device="844x390" data-theme="dark" data-font="1.0">
+  <a class="preview dark" href="screenshots/call-comments-dark-844x390-font1.0.png" target="_blank" rel="noopener" aria-label="Комментарии — 844 × 390, тёмная тема, шрифт 100%. Открыть полный PNG">
+    <img src="screenshots/call-comments-dark-844x390-font1.0.png" alt="Комментарии — 844 × 390, тёмная тема, шрифт 100%" loading="lazy" decoding="async">
+    <span class="missing" hidden>PNG пока недоступен<br><small>Обновите страницу после завершения съёмки</small></span>
+    <span class="zoom" aria-hidden="true">↗</span>
+  </a>
+  <div class="caption"><div class="card-heading"><h2>Комментарии</h2><span class="theme-label">Тёмная</span></div>
+    <p>Та же история в панели комментариев</p><div class="meta"><span>844 × 390</span><span>Шрифт 100%</span></div>
+    <span class="device-label">Телефон · альбомный</span>
+  </div>
+</article>
+<article class="capture" data-scene="call-share" data-device="844x390" data-theme="dark" data-font="1.0">
+  <a class="preview dark" href="screenshots/call-share-dark-844x390-font1.0.png" target="_blank" rel="noopener" aria-label="Демонстрация экрана — 844 × 390, тёмная тема, шрифт 100%. Открыть полный PNG">
+    <img src="screenshots/call-share-dark-844x390-font1.0.png" alt="Демонстрация экрана — 844 × 390, тёмная тема, шрифт 100%" loading="lazy" decoding="async">
+    <span class="missing" hidden>PNG пока недоступен<br><small>Обновите страницу после завершения съёмки</small></span>
+    <span class="zoom" aria-hidden="true">↗</span>
+  </a>
+  <div class="caption"><div class="card-heading"><h2>Демонстрация экрана</h2><span class="theme-label">Тёмная</span></div>
+    <p>Показ экрана и участники</p><div class="meta"><span>844 × 390</span><span>Шрифт 100%</span></div>
+    <span class="device-label">Телефон · альбомный</span>
+  </div>
+</article>
+<article class="capture" data-scene="call-participants" data-device="844x390" data-theme="dark" data-font="1.0">
+  <a class="preview dark" href="screenshots/call-participants-dark-844x390-font1.0.png" target="_blank" rel="noopener" aria-label="Участники — 844 × 390, тёмная тема, шрифт 100%. Открыть полный PNG">
+    <img src="screenshots/call-participants-dark-844x390-font1.0.png" alt="Участники — 844 × 390, тёмная тема, шрифт 100%" loading="lazy" decoding="async">
+    <span class="missing" hidden>PNG пока недоступен<br><small>Обновите страницу после завершения съёмки</small></span>
+    <span class="zoom" aria-hidden="true">↗</span>
+  </a>
+  <div class="caption"><div class="card-heading"><h2>Участники</h2><span class="theme-label">Тёмная</span></div>
+    <p>Список подключённых участников</p><div class="meta"><span>844 × 390</span><span>Шрифт 100%</span></div>
+    <span class="device-label">Телефон · альбомный</span>
+  </div>
+</article>
+<article class="capture" data-scene="call" data-device="1194x834" data-theme="dark" data-font="1.0">
+  <a class="preview dark" href="screenshots/call-dark-1194x834-font1.0.png" target="_blank" rel="noopener" aria-label="Видеозвонок — 1194 × 834, тёмная тема, шрифт 100%. Открыть полный PNG">
+    <img src="screenshots/call-dark-1194x834-font1.0.png" alt="Видеозвонок — 1194 × 834, тёмная тема, шрифт 100%" loading="lazy" decoding="async">
+    <span class="missing" hidden>PNG пока недоступен<br><small>Обновите страницу после завершения съёмки</small></span>
+    <span class="zoom" aria-hidden="true">↗</span>
+  </a>
+  <div class="caption"><div class="card-heading"><h2>Видеозвонок</h2><span class="theme-label">Тёмная</span></div>
+    <p>Сетка участников и управление звонком</p><div class="meta"><span>1194 × 834</span><span>Шрифт 100%</span></div>
+    <span class="device-label">Планшет · альбомный</span>
+  </div>
+</article>
+<article class="capture" data-scene="call-chat" data-device="1194x834" data-theme="dark" data-font="1.0">
+  <a class="preview dark" href="screenshots/call-chat-dark-1194x834-font1.0.png" target="_blank" rel="noopener" aria-label="Чат встречи — 1194 × 834, тёмная тема, шрифт 100%. Открыть полный PNG">
+    <img src="screenshots/call-chat-dark-1194x834-font1.0.png" alt="Чат встречи — 1194 × 834, тёмная тема, шрифт 100%" loading="lazy" decoding="async">
+    <span class="missing" hidden>PNG пока недоступен<br><small>Обновите страницу после завершения съёмки</small></span>
+    <span class="zoom" aria-hidden="true">↗</span>
+  </a>
+  <div class="caption"><div class="card-heading"><h2>Чат встречи</h2><span class="theme-label">Тёмная</span></div>
+    <p>Общая история сообщений встречи</p><div class="meta"><span>1194 × 834</span><span>Шрифт 100%</span></div>
+    <span class="device-label">Планшет · альбомный</span>
+  </div>
+</article>
+<article class="capture" data-scene="call-comments" data-device="1194x834" data-theme="dark" data-font="1.0">
+  <a class="preview dark" href="screenshots/call-comments-dark-1194x834-font1.0.png" target="_blank" rel="noopener" aria-label="Комментарии — 1194 × 834, тёмная тема, шрифт 100%. Открыть полный PNG">
+    <img src="screenshots/call-comments-dark-1194x834-font1.0.png" alt="Комментарии — 1194 × 834, тёмная тема, шрифт 100%" loading="lazy" decoding="async">
+    <span class="missing" hidden>PNG пока недоступен<br><small>Обновите страницу после завершения съёмки</small></span>
+    <span class="zoom" aria-hidden="true">↗</span>
+  </a>
+  <div class="caption"><div class="card-heading"><h2>Комментарии</h2><span class="theme-label">Тёмная</span></div>
+    <p>Та же история в панели комментариев</p><div class="meta"><span>1194 × 834</span><span>Шрифт 100%</span></div>
+    <span class="device-label">Планшет · альбомный</span>
+  </div>
+</article>
+<article class="capture" data-scene="call-share" data-device="1194x834" data-theme="dark" data-font="1.0">
+  <a class="preview dark" href="screenshots/call-share-dark-1194x834-font1.0.png" target="_blank" rel="noopener" aria-label="Демонстрация экрана — 1194 × 834, тёмная тема, шрифт 100%. Открыть полный PNG">
+    <img src="screenshots/call-share-dark-1194x834-font1.0.png" alt="Демонстрация экрана — 1194 × 834, тёмная тема, шрифт 100%" loading="lazy" decoding="async">
+    <span class="missing" hidden>PNG пока недоступен<br><small>Обновите страницу после завершения съёмки</small></span>
+    <span class="zoom" aria-hidden="true">↗</span>
+  </a>
+  <div class="caption"><div class="card-heading"><h2>Демонстрация экрана</h2><span class="theme-label">Тёмная</span></div>
+    <p>Показ экрана и участники</p><div class="meta"><span>1194 × 834</span><span>Шрифт 100%</span></div>
+    <span class="device-label">Планшет · альбомный</span>
+  </div>
+</article>
+<article class="capture" data-scene="call-participants" data-device="1194x834" data-theme="dark" data-font="1.0">
+  <a class="preview dark" href="screenshots/call-participants-dark-1194x834-font1.0.png" target="_blank" rel="noopener" aria-label="Участники — 1194 × 834, тёмная тема, шрифт 100%. Открыть полный PNG">
+    <img src="screenshots/call-participants-dark-1194x834-font1.0.png" alt="Участники — 1194 × 834, тёмная тема, шрифт 100%" loading="lazy" decoding="async">
+    <span class="missing" hidden>PNG пока недоступен<br><small>Обновите страницу после завершения съёмки</small></span>
+    <span class="zoom" aria-hidden="true">↗</span>
+  </a>
+  <div class="caption"><div class="card-heading"><h2>Участники</h2><span class="theme-label">Тёмная</span></div>
+    <p>Список подключённых участников</p><div class="meta"><span>1194 × 834</span><span>Шрифт 100%</span></div>
+    <span class="device-label">Планшет · альбомный</span>
+  </div>
+</article></section>
+<p id="empty" hidden>Нет снимков для выбранного сочетания. Попробуйте другой размер или сбросьте фильтры.</p>
+<section class="notes" aria-label="Как читать галерею"><div><h2>О содержимом снимков</h2><p>Имена, сообщения и изображения участников в этой галерее — синтетические данные и иллюстрации только для визуальных тестов. Они не добавляются в рабочие встречи. В приложении чат и комментарии показывают общую историю реальной встречи.</p></div><div><h2>О сравнении с макетом</h2><p>Эталон — синий макет MeetSpace от 12 октября. Системные отступы Android, шрифтовые настройки, реальные аккаунты и видеопотоки могут отличаться от веб-превью. Галерея помогает оценить адаптацию и расположение элементов; она не заявляет полного попиксельного совпадения.</p></div></section>
+<footer class="footer"><span>Локальная галерея · изображения и фильтры работают без сервера</span><span><a href="../design-blue/index.html">Предыдущая проверка всех разделов</a> · <a href="../../../../dist/MeetSpace-0.9.4.apk.sha256">SHA-256 APK</a></span></footer>
+</main>
+<script>
+(() => {
+  'use strict';
+  const fields = ['scene', 'device', 'theme', 'font'];
+  const selects = fields.map(id => document.getElementById(id));
+  const cards = Array.from(document.querySelectorAll('.capture'));
+  function applyFilters() {
+    let visible = 0;
+    cards.forEach(card => {
+      const match = selects.every((select, index) => select.value === 'all' || card.dataset[fields[index]] === select.value);
+      card.hidden = !match;
+      if (match) visible++;
+    });
+    document.getElementById('result-count').textContent = `Показано ${visible} из ${cards.length}`;
+    document.getElementById('empty').hidden = visible !== 0;
+  }
+  selects.forEach(select => select.addEventListener('change', applyFilters));
+  document.getElementById('reset').addEventListener('click', () => { selects.forEach(select => { select.value = 'all'; }); applyFilters(); });
+  document.querySelectorAll('.preview img').forEach(img => {
+    const fallback = img.parentElement.querySelector('.missing');
+    const failed = () => { img.hidden = true; fallback.hidden = false; };
+    const loaded = () => { img.hidden = false; fallback.hidden = true; };
+    img.addEventListener('error', failed);
+    img.addEventListener('load', loaded);
+    if (img.complete) { if (img.naturalWidth) loaded(); else if (img.loading !== 'lazy') failed(); }
+  });
+  applyFilters();
+})();
+</script>
+</body>
+</html>

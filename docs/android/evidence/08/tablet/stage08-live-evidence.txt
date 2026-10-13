@@ -1,0 +1,14 @@
+video:realMp4=true;nativeDecoderFrames=true;seek=true;rotation=true;closedCapability=true
+download:systemCreateDocument=true;actualMinioStream=true;sha256Match=true;exactTestExportCleanup=true
+video:realMp4=true;nativeDecoderFrames=true;seek=true;rotation=true;pausedPositionRetained=true;closedCapability=true
+onboarding:actualHttpsUiLogin=true;actualUiLogout=true;actualLocalSshNetworkFailure=true;actionableError=true;installationAttempted=false
+materials:historicalReadyWithProviderDisabled=true;segments=205;uniquePages=true;summary=true;debugArtifactHidden=true;actualThemePreferences=true;privacyDialog=true
+download:systemCreateDocument=true;actualMinioStream=true;sha256Match=true;exactTestExportCleanup=true
+video:realMp4=true;nativeDecoderFrames=true;seek=true;rotation=true;pausedPositionRetained=true;closedCapability=true
+materials:historicalReadyWithProviderDisabled=true;segments=205;uniquePages=true;summary=true;debugArtifactHidden=true;actualThemePreferences=true;privacyDialog=true
+download:systemCreateDocument=true;actualMinioStream=true;sha256Match=true;exactTestExportCleanup=true
+onboarding:actualHttpsUiLogin=true;actualUiLogout=true;actualLocalSshNetworkFailure=true;actionableError=true;installationAttempted=false
+onboarding:actualHttpsUiLogin=true;actualUiLogout=true;actualLocalSshNetworkFailure=true;actionableError=true;installationAttempted=false
+materials:historicalReadyWithProviderDisabled=true;segments=205;uniquePages=true;summary=true;debugArtifactHidden=true;actualThemePreferences=true;privacyDialog=true
+download:systemCreateDocument=true;actualMinioStream=true;sha256Match=true;exactTestExportCleanup=true
+video:realMp4=true;nativeDecoderFrames=true;seek=true;rotation=true;pausedPositionRetained=true;closedCapability=true;inboxIntentClosesPlayer=true;consumedIntentNotReplayed=true

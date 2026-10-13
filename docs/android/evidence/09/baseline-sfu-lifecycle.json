@@ -1,0 +1,130 @@
+{
+  "label": "baseline",
+  "condition": "One idle real Pion peer remains connected; explicit runtime.GC each observed batch; host lsof records include non-FD mappings",
+  "samples": [
+    {
+      "phase": "before",
+      "completedCycles": 0,
+      "runtime": {
+        "gcCount": 179,
+        "goroutines": 17,
+        "heapAllocBytes": 3671808,
+        "heapObjects": 17643,
+        "totalAllocBytes": 1184831832,
+        "unixMillis": 1791735602135
+      },
+      "sfu": {
+        "roomsActive": 0,
+        "mediaPeersActive": 0,
+        "tracksPublished": 0,
+        "subscriptions": 0,
+        "peerConnectionTotal": 111,
+        "peerConnectionFailures": 1,
+        "relayConnections": 78,
+        "directConnections": 33,
+        "packetsForwarded": 0,
+        "bytesForwarded": 0,
+        "packetsDropped": 0,
+        "recordingOutputs": 0,
+        "recordingDrops": 0,
+        "audioTaps": 0,
+        "audioTapDrops": 0
+      },
+      "hostOpenFileRecords": 21,
+      "hostThreadRows": 14
+    },
+    {
+      "phase": "settled",
+      "completedCycles": 110,
+      "runtime": {
+        "gcCount": 180,
+        "goroutines": 18,
+        "heapAllocBytes": 3839112,
+        "heapObjects": 19469,
+        "totalAllocBytes": 1185132680,
+        "unixMillis": 1791735604143
+      },
+      "sfu": {
+        "roomsActive": 0,
+        "mediaPeersActive": 0,
+        "tracksPublished": 0,
+        "subscriptions": 0,
+        "peerConnectionTotal": 111,
+        "peerConnectionFailures": 1,
+        "relayConnections": 78,
+        "directConnections": 33,
+        "packetsForwarded": 0,
+        "bytesForwarded": 0,
+        "packetsDropped": 0,
+        "recordingOutputs": 0,
+        "recordingDrops": 0,
+        "audioTaps": 0,
+        "audioTapDrops": 0
+      },
+      "hostOpenFileRecords": 22,
+      "hostThreadRows": 14
+    },
+    {
+      "phase": "idle-settled",
+      "completedCycles": 110,
+      "runtime": {
+        "gcCount": 313,
+        "goroutines": 16,
+        "heapAllocBytes": 3652288,
+        "heapObjects": 17512,
+        "totalAllocBytes": 1647666016,
+        "unixMillis": 1791735839833
+      },
+      "sfu": {
+        "roomsActive": 0,
+        "mediaPeersActive": 0,
+        "tracksPublished": 0,
+        "subscriptions": 0,
+        "peerConnectionTotal": 221,
+        "peerConnectionFailures": 1,
+        "relayConnections": 151,
+        "directConnections": 70,
+        "packetsForwarded": 0,
+        "bytesForwarded": 0,
+        "packetsDropped": 0,
+        "recordingOutputs": 0,
+        "recordingDrops": 0,
+        "audioTaps": 0,
+        "audioTapDrops": 0
+      },
+      "hostOpenFileRecords": 20,
+      "hostThreadRows": 14
+    },
+    {
+      "phase": "after",
+      "completedCycles": 110,
+      "runtime": {
+        "gcCount": 314,
+        "goroutines": 16,
+        "heapAllocBytes": 3642768,
+        "heapObjects": 17534,
+        "totalAllocBytes": 1647992528,
+        "unixMillis": 1791735842842
+      },
+      "sfu": {
+        "roomsActive": 0,
+        "mediaPeersActive": 0,
+        "tracksPublished": 0,
+        "subscriptions": 0,
+        "peerConnectionTotal": 221,
+        "peerConnectionFailures": 1,
+        "relayConnections": 151,
+        "directConnections": 70,
+        "packetsForwarded": 0,
+        "bytesForwarded": 0,
+        "packetsDropped": 0,
+        "recordingOutputs": 0,
+        "recordingDrops": 0,
+        "audioTaps": 0,
+        "audioTapDrops": 0
+      },
+      "hostOpenFileRecords": 20,
+      "hostThreadRows": 14
+    }
+  ]
+}

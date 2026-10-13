@@ -1,0 +1,306 @@
+{
+  "auditedAtUtc": "2026-10-11T14:59:23.090742+00:00",
+  "method": "Downloaded published release AARs from Google Maven/Maven Central over HTTPS; inspected actual ELF64 PT_LOAD and PT_GNU_RELRO program headers using testing/stage08/verify_artifacts.py. No dependency edits or native binary patching.",
+  "current": {
+    "androidx.datastore:datastore-core-android": "1.1.7",
+    "androidx.graphics:graphics-path": "1.0.1",
+    "io.github.webrtc-sdk:android": "144.7559.15"
+  },
+  "candidates": [
+    {
+      "artifact": "android",
+      "version": "150.7871.01",
+      "url": "https://repo.maven.apache.org/maven2/io/github/webrtc-sdk/android/150.7871.01/android-150.7871.01.aar",
+      "sha256": "0a1627b1a48c2bc17d9a40d62fc47bd45166f44a311e95917f147c402de379b0",
+      "bytes": 49147033,
+      "native": [
+        {
+          "path": "jni/arm64-v8a/libjingle_peerconnection_so.so",
+          "loadSegments": [
+            {
+              "alignmentBytes": 16384,
+              "compatibleWith16KiB": true
+            },
+            {
+              "alignmentBytes": 16384,
+              "compatibleWith16KiB": true
+            },
+            {
+              "alignmentBytes": 16384,
+              "compatibleWith16KiB": true
+            }
+          ],
+          "allLoadSegmentsCompatibleWith16KiB": true,
+          "gnuRelroSegments": [
+            {
+              "endAddressModulo16KiB": 12288,
+              "aligned": false
+            }
+          ],
+          "allGnuRelroEndsAlignedTo16KiB": false
+        },
+        {
+          "path": "jni/x86_64/libjingle_peerconnection_so.so",
+          "loadSegments": [
+            {
+              "alignmentBytes": 16384,
+              "compatibleWith16KiB": true
+            },
+            {
+              "alignmentBytes": 16384,
+              "compatibleWith16KiB": true
+            },
+            {
+              "alignmentBytes": 16384,
+              "compatibleWith16KiB": true
+            }
+          ],
+          "allLoadSegmentsCompatibleWith16KiB": true,
+          "gnuRelroSegments": [
+            {
+              "endAddressModulo16KiB": 8192,
+              "aligned": false
+            }
+          ],
+          "allGnuRelroEndsAlignedTo16KiB": false
+        }
+      ]
+    },
+    {
+      "artifact": "datastore-core-android",
+      "version": "1.2.1",
+      "url": "https://dl.google.com/dl/android/maven2/androidx/datastore/datastore-core-android/1.2.1/datastore-core-android-1.2.1.aar",
+      "sha256": "435edad7bcb1fbb1a2a46de7be4d6daf299479b3328ebf757ebdfe02810cbdd8",
+      "bytes": 210313,
+      "native": [
+        {
+          "path": "jni/arm64-v8a/libdatastore_shared_counter.so",
+          "loadSegments": [
+            {
+              "alignmentBytes": 16384,
+              "compatibleWith16KiB": true
+            },
+            {
+              "alignmentBytes": 16384,
+              "compatibleWith16KiB": true
+            },
+            {
+              "alignmentBytes": 16384,
+              "compatibleWith16KiB": true
+            },
+            {
+              "alignmentBytes": 16384,
+              "compatibleWith16KiB": true
+            }
+          ],
+          "allLoadSegmentsCompatibleWith16KiB": true,
+          "gnuRelroSegments": [
+            {
+              "endAddressModulo16KiB": 0,
+              "aligned": true
+            }
+          ],
+          "allGnuRelroEndsAlignedTo16KiB": true
+        },
+        {
+          "path": "jni/x86_64/libdatastore_shared_counter.so",
+          "loadSegments": [
+            {
+              "alignmentBytes": 16384,
+              "compatibleWith16KiB": true
+            },
+            {
+              "alignmentBytes": 16384,
+              "compatibleWith16KiB": true
+            },
+            {
+              "alignmentBytes": 16384,
+              "compatibleWith16KiB": true
+            },
+            {
+              "alignmentBytes": 16384,
+              "compatibleWith16KiB": true
+            }
+          ],
+          "allLoadSegmentsCompatibleWith16KiB": true,
+          "gnuRelroSegments": [
+            {
+              "endAddressModulo16KiB": 0,
+              "aligned": true
+            }
+          ],
+          "allGnuRelroEndsAlignedTo16KiB": true
+        }
+      ],
+      "aarMetadata": "aarFormatVersion=1.0\naarMetadataVersion=1.0\nminCompileSdk=34\nminCompileSdkExtension=0\nminAndroidGradlePluginVersion=8.1.1\ncoreLibraryDesugaringEnabled=false\n"
+    },
+    {
+      "artifact": "graphics-path",
+      "version": "1.1.0",
+      "url": "https://dl.google.com/dl/android/maven2/androidx/graphics/graphics-path/1.1.0/graphics-path-1.1.0.aar",
+      "sha256": "d031370d45ba4129a175fe9de913328a512b01a3c267e0eaf6b9b759f35842ae",
+      "bytes": 49094,
+      "native": [
+        {
+          "path": "jni/arm64-v8a/libandroidx.graphics.path.so",
+          "loadSegments": [
+            {
+              "alignmentBytes": 16384,
+              "compatibleWith16KiB": true
+            },
+            {
+              "alignmentBytes": 16384,
+              "compatibleWith16KiB": true
+            },
+            {
+              "alignmentBytes": 16384,
+              "compatibleWith16KiB": true
+            }
+          ],
+          "allLoadSegmentsCompatibleWith16KiB": true,
+          "gnuRelroSegments": [
+            {
+              "endAddressModulo16KiB": 8192,
+              "aligned": false
+            }
+          ],
+          "allGnuRelroEndsAlignedTo16KiB": false
+        },
+        {
+          "path": "jni/x86_64/libandroidx.graphics.path.so",
+          "loadSegments": [
+            {
+              "alignmentBytes": 16384,
+              "compatibleWith16KiB": true
+            },
+            {
+              "alignmentBytes": 16384,
+              "compatibleWith16KiB": true
+            },
+            {
+              "alignmentBytes": 16384,
+              "compatibleWith16KiB": true
+            }
+          ],
+          "allLoadSegmentsCompatibleWith16KiB": true,
+          "gnuRelroSegments": [
+            {
+              "endAddressModulo16KiB": 8192,
+              "aligned": false
+            }
+          ],
+          "allGnuRelroEndsAlignedTo16KiB": false
+        }
+      ],
+      "aarMetadata": "aarFormatVersion=1.0\naarMetadataVersion=1.0\nminCompileSdk=34\nminCompileSdkExtension=0\nminAndroidGradlePluginVersion=8.1.1\ncoreLibraryDesugaringEnabled=false\n"
+    }
+  ],
+  "recommendation": {
+    "datastore": "1.2.1 is a narrow stable update fixing both ARM64/x86_64 GNU_RELRO findings; run DataStore persistence/unit/instrumentation checks after updating.",
+    "graphicsPath": "Latest stable 1.1.0 does not fix either 64-bit GNU_RELRO finding; do not upgrade solely for 16KiB.",
+    "webRtc": "150.7871.01 leaves x86_64 GNU_RELRO unaligned and introduces an ARM64 mismatch compared with 144.7559.15; do not upgrade solely for 16KiB."
+  },
+  "sources": {
+    "datastore": "https://developer.android.com/jetpack/androidx/releases/datastore",
+    "graphicsPath": "https://developer.android.com/jetpack/androidx/releases/graphics",
+    "webRtc": "https://github.com/webrtc-sdk/android/releases/tag/v150.7871.01",
+    "pageSizes": "https://developer.android.com/guide/practices/page-sizes",
+    "graphicsSource": "https://android.googlesource.com/platform/frameworks/support/+/androidx-main/graphics/graphics-path/build.gradle"
+  },
+  "sourceBuildObservation": {
+    "graphicsPathMainSources": [
+      "Conic.cpp",
+      "PathIterator.cpp",
+      "pathway.cpp"
+    ],
+    "androidxMainLinkerFlags": [
+      "-z max-page-size=16384",
+      "-z common-page-size=16384"
+    ],
+    "source": "https://android.googlesource.com/platform/frameworks/support/+/androidx-main/buildSrc/private/src/main/kotlin/androidx/build/clang/ClangPlatformBuilder.kt",
+    "limitation": "Current source build flags do not prove properties of a published AAR. The actual latest stable graphics-path 1.1.0 AAR still has GNU_RELRO findings; no vendored or patched native library is introduced."
+  },
+  "runtime16KiBAssessedByThisInvestigation": false,
+  "additionalCurrentElfLayoutInspection": {
+    "method": "Inspect whether rounding RELRO end to 16KiB overlaps any writable PT_LOAD bytes after RELRO. This is supporting layout evidence, not a substitute for runtime tests or the official boundary check.",
+    "results": [
+      {
+        "path": "lib/arm64-v8a/libandroidx.graphics.path.so",
+        "relroEnd": "0x6000",
+        "roundedRelroEnd": "0x8000",
+        "writableLoadRanges": [
+          {
+            "start": "0x5c40",
+            "end": "0x5fd0"
+          },
+          {
+            "start": "0x9fd0",
+            "end": "0x9fe0"
+          }
+        ],
+        "postRelroWritableLoadOverlap": false
+      },
+      {
+        "path": "lib/arm64-v8a/libdatastore_shared_counter.so",
+        "relroEnd": "0x6000",
+        "roundedRelroEnd": "0x8000",
+        "writableLoadRanges": [
+          {
+            "start": "0x51c0",
+            "end": "0x5428"
+          },
+          {
+            "start": "0x9428",
+            "end": "0x9429"
+          }
+        ],
+        "postRelroWritableLoadOverlap": false
+      },
+      {
+        "path": "lib/x86_64/libandroidx.graphics.path.so",
+        "relroEnd": "0x7000",
+        "roundedRelroEnd": "0x8000",
+        "writableLoadRanges": [
+          {
+            "start": "0x5ec0",
+            "end": "0x6268"
+          },
+          {
+            "start": "0xa268",
+            "end": "0xa278"
+          }
+        ],
+        "postRelroWritableLoadOverlap": false
+      },
+      {
+        "path": "lib/x86_64/libdatastore_shared_counter.so",
+        "relroEnd": "0x6000",
+        "roundedRelroEnd": "0x8000",
+        "writableLoadRanges": [
+          {
+            "start": "0x4f20",
+            "end": "0x5148"
+          }
+        ],
+        "postRelroWritableLoadOverlap": false
+      },
+      {
+        "path": "lib/x86_64/libjingle_peerconnection_so.so",
+        "relroEnd": "0xf56000",
+        "roundedRelroEnd": "0xf58000",
+        "writableLoadRanges": [
+          {
+            "start": "0xf16380",
+            "end": "0xf56000"
+          },
+          {
+            "start": "0xf59140",
+            "end": "0x10044b4"
+          }
+        ],
+        "postRelroWritableLoadOverlap": false
+      }
+    ],
+    "baselineReleaseApkSha256": "84570f1865f5410dfc14ae70d9b7debfc892219b94f6a7c7a20a72a98eb4cc51"
+  }
+}

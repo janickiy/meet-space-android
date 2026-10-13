@@ -1,0 +1,1841 @@
+{
+  "backendCommit": "6ecd8b648a2aa94fc9bcc844d57784423e2c6f69",
+  "checks": [
+    {
+      "check": "read private fixture properties",
+      "passed": true
+    },
+    {
+      "check": "read fixture CA",
+      "passed": true
+    },
+    {
+      "check": "private CA parsed",
+      "passed": true
+    },
+    {
+      "check": "actual credential login request",
+      "passed": true
+    },
+    {
+      "check": "actual credential login transport",
+      "passed": true
+    },
+    {
+      "check": "actual credential login HTTP 200 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "actual credential login bounded body",
+      "passed": true
+    },
+    {
+      "check": "actual credential login JSON",
+      "passed": true
+    },
+    {
+      "check": "actual credential login request",
+      "passed": true
+    },
+    {
+      "check": "actual credential login transport",
+      "passed": true
+    },
+    {
+      "check": "actual credential login HTTP 200 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "actual credential login bounded body",
+      "passed": true
+    },
+    {
+      "check": "actual credential login JSON",
+      "passed": true
+    },
+    {
+      "check": "actual credential login request",
+      "passed": true
+    },
+    {
+      "check": "actual credential login transport",
+      "passed": true
+    },
+    {
+      "check": "actual credential login HTTP 200 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "actual credential login bounded body",
+      "passed": true
+    },
+    {
+      "check": "actual credential login JSON",
+      "passed": true
+    },
+    {
+      "check": "actual credential login request",
+      "passed": true
+    },
+    {
+      "check": "actual credential login transport",
+      "passed": true
+    },
+    {
+      "check": "actual credential login HTTP 200 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "actual credential login bounded body",
+      "passed": true
+    },
+    {
+      "check": "actual credential login JSON",
+      "passed": true
+    },
+    {
+      "check": "single-use global user ticket request",
+      "passed": true
+    },
+    {
+      "check": "single-use global user ticket transport",
+      "passed": true
+    },
+    {
+      "check": "single-use global user ticket HTTP 201 (received 201)",
+      "passed": true
+    },
+    {
+      "check": "single-use global user ticket bounded body",
+      "passed": true
+    },
+    {
+      "check": "single-use global user ticket JSON",
+      "passed": true
+    },
+    {
+      "check": "validated global WSS upgrade",
+      "passed": true
+    },
+    {
+      "check": "global presence event",
+      "passed": true
+    },
+    {
+      "check": "single-use global user ticket request",
+      "passed": true
+    },
+    {
+      "check": "single-use global user ticket transport",
+      "passed": true
+    },
+    {
+      "check": "single-use global user ticket HTTP 201 (received 201)",
+      "passed": true
+    },
+    {
+      "check": "single-use global user ticket bounded body",
+      "passed": true
+    },
+    {
+      "check": "single-use global user ticket JSON",
+      "passed": true
+    },
+    {
+      "check": "validated global WSS upgrade",
+      "passed": true
+    },
+    {
+      "check": "global presence event",
+      "passed": true
+    },
+    {
+      "check": "single-use global user ticket request",
+      "passed": true
+    },
+    {
+      "check": "single-use global user ticket transport",
+      "passed": true
+    },
+    {
+      "check": "single-use global user ticket HTTP 201 (received 201)",
+      "passed": true
+    },
+    {
+      "check": "single-use global user ticket bounded body",
+      "passed": true
+    },
+    {
+      "check": "single-use global user ticket JSON",
+      "passed": true
+    },
+    {
+      "check": "validated global WSS upgrade",
+      "passed": true
+    },
+    {
+      "check": "global presence event",
+      "passed": true
+    },
+    {
+      "check": "single-use global user ticket request",
+      "passed": true
+    },
+    {
+      "check": "single-use global user ticket transport",
+      "passed": true
+    },
+    {
+      "check": "single-use global user ticket HTTP 201 (received 201)",
+      "passed": true
+    },
+    {
+      "check": "single-use global user ticket bounded body",
+      "passed": true
+    },
+    {
+      "check": "single-use global user ticket JSON",
+      "passed": true
+    },
+    {
+      "check": "validated global WSS upgrade",
+      "passed": true
+    },
+    {
+      "check": "global presence event",
+      "passed": true
+    },
+    {
+      "check": "create direct conversation request",
+      "passed": true
+    },
+    {
+      "check": "create direct conversation transport",
+      "passed": true
+    },
+    {
+      "check": "create direct conversation HTTP 201 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "create direct conversation bounded body",
+      "passed": true
+    },
+    {
+      "check": "create direct conversation JSON",
+      "passed": true
+    },
+    {
+      "check": "direct pair idempotency request",
+      "passed": true
+    },
+    {
+      "check": "direct pair idempotency transport",
+      "passed": true
+    },
+    {
+      "check": "direct pair idempotency HTTP 200 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "direct pair idempotency bounded body",
+      "passed": true
+    },
+    {
+      "check": "direct pair idempotency JSON",
+      "passed": true
+    },
+    {
+      "check": "one stable direct pair",
+      "passed": true
+    },
+    {
+      "check": "outsider cannot inspect direct metadata request",
+      "passed": true
+    },
+    {
+      "check": "outsider cannot inspect direct metadata transport",
+      "passed": true
+    },
+    {
+      "check": "outsider cannot inspect direct metadata HTTP 403 (received 403)",
+      "passed": true
+    },
+    {
+      "check": "outsider cannot inspect direct metadata bounded body",
+      "passed": true
+    },
+    {
+      "check": "outsider cannot inspect direct metadata JSON",
+      "passed": true
+    },
+    {
+      "check": "actual Redis peer presence request",
+      "passed": true
+    },
+    {
+      "check": "actual Redis peer presence transport",
+      "passed": true
+    },
+    {
+      "check": "actual Redis peer presence HTTP 200 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "actual Redis peer presence bounded body",
+      "passed": true
+    },
+    {
+      "check": "actual Redis peer presence JSON",
+      "passed": true
+    },
+    {
+      "check": "other account socket is online",
+      "passed": true
+    },
+    {
+      "check": "create idempotent direct message request",
+      "passed": true
+    },
+    {
+      "check": "create idempotent direct message transport",
+      "passed": true
+    },
+    {
+      "check": "create idempotent direct message HTTP 201 (received 201)",
+      "passed": true
+    },
+    {
+      "check": "create idempotent direct message bounded body",
+      "passed": true
+    },
+    {
+      "check": "create idempotent direct message JSON",
+      "passed": true
+    },
+    {
+      "check": "repeat exact idempotency key request",
+      "passed": true
+    },
+    {
+      "check": "repeat exact idempotency key transport",
+      "passed": true
+    },
+    {
+      "check": "repeat exact idempotency key HTTP 200 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "repeat exact idempotency key bounded body",
+      "passed": true
+    },
+    {
+      "check": "repeat exact idempotency key JSON",
+      "passed": true
+    },
+    {
+      "check": "retry reuses server message ID",
+      "passed": true
+    },
+    {
+      "check": "idempotency conflict rejects changed body request",
+      "passed": true
+    },
+    {
+      "check": "idempotency conflict rejects changed body transport",
+      "passed": true
+    },
+    {
+      "check": "idempotency conflict rejects changed body HTTP 409 (received 409)",
+      "passed": true
+    },
+    {
+      "check": "idempotency conflict rejects changed body bounded body",
+      "passed": true
+    },
+    {
+      "check": "idempotency conflict rejects changed body JSON",
+      "passed": true
+    },
+    {
+      "check": "sender first device receives message event",
+      "passed": true
+    },
+    {
+      "check": "sender second device receives message event",
+      "passed": true
+    },
+    {
+      "check": "recipient device receives message event",
+      "passed": true
+    },
+    {
+      "check": "retry publishes exactly one created event",
+      "passed": true
+    },
+    {
+      "check": "outsider receives no private message",
+      "passed": true
+    },
+    {
+      "check": "create real reply request",
+      "passed": true
+    },
+    {
+      "check": "create real reply transport",
+      "passed": true
+    },
+    {
+      "check": "create real reply HTTP 201 (received 201)",
+      "passed": true
+    },
+    {
+      "check": "create real reply bounded body",
+      "passed": true
+    },
+    {
+      "check": "create real reply JSON",
+      "passed": true
+    },
+    {
+      "check": "reply preview references actual message",
+      "passed": true
+    },
+    {
+      "check": "history IDOR rejected request",
+      "passed": true
+    },
+    {
+      "check": "history IDOR rejected transport",
+      "passed": true
+    },
+    {
+      "check": "history IDOR rejected HTTP 403 (received 403)",
+      "passed": true
+    },
+    {
+      "check": "history IDOR rejected bounded body",
+      "passed": true
+    },
+    {
+      "check": "history IDOR rejected JSON",
+      "passed": true
+    },
+    {
+      "check": "cannot edit other author request",
+      "passed": true
+    },
+    {
+      "check": "cannot edit other author transport",
+      "passed": true
+    },
+    {
+      "check": "cannot edit other author HTTP 403 (received 403)",
+      "passed": true
+    },
+    {
+      "check": "cannot edit other author bounded body",
+      "passed": true
+    },
+    {
+      "check": "cannot edit other author JSON",
+      "passed": true
+    },
+    {
+      "check": "edit own message request",
+      "passed": true
+    },
+    {
+      "check": "edit own message transport",
+      "passed": true
+    },
+    {
+      "check": "edit own message HTTP 200 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "edit own message bounded body",
+      "passed": true
+    },
+    {
+      "check": "edit own message JSON",
+      "passed": true
+    },
+    {
+      "check": "edit increments version",
+      "passed": true
+    },
+    {
+      "check": "real edit event",
+      "passed": true
+    },
+    {
+      "check": "advance real read cursor request",
+      "passed": true
+    },
+    {
+      "check": "advance real read cursor transport",
+      "passed": true
+    },
+    {
+      "check": "advance real read cursor HTTP 200 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "advance real read cursor bounded body",
+      "passed": true
+    },
+    {
+      "check": "advance real read cursor JSON",
+      "passed": true
+    },
+    {
+      "check": "read authoritative unread count request",
+      "passed": true
+    },
+    {
+      "check": "read authoritative unread count transport",
+      "passed": true
+    },
+    {
+      "check": "read authoritative unread count HTTP 200 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "read authoritative unread count bounded body",
+      "passed": true
+    },
+    {
+      "check": "read authoritative unread count JSON",
+      "passed": true
+    },
+    {
+      "check": "reading latest clears unread",
+      "passed": true
+    },
+    {
+      "check": "late read update accepted monotonically request",
+      "passed": true
+    },
+    {
+      "check": "late read update accepted monotonically transport",
+      "passed": true
+    },
+    {
+      "check": "late read update accepted monotonically HTTP 200 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "late read update accepted monotonically bounded body",
+      "passed": true
+    },
+    {
+      "check": "late read update accepted monotonically JSON",
+      "passed": true
+    },
+    {
+      "check": "read monotonic cursor request",
+      "passed": true
+    },
+    {
+      "check": "read monotonic cursor transport",
+      "passed": true
+    },
+    {
+      "check": "read monotonic cursor HTTP 200 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "read monotonic cursor bounded body",
+      "passed": true
+    },
+    {
+      "check": "read monotonic cursor JSON",
+      "passed": true
+    },
+    {
+      "check": "late read cannot move cursor backwards",
+      "passed": true
+    },
+    {
+      "check": "delete own message request",
+      "passed": true
+    },
+    {
+      "check": "delete own message transport",
+      "passed": true
+    },
+    {
+      "check": "delete own message HTTP 200 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "delete own message bounded body",
+      "passed": true
+    },
+    {
+      "check": "delete own message JSON",
+      "passed": true
+    },
+    {
+      "check": "delete exposes tombstone without original body",
+      "passed": true
+    },
+    {
+      "check": "real delete event",
+      "passed": true
+    },
+    {
+      "check": "create actual group request",
+      "passed": true
+    },
+    {
+      "check": "create actual group transport",
+      "passed": true
+    },
+    {
+      "check": "create actual group HTTP 201 (received 201)",
+      "passed": true
+    },
+    {
+      "check": "create actual group bounded body",
+      "passed": true
+    },
+    {
+      "check": "create actual group JSON",
+      "passed": true
+    },
+    {
+      "check": "group create idempotency request",
+      "passed": true
+    },
+    {
+      "check": "group create idempotency transport",
+      "passed": true
+    },
+    {
+      "check": "group create idempotency HTTP 200 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "group create idempotency bounded body",
+      "passed": true
+    },
+    {
+      "check": "group create idempotency JSON",
+      "passed": true
+    },
+    {
+      "check": "group retry stable ID",
+      "passed": true
+    },
+    {
+      "check": "outsider cannot inspect group request",
+      "passed": true
+    },
+    {
+      "check": "outsider cannot inspect group transport",
+      "passed": true
+    },
+    {
+      "check": "outsider cannot inspect group HTTP 403 (received 403)",
+      "passed": true
+    },
+    {
+      "check": "outsider cannot inspect group bounded body",
+      "passed": true
+    },
+    {
+      "check": "outsider cannot inspect group JSON",
+      "passed": true
+    },
+    {
+      "check": "member cannot change metadata request",
+      "passed": true
+    },
+    {
+      "check": "member cannot change metadata transport",
+      "passed": true
+    },
+    {
+      "check": "member cannot change metadata HTTP 403 (received 403)",
+      "passed": true
+    },
+    {
+      "check": "member cannot change metadata bounded body",
+      "passed": true
+    },
+    {
+      "check": "member cannot change metadata JSON",
+      "passed": true
+    },
+    {
+      "check": "owner changes metadata request",
+      "passed": true
+    },
+    {
+      "check": "owner changes metadata transport",
+      "passed": true
+    },
+    {
+      "check": "owner changes metadata HTTP 200 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "owner changes metadata bounded body",
+      "passed": true
+    },
+    {
+      "check": "owner changes metadata JSON",
+      "passed": true
+    },
+    {
+      "check": "persist message request",
+      "passed": true
+    },
+    {
+      "check": "persist message transport",
+      "passed": true
+    },
+    {
+      "check": "persist message HTTP 201 (received 201)",
+      "passed": true
+    },
+    {
+      "check": "persist message bounded body",
+      "passed": true
+    },
+    {
+      "check": "persist message JSON",
+      "passed": true
+    },
+    {
+      "check": "cross conversation reply rejected request",
+      "passed": true
+    },
+    {
+      "check": "cross conversation reply rejected transport",
+      "passed": true
+    },
+    {
+      "check": "cross conversation reply rejected HTTP 422 (received 422)",
+      "passed": true
+    },
+    {
+      "check": "cross conversation reply rejected bounded body",
+      "passed": true
+    },
+    {
+      "check": "cross conversation reply rejected JSON",
+      "passed": true
+    },
+    {
+      "check": "owner promotes administrator request",
+      "passed": true
+    },
+    {
+      "check": "owner promotes administrator transport",
+      "passed": true
+    },
+    {
+      "check": "owner promotes administrator HTTP 200 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "owner promotes administrator bounded body",
+      "passed": true
+    },
+    {
+      "check": "owner promotes administrator JSON",
+      "passed": true
+    },
+    {
+      "check": "group member roles and presence request",
+      "passed": true
+    },
+    {
+      "check": "group member roles and presence transport",
+      "passed": true
+    },
+    {
+      "check": "group member roles and presence HTTP 200 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "group member roles and presence bounded body",
+      "passed": true
+    },
+    {
+      "check": "group member roles and presence JSON",
+      "passed": true
+    },
+    {
+      "check": "three real group members",
+      "passed": true
+    },
+    {
+      "check": "init private attachment request",
+      "passed": true
+    },
+    {
+      "check": "init private attachment transport",
+      "passed": true
+    },
+    {
+      "check": "init private attachment HTTP 201 (received 201)",
+      "passed": true
+    },
+    {
+      "check": "init private attachment bounded body",
+      "passed": true
+    },
+    {
+      "check": "init private attachment JSON",
+      "passed": true
+    },
+    {
+      "check": "raw authenticated API upload request",
+      "passed": true
+    },
+    {
+      "check": "raw authenticated API upload transport",
+      "passed": true
+    },
+    {
+      "check": "raw authenticated API upload HTTP 200 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "raw authenticated API upload bounded body",
+      "passed": true
+    },
+    {
+      "check": "finalize actual MinIO object request",
+      "passed": true
+    },
+    {
+      "check": "finalize actual MinIO object transport",
+      "passed": true
+    },
+    {
+      "check": "finalize actual MinIO object HTTP 200 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "finalize actual MinIO object bounded body",
+      "passed": true
+    },
+    {
+      "check": "finalize actual MinIO object JSON",
+      "passed": true
+    },
+    {
+      "check": "server attachment checksum matches bytes",
+      "passed": true
+    },
+    {
+      "check": "attach finalized private file request",
+      "passed": true
+    },
+    {
+      "check": "attach finalized private file transport",
+      "passed": true
+    },
+    {
+      "check": "attach finalized private file HTTP 201 (received 201)",
+      "passed": true
+    },
+    {
+      "check": "attach finalized private file bounded body",
+      "passed": true
+    },
+    {
+      "check": "attach finalized private file JSON",
+      "passed": true
+    },
+    {
+      "check": "group download descriptor request",
+      "passed": true
+    },
+    {
+      "check": "group download descriptor transport",
+      "passed": true
+    },
+    {
+      "check": "group download descriptor HTTP 200 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "group download descriptor bounded body",
+      "passed": true
+    },
+    {
+      "check": "group download descriptor JSON",
+      "passed": true
+    },
+    {
+      "check": "group file uses membership checked API path",
+      "passed": true
+    },
+    {
+      "check": "member reads actual private file request",
+      "passed": true
+    },
+    {
+      "check": "member reads actual private file transport",
+      "passed": true
+    },
+    {
+      "check": "member reads actual private file HTTP 200 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "member reads actual private file bounded body",
+      "passed": true
+    },
+    {
+      "check": "group downloaded bytes match original",
+      "passed": true
+    },
+    {
+      "check": "outsider file content denied request",
+      "passed": true
+    },
+    {
+      "check": "outsider file content denied transport",
+      "passed": true
+    },
+    {
+      "check": "outsider file content denied HTTP 403 (received 403)",
+      "passed": true
+    },
+    {
+      "check": "outsider file content denied bounded body",
+      "passed": true
+    },
+    {
+      "check": "owner removes member request",
+      "passed": true
+    },
+    {
+      "check": "owner removes member transport",
+      "passed": true
+    },
+    {
+      "check": "owner removes member HTTP 200 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "owner removes member bounded body",
+      "passed": true
+    },
+    {
+      "check": "owner removes member JSON",
+      "passed": true
+    },
+    {
+      "check": "removed member receives minimal lifecycle event",
+      "passed": true
+    },
+    {
+      "check": "removed member history revoked request",
+      "passed": true
+    },
+    {
+      "check": "removed member history revoked transport",
+      "passed": true
+    },
+    {
+      "check": "removed member history revoked HTTP 403 (received 403)",
+      "passed": true
+    },
+    {
+      "check": "removed member history revoked bounded body",
+      "passed": true
+    },
+    {
+      "check": "removed member history revoked JSON",
+      "passed": true
+    },
+    {
+      "check": "removed member file access revoked request",
+      "passed": true
+    },
+    {
+      "check": "removed member file access revoked transport",
+      "passed": true
+    },
+    {
+      "check": "removed member file access revoked HTTP 403 (received 403)",
+      "passed": true
+    },
+    {
+      "check": "removed member file access revoked bounded body",
+      "passed": true
+    },
+    {
+      "check": "persist message request",
+      "passed": true
+    },
+    {
+      "check": "persist message transport",
+      "passed": true
+    },
+    {
+      "check": "persist message HTTP 201 (received 201)",
+      "passed": true
+    },
+    {
+      "check": "persist message bounded body",
+      "passed": true
+    },
+    {
+      "check": "persist message JSON",
+      "passed": true
+    },
+    {
+      "check": "removed socket receives no later group message",
+      "passed": true
+    },
+    {
+      "check": "init private attachment request",
+      "passed": true
+    },
+    {
+      "check": "init private attachment transport",
+      "passed": true
+    },
+    {
+      "check": "init private attachment HTTP 201 (received 201)",
+      "passed": true
+    },
+    {
+      "check": "init private attachment bounded body",
+      "passed": true
+    },
+    {
+      "check": "init private attachment JSON",
+      "passed": true
+    },
+    {
+      "check": "raw authenticated API upload request",
+      "passed": true
+    },
+    {
+      "check": "raw authenticated API upload transport",
+      "passed": true
+    },
+    {
+      "check": "raw authenticated API upload HTTP 200 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "raw authenticated API upload bounded body",
+      "passed": true
+    },
+    {
+      "check": "finalize actual MinIO object request",
+      "passed": true
+    },
+    {
+      "check": "finalize actual MinIO object transport",
+      "passed": true
+    },
+    {
+      "check": "finalize actual MinIO object HTTP 200 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "finalize actual MinIO object bounded body",
+      "passed": true
+    },
+    {
+      "check": "finalize actual MinIO object JSON",
+      "passed": true
+    },
+    {
+      "check": "server attachment checksum matches bytes",
+      "passed": true
+    },
+    {
+      "check": "attach finalized private file request",
+      "passed": true
+    },
+    {
+      "check": "attach finalized private file transport",
+      "passed": true
+    },
+    {
+      "check": "attach finalized private file HTTP 201 (received 201)",
+      "passed": true
+    },
+    {
+      "check": "attach finalized private file bounded body",
+      "passed": true
+    },
+    {
+      "check": "attach finalized private file JSON",
+      "passed": true
+    },
+    {
+      "check": "direct signed storage descriptor request",
+      "passed": true
+    },
+    {
+      "check": "direct signed storage descriptor transport",
+      "passed": true
+    },
+    {
+      "check": "direct signed storage descriptor HTTP 200 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "direct signed storage descriptor bounded body",
+      "passed": true
+    },
+    {
+      "check": "direct signed storage descriptor JSON",
+      "passed": true
+    },
+    {
+      "check": "direct signed URL requires HTTPS without bearer",
+      "passed": true
+    },
+    {
+      "check": "validated TLS private MinIO signed download without JWT request",
+      "passed": true
+    },
+    {
+      "check": "validated TLS private MinIO signed download without JWT transport",
+      "passed": true
+    },
+    {
+      "check": "validated TLS private MinIO signed download without JWT HTTP 200 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "validated TLS private MinIO signed download without JWT bounded body",
+      "passed": true
+    },
+    {
+      "check": "direct storage bytes match original",
+      "passed": true
+    },
+    {
+      "check": "unsigned private MinIO object denied request",
+      "passed": true
+    },
+    {
+      "check": "unsigned private MinIO object denied transport",
+      "passed": true
+    },
+    {
+      "check": "unsigned private MinIO object denied HTTP 403 (received 403)",
+      "passed": true
+    },
+    {
+      "check": "unsigned private MinIO object denied bounded body",
+      "passed": true
+    },
+    {
+      "check": "outsider cannot obtain direct signed URL request",
+      "passed": true
+    },
+    {
+      "check": "outsider cannot obtain direct signed URL transport",
+      "passed": true
+    },
+    {
+      "check": "outsider cannot obtain direct signed URL HTTP 403 (received 403)",
+      "passed": true
+    },
+    {
+      "check": "outsider cannot obtain direct signed URL bounded body",
+      "passed": true
+    },
+    {
+      "check": "outsider cannot obtain direct signed URL JSON",
+      "passed": true
+    },
+    {
+      "check": "cross conversation file attachment rejected request",
+      "passed": true
+    },
+    {
+      "check": "cross conversation file attachment rejected transport",
+      "passed": true
+    },
+    {
+      "check": "cross conversation file attachment rejected HTTP 409 (received 409)",
+      "passed": true
+    },
+    {
+      "check": "cross conversation file attachment rejected bounded body",
+      "passed": true
+    },
+    {
+      "check": "cross conversation file attachment rejected JSON",
+      "passed": true
+    },
+    {
+      "check": "create personal folder request",
+      "passed": true
+    },
+    {
+      "check": "create personal folder transport",
+      "passed": true
+    },
+    {
+      "check": "create personal folder HTTP 201 (received 201)",
+      "passed": true
+    },
+    {
+      "check": "create personal folder bounded body",
+      "passed": true
+    },
+    {
+      "check": "create personal folder JSON",
+      "passed": true
+    },
+    {
+      "check": "add direct to folder request",
+      "passed": true
+    },
+    {
+      "check": "add direct to folder transport",
+      "passed": true
+    },
+    {
+      "check": "add direct to folder HTTP 200 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "add direct to folder bounded body",
+      "passed": true
+    },
+    {
+      "check": "add direct to folder JSON",
+      "passed": true
+    },
+    {
+      "check": "add group to folder request",
+      "passed": true
+    },
+    {
+      "check": "add group to folder transport",
+      "passed": true
+    },
+    {
+      "check": "add group to folder HTTP 200 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "add group to folder bounded body",
+      "passed": true
+    },
+    {
+      "check": "add group to folder JSON",
+      "passed": true
+    },
+    {
+      "check": "create actual scheduled meeting request",
+      "passed": true
+    },
+    {
+      "check": "create actual scheduled meeting transport",
+      "passed": true
+    },
+    {
+      "check": "create actual scheduled meeting HTTP 201 (received 201)",
+      "passed": true
+    },
+    {
+      "check": "create actual scheduled meeting bounded body",
+      "passed": true
+    },
+    {
+      "check": "create actual scheduled meeting JSON",
+      "passed": true
+    },
+    {
+      "check": "add meeting to same folder request",
+      "passed": true
+    },
+    {
+      "check": "add meeting to same folder transport",
+      "passed": true
+    },
+    {
+      "check": "add meeting to same folder HTTP 200 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "add meeting to same folder bounded body",
+      "passed": true
+    },
+    {
+      "check": "add meeting to same folder JSON",
+      "passed": true
+    },
+    {
+      "check": "mixed folder items request",
+      "passed": true
+    },
+    {
+      "check": "mixed folder items transport",
+      "passed": true
+    },
+    {
+      "check": "mixed folder items HTTP 200 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "mixed folder items bounded body",
+      "passed": true
+    },
+    {
+      "check": "mixed folder items JSON",
+      "passed": true
+    },
+    {
+      "check": "folder mixes two conversations and meeting",
+      "passed": true
+    },
+    {
+      "check": "folder never exposes invite secret",
+      "passed": true
+    },
+    {
+      "check": "folder IDOR read denied request",
+      "passed": true
+    },
+    {
+      "check": "folder IDOR read denied transport",
+      "passed": true
+    },
+    {
+      "check": "folder IDOR read denied HTTP 404 (received 404)",
+      "passed": true
+    },
+    {
+      "check": "folder IDOR read denied bounded body",
+      "passed": true
+    },
+    {
+      "check": "folder IDOR read denied JSON",
+      "passed": true
+    },
+    {
+      "check": "membership grants no access to other user's folder request",
+      "passed": true
+    },
+    {
+      "check": "membership grants no access to other user's folder transport",
+      "passed": true
+    },
+    {
+      "check": "membership grants no access to other user's folder HTTP 404 (received 404)",
+      "passed": true
+    },
+    {
+      "check": "membership grants no access to other user's folder bounded body",
+      "passed": true
+    },
+    {
+      "check": "membership grants no access to other user's folder JSON",
+      "passed": true
+    },
+    {
+      "check": "owner first socket receives folder event",
+      "passed": true
+    },
+    {
+      "check": "owner second socket receives folder event",
+      "passed": true
+    },
+    {
+      "check": "peer socket receives no private folder event",
+      "passed": true
+    },
+    {
+      "check": "calendar invitation persists notification request",
+      "passed": true
+    },
+    {
+      "check": "calendar invitation persists notification transport",
+      "passed": true
+    },
+    {
+      "check": "calendar invitation persists notification HTTP 202 (received 202)",
+      "passed": true
+    },
+    {
+      "check": "calendar invitation persists notification bounded body",
+      "passed": true
+    },
+    {
+      "check": "calendar invitation persists notification JSON",
+      "passed": true
+    },
+    {
+      "check": "authoritative notification center request",
+      "passed": true
+    },
+    {
+      "check": "authoritative notification center transport",
+      "passed": true
+    },
+    {
+      "check": "authoritative notification center HTTP 200 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "authoritative notification center bounded body",
+      "passed": true
+    },
+    {
+      "check": "authoritative notification center JSON",
+      "passed": true
+    },
+    {
+      "check": "meeting invitation visible in notification center",
+      "passed": true
+    },
+    {
+      "check": "mark own calendar notification read request",
+      "passed": true
+    },
+    {
+      "check": "mark own calendar notification read transport",
+      "passed": true
+    },
+    {
+      "check": "mark own calendar notification read HTTP 200 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "mark own calendar notification read bounded body",
+      "passed": true
+    },
+    {
+      "check": "mark own calendar notification read JSON",
+      "passed": true
+    },
+    {
+      "check": "notification IDOR denied request",
+      "passed": true
+    },
+    {
+      "check": "notification IDOR denied transport",
+      "passed": true
+    },
+    {
+      "check": "notification IDOR denied HTTP 404 (received 404)",
+      "passed": true
+    },
+    {
+      "check": "notification IDOR denied bounded body",
+      "passed": true
+    },
+    {
+      "check": "notification IDOR denied JSON",
+      "passed": true
+    },
+    {
+      "check": "real integration capabilities request",
+      "passed": true
+    },
+    {
+      "check": "real integration capabilities transport",
+      "passed": true
+    },
+    {
+      "check": "real integration capabilities HTTP 200 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "real integration capabilities bounded body",
+      "passed": true
+    },
+    {
+      "check": "real integration capabilities JSON",
+      "passed": true
+    },
+    {
+      "check": "fixture honestly reports push noop",
+      "passed": true
+    },
+    {
+      "check": "noop provider rejects device registration request",
+      "passed": true
+    },
+    {
+      "check": "noop provider rejects device registration transport",
+      "passed": true
+    },
+    {
+      "check": "noop provider rejects device registration HTTP 503 (received 503)",
+      "passed": true
+    },
+    {
+      "check": "noop provider rejects device registration bounded body",
+      "passed": true
+    },
+    {
+      "check": "noop provider rejects device registration JSON",
+      "passed": true
+    },
+    {
+      "check": "persist message request",
+      "passed": true
+    },
+    {
+      "check": "persist message transport",
+      "passed": true
+    },
+    {
+      "check": "persist message HTTP 201 (received 201)",
+      "passed": true
+    },
+    {
+      "check": "persist message bounded body",
+      "passed": true
+    },
+    {
+      "check": "persist message JSON",
+      "passed": true
+    },
+    {
+      "check": "single-use global user ticket request",
+      "passed": true
+    },
+    {
+      "check": "single-use global user ticket transport",
+      "passed": true
+    },
+    {
+      "check": "single-use global user ticket HTTP 201 (received 201)",
+      "passed": true
+    },
+    {
+      "check": "single-use global user ticket bounded body",
+      "passed": true
+    },
+    {
+      "check": "single-use global user ticket JSON",
+      "passed": true
+    },
+    {
+      "check": "validated global WSS upgrade",
+      "passed": true
+    },
+    {
+      "check": "global presence event",
+      "passed": true
+    },
+    {
+      "check": "REST resync after WSS reconnect request",
+      "passed": true
+    },
+    {
+      "check": "REST resync after WSS reconnect transport",
+      "passed": true
+    },
+    {
+      "check": "REST resync after WSS reconnect HTTP 200 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "REST resync after WSS reconnect bounded body",
+      "passed": true
+    },
+    {
+      "check": "REST resync after WSS reconnect JSON",
+      "passed": true
+    },
+    {
+      "check": "reconnect restores latest persisted history",
+      "passed": true
+    },
+    {
+      "check": "opaque message cursor provided",
+      "passed": true
+    },
+    {
+      "check": "opaque history pagination request",
+      "passed": true
+    },
+    {
+      "check": "opaque history pagination transport",
+      "passed": true
+    },
+    {
+      "check": "opaque history pagination HTTP 200 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "opaque history pagination bounded body",
+      "passed": true
+    },
+    {
+      "check": "opaque history pagination JSON",
+      "passed": true
+    },
+    {
+      "check": "older page excludes latest row",
+      "passed": true
+    },
+    {
+      "check": "cross conversation cursor binding rejected request",
+      "passed": true
+    },
+    {
+      "check": "cross conversation cursor binding rejected transport",
+      "passed": true
+    },
+    {
+      "check": "cross conversation cursor binding rejected HTTP 422 (received 422)",
+      "passed": true
+    },
+    {
+      "check": "cross conversation cursor binding rejected bounded body",
+      "passed": true
+    },
+    {
+      "check": "cross conversation cursor binding rejected JSON",
+      "passed": true
+    },
+    {
+      "check": "persist message request",
+      "passed": true
+    },
+    {
+      "check": "persist message transport",
+      "passed": true
+    },
+    {
+      "check": "persist message HTTP 201 (received 201)",
+      "passed": true
+    },
+    {
+      "check": "persist message bounded body",
+      "passed": true
+    },
+    {
+      "check": "persist message JSON",
+      "passed": true
+    },
+    {
+      "check": "new socket receives subsequent live message",
+      "passed": true
+    },
+    {
+      "check": "presence after one of two devices closes request",
+      "passed": true
+    },
+    {
+      "check": "presence after one of two devices closes transport",
+      "passed": true
+    },
+    {
+      "check": "presence after one of two devices closes HTTP 200 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "presence after one of two devices closes bounded body",
+      "passed": true
+    },
+    {
+      "check": "presence after one of two devices closes JSON",
+      "passed": true
+    },
+    {
+      "check": "remaining device keeps account online",
+      "passed": true
+    },
+    {
+      "check": "rename personal folder request",
+      "passed": true
+    },
+    {
+      "check": "rename personal folder transport",
+      "passed": true
+    },
+    {
+      "check": "rename personal folder HTTP 200 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "rename personal folder bounded body",
+      "passed": true
+    },
+    {
+      "check": "rename personal folder JSON",
+      "passed": true
+    },
+    {
+      "check": "list personal folders request",
+      "passed": true
+    },
+    {
+      "check": "list personal folders transport",
+      "passed": true
+    },
+    {
+      "check": "list personal folders HTTP 200 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "list personal folders bounded body",
+      "passed": true
+    },
+    {
+      "check": "list personal folders JSON",
+      "passed": true
+    },
+    {
+      "check": "reorder all owned folders request",
+      "passed": true
+    },
+    {
+      "check": "reorder all owned folders transport",
+      "passed": true
+    },
+    {
+      "check": "reorder all owned folders HTTP 200 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "reorder all owned folders bounded body",
+      "passed": true
+    },
+    {
+      "check": "reorder all owned folders JSON",
+      "passed": true
+    },
+    {
+      "check": "remove group reference without deleting group request",
+      "passed": true
+    },
+    {
+      "check": "remove group reference without deleting group transport",
+      "passed": true
+    },
+    {
+      "check": "remove group reference without deleting group HTTP 200 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "remove group reference without deleting group bounded body",
+      "passed": true
+    },
+    {
+      "check": "remove group reference without deleting group JSON",
+      "passed": true
+    },
+    {
+      "check": "folder removal keeps conversation request",
+      "passed": true
+    },
+    {
+      "check": "folder removal keeps conversation transport",
+      "passed": true
+    },
+    {
+      "check": "folder removal keeps conversation HTTP 200 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "folder removal keeps conversation bounded body",
+      "passed": true
+    },
+    {
+      "check": "folder removal keeps conversation JSON",
+      "passed": true
+    },
+    {
+      "check": "re-add prior member request",
+      "passed": true
+    },
+    {
+      "check": "re-add prior member transport",
+      "passed": true
+    },
+    {
+      "check": "re-add prior member HTTP 200 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "re-add prior member bounded body",
+      "passed": true
+    },
+    {
+      "check": "re-add prior member JSON",
+      "passed": true
+    },
+    {
+      "check": "transfer group ownership request",
+      "passed": true
+    },
+    {
+      "check": "transfer group ownership transport",
+      "passed": true
+    },
+    {
+      "check": "transfer group ownership HTTP 200 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "transfer group ownership bounded body",
+      "passed": true
+    },
+    {
+      "check": "transfer group ownership JSON",
+      "passed": true
+    },
+    {
+      "check": "former owner leaves after transfer request",
+      "passed": true
+    },
+    {
+      "check": "former owner leaves after transfer transport",
+      "passed": true
+    },
+    {
+      "check": "former owner leaves after transfer HTTP 200 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "former owner leaves after transfer bounded body",
+      "passed": true
+    },
+    {
+      "check": "former owner leaves after transfer JSON",
+      "passed": true
+    },
+    {
+      "check": "member leaves group request",
+      "passed": true
+    },
+    {
+      "check": "member leaves group transport",
+      "passed": true
+    },
+    {
+      "check": "member leaves group HTTP 200 (received 200)",
+      "passed": true
+    },
+    {
+      "check": "member leaves group bounded body",
+      "passed": true
+    },
+    {
+      "check": "member leaves group JSON",
+      "passed": true
+    }
+  ],
+  "environment": "isolated actual PostgreSQL14 + Redis7 + MinIO + Gin HTTPS/WSS",
+  "passed": 458,
+  "productionMutations": false,
+  "usesBusinessMocks": false
+}

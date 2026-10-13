@@ -1,0 +1,26 @@
+{
+  "fixtureHomeRemoved": true,
+  "fixturePortsListening": {
+    "15488": false,
+    "16388": false,
+    "18488": false,
+    "19088": false,
+    "19488": false
+  },
+  "preexistingContainersUnchanged": true,
+  "preexistingContainerCount": 11,
+  "fixtureContainersRunning": 0,
+  "androidPrivateInputsRemoved": true,
+  "androidTestExportsRemaining": 0,
+  "existingTabletKeptWithFinalDebug": true,
+  "display": "Physical size: 2560x1600",
+  "density": "Physical density: 320",
+  "fontScale": "1.0",
+  "showImeWithHardwareKeyboard": "0",
+  "wifi": "1",
+  "mobileData": "1",
+  "owned16KiBEmulatorStopped": true,
+  "owned16KiBAvdAndPrivateUserdataRemoved": true,
+  "verifiedPublicSystemImageCacheRetained": true,
+  "productionModified": false
+}

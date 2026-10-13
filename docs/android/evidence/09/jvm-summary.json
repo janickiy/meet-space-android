@@ -1,0 +1,240 @@
+{
+  "generatedAtUtc": "2026-10-11T16:42:36.580921+00:00",
+  "buildSuccessful": true,
+  "buildLog": ".audit/stage09/final-build.log",
+  "modules": {
+    "app": {
+      "counts": {
+        "tests": 93,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 93
+      },
+      "taskExecution": "EXECUTED",
+      "suites": [
+        {
+          "file": "TEST-com.meetspace.app.FoundationViewModelTest.xml",
+          "timestamp": "2026-10-11T16:25:06.589Z",
+          "tests": 8
+        },
+        {
+          "file": "TEST-com.meetspace.app.InstallerViewModelTest.xml",
+          "timestamp": "2026-10-11T16:25:06.748Z",
+          "tests": 13
+        },
+        {
+          "file": "TEST-com.meetspace.app.MeetingTimeTest.xml",
+          "timestamp": "2026-10-11T16:25:06.806Z",
+          "tests": 5
+        },
+        {
+          "file": "TEST-com.meetspace.app.MeetingsViewModelTest.xml",
+          "timestamp": "2026-10-11T16:25:06.823Z",
+          "tests": 13
+        },
+        {
+          "file": "TEST-com.meetspace.app.MessagingFilesTest.xml",
+          "timestamp": "2026-10-11T16:25:06.894Z",
+          "tests": 3
+        },
+        {
+          "file": "TEST-com.meetspace.app.MessagingViewModelTest.xml",
+          "timestamp": "2026-10-11T16:25:06.900Z",
+          "tests": 23
+        },
+        {
+          "file": "TEST-com.meetspace.app.PushHintTest.xml",
+          "timestamp": "2026-10-11T16:25:06.987Z",
+          "tests": 5
+        },
+        {
+          "file": "TEST-com.meetspace.app.RecordingsViewModelTest.xml",
+          "timestamp": "2026-10-11T16:25:06.992Z",
+          "tests": 13
+        },
+        {
+          "file": "TEST-com.meetspace.app.SshWizardViewModelTest.xml",
+          "timestamp": "2026-10-11T16:25:07.026Z",
+          "tests": 10
+        }
+      ]
+    },
+    "core/data": {
+      "counts": {
+        "tests": 107,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 107
+      },
+      "taskExecution": "EXECUTED",
+      "suites": [
+        {
+          "file": "TEST-com.meetspace.core.data.FoundationRepositoryTest.xml",
+          "timestamp": "2026-10-11T16:25:00.732Z",
+          "tests": 24
+        },
+        {
+          "file": "TEST-com.meetspace.core.data.LiveMeetingsRepositoryTest.xml",
+          "timestamp": "2026-10-11T16:25:07.872Z",
+          "tests": 2
+        },
+        {
+          "file": "TEST-com.meetspace.core.data.LiveMessagingRepositoryTest.xml",
+          "timestamp": "2026-10-11T16:25:08.234Z",
+          "tests": 3
+        },
+        {
+          "file": "TEST-com.meetspace.core.data.LiveRecordingsBackendTest.xml",
+          "timestamp": "2026-10-11T16:25:08.917Z",
+          "tests": 4
+        },
+        {
+          "file": "TEST-com.meetspace.core.data.MeetingsRepositoryTest.xml",
+          "timestamp": "2026-10-11T16:25:09.531Z",
+          "tests": 27
+        },
+        {
+          "file": "TEST-com.meetspace.core.data.MessagingRepositoryTest.xml",
+          "timestamp": "2026-10-11T16:25:13.535Z",
+          "tests": 22
+        },
+        {
+          "file": "TEST-com.meetspace.core.data.RecordingsRepositoryTest.xml",
+          "timestamp": "2026-10-11T16:25:14.037Z",
+          "tests": 20
+        },
+        {
+          "file": "TEST-com.meetspace.core.data.ServerOriginTest.xml",
+          "timestamp": "2026-10-11T16:25:16.516Z",
+          "tests": 2
+        },
+        {
+          "file": "TEST-com.meetspace.core.data.SessionCookieJarTest.xml",
+          "timestamp": "2026-10-11T16:25:16.526Z",
+          "tests": 3
+        }
+      ]
+    },
+    "core/ssh": {
+      "counts": {
+        "tests": 57,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 57
+      },
+      "taskExecution": "EXECUTED",
+      "taskBuildLog": ".audit/stage09/leakcanary-build-ssh-refresh.log",
+      "suites": [
+        {
+          "file": "TEST-com.meetspace.core.ssh.InstallerProtocolTest.xml",
+          "timestamp": "2026-10-11T16:37:07.617Z",
+          "tests": 12
+        },
+        {
+          "file": "TEST-com.meetspace.core.ssh.PreflightAnalyzerTest.xml",
+          "timestamp": "2026-10-11T16:37:08.068Z",
+          "tests": 10
+        },
+        {
+          "file": "TEST-com.meetspace.core.ssh.PrivateKeyPolicyTest.xml",
+          "timestamp": "2026-10-11T16:37:08.118Z",
+          "tests": 10
+        },
+        {
+          "file": "TEST-com.meetspace.core.ssh.SshInputValidatorTest.xml",
+          "timestamp": "2026-10-11T16:37:08.180Z",
+          "tests": 5
+        },
+        {
+          "file": "TEST-com.meetspace.core.ssh.SshTransportPolicyTest.xml",
+          "timestamp": "2026-10-11T16:37:08.236Z",
+          "tests": 20
+        }
+      ]
+    },
+    "core/media": {
+      "counts": {
+        "tests": 14,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 14
+      },
+      "taskExecution": "EXECUTED",
+      "suites": [
+        {
+          "file": "TEST-com.meetspace.core.media.CallProtocolTest.xml",
+          "timestamp": "2026-10-11T16:25:00.329Z",
+          "tests": 14
+        }
+      ]
+    }
+  },
+  "total": {
+    "tests": 271,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "passed": 271
+  },
+  "liveSuites": [
+    {
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "class": "com.meetspace.core.data.LiveMeetingsRepositoryTest",
+      "passed": 2
+    },
+    {
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "class": "com.meetspace.core.data.LiveMessagingRepositoryTest",
+      "passed": 3
+    },
+    {
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "class": "com.meetspace.core.data.LiveRecordingsBackendTest",
+      "passed": 4
+    }
+  ],
+  "liveTestsPassed": 9,
+  "sanitization": {
+    "privateInputFilesScanned": 14,
+    "privateValueCount": 22,
+    "removedOutputOrPropertiesElements": 72,
+    "replacedPrivateValueOccurrences": 0,
+    "remainingPrivateValueMatches": 0,
+    "sshRefresh": {
+      "removedOutputOrPropertiesElements": 15,
+      "replacedPrivateValueOccurrences": 0,
+      "remainingPrivateValueMatches": 0,
+      "privateInputFilesScanned": 14,
+      "privateValueCount": 22
+    }
+  },
+  "executionHistory": {
+    "initialSshTaskExecution": "UP-TO-DATE",
+    "initialSshSuiteTimestamps": [
+      "2026-10-11T14:58:28.535Z",
+      "2026-10-11T14:58:28.730Z",
+      "2026-10-11T14:58:28.759Z",
+      "2026-10-11T14:58:28.785Z",
+      "2026-10-11T14:58:28.813Z"
+    ],
+    "refreshReason": "Declare signedInstallerBundle external files as Test task inputs; freshly rerun SSH against current signed recipe."
+  },
+  "executionLogs": [
+    ".audit/stage09/final-build.log",
+    ".audit/stage09/leakcanary-build-ssh-refresh.log"
+  ],
+  "verificationScope": "271 passed tests across two successful builds; all module Test tasks were executed. The initial SSH cached result was replaced by the fresh signed-bundle-input run."
+}

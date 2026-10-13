@@ -1,0 +1,17 @@
+{
+  "environment": "staging",
+  "version": "v0.4.0-source.6ecd8b648a2a",
+  "commit": "6ecd8b648a2aa94fc9bcc844d57784423e2c6f69",
+  "checks": [
+    "api-and-frontend-version",
+    "frontend",
+    "auth",
+    "capabilities",
+    "ice-configuration",
+    "admin-denied",
+    "conference-create-join",
+    "websocket-snapshot"
+  ],
+  "durationMs": 109,
+  "fixtureId": "2949abb0-322a-46ce-bc97-bdf7359a9c77"
+}

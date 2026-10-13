@@ -1,0 +1,131 @@
+{
+  "generatedAtUtc": "2026-10-11T16:27:44.193326+00:00",
+  "buildSuccessful": true,
+  "reports": {
+    "app:debug": {
+      "source": "app/build/reports/lint-results-debug.xml",
+      "format": "6",
+      "errors": 0,
+      "warnings": 46,
+      "severityCounts": {
+        "Warning": 46
+      },
+      "issueIdCounts": {
+        "ApplySharedPref": 8,
+        "AndroidGradlePluginVersion": 3,
+        "GradleDependency": 12,
+        "NewerVersionAvailable": 10,
+        "UseKtx": 9,
+        "UseTomlInstead": 4
+      },
+      "sourceSha256": "0b85d165f6d056b1644ba2fe1660ddf092d1689965bf2f91d213dc2f43024a4c"
+    },
+    "app:release": {
+      "source": "app/build/reports/lint-results-release.xml",
+      "format": "6",
+      "errors": 0,
+      "warnings": 46,
+      "severityCounts": {
+        "Warning": 46
+      },
+      "issueIdCounts": {
+        "ApplySharedPref": 8,
+        "AndroidGradlePluginVersion": 3,
+        "GradleDependency": 12,
+        "NewerVersionAvailable": 10,
+        "UseKtx": 9,
+        "UseTomlInstead": 4
+      },
+      "sourceSha256": "0b85d165f6d056b1644ba2fe1660ddf092d1689965bf2f91d213dc2f43024a4c"
+    },
+    "core/data:debug": {
+      "source": "core/data/build/reports/lint-results-debug.xml",
+      "format": "6",
+      "errors": 0,
+      "warnings": 0,
+      "severityCounts": {},
+      "issueIdCounts": {},
+      "sourceSha256": "3782329f5ec7fc80243d071df4885364697fe238cd16d0fd49637d3010e96025"
+    },
+    "core/data:release": {
+      "source": "core/data/build/reports/lint-results-release.xml",
+      "format": "6",
+      "errors": 0,
+      "warnings": 0,
+      "severityCounts": {},
+      "issueIdCounts": {},
+      "sourceSha256": "3782329f5ec7fc80243d071df4885364697fe238cd16d0fd49637d3010e96025"
+    },
+    "core/ssh:debug": {
+      "source": "core/ssh/build/reports/lint-results-debug.xml",
+      "format": "6",
+      "errors": 0,
+      "warnings": 0,
+      "severityCounts": {},
+      "issueIdCounts": {},
+      "sourceSha256": "3782329f5ec7fc80243d071df4885364697fe238cd16d0fd49637d3010e96025"
+    },
+    "core/ssh:release": {
+      "source": "core/ssh/build/reports/lint-results-release.xml",
+      "format": "6",
+      "errors": 0,
+      "warnings": 0,
+      "severityCounts": {},
+      "issueIdCounts": {},
+      "sourceSha256": "3782329f5ec7fc80243d071df4885364697fe238cd16d0fd49637d3010e96025"
+    },
+    "core/media:debug": {
+      "source": "core/media/build/reports/lint-results-debug.xml",
+      "format": "6",
+      "errors": 0,
+      "warnings": 2,
+      "severityCounts": {
+        "Warning": 2
+      },
+      "issueIdCounts": {
+        "NewerVersionAvailable": 1,
+        "UseTomlInstead": 1
+      },
+      "sourceSha256": "623ab9cd9a19ccb9cf17ded762c1ef494d48eec94564ee1ba53a178275cc6f50"
+    },
+    "core/media:release": {
+      "source": "core/media/build/reports/lint-results-release.xml",
+      "format": "6",
+      "errors": 0,
+      "warnings": 2,
+      "severityCounts": {
+        "Warning": 2
+      },
+      "issueIdCounts": {
+        "NewerVersionAvailable": 1,
+        "UseTomlInstead": 1
+      },
+      "sourceSha256": "623ab9cd9a19ccb9cf17ded762c1ef494d48eec94564ee1ba53a178275cc6f50"
+    },
+    "core/designsystem:debug": {
+      "source": "core/designsystem/build/reports/lint-results-debug.xml",
+      "format": "6",
+      "errors": 0,
+      "warnings": 0,
+      "severityCounts": {},
+      "issueIdCounts": {},
+      "sourceSha256": "3782329f5ec7fc80243d071df4885364697fe238cd16d0fd49637d3010e96025"
+    },
+    "core/designsystem:release": {
+      "source": "core/designsystem/build/reports/lint-results-release.xml",
+      "format": "6",
+      "errors": 0,
+      "warnings": 0,
+      "severityCounts": {},
+      "issueIdCounts": {},
+      "sourceSha256": "3782329f5ec7fc80243d071df4885364697fe238cd16d0fd49637d3010e96025"
+    }
+  },
+  "deduplicatedAcrossModulesAndVariants": {
+    "issues": 48,
+    "severityCounts": {
+      "Warning": 48
+    },
+    "definition": "Same issue id, severity, full message and exact location tuple; per-report warnings must not be blindly summed."
+  }
+}

@@ -1,0 +1,292 @@
+{
+  "verifiedAt": "2026-10-12T15:57:02.013942+03:00",
+  "versionName": "0.9.6",
+  "versionCode": 14,
+  "buildType": "debug",
+  "apk": "/Users/aleksandranickij/htdocs/Android/dist/MeetSpace-0.9.6.apk",
+  "apkBytes": 77586084,
+  "apkSha256": "979b8b652c038329bacb1c8199cfbf188dfe76aa3eb3a9ad6fbce13c04fdb92d",
+  "apkValidation": {
+    "signatureV2": true,
+    "zipAlignment16K": true,
+    "installedTestSubjectMatchesApk": true,
+    "testFixturesExcludedFromApk": true
+  },
+  "changedFiles": [
+    "/Users/aleksandranickij/htdocs/Android/core/media/src/main/kotlin/com/meetspace/core/media/CallEngine.kt",
+    "/Users/aleksandranickij/htdocs/Android/core/media/src/main/kotlin/com/meetspace/core/media/ScreenShareVideoPolicy.kt",
+    "/Users/aleksandranickij/htdocs/Android/core/media/src/main/kotlin/com/meetspace/core/media/CallState.kt",
+    "/Users/aleksandranickij/htdocs/Android/core/media/src/test/kotlin/com/meetspace/core/media/ScreenShareVideoPolicyTest.kt",
+    "/Users/aleksandranickij/htdocs/Android/app/build.gradle.kts",
+    "/Users/aleksandranickij/htdocs/Android/app/src/androidTest/java/com/meetspace/app/ScreenShareFrameRateTest.kt",
+    "/Users/aleksandranickij/htdocs/Android/app/src/androidTest/java/com/meetspace/app/ScreenShareLifecycleTest.kt",
+    "/Users/aleksandranickij/htdocs/Android/app/src/androidTest/java/com/meetspace/app/ScreenShareProjectionTest.kt",
+    "/Users/aleksandranickij/htdocs/Android/app/src/androidTest/java/com/meetspace/app/LiveCallBackend.kt"
+  ],
+  "sourceSha256": {
+    "core/media/src/main/kotlin/com/meetspace/core/media/CallEngine.kt": "50c40f492eaedfe2b25d781f7964810aa65b0cba20a8e3390905c14560bd57fd",
+    "core/media/src/main/kotlin/com/meetspace/core/media/ScreenShareVideoPolicy.kt": "6b40ae711c7585ca884232a264fc9e500fdb6a3b8d6003e5cfd9120208eb68df",
+    "core/media/src/main/kotlin/com/meetspace/core/media/CallState.kt": "d79d56d40a6c5c8f0c2a524bd19e802996156077229e851080509cdd99292067",
+    "core/media/src/test/kotlin/com/meetspace/core/media/ScreenShareVideoPolicyTest.kt": "82a28109e5937a6a5855988fc4ef68d5215b7edfec7186509b2c4c1f78878439",
+    "app/build.gradle.kts": "b737366d92cc6da25e5d0dc657f4b8667a8221b02c2c8fa88ad88e43ed812c35",
+    "app/src/androidTest/java/com/meetspace/app/ScreenShareFrameRateTest.kt": "896574be7cd04681867989895574abff6b22ff7466574f8b82d219b58a1d496c",
+    "app/src/androidTest/java/com/meetspace/app/ScreenShareLifecycleTest.kt": "28b5bc69da6e9dbd186361b0c7b8d9740f4326937bfd22895763fc0171c3023e",
+    "app/src/androidTest/java/com/meetspace/app/ScreenShareProjectionTest.kt": "47a9572b0b860becb43e40d2f65dc9b467747e9588a9aee4df16deb268714929",
+    "app/src/androidTest/java/com/meetspace/app/LiveCallBackend.kt": "28e9f9118c37c46d8d27eab16c01c2080a901f217560ca25352ea5fbba762a50"
+  },
+  "sdk": {
+    "artifact": "io.github.webrtc-sdk:android:144.7559.15",
+    "aarSha256": "fc7c8d027eb33860ccbb7847988f7f942d44a92d1f575348bba6c0250cde4071",
+    "sourceCommit": "30d5e63",
+    "sourceUrls": [
+      "https://github.com/webrtc-sdk/android/releases/tag/v144.7559.15",
+      "https://github.com/webrtc-sdk/webrtc/blob/30d5e63/sdk/android/api/org/webrtc/VideoSource.java",
+      "https://github.com/webrtc-sdk/webrtc/blob/30d5e63/sdk/android/api/org/webrtc/ScreenCapturerAndroid.java",
+      "https://github.com/webrtc-sdk/webrtc/blob/30d5e63/media/base/video_adapter.cc",
+      "https://github.com/webrtc-sdk/webrtc/blob/30d5e63/pc/rtp_sender.cc"
+    ]
+  },
+  "implementation": {
+    "screenMaxFps": 15,
+    "fpsOnlySourceAdaptationBeforePublication": true,
+    "rtpSenderLimitSetAndReadBack": true,
+    "emptySenderEncodingsDeferredUntilAnswer": true,
+    "sourceReappliedOnActualSizeChange": true,
+    "staleProjectionCallbacksGuardedBySessionAndCallGeneration": true,
+    "independentBestEffortCleanupWithProjectionStopFallback": true,
+    "customVideoFrameProcessor": false,
+    "captureThreadSleepsForThrottling": false,
+    "cameraAndMicrophoneCodeUnchanged": true
+  },
+  "unitTests": {
+    "app": {
+      "tests": 138,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "passed": 138
+    },
+    "core/media": {
+      "tests": 17,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "passed": 17
+    },
+    "core/data": {
+      "tests": 136,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 9,
+      "passed": 127
+    }
+  },
+  "instrumentation": {
+    "passed": 34,
+    "failed": 0,
+    "tests": [
+      {
+        "class": "com.meetspace.app.ScreenShareFrameRateTest",
+        "test": "nativeScreenSourceCapsEncodedFramesAcrossResizeRestartAndNewPeer",
+        "status": "passed"
+      },
+      {
+        "class": "com.meetspace.app.ScreenShareLifecycleTest",
+        "test": "rejectedProjectionReleasesNativeResourcesAndAllowsAnotherAttempt",
+        "status": "passed"
+      },
+      {
+        "class": "com.meetspace.app.NativeLibrariesSmokeTest",
+        "test": "bundledNativeLibrariesLoadAndWebRtcFactoryDisposes",
+        "status": "passed"
+      },
+      {
+        "class": "com.meetspace.app.CallUiTest",
+        "test": "largeFontShortLandscapeKeepsCaptureAndLeaveControlsReachable",
+        "status": "passed"
+      },
+      {
+        "class": "com.meetspace.app.CallUiTest",
+        "test": "singleChatAndParticipantsAreExclusiveAndClosingOrBackNeverLeavesTheCall",
+        "status": "passed"
+      },
+      {
+        "class": "com.meetspace.app.CallUiTest",
+        "test": "permissionRequestKeepsJoinDisabledUntilResult",
+        "status": "passed"
+      },
+      {
+        "class": "com.meetspace.app.CallUiTest",
+        "test": "hidingParticipantVideoKeepsTheirActualRosterAndAudioControls",
+        "status": "passed"
+      },
+      {
+        "class": "com.meetspace.app.CallUiTest",
+        "test": "compactScreenSharingIsOnlyInvokedAfterSelectingTheExplicitMenuAction",
+        "status": "passed"
+      },
+      {
+        "class": "com.meetspace.app.CallUiTest",
+        "test": "hiddenSelfWithNoOtherParticipantsKeepsCallControlsAndHonestEmptyState",
+        "status": "passed"
+      },
+      {
+        "class": "com.meetspace.app.CallUiTest",
+        "test": "participantPanelContainsRealRoster",
+        "status": "passed"
+      },
+      {
+        "class": "com.meetspace.app.CallUiTest",
+        "test": "reconnectNeverDisplaysConnectedAndDisablesCapture",
+        "status": "passed"
+      },
+      {
+        "class": "com.meetspace.app.CallUiTest",
+        "test": "activeCallKeepsThreeWorkspaceDestinationsWithoutInvokingLeave",
+        "status": "passed"
+      },
+      {
+        "class": "com.meetspace.app.CallUiTest",
+        "test": "ownBubblesAlignRightAndFileDownloadsUseTheirExactMessageAndAttachmentIds",
+        "status": "passed"
+      },
+      {
+        "class": "com.meetspace.app.CallUiTest",
+        "test": "textReadabilityAssertionRejectsEllipsisAndHeightClipping",
+        "status": "passed"
+      },
+      {
+        "class": "com.meetspace.app.CallUiTest",
+        "test": "reopeningTheOnlyMeetingChatKeepsItsDraftAndDoesNotDuplicateServerHistory",
+        "status": "passed"
+      },
+      {
+        "class": "com.meetspace.app.CallUiTest",
+        "test": "prejoinDeviceSettingsRespectPolicyAndPendingPermissionRequest",
+        "status": "passed"
+      },
+      {
+        "class": "com.meetspace.app.CallUiTest",
+        "test": "shortSharedStageKeepsContentAndScrollableParticipantsUsable",
+        "status": "passed"
+      },
+      {
+        "class": "com.meetspace.app.CallUiTest",
+        "test": "failedCallOffersRetryAndShowsActualFailure",
+        "status": "passed"
+      },
+      {
+        "class": "com.meetspace.app.CallUiTest",
+        "test": "chatSubmissionUsesOwnedDraftAndDoesNotPretendAnUnacknowledgedMessageWasSent",
+        "status": "passed"
+      },
+      {
+        "class": "com.meetspace.app.CallUiTest",
+        "test": "phoneCallLabelsStayOnOneLineAndLeaveButtonHasItsOwnWidth",
+        "status": "passed"
+      },
+      {
+        "class": "com.meetspace.app.CallUiTest",
+        "test": "meetingDraftAcceptsFourThousandCharactersAndRejectsAdditionalInput",
+        "status": "passed"
+      },
+      {
+        "class": "com.meetspace.app.CallUiTest",
+        "test": "blockedDevicesCannotPublishAndLeaveRemainsAvailable",
+        "status": "passed"
+      },
+      {
+        "class": "com.meetspace.app.CallUiTest",
+        "test": "prejoinUsesSideBySideTabletAndStackedPhoneWithoutAutomaticCapture",
+        "status": "passed"
+      },
+      {
+        "class": "com.meetspace.app.CallUiTest",
+        "test": "prejoinDeviceSettingsUseExistingActionsAndActualRoutes",
+        "status": "passed"
+      },
+      {
+        "class": "com.meetspace.app.CallUiTest",
+        "test": "recordingAndElapsedIndicatorsOnlyClaimActualMetadata",
+        "status": "passed"
+      },
+      {
+        "class": "com.meetspace.app.CallUiTest",
+        "test": "deletedMeetingMessagesNeverRevealTheirBodyOrDownloadableAttachment",
+        "status": "passed"
+      },
+      {
+        "class": "com.meetspace.app.CallUiTest",
+        "test": "phoneLargeFontChatStaysInsideCallBodyWithCloseAndLeaveReachable",
+        "status": "passed"
+      },
+      {
+        "class": "com.meetspace.app.CallUiTest",
+        "test": "pendingAttachmentsRequireConfirmedUploadAndRemainOwnedUntilSendAcknowledgement",
+        "status": "passed"
+      },
+      {
+        "class": "com.meetspace.app.CallUiTest",
+        "test": "prejoinRequiresExplicitConnectAndDeviceActions",
+        "status": "passed"
+      },
+      {
+        "class": "com.meetspace.app.CallUiTest",
+        "test": "activeDeviceSemanticsAndAudioSelectionReflectActualState",
+        "status": "passed"
+      },
+      {
+        "class": "com.meetspace.app.CallUiTest",
+        "test": "connectedCallUsesTheBlueCanvasInBothThemes",
+        "status": "passed"
+      },
+      {
+        "class": "com.meetspace.app.CallUiTest",
+        "test": "startingRecordingCanBeStoppedButBusyStatePreventsRepeatedStop",
+        "status": "passed"
+      },
+      {
+        "class": "com.meetspace.app.CallUiTest",
+        "test": "meetingChatRespectsPermissionAndExposesActualRetryAndPagingActions",
+        "status": "passed"
+      },
+      {
+        "class": "com.meetspace.app.ScreenShareProjectionTest",
+        "test": "projectionCapsEncodedFramesAcrossRotationStopAndFreshConsentRestart",
+        "status": "passed"
+      }
+    ]
+  },
+  "lint": {
+    "errors": 0,
+    "warnings": 55
+  },
+  "evidence": {
+    "syntheticNativeVp8": "native-fps.json",
+    "actualEmulatorProjection": "projection-fps.json",
+    "startupCleanup": "startup-cleanup.json"
+  },
+  "coverage": {
+    "device": "Android16/API36 ARM64 emulator",
+    "physicalDevice": false,
+    "sourceInputRequestedFps": 144,
+    "actualProjectionDisplayRefreshHz": 60.000004,
+    "actualProjectionDurationMillis": 31064,
+    "sourceResizeFreshTrackNewPeerTested": true,
+    "mediaProjectionStartStopFreshConsentRestartAndTwoRotationsTested": true,
+    "repeatedInvalidConsentCleanupTested": true,
+    "productionScreenStatsDiagnosticsTested": true
+  },
+  "remainingUnverified": [
+    "Physical Android device with a high-refresh display.",
+    "A real network reconnect through the production backend/Pion SFU; source/sender limits were tested with a fresh local peer.",
+    "Server recording for at least 30 seconds spanning multiple segment boundaries. The 31-second emulator test captures and sends RTP but does not create a server recording.",
+    "Additional Android versions and physical-device encoder implementations."
+  ],
+  "coldStart": {
+    "status": "ok",
+    "launchState": "COLD",
+    "totalTimeMs": 1093,
+    "androidRuntimeCrashes": 0
+  }
+}

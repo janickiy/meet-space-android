@@ -1,0 +1,14 @@
+{
+  "label": "interim-account-audio",
+  "tests": [
+    {
+      "class": "com.meetspace.app.ProfileDesignTest",
+      "test": "captureProfileAndOnboardingScreenshot",
+      "status": 0
+    }
+  ],
+  "passed": 1,
+  "failed": 0,
+  "seconds": 1.93,
+  "success": true
+}

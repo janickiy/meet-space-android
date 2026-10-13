@@ -1,0 +1,26 @@
+{
+  "gradleTasks": [
+    ":app:assembleDebug",
+    ":app:assembleDebugAndroidTest",
+    ":app:testDebugUnitTest",
+    ":app:lintDebug"
+  ],
+  "success": true,
+  "appJvmTests": {
+    "tests": 94,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "lintErrors": 0,
+  "lintWarnings": 46,
+  "newLintWarnings": 0,
+  "lintWarningClasses": [
+    "AndroidGradlePluginVersion",
+    "ApplySharedPref",
+    "GradleDependency",
+    "NewerVersionAvailable",
+    "UseKtx",
+    "UseTomlInstead"
+  ]
+}

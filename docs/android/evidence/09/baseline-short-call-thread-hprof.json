@@ -1,0 +1,82 @@
+{
+  "schema": 1,
+  "analysisTool": "Shark graph 2.14, JDK17, ThreadHeapAudit.java",
+  "scope": "initial short baseline call run, warmup10 + measured100, settled5s only; HPROFs were later replaced by repeat-run downloads",
+  "rawDataPolicy": "HPROF and raw thread names remain private; aggregate contains fixed class/category names and numbers only",
+  "snapshots": {
+    "warmup": {
+      "javaThreadObjects": 43,
+      "threadGcRoots": 37,
+      "rootCategories": {
+        "android-binder": 4,
+        "coroutine-dispatcher": 4,
+        "meetspace-actor-capture": 1,
+        "okhttp": 5,
+        "okio": 1,
+        "other-runtime-framework": 22
+      },
+      "taskRunnerPool": {
+        "readyQueuesSize": 1,
+        "busyQueuesSize": 1,
+        "corePoolSize": 0,
+        "maximumPoolSize": 2147483647,
+        "keepAliveTime": 60000000000,
+        "allowCoreThreadTimeOut": false
+      },
+      "testOwnedLastSocketCount": 1,
+      "failedOrCancelledRealWebSocketCount": 1,
+      "selectedInstanceCounts": {
+        "com.meetspace.app.MainActivity": 1,
+        "com.meetspace.core.media.CallEngine": 1,
+        "org.webrtc.PeerConnection": 0,
+        "org.webrtc.PeerConnectionFactory": 0,
+        "org.webrtc.audio.JavaAudioDeviceModule": 0,
+        "java.util.concurrent.ThreadPoolExecutor": 17,
+        "java.util.concurrent.ThreadPoolExecutor$Worker": 10,
+        "okhttp3.internal.concurrent.TaskRunner": 1,
+        "okhttp3.internal.concurrent.TaskQueue": 7,
+        "okhttp3.internal.ws.RealWebSocket": 1
+      },
+      "taskRunnerWorkerCount": 4,
+      "okhttpDispatcherWorkerCount": 1
+    },
+    "end": {
+      "javaThreadObjects": 53,
+      "threadGcRoots": 47,
+      "rootCategories": {
+        "android-binder": 12,
+        "coroutine-dispatcher": 4,
+        "meetspace-actor-capture": 1,
+        "okhttp": 7,
+        "okio": 1,
+        "other-runtime-framework": 22
+      },
+      "taskRunnerPool": {
+        "readyQueuesSize": 1,
+        "busyQueuesSize": 1,
+        "corePoolSize": 0,
+        "maximumPoolSize": 2147483647,
+        "keepAliveTime": 60000000000,
+        "allowCoreThreadTimeOut": false
+      },
+      "testOwnedLastSocketCount": 1,
+      "failedOrCancelledRealWebSocketCount": 1,
+      "selectedInstanceCounts": {
+        "com.meetspace.app.MainActivity": 1,
+        "com.meetspace.core.media.CallEngine": 1,
+        "org.webrtc.PeerConnection": 0,
+        "org.webrtc.PeerConnectionFactory": 0,
+        "org.webrtc.audio.JavaAudioDeviceModule": 0,
+        "java.util.concurrent.ThreadPoolExecutor": 17,
+        "java.util.concurrent.ThreadPoolExecutor$Worker": 12,
+        "okhttp3.internal.concurrent.TaskRunner": 1,
+        "okhttp3.internal.concurrent.TaskQueue": 7,
+        "okhttp3.internal.ws.RealWebSocket": 1
+      },
+      "taskRunnerWorkerCount": 6,
+      "okhttpDispatcherWorkerCount": 1
+    }
+  },
+  "interpretation": "All +10 Java thread GC roots classify as +8 Android Binder and +2 shared OkHttp TaskRunner workers. No added WebRTC factory/PC/ADM instances. OkHttp pool idle timeout 60s is read from both heaps; this initial run alone does not measure actual idle expiry. Binder runtime maximum was not measured.",
+  "measurementFile": "baseline-short-real-call.json"
+}

@@ -1,0 +1,25 @@
+{
+  "report": "docs/android/evidence/08/artifact-verification.json",
+  "status": "STATIC_PACKAGING_CHECKS_PASSED_WITH_RELRO_FINDINGS",
+  "artifacts": [
+    {
+      "variant": "debug",
+      "sha256": "16807136a0152e08005d5ba2261593b18f378dec9934b4f102264eefed9f1802",
+      "bytes": 82442432,
+      "checksPassed": true
+    },
+    {
+      "variant": "release",
+      "sha256": "7797827e040ed6348e1ff9a26ced652c64388c27078f418f45fc13b97cedf503",
+      "bytes": 52001077,
+      "checksPassed": true
+    },
+    {
+      "variant": "releaseBundle",
+      "sha256": "5e657447e7a9866e7a9738f198ff14c71c2d1d9be5e6eb1a76fef9ececbd4fe8",
+      "bytes": 30739810,
+      "checksPassed": true
+    }
+  ],
+  "privateReleaseSmokeApk": null
+}

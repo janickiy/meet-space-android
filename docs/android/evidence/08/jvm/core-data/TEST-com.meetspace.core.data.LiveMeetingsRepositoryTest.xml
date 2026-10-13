@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.meetspace.core.data.LiveMeetingsRepositoryTest" tests="2" skipped="2" failures="0" errors="0" timestamp="2026-10-11T15:16:32.059Z" hostname="MacBook-Air-janickiy.local" time="0.003">
+  <properties/>
+  <testcase name="actual HTTPS backend supports account isolated meeting lifecycle and durable refresh" classname="com.meetspace.core.data.LiveMeetingsRepositoryTest" time="0.002">
+    <skipped/>
+  </testcase>
+  <testcase name="actual WSS returns scoped snapshot and SFU admission with relay REST configuration" classname="com.meetspace.core.data.LiveMeetingsRepositoryTest" time="0.001">
+    <skipped/>
+  </testcase>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

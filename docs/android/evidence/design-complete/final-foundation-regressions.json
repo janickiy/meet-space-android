@@ -1,0 +1,64 @@
+{
+  "label": "final-foundation-regressions",
+  "tests": [
+    {
+      "class": "com.meetspace.app.FoundationUiTest",
+      "test": "connectSubmitsEnteredOriginAndBlocksRepeatedSubmissionWhileBusy",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.FoundationUiTest",
+      "test": "selectedTabSurvivesWindowChangesAndSavedInstanceStateRecreation",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.FoundationUiTest",
+      "test": "mediumWindowKeepsFourBottomDestinations",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.FoundationUiTest",
+      "test": "firstRunConnectOpensServerForm",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.FoundationUiTest",
+      "test": "expandedWindowKeepsFourBottomDestinations",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.FoundationUiTest",
+      "test": "firstRunInstallerShowsItsActualReadiness",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.FoundationUiTest",
+      "test": "loginKeepsPasswordHiddenUntilExplicitlyRevealedAndSubmitsTypedCredentials",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.FoundationUiTest",
+      "test": "switchingAccountProfileClearsPasswordAndUsesThatAccountsEmail",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.FoundationUiTest",
+      "test": "compactWindowUsesBottomNavigation",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.FoundationUiTest",
+      "test": "calendarIsNestedUnderCallsAndBackKeepsCallsSelected",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.FoundationUiTest",
+      "test": "savedInstanceStateRestoresEmailButDoesNotPersistPassword",
+      "status": 0
+    }
+  ],
+  "passed": 11,
+  "failed": 0,
+  "seconds": 16.09,
+  "success": true
+}

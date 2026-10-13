@@ -1,0 +1,2 @@
+initial=CallDiagnostics(relay=true, receivedBytes=52976, decodedFrames=22, sentBytes=56371, receivedAudioBytes=5744, receivedVideoBytes=47232)
+reconnected=CallDiagnostics(relay=true, receivedBytes=43745, decodedFrames=27, sentBytes=44675, receivedAudioBytes=0, receivedVideoBytes=43745)

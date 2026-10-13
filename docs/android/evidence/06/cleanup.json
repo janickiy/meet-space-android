@@ -1,0 +1,23 @@
+{
+  "privateFixtureRemoved": true,
+  "fixturePortsFree": [
+    15466,
+    18466,
+    16366,
+    18966,
+    50166,
+    13466
+  ],
+  "mediaProjectionActive": false,
+  "foregroundServicesActive": false,
+  "privateAndroidTestFilesRemoved": true,
+  "userDockerContainersPreserved": true,
+  "fixtureStartStopReproduced": true,
+  "restoredEmulator": {
+    "size": "Physical size: 2560x1600",
+    "density": "Physical density: 320",
+    "fontScale": "1.0",
+    "wifi": "1",
+    "mobileData": "1"
+  }
+}

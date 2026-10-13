@@ -1,0 +1,14 @@
+{
+  "label": "screen-430x932-light-font1.0-messages",
+  "tests": [
+    {
+      "class": "com.meetspace.app.MessagingUiTest",
+      "test": "captureApprovedMessagingScreenshot",
+      "status": 0
+    }
+  ],
+  "passed": 1,
+  "failed": 0,
+  "seconds": 2.34,
+  "success": true
+}

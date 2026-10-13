@@ -1,0 +1,33 @@
+{
+  "label": "phone-large-font-recordings",
+  "elapsedSeconds": 75.4,
+  "serial": "emulator-5556",
+  "sdk": "36",
+  "pageSize": 4096,
+  "tests": [
+    {
+      "class": "com.meetspace.app.LiveRecordingsTest",
+      "test": "realVideoPlaysSeeksRotatesAndReleases",
+      "statusCode": 0
+    },
+    {
+      "class": "com.meetspace.app.LiveRecordingsTest",
+      "test": "realExistingServerAndUnavailableSshOnboarding",
+      "statusCode": 0
+    },
+    {
+      "class": "com.meetspace.app.LiveRecordingsTest",
+      "test": "realHistoricalMaterialsPaginateAndSettingsReflectActualState",
+      "statusCode": 0
+    },
+    {
+      "class": "com.meetspace.app.LiveRecordingsTest",
+      "test": "actualSystemCreateDocumentDownloadsVerifiedMp4AndCleansItsFile",
+      "statusCode": 0
+    }
+  ],
+  "passed": 4,
+  "failed": 0,
+  "skipped": 0,
+  "runnerSuccess": true
+}

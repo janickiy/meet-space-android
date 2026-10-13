@@ -1,0 +1,130 @@
+{
+  "verifiedAt": "2026-10-12T11:04:57.306974+00:00",
+  "versionName": "0.9.5",
+  "versionCode": 13,
+  "apk": "dist/MeetSpace-0.9.5.apk",
+  "apkSha256": "30e231c4791940baaaa732bc5c0c6db2d7d74e2fd13f4147c9981b3cfc678ac5",
+  "apkBytes": 77908642,
+  "buildType": "debug",
+  "certificateSha256": "5472281448cf33dea7fe8a4b119683701cd43815d5e038bb34fad92e22b1e471",
+  "apkValidation": {
+    "signatureV2": true,
+    "zipAlignment16K": true,
+    "minSdk": 26,
+    "targetSdk": 36,
+    "screenshotFixturesExcluded": true
+  },
+  "reference": {
+    "path": "/Users/aleksandranickij/htdocs/go-recorder/design/meetspace-android-20261010",
+    "files": 77,
+    "unchanged": true
+  },
+  "sourceSnapshotVerified": true,
+  "unitTests": {
+    "app": {
+      "tests": 138,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "passed": 138
+    },
+    "core/data": {
+      "tests": 136,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 9,
+      "passed": 127
+    },
+    "core/media": {
+      "tests": 14,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "passed": 14
+    }
+  },
+  "instrumentation": {
+    "passed": 153,
+    "skipped": 7,
+    "failed": 0,
+    "method": "Latest result per test: full regression suite, then changed classes and real keyboard test rerun after final edits.",
+    "evidence": [
+      "regressions-final.json",
+      "call-ui-final.json",
+      "call-keyboard-final.json"
+    ]
+  },
+  "lint": {
+    "errors": 0,
+    "warnings": 55
+  },
+  "screenshots": {
+    "count": 42,
+    "manifest": {
+      "call-chat-dark-1194x834-font1.0.png": "1024ed914e6286ce3e9a7ead5dd7a569d2eec2b3b7295047b22340cf1f8d8003",
+      "call-chat-dark-390x844-font1.0.png": "51cbda3c7edb022a36e9322db3deef46b53c6dc46f3387f1cc6bdb67829d80af",
+      "call-chat-dark-430x932-font1.5.png": "91d0719c1d0fc1f27ff5a14a4aa2e274160d7cbd2e6ebbf117d54ea66116c052",
+      "call-chat-dark-834x1112-font1.0.png": "2cd459519f1b6c8e61fcccdb4096b86dcb9591dfbfd82a7ecee9183cc3598b7b",
+      "call-chat-dark-844x390-font1.0.png": "10da99e35219ca8b1cc89e781106253e416323a9df80424a342ecf637c3429d7",
+      "call-chat-light-1194x834-font1.0.png": "1024ed914e6286ce3e9a7ead5dd7a569d2eec2b3b7295047b22340cf1f8d8003",
+      "call-chat-light-390x844-font1.0.png": "51cbda3c7edb022a36e9322db3deef46b53c6dc46f3387f1cc6bdb67829d80af",
+      "call-chat-light-780x800-font1.0.png": "bb4ad3c73afac51f3811650d1c85afe4fae6274bafd0e901ba12c78792717000",
+      "call-dark-1194x834-font1.0.png": "a3cd90aa9b8df42964e407e4b2491f12ac542389f446a95213e459f782fef8f7",
+      "call-dark-390x844-font1.0.png": "63b1ab281c159f7a4d09197980b408b8ee140eced86f88d8990cc194b3d99c5c",
+      "call-dark-430x932-font1.5.png": "e8ad239b6f0692cc24252284d3de43d38ed2313eae75ebec4fe8c508145767d3",
+      "call-dark-834x1112-font1.0.png": "ebda5c84315834ab0c5793183cc2061042ea321c5045008f22160650feb765ff",
+      "call-dark-844x390-font1.0.png": "58b801b548b3d4156232141ad539daf102365e22953fa09acb702d3f64f717c0",
+      "call-light-1194x834-font1.0.png": "a3cd90aa9b8df42964e407e4b2491f12ac542389f446a95213e459f782fef8f7",
+      "call-light-390x844-font1.0.png": "63b1ab281c159f7a4d09197980b408b8ee140eced86f88d8990cc194b3d99c5c",
+      "call-light-780x800-font1.0.png": "c7e49705ba5e261c70c60f614dc43f6f2679302f43907ad70c27a8b7fa721678",
+      "call-participants-dark-1194x834-font1.0.png": "0880de3e1379ef496cb2949ae456148d14bb440b293035c208719ee23101bfb5",
+      "call-participants-dark-390x844-font1.0.png": "44f5e5159c88d258132794565e5992d61f2c823a29454aaed9faf372fa2ba06e",
+      "call-participants-dark-430x932-font1.5.png": "b403b518366319ffae2be20d69a5ec39240b373a44875e43eea010d35cc0ced2",
+      "call-participants-dark-834x1112-font1.0.png": "2244093a6ef44bdaf21b8caeb48b93b49c432646747f8385ba9ac719b1d2e45c",
+      "call-participants-dark-844x390-font1.0.png": "50bfd40b2283e1cd964aa5788a8ae09a79080f7a85828d308f921db6ac48db95",
+      "call-participants-light-1194x834-font1.0.png": "0d929972b88cf6a30257c4d0d306ddb0df66fb8ffbe8c4d622bfb16a922b21fd",
+      "call-participants-light-390x844-font1.0.png": "0510239bd53d4ecb209869d01dac4e4020db0ec32a6280f78e09b695e86074bc",
+      "call-participants-light-780x800-font1.0.png": "4c4fcd2d9d27b29d9947a9322ae5866fc4ddc89340ec64155bef5b3555a9f99e",
+      "call-recording-dark-1194x834-font1.0.png": "809c4ea3229c21bff19d6b9b4ebf0e43989d6eaebef30d8bfd5673dde70337c7",
+      "call-recording-dark-390x844-font1.0.png": "0390a0121175e4d5187e31cc3e6366173767f4c7d07276ebcd180a29d6a7b725",
+      "call-recording-dark-430x932-font1.5.png": "95f4a5750a280be30e62bca181a6a76aea946e504f206a5b2b7bdabab3c5f76c",
+      "call-recording-dark-834x1112-font1.0.png": "50b9c2a17d25f181faded402d275e6fe545d81fb525d2ff74ffca2a53889d69e",
+      "call-recording-dark-844x390-font1.0.png": "5e4efef929e0c06c7b4f70571d37565dfb99016a6e538a611270f69a0d6518e3",
+      "call-recording-light-1194x834-font1.0.png": "2d26a4f1f725d50af6457c23b1261b05203a4be7b2cdc0735d0802cb0e62a57a",
+      "call-recording-light-390x844-font1.0.png": "f158adb0505374e78db52d5e7b74e2bbe79f6af64c3cac3b636aa3169e3bd6f9",
+      "call-recording-light-780x800-font1.0.png": "b2a5d08db608238b3919da39d58d19a8cfbc79acdafdf402ccc27d6cbe83ce47",
+      "call-share-dark-1194x834-font1.0.png": "54e2af916615fd0d3dd7bfbc9575fc67cf267eedf3b72f9d4ff5b6a434e8c9cb",
+      "call-share-dark-390x844-font1.0.png": "35367231ee1942fa42e3415e6ec34d15207cbb9a9debee2ef0984d66d087adc6",
+      "call-share-dark-430x932-font1.5.png": "97262b342c9faea7802c8493179699afb1317ca8797bc2b4b772e2546b6dacb1",
+      "call-share-dark-834x1112-font1.0.png": "e22c045ff89abed13e805e6deae6aa16d5ed33034b092f855b0f88512e7a4a1f",
+      "call-share-dark-844x390-font1.0.png": "8b2f629a05c3470c278f53466dbe82adee7ff4639515b901fbcc60eab78b170e",
+      "call-share-light-1194x834-font1.0.png": "54e2af916615fd0d3dd7bfbc9575fc67cf267eedf3b72f9d4ff5b6a434e8c9cb",
+      "call-share-light-390x844-font1.0.png": "35367231ee1942fa42e3415e6ec34d15207cbb9a9debee2ef0984d66d087adc6",
+      "call-share-light-780x800-font1.0.png": "446594b1242eb145ad5d67b5b250818289022a6d64d474d6fb6ecbfc4d4e18a6",
+      "prejoin-light-1194x834-font1.0.png": "a5dfc84f3ed9354d19d2f05042efcbe7486cbf070339da721b5a28ffef323855",
+      "prejoin-light-390x844-font1.0.png": "b0d025b81634fb7e95f1751c61ee06d80a396f3a8aac51e1d4bac354efbe7dd2"
+    }
+  },
+  "coverage": [
+    "Android 16 ARM64 emulator",
+    "390×844 and 430×932 phones",
+    "1194×834 and 834×1112 tablets",
+    "780dp breakpoint and 844×390 landscape",
+    "Light/dark themes and font scale 1.5",
+    "Real Android IME with a pointer click on Send",
+    "Conference REST contracts over HTTPS, one discussion, attachment upload/download and recording start/stop"
+  ],
+  "limits": [
+    "Screenshot conversations and shared artwork are test fixtures; production displays server data and native video feeds.",
+    "Native system bars, safe insets, text rendering and device controls differ from the browser concept.",
+    "No fresh production-server end-to-end call/message/file/recording test or physical-device test in this pass.",
+    "Recording pause/resume is unavailable on the current backend; pause is explicitly disabled.",
+    "The APK uses the existing development signing certificate. No store publication was performed."
+  ],
+  "coldStart": {
+    "state": "COLD",
+    "activity": "com.meetspace.app/.MainActivity",
+    "totalTimeMs": 1237,
+    "androidRuntimeCrashes": 0
+  }
+}

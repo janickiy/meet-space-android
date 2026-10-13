@@ -1,0 +1,140 @@
+{
+  "date": "2026-10-11",
+  "versionName": "0.7.0",
+  "versionCode": 6,
+  "backendCommit": "6ecd8b648a2aa94fc9bcc844d57784423e2c6f69",
+  "productionModified": false,
+  "backendContractAssertionsPassed": 458,
+  "jvm": {
+    "modules": {
+      "app": {
+        "tests": 75,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "core/data": {
+        "tests": 83,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 2
+      },
+      "core/ssh": {
+        "tests": 57,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "core/media": {
+        "tests": 14,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    "total": {
+      "tests": 229,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 2
+    },
+    "passed": 227,
+    "stage07LiveRepositoryTestsPassed": 3,
+    "skipped": "Two opt-in live tests from stages 05/06; stage07 opt-in enabled"
+  },
+  "androidUi": {
+    "uniqueTestsPassed": 59,
+    "priorFeaturesPassed": 40,
+    "messagingFinalPassed": 19,
+    "compactFont150UiPassed": 1,
+    "lowHeightDp": 280,
+    "lowHeightMinimumHistoryDp": 72,
+    "draftAndFocusPreservedAcrossResize": true
+  },
+  "liveAndroid": {
+    "uniqueScenariosPassed": [
+      "realDirectMessagesReplyEditDeleteAndRotation",
+      "realGroupFoldersMinioFilesAndNotificationCenter",
+      "realOfflineHistoryReconnectAndLogoutCleanup",
+      "actualDocumentPickSendAndCreateDocumentDownloadPreserveBytes",
+      "realForegroundWssNotificationOpensInboxAndClearsOnLogout"
+    ],
+    "finalMessagingUiSafAndNotificationRun": {
+      "tests": 21,
+      "failures": 0
+    },
+    "phoneFont150WithImeEnabledRun": {
+      "tests": 2,
+      "failures": 0
+    },
+    "safExportObserver": "Strictly named test file SHA-256 through shell after actual CreateDocument; no production broad storage permission",
+    "multipleClients": "Real repository and WSS sessions; multiple physical phones not tested"
+  },
+  "builds": {
+    "debug": true,
+    "androidTest": true,
+    "minifiedUnsignedRelease": true
+  },
+  "lint": {
+    "errors": 0,
+    "warnings": 43
+  },
+  "push": {
+    "firebaseConfigured": false,
+    "foregroundOsNotificationVerified": true,
+    "backgroundDeliveryVerified": false,
+    "configuredFirebaseBuildVerified": false,
+    "optionalIntegrationPrepared": true
+  },
+  "apks": [
+    {
+      "variant": "debug",
+      "path": "app/build/outputs/apk/debug/app-debug.apk",
+      "bytes": 76197178,
+      "sha256": "c29e37934db88b3775f33f48a20a77b5ba907e6131ea6612eab5b1c5a9965273"
+    },
+    {
+      "variant": "release",
+      "path": "app/build/outputs/apk/release/app-release-unsigned.apk",
+      "bytes": 51009477,
+      "sha256": "80c2f93d5a0145132ae40386330b7422f56f3fcbdfb051049f99173afd039e6a"
+    }
+  ],
+  "apkStaticChecksPassed": true,
+  "runtime16KiBVerified": false,
+  "nativeRelroFindings": "See evidence/07/apk-verification.json; hardware verification remains required before publication",
+  "cleanup": {
+    "fixtureHomeRemoved": true,
+    "fixtureContainersRunning": 0,
+    "preexistingContainersUnchanged": true,
+    "preexistingContainerCount": 11,
+    "fixturePortsListening": {
+      "15477": false,
+      "16377": false,
+      "18477": false,
+      "19077": false,
+      "19477": false
+    },
+    "userWebSocketConnectionsBeforeStop": 0,
+    "androidPrivateFilesRemoved": true,
+    "androidTestDownloadsRemaining": 0,
+    "display": "Physical size: 2560x1600",
+    "density": "Physical density: 320",
+    "fontScale": "1.0",
+    "showImeWithHardwareKeyboard": "0",
+    "wifi": "1",
+    "mobileData": "1"
+  },
+  "notRun": [
+    "Physical multi-device and long-running battery/OEM checks",
+    "Real configured FCM/gateway delivery and token rotation",
+    "16 KiB device runtime verification",
+    "Heap/leak profiler",
+    "Store signing/AAB/publication"
+  ],
+  "notes": [
+    "Initial SAF harness failures (stale DocumentsUI node, MediaStore visibility, shell quoting) were corrected and the final real flow passed.",
+    "Initial notification harness ActivityScenario teardown after new Intent was corrected using lifecycle tracking.",
+    "Real phone rotation caught a Compose text-scroll orientation crash; field now keeps vertical scrolling and focus while visible line count changes."
+  ]
+}

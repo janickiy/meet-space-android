@@ -1,0 +1,66 @@
+Applications Memory Usage (in Kilobytes):
+Uptime: 2062091 Realtime: 2062091
+
+** MEMINFO in pid 9739 [com.meetspace.app] **
+                   Pss  Private  Private     Swap      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap    11048    10968        0        0    14900    23668    18076     1634
+  Dalvik Heap     5989     5788        0        0    13676     9115     4558     4557
+ Dalvik Other     9876     5620        0        0    14792                           
+        Stack     1484     1484        0        0     1492                           
+       Ashmem       13        0        0        0      612                           
+    Other dev       13        0       12        0      324                           
+     .so mmap     2337      284        0        0    40148                           
+    .jar mmap     2758        0       12        0    45276                           
+    .apk mmap      221        0        0        0     1596                           
+    .ttf mmap      536        0      408        0      980                           
+    .dex mmap       16        0        0        0      852                           
+    .oat mmap       36        0        0        0     1792                           
+    .art mmap     9164     8696        0        0    31884                           
+   Other mmap     2309       36       36        0     6084                           
+      Unknown    81975    81948       16        0    83132                           
+        TOTAL   127775   114824      484        0   257540    32783    22634     6191
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    14484                          45560
+         Native Heap:    10968                          14900
+                Code:      792                          99216
+               Stack:     1484                           1492
+            Graphics:        0                              0
+       Private Other:    87580
+              System:    12467
+             Unknown:                                   96372
+ 
+           TOTAL PSS:   127775            TOTAL RSS:   257540      TOTAL SWAP (KB):        0
+ 
+ Objects
+               Views:        8         ViewRootImpl:        1
+         AppContexts:        6           Activities:        1
+              Assets:        9        AssetManagers:        0
+       Local Binders:       17        Proxy Binders:       54
+       Parcel memory:        7         Parcel count:       24
+    Death Recipients:        0             WebViews:        0
+ 
+ Native Allocations
+                         Count                       Total(kB)
+                        ------                         ------
+    Other (malloced):      457                             42
+ Other (nonmalloced):       81                             59
+   Bitmap (malloced):        9                             39
+ 
+ SQL
+         MEMORY_USED:      307
+  PAGECACHE_OVERFLOW:       92          MALLOC_SIZE:       46
+ 
+ DATABASES
+      pgsz     dbsz   Lookaside(b) cache hits cache misses cache size  Dbname
+PER CONNECTION STATS
+         4      104            123    10    51    12  /data/user/0/com.meetspace.app/no_backup/androidx.work.workdb
+         4        8                    0     0     0    (attached) temp
+         4      104             28     1    14     2  /data/user/0/com.meetspace.app/no_backup/androidx.work.workdb (3)
+POOL STATS
+     cache hits  cache misses    cache size  Dbname
+             17           100           117  /data/user/0/com.meetspace.app/no_backup/androidx.work.workdb

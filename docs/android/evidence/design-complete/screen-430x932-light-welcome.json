@@ -1,0 +1,14 @@
+{
+  "label": "screen-430x932-light-welcome",
+  "tests": [
+    {
+      "class": "com.meetspace.app.ProfileDesignTest",
+      "test": "captureProfileAndOnboardingScreenshot",
+      "status": 0
+    }
+  ],
+  "passed": 1,
+  "failed": 0,
+  "seconds": 2.61,
+  "success": true
+}

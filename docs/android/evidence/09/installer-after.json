@@ -1,0 +1,70 @@
+{
+  "suites": [
+    {
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "installer/tests",
+        "-v"
+      ],
+      "exitCode": 0,
+      "durationSeconds": 0.1054,
+      "log": "installer-python-after.log"
+    },
+    {
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "testing/stage09",
+        "-p",
+        "test_installer_initialization.py",
+        "-v"
+      ],
+      "exitCode": 0,
+      "durationSeconds": 0.6901,
+      "log": "installer-initialization-after.log"
+    }
+  ],
+  "existingPythonTestsPassed": 23,
+  "initializationRegressionTestsPassed": 8,
+  "faultWriteBoundariesTested": 8,
+  "abruptChildProcessExitBoundariesTested": 9,
+  "signatureVerified": true,
+  "signingIdentityChanged": false,
+  "installerFilesSha256": {
+    "installer/v1/runner.py": "3d9b5baec40eeac4f9cb6243e9a6aa08b7aa0a7f46aced6d9719c32c140fba19",
+    "installer/v1/release.json": "0d441454b83bb4dc4ed0a742a01fc994485ae9a5acc745c23a3af748848b6da0",
+    "installer/v1/release.sig": "5b838a294dfce97520ea9ea25112cf3e781c5d2d552c395b52fe713a79e675d7",
+    "installer/v1/trust-root.pem": "9f16201125cd17dc9fb90a7579e78589c76ecbfdb1ee80df3428ee34d6b90dfc",
+    "installer/v1/docker.asc": "1500c1f56fa9e26b9b8f42452a553675796ade0807cdce11975eb98170b3a570"
+  },
+  "apkAssetsRebuildPending": false,
+  "vmDeploymentPerformed": false,
+  "gradleRunByThisSubtask": false,
+  "verifiedAtUtc": "2026-10-11T16:19:05.849179+00:00",
+  "recipeVersionPolicy": "installerVersion 1.0.0 is the exact Android/runner protocol constraint; builtAt remains the pinned backend Docker BUILD_TIME. runner/release SHA identifies this reviewed recipe revision.",
+  "foregroundRegressionSuite": {
+    "tests": 13,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "newForegroundTests": 5,
+    "source": "docs/android/evidence/09/jvm/app/TEST-com.meetspace.app.InstallerViewModelTest.xml"
+  },
+  "finalPackagedAssetsVerified": {
+    "source": "docs/android/evidence/09/artifact-verification.json",
+    "verifiedAtUtc": "2026-10-11T16:54:09.377784+00:00",
+    "variants": [
+      "debug",
+      "release",
+      "releaseBundle"
+    ],
+    "allFiveAssetsMatchCurrentSignedSource": true
+  }
+}

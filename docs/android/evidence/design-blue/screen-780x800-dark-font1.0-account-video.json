@@ -1,0 +1,14 @@
+{
+  "label": "screen-780x800-dark-font1.0-account-video",
+  "tests": [
+    {
+      "class": "com.meetspace.app.ProfileDesignTest",
+      "test": "captureProfileAndOnboardingScreenshot",
+      "status": 0
+    }
+  ],
+  "passed": 1,
+  "failed": 0,
+  "seconds": 2.21,
+  "success": true
+}

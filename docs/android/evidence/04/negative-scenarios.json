@@ -1,0 +1,17 @@
+{
+  "dns_failure": {
+    "errorCode": "DNS_FAILED",
+    "ok": false,
+    "protocol": "MSI1"
+  },
+  "disk_full": {
+    "errorCode": "DISK_SPACE",
+    "ok": false,
+    "protocol": "MSI1"
+  },
+  "occupied_port": {
+    "errorCode": "PORT_OCCUPIED",
+    "ok": false,
+    "protocol": "MSI1"
+  }
+}

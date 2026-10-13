@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.meetspace.core.media.CallProtocolTest" tests="14" skipped="0" failures="0" errors="0" timestamp="2026-10-11T16:25:00.329Z" hostname="MacBook-Air-janickiy.local" time="0.402">
+  <testcase name="relay without TURN is rejected" classname="com.meetspace.core.media.CallProtocolTest" time="0.122" />
+  <testcase name="cross conference event cannot affect call" classname="com.meetspace.core.media.CallProtocolTest" time="0.02" />
+  <testcase name="screen catalog uses distinct stream and typed source" classname="com.meetspace.core.media.CallProtocolTest" time="0.159" />
+  <testcase name="rollback preserves pending changes" classname="com.meetspace.core.media.CallProtocolTest" time="0.003" />
+  <testcase name="envelope round trip keeps scope and correlation" classname="com.meetspace.core.media.CallProtocolTest" time="0.008" />
+  <testcase name="wrong screen binding is rejected" classname="com.meetspace.core.media.CallProtocolTest" time="0.001" />
+  <testcase name="expired credentials cannot start ICE" classname="com.meetspace.core.media.CallProtocolTest" time="0.001" />
+  <testcase name="oversize signaling fails closed" classname="com.meetspace.core.media.CallProtocolTest" time="0.012" />
+  <testcase name="malformed envelope fails closed" classname="com.meetspace.core.media.CallProtocolTest" time="0.009" />
+  <testcase name="stale revision does not renegotiate" classname="com.meetspace.core.media.CallProtocolTest" time="0.0" />
+  <testcase name="http addresses cannot become ICE servers" classname="com.meetspace.core.media.CallProtocolTest" time="0.002" />
+  <testcase name="only matching ready ack frees negotiation slot" classname="com.meetspace.core.media.CallProtocolTest" time="0.0" />
+  <testcase name="relay policy survives parsing with expiring credentials" classname="com.meetspace.core.media.CallProtocolTest" time="0.013" />
+  <testcase name="unknown policy does not weaken relay" classname="com.meetspace.core.media.CallProtocolTest" time="0.001" />
+  </testsuite>

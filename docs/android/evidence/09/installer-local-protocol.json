@@ -1,0 +1,11 @@
+{
+  "scope": "Host-local protocol mechanics only; temp paths and patched root ownership/systemd liveness, not a VM deployment.",
+  "passed": 5,
+  "checks": {
+    "realFlockContentionAndRelease": true,
+    "atomicFailurePreservesOldFileAndRemovesTemporary": true,
+    "journal100WritesKeeps64EventsAndCompletedPhases": true,
+    "deadWorkerBecomesNeedsRecoveryNeverSuccess": true,
+    "cancelSignalDurableDoesNotOverwriteWorkerCheckpoint": true
+  }
+}

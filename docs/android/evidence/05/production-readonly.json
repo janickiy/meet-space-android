@@ -1,0 +1,62 @@
+{
+  "origin": "https://meeting.janickiy.com",
+  "scope": "read-only API + authorized auth login/logout",
+  "requests": [
+    {
+      "path": "/version",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/login",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/me",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/capabilities",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/me/conferences?view=upcoming&scope=all&limit=20",
+      "method": "GET",
+      "status": 200,
+      "contractValid": true,
+      "itemCount": 0,
+      "hasNextCursor": false
+    },
+    {
+      "path": "/api/v1/me/conferences?view=active&scope=all&limit=20",
+      "method": "GET",
+      "status": 200,
+      "contractValid": true,
+      "itemCount": 2,
+      "hasNextCursor": false
+    },
+    {
+      "path": "/api/v1/me/conferences?view=past&scope=all&limit=20",
+      "method": "GET",
+      "status": 200,
+      "contractValid": true,
+      "itemCount": 0,
+      "hasNextCursor": false
+    },
+    {
+      "path": "/api/v1/auth/logout",
+      "method": "POST",
+      "status": 200
+    }
+  ],
+  "version": {
+    "version": "v1.0.0-meeting.20261010-notifications.2",
+    "commit": "096c17b08352109f3f0b4d9f88d8e3825fd9e5fa",
+    "buildTime": "2026-10-10T12:24:32Z"
+  },
+  "accountVerified": true,
+  "capabilitiesContract": true
+}

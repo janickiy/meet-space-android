@@ -1,0 +1,14 @@
+{
+  "label": "screen-600x900-light-font1.0",
+  "tests": [
+    {
+      "class": "com.meetspace.app.HomeDashboardTest",
+      "test": "captureApprovedHomeScreenshot",
+      "status": 0
+    }
+  ],
+  "passed": 1,
+  "failed": 0,
+  "seconds": 2.38,
+  "success": true
+}

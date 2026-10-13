@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.meetspace.app.InstallerViewModelTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-10-11T15:16:30.118Z" hostname="MacBook-Air-janickiy.local" time="0.012">
+  <properties/>
+  <testcase name="missingJobAllowsOnlyExplicitSameIdRetry" classname="com.meetspace.app.InstallerViewModelTest" time="0.005"/>
+  <testcase name="explicitCancelUsesDurableRemoteSignal" classname="com.meetspace.app.InstallerViewModelTest" time="0.002"/>
+  <testcase name="ticketPersistedBeforeApplyAndLostResponseDoesNotRetryAutomatically" classname="com.meetspace.app.InstallerViewModelTest" time="0.001"/>
+  <testcase name="noApplyWithoutEachConsent" classname="com.meetspace.app.InstallerViewModelTest" time="0.001"/>
+  <testcase name="reconnectToRecoveryDoesNotResumeWithoutUserAction" classname="com.meetspace.app.InstallerViewModelTest" time="0.0"/>
+  <testcase name="expiredUnsentTicketReconcilesReadOnlyBeforeNewConfirmation" classname="com.meetspace.app.InstallerViewModelTest" time="0.001"/>
+  <testcase name="detachDoesNotCancelRemoteJob" classname="com.meetspace.app.InstallerViewModelTest" time="0.001"/>
+  <testcase name="expiredPlanCanBeRefreshedWithoutCreatingAJob" classname="com.meetspace.app.InstallerViewModelTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

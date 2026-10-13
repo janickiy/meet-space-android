@@ -1,0 +1,22 @@
+{
+  "ro.build.fingerprint": "Android/sdk_phone64_arm64/emu64a:16/BE2A.250530.026.D1/13818094:userdebug/test-keys",
+  "ro.product.cpu.abi": "arm64-v8a",
+  "ro.build.version.sdk": "36",
+  "ro.config.low_ram": "",
+  "dalvik.vm.heapsize": "576m",
+  "dalvik.vm.heapgrowthlimit": "192m",
+  "meminfo": [
+    "MemTotal:        4014920 kB",
+    "MemFree:          940892 kB",
+    "MemAvailable:    2651276 kB"
+  ],
+  "pageSize": "4096",
+  "avdConfiguredRamMiB": 1536,
+  "serial": "emulator-5556",
+  "freshPrivateUserdata": true,
+  "existingUserAvdUntouched": true,
+  "actualRamKiB": 4014920,
+  "emulatorRaisedRequestedRamToMiB": 4096,
+  "heapGrowthLimitMiB": 192,
+  "lowRamDeviceVerified": false
+}

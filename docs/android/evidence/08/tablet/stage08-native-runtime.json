@@ -1,0 +1,15 @@
+{
+  "pageSize": 4096,
+  "sdk": 36,
+  "abis": [
+    "arm64-v8a"
+  ],
+  "versionName": "0.8.0",
+  "librariesLoaded": [
+    "androidx.graphics.path",
+    "datastore_shared_counter",
+    "jingle_peerconnection_so"
+  ],
+  "webRtcFactoryCreatedAndDisposed": true,
+  "peerOrCaptureStarted": false
+}

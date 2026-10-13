@@ -1,0 +1,3046 @@
+{
+  "backendCommit": "6ecd8b648a2aa94fc9bcc844d57784423e2c6f69",
+  "capturePipelineExercised": false,
+  "checks": [
+    {
+      "check": "load private fixture properties",
+      "passed": true
+    },
+    {
+      "check": "load private fixture CA",
+      "passed": true
+    },
+    {
+      "check": "parse fixture CA",
+      "passed": true
+    },
+    {
+      "check": "load isolated seed dependencies",
+      "passed": true
+    },
+    {
+      "check": "parse isolated settings",
+      "passed": true
+    },
+    {
+      "check": "connect isolated PostgreSQL",
+      "passed": true
+    },
+    {
+      "check": "obtain fixture SQL connection",
+      "passed": true
+    },
+    {
+      "check": "connect private real MinIO",
+      "passed": true
+    },
+    {
+      "check": "disposable account login request",
+      "passed": true
+    },
+    {
+      "check": "disposable account login strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "disposable account login expected HTTP 200 received 200",
+      "passed": true
+    },
+    {
+      "check": "disposable account login bounded body",
+      "passed": true
+    },
+    {
+      "check": "disposable account login JSON",
+      "passed": true
+    },
+    {
+      "check": "disposable account login request",
+      "passed": true
+    },
+    {
+      "check": "disposable account login strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "disposable account login expected HTTP 200 received 200",
+      "passed": true
+    },
+    {
+      "check": "disposable account login bounded body",
+      "passed": true
+    },
+    {
+      "check": "disposable account login JSON",
+      "passed": true
+    },
+    {
+      "check": "disposable account login request",
+      "passed": true
+    },
+    {
+      "check": "disposable account login strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "disposable account login expected HTTP 200 received 200",
+      "passed": true
+    },
+    {
+      "check": "disposable account login bounded body",
+      "passed": true
+    },
+    {
+      "check": "disposable account login JSON",
+      "passed": true
+    },
+    {
+      "check": "disposable account login request",
+      "passed": true
+    },
+    {
+      "check": "disposable account login strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "disposable account login expected HTTP 200 received 200",
+      "passed": true
+    },
+    {
+      "check": "disposable account login bounded body",
+      "passed": true
+    },
+    {
+      "check": "disposable account login JSON",
+      "passed": true
+    },
+    {
+      "check": "create fixture meeting request",
+      "passed": true
+    },
+    {
+      "check": "create fixture meeting strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "create fixture meeting expected HTTP 201 received 201",
+      "passed": true
+    },
+    {
+      "check": "create fixture meeting bounded body",
+      "passed": true
+    },
+    {
+      "check": "create fixture meeting JSON",
+      "passed": true
+    },
+    {
+      "check": "start seed meeting request",
+      "passed": true
+    },
+    {
+      "check": "start seed meeting strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "start seed meeting expected HTTP 200 received 200",
+      "passed": true
+    },
+    {
+      "check": "start seed meeting bounded body",
+      "passed": true
+    },
+    {
+      "check": "start seed meeting JSON",
+      "passed": true
+    },
+    {
+      "check": "owner joins seed meeting request",
+      "passed": true
+    },
+    {
+      "check": "owner joins seed meeting strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "owner joins seed meeting expected HTTP 200 received 200",
+      "passed": true
+    },
+    {
+      "check": "owner joins seed meeting bounded body",
+      "passed": true
+    },
+    {
+      "check": "owner joins seed meeting JSON",
+      "passed": true
+    },
+    {
+      "check": "member joins by invitation request",
+      "passed": true
+    },
+    {
+      "check": "member joins by invitation strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "member joins by invitation expected HTTP 200 received 200",
+      "passed": true
+    },
+    {
+      "check": "member joins by invitation bounded body",
+      "passed": true
+    },
+    {
+      "check": "member joins by invitation JSON",
+      "passed": true
+    },
+    {
+      "check": "revocable member joins by invitation request",
+      "passed": true
+    },
+    {
+      "check": "revocable member joins by invitation strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "revocable member joins by invitation expected HTTP 200 received 200",
+      "passed": true
+    },
+    {
+      "check": "revocable member joins by invitation bounded body",
+      "passed": true
+    },
+    {
+      "check": "revocable member joins by invitation JSON",
+      "passed": true
+    },
+    {
+      "check": "create fixture meeting request",
+      "passed": true
+    },
+    {
+      "check": "create fixture meeting strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "create fixture meeting expected HTTP 201 received 201",
+      "passed": true
+    },
+    {
+      "check": "create fixture meeting bounded body",
+      "passed": true
+    },
+    {
+      "check": "create fixture meeting JSON",
+      "passed": true
+    },
+    {
+      "check": "read generated valid MP4",
+      "passed": true
+    },
+    {
+      "check": "generated MP4 has ISO base media container",
+      "passed": true
+    },
+    {
+      "check": "create actual recording state and outbox request",
+      "passed": true
+    },
+    {
+      "check": "create actual recording state and outbox strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "create actual recording state and outbox expected HTTP 202 received 202",
+      "passed": true
+    },
+    {
+      "check": "create actual recording state and outbox bounded body",
+      "passed": true
+    },
+    {
+      "check": "create actual recording state and outbox JSON",
+      "passed": true
+    },
+    {
+      "check": "seed declared finalizing transition",
+      "passed": true
+    },
+    {
+      "check": "seed declared uploading transition",
+      "passed": true
+    },
+    {
+      "check": "read real seed artifact",
+      "passed": true
+    },
+    {
+      "check": "upload real artifact to private MinIO",
+      "passed": true
+    },
+    {
+      "check": "read real preview",
+      "passed": true
+    },
+    {
+      "check": "upload real preview",
+      "passed": true
+    },
+    {
+      "check": "commit ready artifacts through actual repository",
+      "passed": true
+    },
+    {
+      "check": "read seeded ready card from actual API request",
+      "passed": true
+    },
+    {
+      "check": "read seeded ready card from actual API strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "read seeded ready card from actual API expected HTTP 200 received 200",
+      "passed": true
+    },
+    {
+      "check": "read seeded ready card from actual API bounded body",
+      "passed": true
+    },
+    {
+      "check": "read seeded ready card from actual API JSON",
+      "passed": true
+    },
+    {
+      "check": "create actual recording state and outbox request",
+      "passed": true
+    },
+    {
+      "check": "create actual recording state and outbox strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "create actual recording state and outbox expected HTTP 202 received 202",
+      "passed": true
+    },
+    {
+      "check": "create actual recording state and outbox bounded body",
+      "passed": true
+    },
+    {
+      "check": "create actual recording state and outbox JSON",
+      "passed": true
+    },
+    {
+      "check": "seed declared finalizing transition",
+      "passed": true
+    },
+    {
+      "check": "seed declared uploading transition",
+      "passed": true
+    },
+    {
+      "check": "read real seed artifact",
+      "passed": true
+    },
+    {
+      "check": "upload real artifact to private MinIO",
+      "passed": true
+    },
+    {
+      "check": "read real preview",
+      "passed": true
+    },
+    {
+      "check": "upload real preview",
+      "passed": true
+    },
+    {
+      "check": "commit ready artifacts through actual repository",
+      "passed": true
+    },
+    {
+      "check": "read seeded ready card from actual API request",
+      "passed": true
+    },
+    {
+      "check": "read seeded ready card from actual API strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "read seeded ready card from actual API expected HTTP 200 received 200",
+      "passed": true
+    },
+    {
+      "check": "read seeded ready card from actual API bounded body",
+      "passed": true
+    },
+    {
+      "check": "read seeded ready card from actual API JSON",
+      "passed": true
+    },
+    {
+      "check": "create actual recording state and outbox request",
+      "passed": true
+    },
+    {
+      "check": "create actual recording state and outbox strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "create actual recording state and outbox expected HTTP 202 received 202",
+      "passed": true
+    },
+    {
+      "check": "create actual recording state and outbox bounded body",
+      "passed": true
+    },
+    {
+      "check": "create actual recording state and outbox JSON",
+      "passed": true
+    },
+    {
+      "check": "seed declared finalizing transition",
+      "passed": true
+    },
+    {
+      "check": "seed declared uploading transition",
+      "passed": true
+    },
+    {
+      "check": "read real seed artifact",
+      "passed": true
+    },
+    {
+      "check": "upload real artifact to private MinIO",
+      "passed": true
+    },
+    {
+      "check": "commit ready artifacts through actual repository",
+      "passed": true
+    },
+    {
+      "check": "read seeded ready card from actual API request",
+      "passed": true
+    },
+    {
+      "check": "read seeded ready card from actual API strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "read seeded ready card from actual API expected HTTP 200 received 200",
+      "passed": true
+    },
+    {
+      "check": "read seeded ready card from actual API bounded body",
+      "passed": true
+    },
+    {
+      "check": "read seeded ready card from actual API JSON",
+      "passed": true
+    },
+    {
+      "check": "read scoped seed record row",
+      "passed": true
+    },
+    {
+      "check": "store excluded technical fixture artifact",
+      "passed": true
+    },
+    {
+      "check": "seed explicit debug metadata for client allowlist",
+      "passed": true
+    },
+    {
+      "check": "seed explicitly labeled historical transcript metadata",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled transcript segment",
+      "passed": true
+    },
+    {
+      "check": "seed labeled historical summary",
+      "passed": true
+    },
+    {
+      "check": "anonymous recording read denied request",
+      "passed": true
+    },
+    {
+      "check": "anonymous recording read denied strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "anonymous recording read denied expected HTTP 401 received 401",
+      "passed": true
+    },
+    {
+      "check": "anonymous recording read denied bounded body",
+      "passed": true
+    },
+    {
+      "check": "anonymous recording read denied JSON",
+      "passed": true
+    },
+    {
+      "check": "outsider recording list denied request",
+      "passed": true
+    },
+    {
+      "check": "outsider recording list denied strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "outsider recording list denied expected HTTP 403 received 403",
+      "passed": true
+    },
+    {
+      "check": "outsider recording list denied bounded body",
+      "passed": true
+    },
+    {
+      "check": "outsider recording list denied JSON",
+      "passed": true
+    },
+    {
+      "check": "outsider recording detail denied request",
+      "passed": true
+    },
+    {
+      "check": "outsider recording detail denied strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "outsider recording detail denied expected HTTP 403 received 403",
+      "passed": true
+    },
+    {
+      "check": "outsider recording detail denied bounded body",
+      "passed": true
+    },
+    {
+      "check": "outsider recording detail denied JSON",
+      "passed": true
+    },
+    {
+      "check": "cross conference recording ID rejected request",
+      "passed": true
+    },
+    {
+      "check": "cross conference recording ID rejected strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "cross conference recording ID rejected expected HTTP 404 received 404",
+      "passed": true
+    },
+    {
+      "check": "cross conference recording ID rejected bounded body",
+      "passed": true
+    },
+    {
+      "check": "cross conference recording ID rejected JSON",
+      "passed": true
+    },
+    {
+      "check": "actual recording offset pagination request",
+      "passed": true
+    },
+    {
+      "check": "actual recording offset pagination strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "actual recording offset pagination expected HTTP 200 received 200",
+      "passed": true
+    },
+    {
+      "check": "actual recording offset pagination bounded body",
+      "passed": true
+    },
+    {
+      "check": "actual recording offset pagination JSON",
+      "passed": true
+    },
+    {
+      "check": "one recording per bounded page",
+      "passed": true
+    },
+    {
+      "check": "recording pages do not overlap",
+      "passed": true
+    },
+    {
+      "check": "actual recording offset pagination request",
+      "passed": true
+    },
+    {
+      "check": "actual recording offset pagination strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "actual recording offset pagination expected HTTP 200 received 200",
+      "passed": true
+    },
+    {
+      "check": "actual recording offset pagination bounded body",
+      "passed": true
+    },
+    {
+      "check": "actual recording offset pagination JSON",
+      "passed": true
+    },
+    {
+      "check": "one recording per bounded page",
+      "passed": true
+    },
+    {
+      "check": "recording pages do not overlap",
+      "passed": true
+    },
+    {
+      "check": "actual recording offset pagination request",
+      "passed": true
+    },
+    {
+      "check": "actual recording offset pagination strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "actual recording offset pagination expected HTTP 200 received 200",
+      "passed": true
+    },
+    {
+      "check": "actual recording offset pagination bounded body",
+      "passed": true
+    },
+    {
+      "check": "actual recording offset pagination JSON",
+      "passed": true
+    },
+    {
+      "check": "one recording per bounded page",
+      "passed": true
+    },
+    {
+      "check": "recording pages do not overlap",
+      "passed": true
+    },
+    {
+      "check": "all three ready modes traversed",
+      "passed": true
+    },
+    {
+      "check": "recording page bound enforced request",
+      "passed": true
+    },
+    {
+      "check": "recording page bound enforced strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "recording page bound enforced expected HTTP 422 received 422",
+      "passed": true
+    },
+    {
+      "check": "recording page bound enforced bounded body",
+      "passed": true
+    },
+    {
+      "check": "recording page bound enforced JSON",
+      "passed": true
+    },
+    {
+      "check": "outsider private material denied request",
+      "passed": true
+    },
+    {
+      "check": "outsider private material denied strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "outsider private material denied expected HTTP 403 received 403",
+      "passed": true
+    },
+    {
+      "check": "outsider private material denied bounded body",
+      "passed": true
+    },
+    {
+      "check": "outsider private material denied JSON",
+      "passed": true
+    },
+    {
+      "check": "outsider private material denied request",
+      "passed": true
+    },
+    {
+      "check": "outsider private material denied strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "outsider private material denied expected HTTP 403 received 403",
+      "passed": true
+    },
+    {
+      "check": "outsider private material denied bounded body",
+      "passed": true
+    },
+    {
+      "check": "outsider private material denied JSON",
+      "passed": true
+    },
+    {
+      "check": "outsider private material denied request",
+      "passed": true
+    },
+    {
+      "check": "outsider private material denied strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "outsider private material denied expected HTTP 403 received 403",
+      "passed": true
+    },
+    {
+      "check": "outsider private material denied bounded body",
+      "passed": true
+    },
+    {
+      "check": "outsider private material denied JSON",
+      "passed": true
+    },
+    {
+      "check": "actual transcript metadata request",
+      "passed": true
+    },
+    {
+      "check": "actual transcript metadata strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "actual transcript metadata expected HTTP 200 received 200",
+      "passed": true
+    },
+    {
+      "check": "actual transcript metadata bounded body",
+      "passed": true
+    },
+    {
+      "check": "actual transcript metadata JSON",
+      "passed": true
+    },
+    {
+      "check": "no STT provider success simulated",
+      "passed": true
+    },
+    {
+      "check": "historical seeded material remains readable when provider disabled",
+      "passed": true
+    },
+    {
+      "check": "actual transcript pagination request",
+      "passed": true
+    },
+    {
+      "check": "actual transcript pagination strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "actual transcript pagination expected HTTP 200 received 200",
+      "passed": true
+    },
+    {
+      "check": "actual transcript pagination bounded body",
+      "passed": true
+    },
+    {
+      "check": "actual transcript pagination JSON",
+      "passed": true
+    },
+    {
+      "check": "actual segment total",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "actual transcript pagination request",
+      "passed": true
+    },
+    {
+      "check": "actual transcript pagination strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "actual transcript pagination expected HTTP 200 received 200",
+      "passed": true
+    },
+    {
+      "check": "actual transcript pagination bounded body",
+      "passed": true
+    },
+    {
+      "check": "actual transcript pagination JSON",
+      "passed": true
+    },
+    {
+      "check": "actual segment total",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "actual transcript pagination request",
+      "passed": true
+    },
+    {
+      "check": "actual transcript pagination strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "actual transcript pagination expected HTTP 200 received 200",
+      "passed": true
+    },
+    {
+      "check": "actual transcript pagination bounded body",
+      "passed": true
+    },
+    {
+      "check": "actual transcript pagination JSON",
+      "passed": true
+    },
+    {
+      "check": "actual segment total",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "segments do not repeat across pages",
+      "passed": true
+    },
+    {
+      "check": "all seeded segments traversed",
+      "passed": true
+    },
+    {
+      "check": "segment upper limit enforced request",
+      "passed": true
+    },
+    {
+      "check": "segment upper limit enforced strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "segment upper limit enforced expected HTTP 422 received 422",
+      "passed": true
+    },
+    {
+      "check": "segment upper limit enforced bounded body",
+      "passed": true
+    },
+    {
+      "check": "segment upper limit enforced JSON",
+      "passed": true
+    },
+    {
+      "check": "negative segment offset rejected request",
+      "passed": true
+    },
+    {
+      "check": "negative segment offset rejected strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "negative segment offset rejected expected HTTP 422 received 422",
+      "passed": true
+    },
+    {
+      "check": "negative segment offset rejected bounded body",
+      "passed": true
+    },
+    {
+      "check": "negative segment offset rejected JSON",
+      "passed": true
+    },
+    {
+      "check": "read actual summary request",
+      "passed": true
+    },
+    {
+      "check": "read actual summary strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "read actual summary expected HTTP 200 received 200",
+      "passed": true
+    },
+    {
+      "check": "read actual summary bounded body",
+      "passed": true
+    },
+    {
+      "check": "summary JSON",
+      "passed": true
+    },
+    {
+      "check": "private materials disable cache and sniffing",
+      "passed": true
+    },
+    {
+      "check": "actual stored summary with disabled AI capabilities",
+      "passed": true
+    },
+    {
+      "check": "nullable missing transcript metadata request",
+      "passed": true
+    },
+    {
+      "check": "nullable missing transcript metadata strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "nullable missing transcript metadata expected HTTP 200 received 200",
+      "passed": true
+    },
+    {
+      "check": "nullable missing transcript metadata bounded body",
+      "passed": true
+    },
+    {
+      "check": "nullable missing transcript metadata JSON",
+      "passed": true
+    },
+    {
+      "check": "missing content remains null",
+      "passed": true
+    },
+    {
+      "check": "absent transcript segments are not fake empty success request",
+      "passed": true
+    },
+    {
+      "check": "absent transcript segments are not fake empty success strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "absent transcript segments are not fake empty success expected HTTP 404 received 404",
+      "passed": true
+    },
+    {
+      "check": "absent transcript segments are not fake empty success bounded body",
+      "passed": true
+    },
+    {
+      "check": "absent transcript segments are not fake empty success JSON",
+      "passed": true
+    },
+    {
+      "check": "disabled transcription retry truthful unavailable request",
+      "passed": true
+    },
+    {
+      "check": "disabled transcription retry truthful unavailable strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "disabled transcription retry truthful unavailable expected HTTP 503 received 503",
+      "passed": true
+    },
+    {
+      "check": "disabled transcription retry truthful unavailable bounded body",
+      "passed": true
+    },
+    {
+      "check": "disabled transcription retry truthful unavailable JSON",
+      "passed": true
+    },
+    {
+      "check": "disabled AI regenerate truthful unavailable request",
+      "passed": true
+    },
+    {
+      "check": "disabled AI regenerate truthful unavailable strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "disabled AI regenerate truthful unavailable expected HTTP 503 received 503",
+      "passed": true
+    },
+    {
+      "check": "disabled AI regenerate truthful unavailable bounded body",
+      "passed": true
+    },
+    {
+      "check": "disabled AI regenerate truthful unavailable JSON",
+      "passed": true
+    },
+    {
+      "check": "parse real signed media URL",
+      "passed": true
+    },
+    {
+      "check": "API uses signed HTTPS URL with actual 24 hour TTL",
+      "passed": true
+    },
+    {
+      "check": "signed object download without API JWT request",
+      "passed": true
+    },
+    {
+      "check": "signed object download without API JWT strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "signed object download without API JWT expected HTTP 200 received 200",
+      "passed": true
+    },
+    {
+      "check": "signed object download without API JWT bounded body",
+      "passed": true
+    },
+    {
+      "check": "download SHA256 and bytes match generated video",
+      "passed": true
+    },
+    {
+      "check": "real MinIO range request request",
+      "passed": true
+    },
+    {
+      "check": "real MinIO range request strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "real MinIO range request expected HTTP 206 received 206",
+      "passed": true
+    },
+    {
+      "check": "real MinIO range request bounded body",
+      "passed": true
+    },
+    {
+      "check": "range payload and Content-Range match source",
+      "passed": true
+    },
+    {
+      "check": "private object denies unsigned access request",
+      "passed": true
+    },
+    {
+      "check": "private object denies unsigned access strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "private object denies unsigned access expected HTTP 403 received 403",
+      "passed": true
+    },
+    {
+      "check": "private object denies unsigned access bounded body",
+      "passed": true
+    },
+    {
+      "check": "invalid signature rejected request",
+      "passed": true
+    },
+    {
+      "check": "invalid signature rejected strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "invalid signature rejected expected HTTP 403 received 403",
+      "passed": true
+    },
+    {
+      "check": "invalid signature rejected bounded body",
+      "passed": true
+    },
+    {
+      "check": "create genuinely short lived storage URL",
+      "passed": true
+    },
+    {
+      "check": "actual MinIO signed URL expiration request",
+      "passed": true
+    },
+    {
+      "check": "actual MinIO signed URL expiration strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "actual MinIO signed URL expiration expected HTTP 403 received 403",
+      "passed": true
+    },
+    {
+      "check": "actual MinIO signed URL expiration bounded body",
+      "passed": true
+    },
+    {
+      "check": "real backend membership revocation request",
+      "passed": true
+    },
+    {
+      "check": "real backend membership revocation strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "real backend membership revocation expected HTTP 200 received 200",
+      "passed": true
+    },
+    {
+      "check": "real backend membership revocation bounded body",
+      "passed": true
+    },
+    {
+      "check": "real backend membership revocation JSON",
+      "passed": true
+    },
+    {
+      "check": "revoked member denied fresh recording materials request",
+      "passed": true
+    },
+    {
+      "check": "revoked member denied fresh recording materials strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "revoked member denied fresh recording materials expected HTTP 403 received 403",
+      "passed": true
+    },
+    {
+      "check": "revoked member denied fresh recording materials bounded body",
+      "passed": true
+    },
+    {
+      "check": "revoked member denied fresh recording materials JSON",
+      "passed": true
+    },
+    {
+      "check": "revoked member denied fresh recording materials request",
+      "passed": true
+    },
+    {
+      "check": "revoked member denied fresh recording materials strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "revoked member denied fresh recording materials expected HTTP 403 received 403",
+      "passed": true
+    },
+    {
+      "check": "revoked member denied fresh recording materials bounded body",
+      "passed": true
+    },
+    {
+      "check": "revoked member denied fresh recording materials JSON",
+      "passed": true
+    },
+    {
+      "check": "revoked member denied fresh recording materials request",
+      "passed": true
+    },
+    {
+      "check": "revoked member denied fresh recording materials strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "revoked member denied fresh recording materials expected HTTP 403 received 403",
+      "passed": true
+    },
+    {
+      "check": "revoked member denied fresh recording materials bounded body",
+      "passed": true
+    },
+    {
+      "check": "revoked member denied fresh recording materials JSON",
+      "passed": true
+    },
+    {
+      "check": "revoked member denied fresh recording materials request",
+      "passed": true
+    },
+    {
+      "check": "revoked member denied fresh recording materials strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "revoked member denied fresh recording materials expected HTTP 403 received 403",
+      "passed": true
+    },
+    {
+      "check": "revoked member denied fresh recording materials bounded body",
+      "passed": true
+    },
+    {
+      "check": "revoked member denied fresh recording materials JSON",
+      "passed": true
+    },
+    {
+      "check": "known limitation existing signed URL survives membership revoke until expiry request",
+      "passed": true
+    },
+    {
+      "check": "known limitation existing signed URL survives membership revoke until expiry strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "known limitation existing signed URL survives membership revoke until expiry expected HTTP 200 received 200",
+      "passed": true
+    },
+    {
+      "check": "known limitation existing signed URL survives membership revoke until expiry bounded body",
+      "passed": true
+    },
+    {
+      "check": "retired debug or legacy recording route stays closed request",
+      "passed": true
+    },
+    {
+      "check": "retired debug or legacy recording route stays closed strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "retired debug or legacy recording route stays closed expected HTTP 410 received 410",
+      "passed": true
+    },
+    {
+      "check": "retired debug or legacy recording route stays closed bounded body",
+      "passed": true
+    },
+    {
+      "check": "retired debug or legacy recording route stays closed JSON",
+      "passed": true
+    },
+    {
+      "check": "retired debug or legacy recording route stays closed request",
+      "passed": true
+    },
+    {
+      "check": "retired debug or legacy recording route stays closed strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "retired debug or legacy recording route stays closed expected HTTP 410 received 410",
+      "passed": true
+    },
+    {
+      "check": "retired debug or legacy recording route stays closed bounded body",
+      "passed": true
+    },
+    {
+      "check": "retired debug or legacy recording route stays closed JSON",
+      "passed": true
+    },
+    {
+      "check": "retired debug or legacy recording route stays closed request",
+      "passed": true
+    },
+    {
+      "check": "retired debug or legacy recording route stays closed strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "retired debug or legacy recording route stays closed expected HTTP 410 received 410",
+      "passed": true
+    },
+    {
+      "check": "retired debug or legacy recording route stays closed bounded body",
+      "passed": true
+    },
+    {
+      "check": "retired debug or legacy recording route stays closed JSON",
+      "passed": true
+    },
+    {
+      "check": "retired debug or legacy recording route stays closed request",
+      "passed": true
+    },
+    {
+      "check": "retired debug or legacy recording route stays closed strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "retired debug or legacy recording route stays closed expected HTTP 410 received 410",
+      "passed": true
+    },
+    {
+      "check": "retired debug or legacy recording route stays closed bounded body",
+      "passed": true
+    },
+    {
+      "check": "retired debug or legacy recording route stays closed JSON",
+      "passed": true
+    },
+    {
+      "check": "finish fixture meeting for history navigation request",
+      "passed": true
+    },
+    {
+      "check": "finish fixture meeting for history navigation strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "finish fixture meeting for history navigation expected HTTP 200 received 200",
+      "passed": true
+    },
+    {
+      "check": "finish fixture meeting for history navigation bounded body",
+      "passed": true
+    },
+    {
+      "check": "finish fixture meeting for history navigation JSON",
+      "passed": true
+    },
+    {
+      "check": "admitted former participant can read real finished history request",
+      "passed": true
+    },
+    {
+      "check": "admitted former participant can read real finished history strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "admitted former participant can read real finished history expected HTTP 200 received 200",
+      "passed": true
+    },
+    {
+      "check": "admitted former participant can read real finished history bounded body",
+      "passed": true
+    },
+    {
+      "check": "admitted former participant can read real finished history JSON",
+      "passed": true
+    },
+    {
+      "check": "history includes real authorized memberships",
+      "passed": true
+    },
+    {
+      "check": "admitted left member retains recording history request",
+      "passed": true
+    },
+    {
+      "check": "admitted left member retains recording history strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "admitted left member retains recording history expected HTTP 200 received 200",
+      "passed": true
+    },
+    {
+      "check": "admitted left member retains recording history bounded body",
+      "passed": true
+    },
+    {
+      "check": "admitted left member retains recording history JSON",
+      "passed": true
+    },
+    {
+      "check": "cancel second fixture meeting for cursor traversal request",
+      "passed": true
+    },
+    {
+      "check": "cancel second fixture meeting for cursor traversal strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "cancel second fixture meeting for cursor traversal expected HTTP 200 received 200",
+      "passed": true
+    },
+    {
+      "check": "cancel second fixture meeting for cursor traversal bounded body",
+      "passed": true
+    },
+    {
+      "check": "cancel second fixture meeting for cursor traversal JSON",
+      "passed": true
+    },
+    {
+      "check": "real meeting cursor page for recording picker request",
+      "passed": true
+    },
+    {
+      "check": "real meeting cursor page for recording picker strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "real meeting cursor page for recording picker expected HTTP 200 received 200",
+      "passed": true
+    },
+    {
+      "check": "real meeting cursor page for recording picker bounded body",
+      "passed": true
+    },
+    {
+      "check": "real meeting cursor page for recording picker JSON",
+      "passed": true
+    },
+    {
+      "check": "opaque meeting cursor advances request",
+      "passed": true
+    },
+    {
+      "check": "opaque meeting cursor advances strict HTTPS",
+      "passed": true
+    },
+    {
+      "check": "opaque meeting cursor advances expected HTTP 200 received 200",
+      "passed": true
+    },
+    {
+      "check": "opaque meeting cursor advances bounded body",
+      "passed": true
+    },
+    {
+      "check": "opaque meeting cursor advances JSON",
+      "passed": true
+    },
+    {
+      "check": "meeting cursor pages differ",
+      "passed": true
+    },
+    {
+      "check": "open private resource properties",
+      "passed": true
+    },
+    {
+      "check": "save private resource properties",
+      "passed": true
+    }
+  ],
+  "environment": "isolated actual Gin/PostgreSQL/Redis/MinIO over validated HTTPS",
+  "externalSttOrAiExercised": false,
+  "knownLimitation": "Already-issued storage bearer URLs survive membership revocation until expiration",
+  "passed": 758,
+  "productionMutations": false,
+  "seededArtifactsAndMaterials": true,
+  "signedUrlLifetimeSeconds": 86400,
+  "usesBusinessMocks": false
+}

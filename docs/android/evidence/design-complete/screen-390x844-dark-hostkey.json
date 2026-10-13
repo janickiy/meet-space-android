@@ -1,0 +1,14 @@
+{
+  "label": "screen-390x844-dark-hostkey",
+  "tests": [
+    {
+      "class": "com.meetspace.app.ProfileDesignTest",
+      "test": "captureProfileAndOnboardingScreenshot",
+      "status": 0
+    }
+  ],
+  "passed": 1,
+  "failed": 0,
+  "seconds": 2.35,
+  "success": true
+}

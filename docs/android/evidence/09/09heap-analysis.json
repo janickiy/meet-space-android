@@ -1,0 +1,437 @@
+{
+  "schema": 1,
+  "analysisTool": "Shark2.14 / JDK17 / PlayerHeapAudit.java",
+  "privacy": "Raw HPROF/labels remain private. Export contains fixed class/field names and aggregate counts, no user/account/media data.",
+  "scope": "baseline and after Activity/auth/native post-GC HPROFs; Android default leaking object filters plus explicit player targets",
+  "limitations": [
+    "A forced target path is not an automatic leak verdict.",
+    "Android default filters do not designate every arbitrary retained player as a leaking object.",
+    "Java retained-byte counts do not measure native allocations.",
+    "Activity baseline has no65s idle snapshot; compare warmup and5s settled directly. Extra after idle only validates cleanup.",
+    "No arbitrary proof of leak absence follows from zero configured heuristic groups."
+  ],
+  "activityRecording": {
+    "warmup": {
+      "privateHprofSha256": "8ab7a20ddd5c99225411157a61b8cc499495971ec2c7129fe408933292298fbc",
+      "selectedInstanceCounts": {
+        "android.media.AudioTrack": 0,
+        "android.media.MediaCodec": 0,
+        "androidx.media3.exoplayer.ExoPlayerImpl": 3,
+        "androidx.media3.exoplayer.ExoPlayerImplInternal": 3,
+        "androidx.media3.exoplayer.audio.MediaCodecAudioRenderer": 3,
+        "androidx.media3.exoplayer.video.MediaCodecVideoRenderer": 3,
+        "androidx.media3.ui.PlayerView": 0,
+        "com.meetspace.app.FoundationViewModel": 0,
+        "com.meetspace.app.MainActivity": 0,
+        "com.meetspace.app.MeetingsViewModel": 0,
+        "com.meetspace.app.MessagingViewModel": 0,
+        "com.meetspace.app.RecordingsViewModel": 0
+      },
+      "androidHeuristics": {
+        "status": "completed",
+        "applicationGroups": 1,
+        "libraryGroups": 0,
+        "unreachableTargets": 1
+      },
+      "playerRetention": {
+        "targetCount": 3,
+        "releasedFlags": [
+          true,
+          true,
+          true
+        ],
+        "releasedInternalFlags": [
+          true,
+          true,
+          true
+        ],
+        "enabledRendererCounts": [
+          0,
+          0,
+          0
+        ],
+        "retainedJavaBytes": [
+          29426,
+          29426,
+          29250
+        ],
+        "retainedObjectCounts": [
+          791,
+          791,
+          778
+        ],
+        "path": [
+          "InstrumentationThread",
+          "Instrumentation.mMessageQueue",
+          "Message.target",
+          "Handler.mCallback",
+          "StuckPlayerDetector.player",
+          "ExoPlayerImpl"
+        ]
+      }
+    },
+    "end": {
+      "privateHprofSha256": "52bacb5d4fa98cff99af1d181f1d5d773b4f8ac21b65806477ff5eee8de25980",
+      "selectedInstanceCounts": {
+        "android.media.AudioTrack": 0,
+        "android.media.MediaCodec": 0,
+        "androidx.media3.exoplayer.ExoPlayerImpl": 1,
+        "androidx.media3.exoplayer.ExoPlayerImplInternal": 1,
+        "androidx.media3.exoplayer.audio.MediaCodecAudioRenderer": 1,
+        "androidx.media3.exoplayer.video.MediaCodecVideoRenderer": 1,
+        "androidx.media3.ui.PlayerView": 0,
+        "com.meetspace.app.FoundationViewModel": 0,
+        "com.meetspace.app.MainActivity": 0,
+        "com.meetspace.app.MeetingsViewModel": 0,
+        "com.meetspace.app.MessagingViewModel": 0,
+        "com.meetspace.app.RecordingsViewModel": 0
+      },
+      "androidHeuristics": {
+        "status": "completed",
+        "applicationGroups": 1,
+        "libraryGroups": 0,
+        "unreachableTargets": 0
+      },
+      "playerRetention": {
+        "targetCount": 1,
+        "releasedFlags": [
+          true
+        ],
+        "releasedInternalFlags": [
+          true
+        ],
+        "enabledRendererCounts": [
+          0
+        ],
+        "retainedJavaBytes": [
+          29031
+        ],
+        "retainedObjectCounts": [
+          772
+        ],
+        "path": [
+          "InstrumentationThread",
+          "Instrumentation.mMessageQueue",
+          "Message.target",
+          "Handler.mCallback",
+          "StuckPlayerDetector.player",
+          "ExoPlayerImpl"
+        ]
+      },
+      "detectorMessage": {
+        "what": 3,
+        "whenUptimeMs": 1037209,
+        "settledSampleElapsedRealtimeMs": 1034964,
+        "clockCaveat": "uptime excludes deep sleep; elapsedRealtime includes it, so difference alone is not an exact expiry measurement",
+        "meaning": "MSG_STUCK_PLAYING_NOT_ENDING_TIMEOUT"
+      }
+    },
+    "finding": "Baseline: already released ExoPlayer retained by StuckPlayerDetector duration timer (29031Java bytes/772objects at5s settled). After stop-before-release: ExoPlayerImpl/internal/PlayerView/StuckPlayerDetector/MediaCodec/AudioTrack/Activity/all4VM counts0 at warmup,end,idle; detector messages0, heuristic groups0. All46 player weak refs0 at settled."
+  },
+  "auth": {
+    "warmup": {
+      "privateHprofSha256": "253c6f0537b45704d8dd51a33dca0f5443d350a2467ea631642513d0173d2142",
+      "selectedInstanceCounts": {
+        "android.media.AudioTrack": 0,
+        "android.media.MediaCodec": 0,
+        "androidx.media3.exoplayer.ExoPlayerImpl": 0,
+        "androidx.media3.exoplayer.ExoPlayerImplInternal": 0,
+        "androidx.media3.exoplayer.audio.MediaCodecAudioRenderer": 0,
+        "androidx.media3.exoplayer.video.MediaCodecVideoRenderer": 0,
+        "androidx.media3.ui.PlayerView": 0,
+        "com.meetspace.app.FoundationViewModel": 1,
+        "com.meetspace.app.MainActivity": 1,
+        "com.meetspace.app.MeetingsViewModel": 1,
+        "com.meetspace.app.MessagingViewModel": 1,
+        "com.meetspace.app.RecordingsViewModel": 1,
+        "com.meetspace.core.data.DefaultFoundationRepository$AuthContext": 0,
+        "com.meetspace.core.model.AccountSession": 0
+      },
+      "androidHeuristics": {
+        "status": "completed",
+        "applicationGroups": 0,
+        "libraryGroups": 0,
+        "unreachableTargets": 0
+      }
+    },
+    "end": {
+      "privateHprofSha256": "bb81a6e4a2567f53514633e447adb7ecba38b2d846482f88028c400af5d75194",
+      "selectedInstanceCounts": {
+        "android.media.AudioTrack": 0,
+        "android.media.MediaCodec": 0,
+        "androidx.media3.exoplayer.ExoPlayerImpl": 0,
+        "androidx.media3.exoplayer.ExoPlayerImplInternal": 0,
+        "androidx.media3.exoplayer.audio.MediaCodecAudioRenderer": 0,
+        "androidx.media3.exoplayer.video.MediaCodecVideoRenderer": 0,
+        "androidx.media3.ui.PlayerView": 0,
+        "com.meetspace.app.FoundationViewModel": 1,
+        "com.meetspace.app.MainActivity": 1,
+        "com.meetspace.app.MeetingsViewModel": 1,
+        "com.meetspace.app.MessagingViewModel": 1,
+        "com.meetspace.app.RecordingsViewModel": 1,
+        "com.meetspace.core.data.DefaultFoundationRepository$AuthContext": 0,
+        "com.meetspace.core.model.AccountSession": 0
+      },
+      "androidHeuristics": {
+        "status": "completed",
+        "applicationGroups": 0,
+        "libraryGroups": 0,
+        "unreachableTargets": 0
+      }
+    },
+    "interpretation": "One Activity and each ViewModel intentionally stay live throughout auth measurement. AuthContext and AccountSession instances are zero after logout in both dumps."
+  },
+  "media3Artifacts": [
+    {
+      "artifact": "androidx.media3:media3-common:1.11.1",
+      "aarSha256": "50813cf219c7c93ed8a32a750891ca6d1280729ecf7a90c49567adacd67ef31b"
+    },
+    {
+      "artifact": "androidx.media3:media3-exoplayer:1.11.1",
+      "aarSha256": "588592baec110837c33ce0c82bb76464203e6b0621177bbe5d88779001a6f1ed"
+    }
+  ],
+  "media3Sources": [
+    "https://github.com/androidx/media/blob/1.11.1/libraries/common/src/main/java/androidx/media3/common/util/StuckPlayerDetector.java",
+    "https://github.com/androidx/media/blob/1.11.1/libraries/common/src/main/java/androidx/media3/common/util/ListenerSet.java",
+    "https://github.com/androidx/media/blob/1.11.1/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/ExoPlayerImpl.java"
+  ],
+  "after": {
+    "activity-recording": {
+      "warmup": {
+        "privateHprofSha256": "9aabb80ef56772f68ef7e8ca4a5bb1673ee3a8e66b08fdabe5206e90c4b2b050",
+        "selectedInstanceCounts": {
+          "android.media.AudioTrack": 0,
+          "android.media.MediaCodec": 0,
+          "androidx.media3.common.util.StuckPlayerDetector": 0,
+          "androidx.media3.exoplayer.ExoPlayerImpl": 0,
+          "androidx.media3.exoplayer.ExoPlayerImplInternal": 0,
+          "androidx.media3.exoplayer.audio.MediaCodecAudioRenderer": 0,
+          "androidx.media3.exoplayer.video.MediaCodecVideoRenderer": 0,
+          "androidx.media3.ui.PlayerView": 0,
+          "com.meetspace.app.FoundationViewModel": 0,
+          "com.meetspace.app.MainActivity": 0,
+          "com.meetspace.app.MeetingsViewModel": 0,
+          "com.meetspace.app.MessagingViewModel": 0,
+          "com.meetspace.app.RecordingsViewModel": 0,
+          "com.meetspace.core.data.DefaultFoundationRepository$AuthContext": 2,
+          "com.meetspace.core.model.AccountSession": 1
+        },
+        "androidHeuristics": {
+          "status": "completed",
+          "applicationGroups": 0,
+          "libraryGroups": 0,
+          "unreachableTargets": 1
+        },
+        "forcedPlayerTargetCount": 0,
+        "stuckDetectorMessageCount": 0
+      },
+      "end": {
+        "privateHprofSha256": "04c72d9a021a9ee8df9175e67b00ed512bef2369166b699c9f73f54b4a216a3d",
+        "selectedInstanceCounts": {
+          "android.media.AudioTrack": 0,
+          "android.media.MediaCodec": 0,
+          "androidx.media3.common.util.StuckPlayerDetector": 0,
+          "androidx.media3.exoplayer.ExoPlayerImpl": 0,
+          "androidx.media3.exoplayer.ExoPlayerImplInternal": 0,
+          "androidx.media3.exoplayer.audio.MediaCodecAudioRenderer": 0,
+          "androidx.media3.exoplayer.video.MediaCodecVideoRenderer": 0,
+          "androidx.media3.ui.PlayerView": 0,
+          "com.meetspace.app.FoundationViewModel": 0,
+          "com.meetspace.app.MainActivity": 0,
+          "com.meetspace.app.MeetingsViewModel": 0,
+          "com.meetspace.app.MessagingViewModel": 0,
+          "com.meetspace.app.RecordingsViewModel": 0,
+          "com.meetspace.core.data.DefaultFoundationRepository$AuthContext": 2,
+          "com.meetspace.core.model.AccountSession": 1
+        },
+        "androidHeuristics": {
+          "status": "completed",
+          "applicationGroups": 0,
+          "libraryGroups": 0,
+          "unreachableTargets": 0
+        },
+        "forcedPlayerTargetCount": 0,
+        "stuckDetectorMessageCount": 0
+      },
+      "idle": {
+        "privateHprofSha256": "6c22863528742e24cc744cff55c8749330f493b8d3ff11eaf3ac37673e291e83",
+        "selectedInstanceCounts": {
+          "android.media.AudioTrack": 0,
+          "android.media.MediaCodec": 0,
+          "androidx.media3.common.util.StuckPlayerDetector": 0,
+          "androidx.media3.exoplayer.ExoPlayerImpl": 0,
+          "androidx.media3.exoplayer.ExoPlayerImplInternal": 0,
+          "androidx.media3.exoplayer.audio.MediaCodecAudioRenderer": 0,
+          "androidx.media3.exoplayer.video.MediaCodecVideoRenderer": 0,
+          "androidx.media3.ui.PlayerView": 0,
+          "com.meetspace.app.FoundationViewModel": 0,
+          "com.meetspace.app.MainActivity": 0,
+          "com.meetspace.app.MeetingsViewModel": 0,
+          "com.meetspace.app.MessagingViewModel": 0,
+          "com.meetspace.app.RecordingsViewModel": 0,
+          "com.meetspace.core.data.DefaultFoundationRepository$AuthContext": 2,
+          "com.meetspace.core.model.AccountSession": 1
+        },
+        "androidHeuristics": {
+          "status": "completed",
+          "applicationGroups": 0,
+          "libraryGroups": 0,
+          "unreachableTargets": 0
+        },
+        "forcedPlayerTargetCount": 0,
+        "stuckDetectorMessageCount": 0
+      }
+    },
+    "auth": {
+      "warmup": {
+        "privateHprofSha256": "6e3d4c10a0943f0263d66dc368737fde9d1c66e8d1b619fece562b52e680c981",
+        "selectedInstanceCounts": {
+          "android.media.AudioTrack": 0,
+          "android.media.MediaCodec": 0,
+          "androidx.media3.common.util.StuckPlayerDetector": 0,
+          "androidx.media3.exoplayer.ExoPlayerImpl": 0,
+          "androidx.media3.exoplayer.ExoPlayerImplInternal": 0,
+          "androidx.media3.exoplayer.audio.MediaCodecAudioRenderer": 0,
+          "androidx.media3.exoplayer.video.MediaCodecVideoRenderer": 0,
+          "androidx.media3.ui.PlayerView": 0,
+          "com.meetspace.app.FoundationViewModel": 1,
+          "com.meetspace.app.MainActivity": 1,
+          "com.meetspace.app.MeetingsViewModel": 1,
+          "com.meetspace.app.MessagingViewModel": 1,
+          "com.meetspace.app.RecordingsViewModel": 1,
+          "com.meetspace.core.data.DefaultFoundationRepository$AuthContext": 0,
+          "com.meetspace.core.model.AccountSession": 0
+        },
+        "androidHeuristics": {
+          "status": "completed",
+          "applicationGroups": 0,
+          "libraryGroups": 0,
+          "unreachableTargets": 0
+        },
+        "forcedPlayerTargetCount": 0,
+        "stuckDetectorMessageCount": 0
+      },
+      "end": {
+        "privateHprofSha256": "eec4daab615737b819eada921384af4f980d7e2f13ce74aed8e01371a47e8ebd",
+        "selectedInstanceCounts": {
+          "android.media.AudioTrack": 0,
+          "android.media.MediaCodec": 0,
+          "androidx.media3.common.util.StuckPlayerDetector": 0,
+          "androidx.media3.exoplayer.ExoPlayerImpl": 0,
+          "androidx.media3.exoplayer.ExoPlayerImplInternal": 0,
+          "androidx.media3.exoplayer.audio.MediaCodecAudioRenderer": 0,
+          "androidx.media3.exoplayer.video.MediaCodecVideoRenderer": 0,
+          "androidx.media3.ui.PlayerView": 0,
+          "com.meetspace.app.FoundationViewModel": 1,
+          "com.meetspace.app.MainActivity": 1,
+          "com.meetspace.app.MeetingsViewModel": 1,
+          "com.meetspace.app.MessagingViewModel": 1,
+          "com.meetspace.app.RecordingsViewModel": 1,
+          "com.meetspace.core.data.DefaultFoundationRepository$AuthContext": 0,
+          "com.meetspace.core.model.AccountSession": 0
+        },
+        "androidHeuristics": {
+          "status": "completed",
+          "applicationGroups": 0,
+          "libraryGroups": 0,
+          "unreachableTargets": 0
+        },
+        "forcedPlayerTargetCount": 0,
+        "stuckDetectorMessageCount": 0
+      }
+    },
+    "native-factory": {
+      "warmup": {
+        "privateHprofSha256": "a8b356b4f322bdfb3b203111de410cf3618bae6371a0db320c2a5930cf5ed7ac",
+        "selectedInstanceCounts": {
+          "android.media.AudioTrack": 0,
+          "android.media.MediaCodec": 0,
+          "androidx.media3.common.util.StuckPlayerDetector": 0,
+          "androidx.media3.exoplayer.ExoPlayerImpl": 0,
+          "androidx.media3.exoplayer.ExoPlayerImplInternal": 0,
+          "androidx.media3.exoplayer.audio.MediaCodecAudioRenderer": 0,
+          "androidx.media3.exoplayer.video.MediaCodecVideoRenderer": 0,
+          "androidx.media3.ui.PlayerView": 0,
+          "com.meetspace.app.FoundationViewModel": 0,
+          "com.meetspace.app.MainActivity": 0,
+          "com.meetspace.app.MeetingsViewModel": 0,
+          "com.meetspace.app.MessagingViewModel": 0,
+          "com.meetspace.app.RecordingsViewModel": 0,
+          "com.meetspace.core.data.DefaultFoundationRepository$AuthContext": 0,
+          "com.meetspace.core.model.AccountSession": 0
+        },
+        "androidHeuristics": {
+          "status": "completed",
+          "applicationGroups": 0,
+          "libraryGroups": 0,
+          "unreachableTargets": 0
+        },
+        "forcedPlayerTargetCount": 0,
+        "stuckDetectorMessageCount": 0,
+        "nativeWrapperInstances": {
+          "org.webrtc.PeerConnectionFactory": 0,
+          "org.webrtc.PeerConnection": 0,
+          "org.webrtc.audio.JavaAudioDeviceModule": 0,
+          "org.webrtc.EglBase14Impl": 0,
+          "org.webrtc.EglBase10Impl": 0
+        },
+        "threadGcRoots": 17
+      },
+      "end": {
+        "privateHprofSha256": "79df12cf705f2b82b2395344e8bd3967f3d9054a5cd5d996a0ea8b049cea6191",
+        "selectedInstanceCounts": {
+          "android.media.AudioTrack": 0,
+          "android.media.MediaCodec": 0,
+          "androidx.media3.common.util.StuckPlayerDetector": 0,
+          "androidx.media3.exoplayer.ExoPlayerImpl": 0,
+          "androidx.media3.exoplayer.ExoPlayerImplInternal": 0,
+          "androidx.media3.exoplayer.audio.MediaCodecAudioRenderer": 0,
+          "androidx.media3.exoplayer.video.MediaCodecVideoRenderer": 0,
+          "androidx.media3.ui.PlayerView": 0,
+          "com.meetspace.app.FoundationViewModel": 0,
+          "com.meetspace.app.MainActivity": 0,
+          "com.meetspace.app.MeetingsViewModel": 0,
+          "com.meetspace.app.MessagingViewModel": 0,
+          "com.meetspace.app.RecordingsViewModel": 0,
+          "com.meetspace.core.data.DefaultFoundationRepository$AuthContext": 0,
+          "com.meetspace.core.model.AccountSession": 0
+        },
+        "androidHeuristics": {
+          "status": "completed",
+          "applicationGroups": 0,
+          "libraryGroups": 0,
+          "unreachableTargets": 0
+        },
+        "forcedPlayerTargetCount": 0,
+        "stuckDetectorMessageCount": 0,
+        "nativeWrapperInstances": {
+          "org.webrtc.PeerConnectionFactory": 0,
+          "org.webrtc.PeerConnection": 0,
+          "org.webrtc.audio.JavaAudioDeviceModule": 0,
+          "org.webrtc.EglBase14Impl": 0,
+          "org.webrtc.EglBase10Impl": 0
+        },
+        "threadGcRoots": 17
+      }
+    },
+    "interpretation": "Confirmed disappearance of the specific baseline timer-retention path. Auth logout: AuthContext/AccountSession0 in both dumps; the test-held Activity and4VM remain intentionally. Native factory: wrappers collected, no default heuristic group. This is fixture coverage, not a universal no-leak guarantee."
+  },
+  "media3AfterValidation": {
+    "measurement": "after-activity-recording.json",
+    "warmupCycles": 3,
+    "measuredCycles": 20,
+    "watchedPlayerInstances": 46,
+    "settledPlayerWeakAlive": 0,
+    "baselineSettledPlayerWeakAlive": 1,
+    "settledDelayMs": 5000,
+    "afterAdditionalIdleMs": 65000,
+    "livePauseRotationTestStatus": "PASS: realVideoPlaysSeeksRotatesAndReleases included in root-confirmed4/4LiveRecordings on measured0.9.0 APK; final matrix maintained separately"
+  },
+  "signalingRegression": {
+    "baseline": "expected close1 but actual0",
+    "after": "OK (1 test)",
+    "test": "CallSignalingLifecycleTest.rejectedIceClosesAlreadyOpenedSignaling",
+    "afterLog": ".audit/stage09/after-ice-regression.log"
+  }
+}

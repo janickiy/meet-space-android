@@ -1,0 +1,305 @@
+{
+  "schema": 1,
+  "label": "baseline",
+  "method": "activity-recording",
+  "sdk": 36,
+  "pageSize": 4096,
+  "abi": "arm64-v8a",
+  "versionName": "0.8.0",
+  "samples": [
+    {
+      "phase": "warmup",
+      "completedCycles": 3,
+      "elapsedRealtimeMs": 950697,
+      "processCpuMs": 7769,
+      "javaUsedBytes": 6965104,
+      "javaCommittedBytes": 9128426,
+      "nativeHeapAllocatedBytes": 19868112,
+      "nativeHeapBytes": 33058816,
+      "pssTotalKb": 230534,
+      "pssDalvikKb": 5721,
+      "pssNativeKb": 14852,
+      "rssKb": 377156,
+      "threads": 52,
+      "fds": 167,
+      "uidRxBytes": 5199958,
+      "uidTxBytes": 3262908,
+      "runtimeStats": {
+        "art.gc.bytes-allocated": 45319136,
+        "art.gc.bytes-freed": 38374512,
+        "art.gc.gc-count": 6,
+        "art.gc.gc-time": 370,
+        "art.gc.blocking-gc-count": 3,
+        "art.gc.blocking-gc-time": 130
+      },
+      "weakReferences": {
+        "activity": {
+          "watched": 6,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "decorView": {
+          "watched": 6,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "recordingsViewModel": {
+          "watched": 3,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "foundationViewModel": {
+          "watched": 3,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "messagingViewModel": {
+          "watched": 3,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "meetingsViewModel": {
+          "watched": 3,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "playerView": {
+          "watched": 6,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "player": {
+          "watched": 6,
+          "alive": 3,
+          "aliveOlderThanOneCycle": 2
+        }
+      }
+    },
+    {
+      "phase": "batch",
+      "completedCycles": 13,
+      "elapsedRealtimeMs": 993134,
+      "processCpuMs": 29327,
+      "javaUsedBytes": 7018912,
+      "javaCommittedBytes": 9200170,
+      "nativeHeapAllocatedBytes": 19941712,
+      "nativeHeapBytes": 77320192,
+      "pssTotalKb": 239004,
+      "pssDalvikKb": 5777,
+      "pssNativeKb": 21019,
+      "rssKb": 389144,
+      "threads": 54,
+      "fds": 172,
+      "uidRxBytes": 11938469,
+      "uidTxBytes": 3362697,
+      "runtimeStats": {
+        "art.gc.bytes-allocated": 150612528,
+        "art.gc.bytes-freed": 143614096,
+        "art.gc.gc-count": 20,
+        "art.gc.gc-time": 1483,
+        "art.gc.blocking-gc-count": 7,
+        "art.gc.blocking-gc-time": 361
+      },
+      "weakReferences": {
+        "activity": {
+          "watched": 26,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "decorView": {
+          "watched": 26,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "recordingsViewModel": {
+          "watched": 13,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "foundationViewModel": {
+          "watched": 13,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "messagingViewModel": {
+          "watched": 13,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "meetingsViewModel": {
+          "watched": 13,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "playerView": {
+          "watched": 26,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "player": {
+          "watched": 26,
+          "alive": 4,
+          "aliveOlderThanOneCycle": 3
+        }
+      }
+    },
+    {
+      "phase": "batch",
+      "completedCycles": 23,
+      "elapsedRealtimeMs": 1029250,
+      "processCpuMs": 47221,
+      "javaUsedBytes": 7362656,
+      "javaCommittedBytes": 9658495,
+      "nativeHeapAllocatedBytes": 20423168,
+      "nativeHeapBytes": 77320192,
+      "pssTotalKb": 241077,
+      "pssDalvikKb": 6057,
+      "pssNativeKb": 21575,
+      "rssKb": 392148,
+      "threads": 57,
+      "fds": 172,
+      "uidRxBytes": 18376702,
+      "uidTxBytes": 3462577,
+      "runtimeStats": {
+        "art.gc.bytes-allocated": 254230864,
+        "art.gc.bytes-freed": 246888688,
+        "art.gc.gc-count": 34,
+        "art.gc.gc-time": 2638,
+        "art.gc.blocking-gc-count": 11,
+        "art.gc.blocking-gc-time": 630
+      },
+      "weakReferences": {
+        "activity": {
+          "watched": 46,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "decorView": {
+          "watched": 46,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "recordingsViewModel": {
+          "watched": 23,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "foundationViewModel": {
+          "watched": 23,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "messagingViewModel": {
+          "watched": 23,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "meetingsViewModel": {
+          "watched": 23,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "playerView": {
+          "watched": 46,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "player": {
+          "watched": 46,
+          "alive": 3,
+          "aliveOlderThanOneCycle": 2
+        }
+      }
+    },
+    {
+      "phase": "settled",
+      "completedCycles": 23,
+      "elapsedRealtimeMs": 1034964,
+      "processCpuMs": 47320,
+      "javaUsedBytes": 6947488,
+      "javaCommittedBytes": 9104938,
+      "nativeHeapAllocatedBytes": 20063984,
+      "nativeHeapBytes": 77320192,
+      "pssTotalKb": 240119,
+      "pssDalvikKb": 5669,
+      "pssNativeKb": 21007,
+      "rssKb": 391096,
+      "threads": 57,
+      "fds": 160,
+      "uidRxBytes": 18376702,
+      "uidTxBytes": 3462577,
+      "runtimeStats": {
+        "art.gc.bytes-allocated": 254648656,
+        "art.gc.bytes-freed": 247721648,
+        "art.gc.gc-count": 37,
+        "art.gc.gc-time": 2709,
+        "art.gc.blocking-gc-count": 14,
+        "art.gc.blocking-gc-time": 702
+      },
+      "weakReferences": {
+        "activity": {
+          "watched": 46,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "decorView": {
+          "watched": 46,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "recordingsViewModel": {
+          "watched": 23,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "foundationViewModel": {
+          "watched": 23,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "messagingViewModel": {
+          "watched": 23,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "meetingsViewModel": {
+          "watched": 23,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "playerView": {
+          "watched": 46,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "player": {
+          "watched": 46,
+          "alive": 1,
+          "aliveOlderThanOneCycle": 0
+        }
+      }
+    }
+  ],
+  "hprofs": [
+    {
+      "phase": "warmup",
+      "filename": "stage09-quality-baseline-activity-recording-warmup.hprof",
+      "status": "written",
+      "privateUnsanitized": true
+    },
+    {
+      "phase": "end",
+      "filename": "stage09-quality-baseline-activity-recording-end.hprof",
+      "status": "written",
+      "privateUnsanitized": true
+    }
+  ],
+  "captureStarted": false,
+  "interpretation": "GC and RSS are observations; retained-reference paths and trends require independent analysis",
+  "warmupCycles": 3,
+  "measuredCycles": 20,
+  "completedCycles": 23,
+  "status": "completed",
+  "phase": "measured",
+  "extraIdleSettleMs": 0
+}

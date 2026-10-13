@@ -1,0 +1,24 @@
+{
+  "url": "http://127.0.0.1:8767/index.html?screen=home&view=compare&theme=dark",
+  "variant": "02 Web",
+  "sourceFilesSha256": {
+    "app.css": "54a8cbec21c74e4c9bc6d917b12b4c06b8901001f58fe28bedd4d498d7e21b42",
+    "telemost.css": "fe6c638207b5ddc3096038661255b79798055f680cbacabc479d248172d0cd34",
+    "home.css": "9426ac13336485cdccb772fd6070ed5a68c2630da371cd013b540ec6a0754ccc",
+    "onboarding.css": "c620a7a99b884e506b43b1874cb90f4109c0b99ada5c882c65dc37ec85f07527",
+    "web-variant.css": "6c5d361aa332b33a37f1b39cf24caafd736623de2d7e4d302816c9402e815a1b",
+    "screens.js": "c2f50215593cdaee00107603b1c3db709c3a86e745d940c950c8e3e1f73396f7",
+    "meetings.js": "6d2f6a7dc8bcc22d47e53ec1d5778cd26760a20d33474d64e7aedfda10731dcf",
+    "onboarding.js": "fda25b54bcc3116c3dac1fa722d2d090da93a2755009f8bee275dc2212f35e8f",
+    "runtime.js": "311a5cd66d31a8ad6e8e0bc0ef3e7a09ad6f3ea6f6f64c4a85e4ccf40495434f"
+  },
+  "workspaceBreakpointDp": 780,
+  "onboardingBreakpointDp": 760,
+  "topLevelTabs": [
+    "Главная",
+    "Звонки",
+    "Чаты",
+    "Профиль"
+  ],
+  "referenceDataPolicy": "Fictional reference content is used only in androidTest fixtures; production screens retain real repository data and permissions."
+}

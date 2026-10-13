@@ -1,0 +1,11 @@
+{
+  "serial": "emulator-5556",
+  "api": 36,
+  "installedVersion": "0.9.2 (10)",
+  "installUpdateSucceeded": true,
+  "mainActivityStartSucceeded": true,
+  "processAlive": true,
+  "crashBufferEmpty": true,
+  "productionAccountsUsed": false,
+  "welcomeRenderedAfterColdStart": true
+}

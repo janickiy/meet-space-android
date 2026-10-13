@@ -1,0 +1,153 @@
+{
+  "version": "0.1.0 beta",
+  "versionCode": 16,
+  "date": "2026-10-13",
+  "apk": {
+    "path": "/Users/aleksandranickij/htdocs/Android/dist/MeetSpace-0.1.0-beta.apk",
+    "bytes": 78123217,
+    "sha256": "0fba1c90c755700bbea9aba296cfe8c5a37f613cc35d0ca769c4a3f043359ef9",
+    "versionName": "0.1.0 beta",
+    "versionCode": 16,
+    "debugSigned": true
+  },
+  "design": {
+    "source": "/Users/aleksandranickij/htdocs/go-recorder/design/meetspace-android-20261010",
+    "url": "http://127.0.0.1:8766/index.html",
+    "screens": [
+      "registration",
+      "personal-call",
+      "personal-chat call entry/banner/history"
+    ],
+    "visualChecks": "phone 390×844dp and tablet 1194×834dp, light/dark registration and messaging; personal call uses dark scene",
+    "screenshots": [
+      "phone/beta-register-dark-390x844-font1.0.png",
+      "phone/beta-register-light-390x844-font1.0.png",
+      "phone/beta-thread-call-dark-390x844-font1.0.png",
+      "phone/beta-thread-call-light-390x844-font1.0.png",
+      "phone/personal-connected-390x844-font1.0.png",
+      "phone/personal-incoming-390x844-font1.0.png",
+      "phone/personal-outgoing-390x844-font1.0.png",
+      "tablet/beta-register-dark-1194x834-font1.0.png",
+      "tablet/beta-register-light-1194x834-font1.0.png",
+      "tablet/beta-thread-call-dark-1194x834-font1.0.png",
+      "tablet/beta-thread-call-light-1194x834-font1.0.png",
+      "tablet/personal-connected-1194x834-font1.0.png",
+      "tablet/personal-incoming-1194x834-font1.0.png",
+      "tablet/personal-outgoing-1194x834-font1.0.png"
+    ],
+    "testOnlyExampleData": true
+  },
+  "build": {
+    "result": "passed",
+    "tasks": [
+      ":app:testDebugUnitTest",
+      ":core:data:testDebugUnitTest",
+      ":core:media:testDebugUnitTest",
+      ":app:assembleDebug",
+      ":app:assembleDebugAndroidTest",
+      ":app:lintDebug"
+    ],
+    "log": ".audit/beta-0.1.0/build-8.log",
+    "debugSignatureVerified": true,
+    "zipAlignmentVerified": true,
+    "lint": {
+      "Error": 0,
+      "Fatal": 0,
+      "Warning": 55,
+      "Information": 0
+    }
+  },
+  "unitTests": {
+    "modules": {
+      "app": {
+        "tests": 160,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "core/data": {
+        "tests": 160,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 12
+      },
+      "core/media": {
+        "tests": 26,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    "executed": 334,
+    "skipped": 12,
+    "skipReason": "Opt-in tests require a live backend; dedicated live suite was run separately."
+  },
+  "integration": {
+    "backend": "isolated copy of current Go backend, PostgreSQL, Redis, MinIO, Pion/SFU and TURN; production was not modified",
+    "actualAndroidRepositoryTestsPassed": 3,
+    "restContractChecksPassed": 37,
+    "nativeTwoEmulatorCall": {
+      "passed": true,
+      "durationSeconds": 43,
+      "actualRtpOverTurn": true,
+      "incomingUserWebSocket": true,
+      "explicitAcceptBeforeMedia": true,
+      "wrongEndpointBlockedBeforeCapture": true,
+      "transportReconnect": true,
+      "videoCatalogBindingAfterReconnect": true,
+      "cameraOffOnWithDecodedVideo": true,
+      "historyStoredBothUsers": true,
+      "resourcesReleasedBothUsers": true,
+      "ordinaryMeetingRequests": 0,
+      "evidence": [
+        "native-caller-2.json",
+        "native-callee-2.json"
+      ]
+    }
+  },
+  "uiTests": {
+    "phoneBehavior": {
+      "passed": 23,
+      "skippedCaptureTest": 1
+    },
+    "tabletBehavior": {
+      "passed": 23,
+      "skippedCaptureTest": 1
+    },
+    "tabletMeetingMessagingRegressionRunnerTests": 58,
+    "installerAndScreenLifecyclePassed": 7,
+    "screenshotPairs": 7
+  },
+  "screenShareRegression": {
+    "actualAndroidMediaProjection": true,
+    "transport": "native VP8 loopback, not server recording",
+    "firstCaptureSeconds": 31.011,
+    "rotations": 2,
+    "freshConsents": 2,
+    "fpsMeasurement": "delta outbound-rtp.framesEncoded / monotonic interval",
+    "encodedFpsMin": 14.974579154427445,
+    "encodedFpsMax": 15.003120649095012,
+    "sourceFpsMin": 49.384137814933844,
+    "sourceFpsMax": 59.498994506925044,
+    "resourcesReleased": true,
+    "evidence": "projection-fps.json"
+  },
+  "limitations": [
+    "No physical Android device, Bluetooth headset, high-refresh physical display or device-specific background behavior tested.",
+    "No production-server end-to-end test; real API/media verified on isolated current-backend fixture.",
+    "FCM is not configured: incoming calls require an active application session; closed-app and lock-screen incoming calls are not implemented.",
+    "Existing lifecycle policy disables microphone/camera on background; user enables them again on return.",
+    "Screen sharing was verified with real MediaProjection and local native VP8 loopback; server recording and segment boundaries were not verified in this release.",
+    "Debug APK only; release signing and store publication were not performed."
+  ],
+  "cleanup": {
+    "privateBackendFixtureRemoved": true,
+    "fixtureContainersRemoved": true,
+    "privateAndroidInputsRemoved": true,
+    "ownedEmulatorsStopped": [
+      5556,
+      5558
+    ],
+    "userEmulator5554Untouched": true
+  }
+}

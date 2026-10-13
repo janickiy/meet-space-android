@@ -1,0 +1,17 @@
+Inter 4.1 — bundled UI font
+Copyright (c) 2016 The Inter Project Authors (https://github.com/rsms/inter)
+Licensed under the SIL Open Font License, Version 1.1.
+The complete, unmodified license is included as licenses/inter-OFL.txt.
+
+Source release: https://github.com/rsms/inter/releases/tag/v4.1
+Download: https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip
+Archive SHA-256: 9883fdd4a49d4fb66bd8177ba6625ef9a64aa45899767dde3d36aa425756b11e
+
+extras/ttf/Inter-Regular.ttf → inter_regular.ttf
+SHA-256: 40d692fce188e4471e2b3cba937be967878f631ad3ebbbdcd587687c7ebe0c82
+extras/ttf/Inter-SemiBold.ttf → inter_semibold.ttf
+SHA-256: 78a843fade9d4612a5567302fb595b56976eb5fcebf4fea5a5912d638bafcde3
+
+The bundled static TrueType files are byte-for-byte copies from this release.
+They include Latin and Cyrillic glyphs and are loaded locally; no font download
+is performed by the application.

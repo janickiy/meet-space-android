@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.meetspace.core.data.FoundationRepositoryTest" tests="24" skipped="0" failures="0" errors="0" timestamp="2026-10-11T15:16:27.566Z" hostname="MacBook-Air-janickiy.local" time="4.492">
+  <properties/>
+  <testcase name="login proves account and capabilities then stores only scoped session cookie" classname="com.meetspace.core.data.FoundationRepositoryTest" time="0.32"/>
+  <testcase name="logout confirms server revocation and always removes local credential" classname="com.meetspace.core.data.FoundationRepositoryTest" time="0.069"/>
+  <testcase name="failed switch or remove cannot expose a session after memory is cleared" classname="com.meetspace.core.data.FoundationRepositoryTest" time="0.05"/>
+  <testcase name="login cannot send credentials until selected server version is verified" classname="com.meetspace.core.data.FoundationRepositoryTest" time="0.03"/>
+  <testcase name="restore rejects a credential refreshed as another account" classname="com.meetspace.core.data.FoundationRepositoryTest" time="0.045"/>
+  <testcase name="login without a secure persistent cookie remains explicitly nonpersistent" classname="com.meetspace.core.data.FoundationRepositoryTest" time="0.03"/>
+  <testcase name="rotated refresh cookie survives a later discovery failure" classname="com.meetspace.core.data.FoundationRepositoryTest" time="0.077"/>
+  <testcase name="revoked saved session is deleted and is never retried automatically" classname="com.meetspace.core.data.FoundationRepositoryTest" time="0.031"/>
+  <testcase name="wrong JSON schema and HTML never create a server profile" classname="com.meetspace.core.data.FoundationRepositoryTest" time="0.033"/>
+  <testcase name="logout erases ciphertext even when persisting its marker fails" classname="com.meetspace.core.data.FoundationRepositoryTest" time="0.056"/>
+  <testcase name="403 is final and has a safe user message" classname="com.meetspace.core.data.FoundationRepositoryTest" time="0.068"/>
+  <testcase name="cancellation during a slow response body releases repository mutex promptly" classname="com.meetspace.core.data.FoundationRepositoryTest" time="3.098"/>
+  <testcase name="another account login starts empty and replaces only its scoped local credential" classname="com.meetspace.core.data.FoundationRepositoryTest" time="0.049"/>
+  <testcase name="switching origins never sends old cookie or bearer to the new server" classname="com.meetspace.core.data.FoundationRepositoryTest" time="0.049"/>
+  <testcase name="a second 401 stops without a refresh loop" classname="com.meetspace.core.data.FoundationRepositoryTest" time="0.024"/>
+  <testcase name="theme and profile removal persist without credentials in settings" classname="com.meetspace.core.data.FoundationRepositoryTest" time="0.023"/>
+  <testcase name="redirects cannot forward login credentials to another origin" classname="com.meetspace.core.data.FoundationRepositoryTest" time="0.022"/>
+  <testcase name="401 refreshes once and retries the safe GET with new token" classname="com.meetspace.core.data.FoundationRepositoryTest" time="0.025"/>
+  <testcase name="logout stores a durable marker even when deleting ciphertext fails" classname="com.meetspace.core.data.FoundationRepositoryTest" time="0.027"/>
+  <testcase name="serialized login and server switch cannot activate a stale account" classname="com.meetspace.core.data.FoundationRepositoryTest" time="0.245"/>
+  <testcase name="unknown commit permits basic auth and remains visible" classname="com.meetspace.core.data.FoundationRepositoryTest" time="0.034"/>
+  <testcase name="failed remote logout returns unconfirmed and still erases local session" classname="com.meetspace.core.data.FoundationRepositoryTest" time="0.025"/>
+  <testcase name="restart refreshes saved session without persisting bearer token or password" classname="com.meetspace.core.data.FoundationRepositoryTest" time="0.027"/>
+  <testcase name="production trust refuses a self signed certificate" classname="com.meetspace.core.data.FoundationRepositoryTest" time="0.032"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[окт. 11, 2026 6:16:31 PM okhttp3.internal.platform.Platform log
+INFO: Http2Connection.Listener failure for MockWebServer localhost
+java.io.IOException: closed
+	at okhttp3.internal.http2.Http2Writer.flush(Http2Writer.kt:119)
+	at okhttp3.internal.http2.Http2Connection.flush(Http2Connection.kt:408)
+	at okhttp3.internal.http2.Http2Stream$FramingSink.close(Http2Stream.kt:624)
+	at okio.RealBufferedSink.close(RealBufferedSink.kt:287)
+	at kotlin.io.CloseableKt.closeFinally(Closeable.kt:46)
+	at okhttp3.mockwebserver.MockWebServer$Http2SocketHandler.writeResponse(MockWebServer.kt:1096)
+	at okhttp3.mockwebserver.MockWebServer$Http2SocketHandler.onStream(MockWebServer.kt:977)
+	at okhttp3.internal.http2.Http2Connection$ReaderRunnable$headers$lambda$2$$inlined$execute$default$1.runOnce(TaskQueue.kt:220)
+	at okhttp3.internal.concurrent.TaskRunner.runTask(TaskRunner.kt:116)
+	at okhttp3.internal.concurrent.TaskRunner.access$runTask(TaskRunner.kt:42)
+	at okhttp3.internal.concurrent.TaskRunner$runnable$1.run(TaskRunner.kt:65)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+
+]]></system-err>
+</testsuite>

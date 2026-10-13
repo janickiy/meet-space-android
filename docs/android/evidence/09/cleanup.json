@@ -1,0 +1,49 @@
+{
+  "fixtures": [
+    {
+      "stage": 5,
+      "privateHomeRemoved": true
+    },
+    {
+      "stage": 6,
+      "privateHomeRemoved": true
+    },
+    {
+      "stage": 7,
+      "privateHomeRemoved": true
+    },
+    {
+      "stage": 8,
+      "privateHomeRemoved": true
+    }
+  ],
+  "ownedEmulators": [
+    {
+      "serial": "emulator-5556",
+      "stopped": true,
+      "ownedAvdRemoved": true
+    },
+    {
+      "serial": "emulator-5558",
+      "stopped": true,
+      "ownedAvdRemoved": true
+    }
+  ],
+  "preexistingRunningContainers": 11,
+  "samePreexistingRunningIdsImagesNamesAndStates": true,
+  "fixtureContainersRemaining": 0,
+  "backendCheckoutClean": true,
+  "originalEmulator5554StillAvailable": true,
+  "originalDeviceSettingsMatchBaseline": true,
+  "originalDeviceReadOnlyChecks": {
+    "pageSize": "4096",
+    "display": "Physical size: 2560x1600",
+    "density": "Physical density: 320",
+    "fontScale": "1.0",
+    "wifi": "1",
+    "mobileData": "1"
+  },
+  "preexistingStoppedContainersLeftUntouched": 54,
+  "verificationCorrection": "Initial inventory used docker ps (running only); final comparison corrected to running subset. Older stopped user containers are intentionally retained, not cleanup targets.",
+  "privateDiagnosticsRetained": "Raw HPROF, traces and logs remain inside ignored .audit/stage09 (0700); not included in deliverables or public evidence. Fixture databases/CA and both private AVD userdatas were removed. Existing installer signing identity preserved."
+}

@@ -1,0 +1,20 @@
+[
+  {
+    "path": "app/build/outputs/apk/debug/app-debug.apk",
+    "bytes": 71382677,
+    "sha256": "ad189e3699d92f1fb1f761be1ee84f34e25c18c445b7bf7477d0b9f791378b51",
+    "fixtureSecretsAbsent": true,
+    "privateFilesAbsent": true,
+    "installerAssetsUnchanged": 5,
+    "webRtcLicensesPresent": true
+  },
+  {
+    "path": "app/build/outputs/apk/release/app-release-unsigned.apk",
+    "bytes": 50471939,
+    "sha256": "7d7e43298b82f253c00db9ab6adcb105447fb036855b4de57c106d6c95fdfa7c",
+    "fixtureSecretsAbsent": true,
+    "privateFilesAbsent": true,
+    "installerAssetsUnchanged": 5,
+    "webRtcLicensesPresent": true
+  }
+]

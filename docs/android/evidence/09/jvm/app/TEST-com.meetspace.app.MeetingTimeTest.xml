@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.meetspace.app.MeetingTimeTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-10-11T16:25:06.806Z" hostname="MacBook-Air-janickiy.local" time="0.014">
+  <testcase name="leapFebruaryUsesLocalDateRatherThanFixedDayCount" classname="com.meetspace.app.MeetingTimeTest" time="0.006" />
+  <testcase name="nonexistentDstTimeIsRejectedInsteadOfShifted" classname="com.meetspace.app.MeetingTimeTest" time="0.002" />
+  <testcase name="ordinaryLocalTimeRejectsIncorrectPreferredOffset" classname="com.meetspace.app.MeetingTimeTest" time="0.0" />
+  <testcase name="repeatedDstTimeRequiresOffsetAndBothOffsetsResolveDistinctInstants" classname="com.meetspace.app.MeetingTimeTest" time="0.004" />
+  <testcase name="dstMonthEndsAtPostgresMicrosecondBeforeNextLocalMonth" classname="com.meetspace.app.MeetingTimeTest" time="0.0" />
+  </testsuite>

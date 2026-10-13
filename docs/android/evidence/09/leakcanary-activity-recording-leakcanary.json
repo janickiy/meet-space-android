@@ -1,0 +1,7 @@
+{
+  "label": "leakcanary",
+  "tag": "activity-recording",
+  "version": "2.14",
+  "status": "assertion-returned",
+  "kind": "LeakAssertions.assertNoLeaks"
+}

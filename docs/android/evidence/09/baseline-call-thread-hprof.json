@@ -1,0 +1,120 @@
+{
+  "schema": 2,
+  "analysisTool": "Shark graph 2.14 / JDK17 / ThreadHeapAudit.java",
+  "measurementFile": "baseline-real-call.json",
+  "scope": "repeat baseline call run, warmup10 + measured100, settled5s and then idle65000ms; no retained-byte computation",
+  "rawDataPolicy": "HPROF/raw names private; only fixed class/category names, counts and SHA256 exported",
+  "snapshots": {
+    "warmup": {
+      "javaThreadObjects": 44,
+      "threadGcRoots": 38,
+      "rootCategories": {
+        "android-binder": 4,
+        "coroutine-dispatcher": 4,
+        "meetspace-actor-capture": 1,
+        "okhttp": 6,
+        "okio": 1,
+        "other-runtime-framework": 22
+      },
+      "taskRunnerPool": {
+        "readyQueuesSize": 1,
+        "busyQueuesSize": 1,
+        "corePoolSize": 0,
+        "maximumPoolSize": 2147483647,
+        "keepAliveTime": 60000000000,
+        "allowCoreThreadTimeOut": false
+      },
+      "testOwnedLastSocketCount": 1,
+      "failedOrCancelledRealWebSocketCount": 1,
+      "privateHprofSha256": "9814c81d477c03603966d56fded241f5a248d228850a8bed656fff86dc65cfb5",
+      "selectedInstanceCounts": {
+        "com.meetspace.app.MainActivity": 1,
+        "com.meetspace.core.media.CallEngine": 1,
+        "org.webrtc.PeerConnection": 0,
+        "org.webrtc.PeerConnectionFactory": 0,
+        "org.webrtc.audio.JavaAudioDeviceModule": 0,
+        "java.util.concurrent.ThreadPoolExecutor": 17,
+        "java.util.concurrent.ThreadPoolExecutor$Worker": 11,
+        "okhttp3.internal.concurrent.TaskRunner": 1,
+        "okhttp3.internal.concurrent.TaskQueue": 7,
+        "okhttp3.internal.ws.RealWebSocket": 1
+      },
+      "taskRunnerWorkerCount": 5,
+      "okhttpDispatcherWorkerCount": 1
+    },
+    "end": {
+      "javaThreadObjects": 54,
+      "threadGcRoots": 48,
+      "rootCategories": {
+        "android-binder": 15,
+        "coroutine-dispatcher": 4,
+        "meetspace-actor-capture": 1,
+        "okhttp": 5,
+        "okio": 1,
+        "other-runtime-framework": 22
+      },
+      "taskRunnerPool": {
+        "readyQueuesSize": 1,
+        "busyQueuesSize": 1,
+        "corePoolSize": 0,
+        "maximumPoolSize": 2147483647,
+        "keepAliveTime": 60000000000,
+        "allowCoreThreadTimeOut": false
+      },
+      "testOwnedLastSocketCount": 1,
+      "failedOrCancelledRealWebSocketCount": 1,
+      "privateHprofSha256": "de1475f4098c721b36f94de6c808076573cfd0174c9e52feef4bfc380bbdca41",
+      "selectedInstanceCounts": {
+        "com.meetspace.app.MainActivity": 1,
+        "com.meetspace.core.media.CallEngine": 1,
+        "org.webrtc.PeerConnection": 0,
+        "org.webrtc.PeerConnectionFactory": 0,
+        "org.webrtc.audio.JavaAudioDeviceModule": 0,
+        "java.util.concurrent.ThreadPoolExecutor": 17,
+        "java.util.concurrent.ThreadPoolExecutor$Worker": 10,
+        "okhttp3.internal.concurrent.TaskRunner": 1,
+        "okhttp3.internal.concurrent.TaskQueue": 7,
+        "okhttp3.internal.ws.RealWebSocket": 1
+      },
+      "taskRunnerWorkerCount": 4,
+      "okhttpDispatcherWorkerCount": 1
+    },
+    "idle": {
+      "javaThreadObjects": 50,
+      "threadGcRoots": 43,
+      "rootCategories": {
+        "android-binder": 15,
+        "coroutine-dispatcher": 4,
+        "meetspace-actor-capture": 1,
+        "okhttp": 2,
+        "other-runtime-framework": 21
+      },
+      "taskRunnerPool": {
+        "readyQueuesSize": 1,
+        "busyQueuesSize": 0,
+        "corePoolSize": 0,
+        "maximumPoolSize": 2147483647,
+        "keepAliveTime": 60000000000,
+        "allowCoreThreadTimeOut": false
+      },
+      "testOwnedLastSocketCount": 1,
+      "failedOrCancelledRealWebSocketCount": 1,
+      "privateHprofSha256": "f59843fdd445186f963bc56df0c7c2f970036c072bad8ce0e9f94bf14b5a78ad",
+      "selectedInstanceCounts": {
+        "com.meetspace.app.MainActivity": 1,
+        "com.meetspace.core.media.CallEngine": 1,
+        "org.webrtc.PeerConnection": 0,
+        "org.webrtc.PeerConnectionFactory": 0,
+        "org.webrtc.audio.JavaAudioDeviceModule": 0,
+        "java.util.concurrent.ThreadPoolExecutor": 17,
+        "java.util.concurrent.ThreadPoolExecutor$Worker": 8,
+        "okhttp3.internal.concurrent.TaskRunner": 1,
+        "okhttp3.internal.concurrent.TaskQueue": 6,
+        "okhttp3.internal.ws.RealWebSocket": 1
+      },
+      "taskRunnerWorkerCount": 2,
+      "okhttpDispatcherWorkerCount": 0
+    }
+  },
+  "interpretation": "Binder roots 4→15→15. Shared TaskRunner workers 5→4→2, dispatcher1→1→0. Idle removes3 OkHttp+1 Okio+1 other runtime root; TaskQueue7→7→6 and busy1→1→0. No accumulated native per-call Java wrappers. Remaining Binder pool is warm, not a retained per-call engine. Device runtime maximum and universal absence of leaks are not established."
+}

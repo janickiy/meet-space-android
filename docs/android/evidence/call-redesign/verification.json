@@ -1,0 +1,119 @@
+{
+  "verifiedAt": "2026-10-12T07:49:01.980725+00:00",
+  "versionName": "0.9.4",
+  "versionCode": 12,
+  "apk": "dist/MeetSpace-0.9.4.apk",
+  "apkSha256": "43656b9e1879f4f30b17e20ccf30106a2b782889338bbf26a3792b0aa6c72bad",
+  "apkBytes": 78797285,
+  "buildType": "debug",
+  "certificateSha256": "5472281448cf33dea7fe8a4b119683701cd43815d5e038bb34fad92e22b1e471",
+  "apkValidation": {
+    "signatureV2": true,
+    "zipAlignment16K": true,
+    "minSdk": 26,
+    "targetSdk": 36,
+    "screenshotFixturesExcluded": true,
+    "coldLaunch": "Android 16 ARM64: cold launch Status ok; expected app UI present; no fatal exception in process log."
+  },
+  "reference": {
+    "path": "/Users/aleksandranickij/htdocs/go-recorder/design/meetspace-android-20261010",
+    "files": 72,
+    "unchanged": true
+  },
+  "sourceSnapshotVerified": true,
+  "unitTests": {
+    "app": {
+      "tests": 127,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "passed": 127
+    },
+    "core/data": {
+      "tests": 123,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 9,
+      "passed": 114
+    },
+    "core/media": {
+      "tests": 14,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "passed": 14
+    }
+  },
+  "instrumentation": {
+    "passed": 148,
+    "skipped": 7,
+    "failed": 0,
+    "method": "Latest result per test: full regression suite, then changed classes and real keyboard test rerun after final edits.",
+    "evidence": [
+      "regressions-base.json",
+      "regressions-targeted-final.json",
+      "call-keyboard-final.json"
+    ]
+  },
+  "lint": {
+    "errors": 0,
+    "warnings": 53
+  },
+  "screenshots": {
+    "count": 37,
+    "manifest": {
+      "call-chat-dark-1194x834-font1.0.png": "b90abf0981406e72cee77ee906e7ae33db0d2cc5053e639d58c21301ad316bbc",
+      "call-chat-dark-430x932-font1.5.png": "5ac0ed94b77966fb01b0cbe08791f1317f30919e24a2d00ee15c7d0a089e98d1",
+      "call-chat-dark-834x1112-font1.0.png": "f22becef696e6e6b10e9e024f2f725599faaae91620943580aaf9fc0a93be7b7",
+      "call-chat-dark-844x390-font1.0.png": "7ccc97b992fcb524e0a017d5f4da4a3cfa08785e832284edda39d206725cb6f6",
+      "call-chat-light-1194x834-font1.0.png": "b90abf0981406e72cee77ee906e7ae33db0d2cc5053e639d58c21301ad316bbc",
+      "call-chat-light-390x844-font1.0.png": "f8d978b9c3ca8b46623e0bc665d102758d0d04ba4ff1674ba1beaf577cdc9cce",
+      "call-chat-light-780x800-font1.0.png": "d8f4dc2ffc1283a7ef5be0265fe2f8a7b83fcd9676e6f1558674aaf31022f0d2",
+      "call-comments-dark-1194x834-font1.0.png": "e0a8fd7396a96cf85f52ce834f222ab586ad48770599e3e4cf1b582f4042c5b3",
+      "call-comments-dark-430x932-font1.5.png": "df1c4fda2a7e632d51fc9dacbbaedf2af4af856a8494022d4d7d4f7b05427854",
+      "call-comments-dark-834x1112-font1.0.png": "3f86afa5819bd66573e51c89df28b511909c412783dca4a5dc0df810574fa31f",
+      "call-comments-dark-844x390-font1.0.png": "f46e6964dd745be5a264726945748fd3ee3aaa21a1a175d796e09881a6b38ab9",
+      "call-comments-light-1194x834-font1.0.png": "e0a8fd7396a96cf85f52ce834f222ab586ad48770599e3e4cf1b582f4042c5b3",
+      "call-comments-light-390x844-font1.0.png": "44830d62826deab3d0f46826a6ff502c73c4143b5e66004c1c0244e3549d60f1",
+      "call-comments-light-780x800-font1.0.png": "b382a0fe611c32692c61c014992eee7e87df71518b070509ffc9ae19e13e12e5",
+      "call-dark-1194x834-font1.0.png": "ca3fbdae821e6fdfb5e31178c780f99c1297a9f03c5f119eebe9d14618926465",
+      "call-dark-430x932-font1.5.png": "4647fe714b8f413a85c72ea166838a8282061ee4cd99a0ef4e813b82b6471ff5",
+      "call-dark-834x1112-font1.0.png": "30148e3eecc2234faea39606052e8b8a02d60c5a5c4776903b6e975cf70fcf52",
+      "call-dark-844x390-font1.0.png": "ad8e2bd32fee186a75f48f908ab7008971573d2043176f0bc38807fd60b42306",
+      "call-light-1194x834-font1.0.png": "ca3fbdae821e6fdfb5e31178c780f99c1297a9f03c5f119eebe9d14618926465",
+      "call-light-390x844-font1.0.png": "eb6ba848cea1cdc0209bd941f59d2add5d4dabd14d8eacb9eb78e60f40a061c6",
+      "call-light-780x800-font1.0.png": "aeb585dd58c367e339e1de1acaee11d226418324c8ad9b398d07937fb6dbb684",
+      "call-participants-dark-1194x834-font1.0.png": "8bbeab08a8690069d961a71caee478f2691060769c179bf990db9ab243a8f1e6",
+      "call-participants-dark-430x932-font1.5.png": "c738624c8bda376f3cd1ece76cd11670796fb95711cf94d6863a64726c8ed236",
+      "call-participants-dark-834x1112-font1.0.png": "0c282a647ba447f535d60f1d7c607253faf29a51e48f8833e05d833a9b471846",
+      "call-participants-dark-844x390-font1.0.png": "65b10e3c08db661fb598000b0d13f75bdb0722795fbc428f8a2870b645c021a4",
+      "call-participants-light-1194x834-font1.0.png": "33f266193296950b0ac0499e3852356257d127d578c45ac21646d9a1b523358a",
+      "call-participants-light-390x844-font1.0.png": "04382a558aa6dfb0a1e587e0a1ab908f1e3f2d29150eec50f32918d955513132",
+      "call-participants-light-780x800-font1.0.png": "b37369bfa68433ab5cdbda9eb36f2eda1e0802e244d9a127ed3eb04095b23e9d",
+      "call-share-dark-1194x834-font1.0.png": "0d5d116324c021afd2f959aadbd94be043b7a658e825dac90af265bd5821ec9a",
+      "call-share-dark-430x932-font1.5.png": "d7785637fe57957c89439d7fe6a427b1396554280477fa89e151bd26fcc84375",
+      "call-share-dark-834x1112-font1.0.png": "8f10aa02384bad0fe63168f676c377c7004b38b4b44e6ff889d711d127802926",
+      "call-share-dark-844x390-font1.0.png": "48833b9b12aded9d13f36491281e8d37256e25f64d7860a05b8a1ab013b34a3e",
+      "call-share-light-1194x834-font1.0.png": "0d5d116324c021afd2f959aadbd94be043b7a658e825dac90af265bd5821ec9a",
+      "call-share-light-390x844-font1.0.png": "e32b3438ead5aac2b15168f20bce5f8f47798fb2b92541e7a5608892755c5d5f",
+      "call-share-light-780x800-font1.0.png": "9ef14a9286bf2f0b92f02b39110ef667b65f6644563268cf75564a5ed4d09499",
+      "prejoin-light-1194x834-font1.0.png": "a5dfc84f3ed9354d19d2f05042efcbe7486cbf070339da721b5a28ffef323855",
+      "prejoin-light-390x844-font1.0.png": "b0d025b81634fb7e95f1751c61ee06d80a396f3a8aac51e1d4bac354efbe7dd2"
+    }
+  },
+  "coverage": [
+    "Android 16 ARM64 emulator",
+    "390×844 and 430×932 phones",
+    "1194×834 and 834×1112 tablets",
+    "780dp breakpoint and 844×390 landscape",
+    "Light/dark themes and font scale 1.5",
+    "Real Android IME with a pointer click on Send",
+    "Conference REST contracts over HTTPS and shared chat/comment state"
+  ],
+  "limits": [
+    "Screenshot conversations and shared artwork are test fixtures; production displays server data and native video feeds.",
+    "Native system bars, safe insets, text rendering and device controls differ from the browser concept.",
+    "No fresh production-server end-to-end call/message test or physical-device test in this pass.",
+    "The APK uses the existing development signing certificate. No store publication was performed."
+  ]
+}

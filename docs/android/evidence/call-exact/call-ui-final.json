@@ -1,0 +1,159 @@
+{
+  "label": "call-ui-final",
+  "tests": [
+    {
+      "class": "com.meetspace.app.CallUiTest",
+      "test": "largeFontShortLandscapeKeepsCaptureAndLeaveControlsReachable",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.CallUiTest",
+      "test": "singleChatAndParticipantsAreExclusiveAndClosingOrBackNeverLeavesTheCall",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.CallUiTest",
+      "test": "permissionRequestKeepsJoinDisabledUntilResult",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.CallUiTest",
+      "test": "hidingParticipantVideoKeepsTheirActualRosterAndAudioControls",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.CallUiTest",
+      "test": "compactScreenSharingIsOnlyInvokedAfterSelectingTheExplicitMenuAction",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.CallUiTest",
+      "test": "hiddenSelfWithNoOtherParticipantsKeepsCallControlsAndHonestEmptyState",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.CallUiTest",
+      "test": "participantPanelContainsRealRoster",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.CallUiTest",
+      "test": "reconnectNeverDisplaysConnectedAndDisablesCapture",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.CallUiTest",
+      "test": "activeCallKeepsThreeWorkspaceDestinationsWithoutInvokingLeave",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.CallUiTest",
+      "test": "ownBubblesAlignRightAndFileDownloadsUseTheirExactMessageAndAttachmentIds",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.CallUiTest",
+      "test": "textReadabilityAssertionRejectsEllipsisAndHeightClipping",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.CallUiTest",
+      "test": "reopeningTheOnlyMeetingChatKeepsItsDraftAndDoesNotDuplicateServerHistory",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.CallUiTest",
+      "test": "prejoinDeviceSettingsRespectPolicyAndPendingPermissionRequest",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.CallUiTest",
+      "test": "shortSharedStageKeepsContentAndScrollableParticipantsUsable",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.CallUiTest",
+      "test": "failedCallOffersRetryAndShowsActualFailure",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.CallUiTest",
+      "test": "chatSubmissionUsesOwnedDraftAndDoesNotPretendAnUnacknowledgedMessageWasSent",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.CallUiTest",
+      "test": "phoneCallLabelsStayOnOneLineAndLeaveButtonHasItsOwnWidth",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.CallUiTest",
+      "test": "meetingDraftAcceptsFourThousandCharactersAndRejectsAdditionalInput",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.CallUiTest",
+      "test": "blockedDevicesCannotPublishAndLeaveRemainsAvailable",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.CallUiTest",
+      "test": "prejoinUsesSideBySideTabletAndStackedPhoneWithoutAutomaticCapture",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.CallUiTest",
+      "test": "prejoinDeviceSettingsUseExistingActionsAndActualRoutes",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.CallUiTest",
+      "test": "recordingAndElapsedIndicatorsOnlyClaimActualMetadata",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.CallUiTest",
+      "test": "deletedMeetingMessagesNeverRevealTheirBodyOrDownloadableAttachment",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.CallUiTest",
+      "test": "phoneLargeFontChatStaysInsideCallBodyWithCloseAndLeaveReachable",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.CallUiTest",
+      "test": "pendingAttachmentsRequireConfirmedUploadAndRemainOwnedUntilSendAcknowledgement",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.CallUiTest",
+      "test": "prejoinRequiresExplicitConnectAndDeviceActions",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.CallUiTest",
+      "test": "activeDeviceSemanticsAndAudioSelectionReflectActualState",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.CallUiTest",
+      "test": "connectedCallUsesTheBlueCanvasInBothThemes",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.CallUiTest",
+      "test": "startingRecordingCanBeStoppedButBusyStatePreventsRepeatedStop",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.CallUiTest",
+      "test": "meetingChatRespectsPermissionAndExposesActualRetryAndPagingActions",
+      "status": 0
+    }
+  ],
+  "passed": 30,
+  "failed": 0,
+  "seconds": 27.07,
+  "success": true
+}

@@ -1,0 +1,34 @@
+{
+  "role": "caller",
+  "actualProductionDataRepository": true,
+  "realHTTPSWebSocketSFU": true,
+  "physicalDevice": false,
+  "success": true,
+  "explicitPreviewWithoutPublication": true,
+  "incomingCallUpdatedEventObserved": true,
+  "initialRtp": {
+    "relay": true,
+    "receivedAudioBytes": 5712,
+    "decodedFrames": 0,
+    "sentBytes": 47412,
+    "microphone": false,
+    "camera": true
+  },
+  "wrongEndpointRejectedBeforeNativeCapture": true,
+  "reconnectedRtp": {
+    "relay": true,
+    "receivedAudioBytes": 5900,
+    "decodedFrames": 0,
+    "sentBytes": 54790,
+    "microphone": false,
+    "camera": true
+  },
+  "deviceSelectionRetained": true,
+  "reconnectMediaSessionCount": 2,
+  "cameraRemovalAndRepublishExercised": true,
+  "durationSec": 43,
+  "historyRows": 1,
+  "serverEndReleasedMedia": true,
+  "heartbeatErrors": 0,
+  "ordinaryMeetingRequests": 0
+}

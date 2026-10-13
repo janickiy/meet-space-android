@@ -1,0 +1,14 @@
+{
+  "gradle": "BUILD SUCCESSFUL",
+  "appJvmTests": {
+    "tests": 93,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "lint": {
+    "errors": 0,
+    "warnings": 46,
+    "previousStageWarnings": 46
+  }
+}

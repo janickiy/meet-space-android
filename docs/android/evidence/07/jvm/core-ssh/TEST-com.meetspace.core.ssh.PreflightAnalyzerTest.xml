@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.meetspace.core.ssh.PreflightAnalyzerTest" tests="10" skipped="0" failures="0" errors="0" timestamp="2026-10-11T14:00:15.405Z" hostname="MacBook-Air-janickiy.local" time="0.034">
+  <properties/>
+  <testcase name="nonNumericDnsOutputDoesNotTriggerNameLookupOrClaimMatch" classname="com.meetspace.core.ssh.PreflightAnalyzerTest" time="0.014"/>
+  <testcase name="unsupportedPlatformAndExistingInstallBlock" classname="com.meetspace.core.ssh.PreflightAnalyzerTest" time="0.002"/>
+  <testcase name="missingSsNeverClaimsFreePorts" classname="com.meetspace.core.ssh.PreflightAnalyzerTest" time="0.001"/>
+  <testcase name="missingOrUnparseableMeasurementsAreUnknown" classname="com.meetspace.core.ssh.PreflightAnalyzerTest" time="0.001"/>
+  <testcase name="lowResourcesAreExplicitEstimatesAndNotUnsupportedPlatform" classname="com.meetspace.core.ssh.PreflightAnalyzerTest" time="0.0"/>
+  <testcase name="malformedDuplicatePartialOrTerminalEscapeResponseFailsClosed" classname="com.meetspace.core.ssh.PreflightAnalyzerTest" time="0.005"/>
+  <testcase name="invalidTlsAndDnsMismatchRemainVisibleWarnings" classname="com.meetspace.core.ssh.PreflightAnalyzerTest" time="0.005"/>
+  <testcase name="compressedAndExpandedIpv6DnsAreComparedAsAddresses" classname="com.meetspace.core.ssh.PreflightAnalyzerTest" time="0.002"/>
+  <testcase name="occupiedMediaHttpsAndRelayPortsBlockFuturePlanButPort80IsAdvisory" classname="com.meetspace.core.ssh.PreflightAnalyzerTest" time="0.001"/>
+  <testcase name="supportedLinuxAndResourcesAreReportedWithoutClaimingInstallation" classname="com.meetspace.core.ssh.PreflightAnalyzerTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

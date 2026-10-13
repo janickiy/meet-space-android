@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "device": {
+    "pageSizeBytes": 16384,
+    "abi": "arm64-v8a",
+    "androidApi": 36,
+    "linkerCompatibilityEnabled": false,
+    "packageManagerCompatibilityDisabled": true,
+    "buildFingerprint": "google/sdk_gphone16k_arm64/emu64a16k:16/BE2A.250530.026.F3/13894323:userdebug/dev-keys"
+  },
+  "application": {
+    "packageName": "com.meetspace.app",
+    "versionName": "0.9.0",
+    "versionCode": 8
+  },
+  "artifacts": {
+    "debugApkSha256": "721cd11273e9d60984a195922d34a77196c86c20e6774d88c56dead48b288864",
+    "releaseApkSha256": "aec4056dd7f4055299048068d52351116c8f81e8f87fc231b8ca01e183ab2c59",
+    "releaseBundleSha256": "ddc48905ab5054bfdaaf6ecc7f58a21955d3a8483fc94fafa079ad75704ea21f",
+    "releaseSmokeApkSha256": "4206c9124d81c421bbb08f8b27963f5e576546c1e7a3040a60e197ea28b1ac58"
+  },
+  "debug": {
+    "nativeLibrariesLoaded": [
+      "androidx.graphics.path",
+      "datastore_shared_counter",
+      "jingle_peerconnection_so"
+    ],
+    "webRtcFactoryCreatedAndDisposed": true,
+    "recordingPlaybackPassed": true,
+    "liveRecordingScenariosPassed": 4,
+    "peerOrCaptureStartedByNativeSmoke": false
+  },
+  "releaseSmoke": {
+    "launchPassed": true,
+    "source": "universal APK generated from current AAB; temporary test signature",
+    "instrumentationUsed": false,
+    "privateFixtureCaInstalled": false,
+    "authenticationOrPlaybackTested": false,
+    "bothOnboardingActionsVisible": true,
+    "crashBufferContainsApp": false
+  },
+  "limits": [
+    "ARM64 emulator only; x86_64 and physical devices not tested",
+    "Native graphics path operations not established; API36 uses platform PathIterator",
+    "A real camera/mic/relay/reconnect call passed separately on a byte-identical normal APK (normal-rebuild-equivalence.json); native load smoke itself does not start capture",
+    "Temporary test signing identity does not validate owner release key or store distribution"
+  ]
+}

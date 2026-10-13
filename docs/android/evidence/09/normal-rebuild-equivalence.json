@@ -1,0 +1,7 @@
+{
+  "measurementDebugApkSha256": "b793443b035f9346b403fc650d37bc4a13448bac183226bc143ed9b15727ef2e",
+  "finalRebuiltDebugApkSha256": "721cd11273e9d60984a195922d34a77196c86c20e6774d88c56dead48b288864",
+  "allUncompressedEntriesIdentical": true,
+  "entriesCompared": 290,
+  "scope": "Normal debug rebuilt after optional LeakCanary variant; every manifest, DEX, resource, native library and asset byte matches measurement APK. Whole archive hash differs. Final runtime check will install rebuilt artifact."
+}

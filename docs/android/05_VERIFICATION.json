@@ -1,0 +1,108 @@
+{
+  "date": "2026-10-11",
+  "appVersion": "0.5.0",
+  "versionCode": 4,
+  "sourceBackendCommit": "6ecd8b648a2aa94fc9bcc844d57784423e2c6f69",
+  "productionReadOnlyCommit": "096c17b08352109f3f0b4d9f88d8e3825fd9e5fa",
+  "build": {
+    "debug": "passed",
+    "minifiedReleaseUnsigned": "passed",
+    "androidTest": "passed",
+    "lintErrors": 0,
+    "lintWarnings": 23,
+    "debugSignature": "verified v2"
+  },
+  "jvm": {
+    "tests": 154,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "modules": {
+      "app": {
+        "tests": 44,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "core/data": {
+        "tests": 53,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "core/ssh": {
+        "tests": 57,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    "liveStagingTestIncluded": true
+  },
+  "compose": {
+    "tablet": {
+      "passed": 35,
+      "failures": 0,
+      "display": "2560x1600/320dpi",
+      "notes": "34 full-suite + 1 wide two-pane test"
+    },
+    "phone": {
+      "passed": 14,
+      "failures": 0,
+      "display": "1080x2400/480dpi;360dp;font150%",
+      "notes": "Repeated 14 new cases; compact fixture additionally captured and checked"
+    },
+    "liveProductionReadOnly": {
+      "passed": 2,
+      "failures": 0,
+      "verified": [
+        "connect/login/system TLS",
+        "home/active meetings/calendar/account",
+        "portrait/landscape",
+        "Activity recreation",
+        "separate-process session restore",
+        "logout"
+      ]
+    },
+    "physicalDevicesTested": false
+  },
+  "actualBackend": {
+    "firstFixtureChecks": 60,
+    "freshReproducibilityChecks": 60,
+    "failures": 0,
+    "components": "Actual Gin auth/conferences/platform handlers + Argon2/JWT/session middleware + PostgreSQL14 + 33 migrations; Redis/SFU/media excluded",
+    "businessDataChangedOnProduction": false,
+    "systemCaChanged": false,
+    "fixtureCleaned": true
+  },
+  "artifacts": {
+    "debug": {
+      "path": "app/build/outputs/apk/debug/app-debug.apk",
+      "bytes": 23453009,
+      "sha256": "f67cc0899ccc0f91067839494340535b3e870a1d74931ba4fe1135471b5ecfa4"
+    },
+    "releaseUnsigned": {
+      "path": "app/build/outputs/apk/release/app-release-unsigned.apk",
+      "bytes": 2478187,
+      "sha256": "05039e1039d8dfcf2d735e9546e4263423cd924397dfdb546675383695d8df1e"
+    },
+    "installerAssetsExactMatch": {
+      "runner.py": true,
+      "release.json": true,
+      "release.sig": true,
+      "trust-root.pem": true,
+      "docker.asc": true
+    },
+    "privateFixtureFilesBundled": false
+  },
+  "limitations": [
+    "No WebRTC audio/video",
+    "No chats/folders/FCM/recording playback",
+    "No offline meeting cache/realtime polling",
+    "No profile email/password/avatar endpoints",
+    "Release APK unsigned for publishing",
+    "No physical Android 8-15 device testing"
+  ],
+  "evidenceDirectory": "evidence/05",
+  "report": "05_MEETINGS_REPORT.md"
+}

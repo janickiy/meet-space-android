@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.meetspace.core.ssh.SshInputValidatorTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-10-11T14:00:15.468Z" hostname="MacBook-Air-janickiy.local" time="0.02">
+  <properties/>
+  <testcase name="invalidPortUserAndDomainRejected" classname="com.meetspace.core.ssh.SshInputValidatorTest" time="0.0"/>
+  <testcase name="commandInjectionAndUrlInputsRejectedBeforeNetwork" classname="com.meetspace.core.ssh.SshInputValidatorTest" time="0.001"/>
+  <testcase name="canonicalHostDomainAndIpv6ProduceStableEndpoint" classname="com.meetspace.core.ssh.SshInputValidatorTest" time="0.018"/>
+  <testcase name="credentialDescriptionIsRedactedAndDestructionZeroesBuffers" classname="com.meetspace.core.ssh.SshInputValidatorTest" time="0.0"/>
+  <testcase name="probeCommandOnlyHasValidatedArguments" classname="com.meetspace.core.ssh.SshInputValidatorTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

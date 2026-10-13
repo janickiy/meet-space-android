@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "label": "baseline",
+  "method": "activity-recording",
+  "sdk": 36,
+  "pageSize": 4096,
+  "abi": "arm64-v8a",
+  "versionName": "0.8.0",
+  "samples": [],
+  "hprofs": [],
+  "captureStarted": false,
+  "interpretation": "GC and RSS are observations; retained-reference paths and trends require independent analysis",
+  "warmupCycles": 3,
+  "measuredCycles": 20,
+  "completedCycles": 0,
+  "status": "failed",
+  "failureType": "AssertionError"
+}

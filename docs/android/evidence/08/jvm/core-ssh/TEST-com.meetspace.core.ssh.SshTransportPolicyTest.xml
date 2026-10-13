@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.meetspace.core.ssh.SshTransportPolicyTest" tests="20" skipped="0" failures="0" errors="0" timestamp="2026-10-11T14:58:28.813Z" hostname="MacBook-Air-janickiy.local" time="0.457">
+  <properties/>
+  <testcase name="storageWriteFailureDoesNotCreateTrust" classname="com.meetspace.core.ssh.SshTransportPolicyTest" time="0.003"/>
+  <testcase name="cancellationClosesActualTcpSocketDuringStalledHandshake" classname="com.meetspace.core.ssh.SshTransportPolicyTest" time="0.319"/>
+  <testcase name="callerCancellationPropagatesAndClearsKeyAndPassphrase" classname="com.meetspace.core.ssh.SshTransportPolicyTest" time="0.064"/>
+  <testcase name="storageFailurePreventsAuthenticationAndClearsSecrets" classname="com.meetspace.core.ssh.SshTransportPolicyTest" time="0.001"/>
+  <testcase name="pinnedCallbackOnlyAcceptsExactKeyAndExactHostAndPort" classname="com.meetspace.core.ssh.SshTransportPolicyTest" time="0.001"/>
+  <testcase name="changedHostRejectsPreflightBeforeAuthenticationAndDestroysKey" classname="com.meetspace.core.ssh.SshTransportPolicyTest" time="0.001"/>
+  <testcase name="stdoutAndDiscardedStderrAreBothBounded" classname="com.meetspace.core.ssh.SshTransportPolicyTest" time="0.0"/>
+  <testcase name="inspectKnownHostAlsoNeverCallsAuthentication" classname="com.meetspace.core.ssh.SshTransportPolicyTest" time="0.0"/>
+  <testcase name="inspectNewHostNeverCallsAuthentication" classname="com.meetspace.core.ssh.SshTransportPolicyTest" time="0.001"/>
+  <testcase name="validatedRequestAndExactPinReachTransportAndSecretsAreDestroyedAfterSuccess" classname="com.meetspace.core.ssh.SshTransportPolicyTest" time="0.001"/>
+  <testcase name="pinIsIsolatedByPortAndHostAndCanonicalizesHostname" classname="com.meetspace.core.ssh.SshTransportPolicyTest" time="0.001"/>
+  <testcase name="unconfirmedHostRejectsPreflightAndDestroysPassword" classname="com.meetspace.core.ssh.SshTransportPolicyTest" time="0.001"/>
+  <testcase name="authenticationFailureUsesSafeTextAndClearsCredentials" classname="com.meetspace.core.ssh.SshTransportPolicyTest" time="0.001"/>
+  <testcase name="inspectionCallbackAbortsBeforeReturningOkEvenWhenPinMatches" classname="com.meetspace.core.ssh.SshTransportPolicyTest" time="0.0"/>
+  <testcase name="inspectReportsChangedKeyWithoutOverwritingPin" classname="com.meetspace.core.ssh.SshTransportPolicyTest" time="0.001"/>
+  <testcase name="changedIdentityCannotBeTrustedAndPublicFingerprintCannotBeForged" classname="com.meetspace.core.ssh.SshTransportPolicyTest" time="0.001"/>
+  <testcase name="trustConfirmationIsAtomicInsertAndCannotReplaceConcurrentPin" classname="com.meetspace.core.ssh.SshTransportPolicyTest" time="0.001"/>
+  <testcase name="forgetDeletesOnlyExactHostAndPort" classname="com.meetspace.core.ssh.SshTransportPolicyTest" time="0.0"/>
+  <testcase name="ownDeadlineReportsTimeoutAndCancelsTransport" classname="com.meetspace.core.ssh.SshTransportPolicyTest" time="0.058"/>
+  <testcase name="invalidInputIsRejectedBeforeTransportAndClearsCredentials" classname="com.meetspace.core.ssh.SshTransportPolicyTest" time="0.002"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

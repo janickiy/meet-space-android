@@ -1,0 +1,42 @@
+{
+  "artifact": "io.github.webrtc-sdk:android:144.7559.15",
+  "aarSha256": "fc7c8d027eb33860ccbb7847988f7f942d44a92d1f575348bba6c0250cde4071",
+  "native": [
+    {
+      "path": "jni/armeabi-v7a/libjingle_peerconnection_so.so",
+      "loadSegmentAlignments": [
+        4096,
+        4096,
+        4096
+      ],
+      "supports16KiB": false
+    },
+    {
+      "path": "jni/arm64-v8a/libjingle_peerconnection_so.so",
+      "loadSegmentAlignments": [
+        16384,
+        16384,
+        16384
+      ],
+      "supports16KiB": true
+    },
+    {
+      "path": "jni/x86_64/libjingle_peerconnection_so.so",
+      "loadSegmentAlignments": [
+        16384,
+        16384,
+        16384
+      ],
+      "supports16KiB": true
+    },
+    {
+      "path": "jni/x86/libjingle_peerconnection_so.so",
+      "loadSegmentAlignments": [
+        4096,
+        4096,
+        4096
+      ],
+      "supports16KiB": false
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.meetspace.core.data.MessagingRepositoryTest" tests="22" skipped="0" failures="0" errors="0" timestamp="2026-10-11T15:16:36.368Z" hostname="MacBook-Air-janickiy.local" time="0.569">
+  <properties/>
+  <testcase name="authenticated download requires exact resource content path" classname="com.meetspace.core.data.MessagingRepositoryTest" time="0.053"/>
+  <testcase name="signed object 401 cannot expire or refresh account session" classname="com.meetspace.core.data.MessagingRepositoryTest" time="0.028"/>
+  <testcase name="validation rejects path injection oversized text and duplicate attachment ids before network" classname="com.meetspace.core.data.MessagingRepositoryTest" time="0.024"/>
+  <testcase name="CSV picker plain text MIME is normalized before init and checksum validation" classname="com.meetspace.core.data.MessagingRepositoryTest" time="0.025"/>
+  <testcase name="push registration response and 204 revocation have no token exposure" classname="com.meetspace.core.data.MessagingRepositoryTest" time="0.022"/>
+  <testcase name="group creation preserves idempotency and never invents management permissions" classname="com.meetspace.core.data.MessagingRepositoryTest" time="0.023"/>
+  <testcase name="message sequence uses full 64 bit string and null attachment list is empty" classname="com.meetspace.core.data.MessagingRepositoryTest" time="0.022"/>
+  <testcase name="notification prefs use raw envelope and preserve external channel settings" classname="com.meetspace.core.data.MessagingRepositoryTest" time="0.023"/>
+  <testcase name="read endpoint uses server message id and returns confirmed unread state" classname="com.meetspace.core.data.MessagingRepositoryTest" time="0.022"/>
+  <testcase name="global event rejects malformed envelope but ignores untrusted message text" classname="com.meetspace.core.data.MessagingRepositoryTest" time="0.016"/>
+  <testcase name="download rejects insecure URL redirect size mismatch and incorrect digest" classname="com.meetspace.core.data.MessagingRepositoryTest" time="0.027"/>
+  <testcase name="signed attachment download never forwards bearer or cookies even on same origin" classname="com.meetspace.core.data.MessagingRepositoryTest" time="0.022"/>
+  <testcase name="notifications are account bound and cursor uses its own parameter" classname="com.meetspace.core.data.MessagingRepositoryTest" time="0.024"/>
+  <testcase name="global socket uses only ticket without conference subprotocol and closes on logout" classname="com.meetspace.core.data.MessagingRepositoryTest" time="0.026"/>
+  <testcase name="signed cross origin HTTPS download retains hostname verification without sending JWT" classname="com.meetspace.core.data.MessagingRepositoryTest" time="0.03"/>
+  <testcase name="stable request id is retained for repeated sends with reply and attachments" classname="com.meetspace.core.data.MessagingRepositoryTest" time="0.035"/>
+  <testcase name="folder candidate filters preserve mixed kinds and membership" classname="com.meetspace.core.data.MessagingRepositoryTest" time="0.026"/>
+  <testcase name="message response cannot substitute account or scope" classname="com.meetspace.core.data.MessagingRepositoryTest" time="0.024"/>
+  <testcase name="foreign conversation message in a history page is rejected" classname="com.meetspace.core.data.MessagingRepositoryTest" time="0.025"/>
+  <testcase name="conversation filters and cursor are encoded and bearer is scoped without cookie" classname="com.meetspace.core.data.MessagingRepositoryTest" time="0.023"/>
+  <testcase name="attachment upload uses trusted constructed path and checks digest after finalize" classname="com.meetspace.core.data.MessagingRepositoryTest" time="0.024"/>
+  <testcase name="server supplied foreign upload URL never receives file or token" classname="com.meetspace.core.data.MessagingRepositoryTest" time="0.024"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

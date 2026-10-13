@@ -1,0 +1,14 @@
+{
+  "label": "call-keyboard-final",
+  "tests": [
+    {
+      "class": "com.meetspace.app.CallKeyboardTest",
+      "test": "commentsKeepFocusAndCanSendAfterTheSoftwareKeyboardResizesTheCall",
+      "status": 0
+    }
+  ],
+  "passed": 1,
+  "failed": 0,
+  "seconds": 2.92,
+  "success": true
+}

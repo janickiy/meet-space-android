@@ -1,0 +1,72 @@
+{
+  "label": "after",
+  "measuredAtUtc": "2026-10-11T16:27:52.858957+00:00",
+  "serial": "emulator-5556",
+  "apkSha256": "b793443b035f9346b403fc650d37bc4a13448bac183226bc143ed9b15727ef2e",
+  "condition": "Explicit Activity start after force-stop; 2 warmup launches excluded, 7 measured; no data clear; first-display TotalTime, not fully-drawn time.",
+  "samples": [
+    {
+      "TotalTime": 1476,
+      "WaitTime": 1480,
+      "iteration": 0,
+      "excludedWarmup": true
+    },
+    {
+      "TotalTime": 1943,
+      "WaitTime": 2018,
+      "iteration": 1,
+      "excludedWarmup": true
+    },
+    {
+      "TotalTime": 1425,
+      "WaitTime": 1452,
+      "iteration": 2,
+      "excludedWarmup": false
+    },
+    {
+      "TotalTime": 1261,
+      "WaitTime": 1263,
+      "iteration": 3,
+      "excludedWarmup": false
+    },
+    {
+      "TotalTime": 1650,
+      "WaitTime": 1661,
+      "iteration": 4,
+      "excludedWarmup": false
+    },
+    {
+      "TotalTime": 1228,
+      "WaitTime": 1246,
+      "iteration": 5,
+      "excludedWarmup": false
+    },
+    {
+      "TotalTime": 1309,
+      "WaitTime": 1310,
+      "iteration": 6,
+      "excludedWarmup": false
+    },
+    {
+      "TotalTime": 1595,
+      "WaitTime": 1621,
+      "iteration": 7,
+      "excludedWarmup": false
+    },
+    {
+      "TotalTime": 2732,
+      "WaitTime": 2754,
+      "iteration": 8,
+      "excludedWarmup": false
+    }
+  ],
+  "totalTimeMs": {
+    "median": 1425,
+    "min": 1228,
+    "max": 2732
+  },
+  "fingerprint": "Android/sdk_phone64_arm64/emu64a:16/BE2A.250530.026.D1/13818094:userdebug/test-keys",
+  "pageSize": 4096,
+  "physicalDeviceBattery": "not measured",
+  "networkRequests": "not measured by this startup command"
+}

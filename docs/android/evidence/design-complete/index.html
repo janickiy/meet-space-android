@@ -1,0 +1,1024 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>MeetSpace — QA-галерея Android</title>
+<style>
+:root { color-scheme:light; --bg:#f5f2f6; --surface:#fff; --text:#28222e; --muted:#6a6072; --line:#dfd8e3; --accent:#704780; --well:#eae5ed; }
+@media(prefers-color-scheme:dark) { :root { color-scheme:dark; --bg:#141416; --surface:#222225; --text:#f2eef4; --muted:#b4aab9; --line:#3b343f; --accent:#c99bdf; --well:#19171c; } }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--text); font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; }
+main { max-width:1440px; margin:auto; padding:36px 28px 64px; }
+header { max-width:880px; margin-bottom:26px; }
+.eyebrow { color:var(--accent); font-size:12px; font-weight:700; letter-spacing:.09em; }
+h1 { margin:7px 0 12px; font-size:clamp(26px,4vw,40px); line-height:1.15; letter-spacing:-.04em; }
+p { margin:8px 0; }
+.note { color:var(--muted); }
+.controls { display:flex; align-items:flex-end; flex-wrap:wrap; gap:16px; padding:20px; border:1px solid var(--line); border-radius:18px; background:var(--surface); }
+label { display:grid; gap:7px; font-size:12px; font-weight:600; color:var(--muted); min-width:170px; }
+label:first-child { flex:1; max-width:440px; min-width:220px; }
+select,button { color:var(--text); font:inherit; background:var(--surface); border:1px solid var(--line); border-radius:10px; min-height:44px; padding:9px 12px; }
+select { font-size:14px; width:100%; }
+button { cursor:pointer; }
+button:hover { border-color:var(--accent); }
+:focus-visible { outline:3px solid var(--accent); outline-offset:4px; }
+#status { margin:20px 2px; color:var(--muted); font-size:13px; }
+.grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:22px; align-items:start; }
+.capture { overflow:hidden; padding:16px; border:1px solid var(--line); border-radius:18px; background:var(--surface); min-width:0; }
+.capture.tablet { grid-column:span 2; }
+.capture-title { display:flex; align-items:baseline; flex-wrap:wrap; justify-content:space-between; gap:4px 12px; margin-bottom:14px; }
+h3 { font-size:15px; margin:0; }
+.capture-title span { color:var(--muted); font-size:12px; }
+.preview { display:flex; align-items:center; justify-content:center; min-height:260px; background:var(--well); border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+.preview img { display:block; width:100%; height:auto; object-fit:contain; }
+.phone .preview img { max-width:300px; }
+.tablet .preview { min-height:0; }
+.capture-meta { margin:14px 0 8px; display:flex; flex-direction:column; gap:3px; font-size:12px; color:var(--muted); }
+.capture-meta strong { color:var(--text); }
+a { color:var(--accent); text-underline-offset:3px; }
+.original { font-size:12px; }
+#empty { border:1px dashed var(--line); border-radius:16px; padding:32px; text-align:center; }
+footer { margin-top:36px; padding-top:20px; border-top:1px solid var(--line); color:var(--muted); font-size:12px; }
+code { overflow-wrap:anywhere; }
+[hidden] { display:none !important; }
+@media(max-width:1100px) { .grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; } }
+@media(max-width:780px) { .grid { grid-template-columns:repeat(2,minmax(0,1fr)); } main { padding:24px 18px 44px; } .controls { padding:16px; } }
+@media(max-width:480px) { .grid { grid-template-columns:minmax(0,1fr); } .capture.tablet { grid-column:span 1; } label,label:first-child { flex:1 1 100%; min-width:0; max-width:none; } }
+</style>
+</head>
+<body>
+<main>
+<header>
+  <div class="eyebrow">MEETSPACE / ANDROID / QA</div>
+  <h1>Галерея проверочных снимков</h1>
+  <p>Сравнение экранов телефона и планшета в светлой и тёмной теме.</p>
+  <p class="note">Снимки содержат <strong>тестовые данные</strong>. Это QA-галерея, а не само приложение. Размеры превью адаптируются к странице; полный PNG доступен по ссылке под каждым снимком.</p>
+</header>
+<form class="controls" id="filters">
+  <label>Раздел<select id="screen"><option value="all">Все разделы</option><option value="home">Главная · 7</option><option value="calls">Звонки · 7</option><option value="calendar">Календарь · 7</option><option value="meetings">Все встречи · 7</option><option value="schedule">Планирование встречи · 7</option><option value="messages">Чаты · 7</option><option value="thread">Переписка · 7</option><option value="profile">Профиль · 7</option><option value="recordings">Записи · 7</option><option value="recording-detail">Просмотр записи · 7</option><option value="prejoin">Перед звонком · 7</option><option value="call">Видеозвонок · 8</option><option value="welcome">Приветствие · 3</option><option value="connect">Подключение пространства · 3</option><option value="login">Авторизация · 3</option><option value="deploy">Подключение VPS · 3</option><option value="hostkey">Проверка ключа SSH · 3</option><option value="sshauth">Авторизация SSH · 3</option><option value="preflight">Проверка сервера · 3</option><option value="install">Установка · 3</option><option value="complete">Установка завершена · 3</option><option value="installerror">Восстановление установки · 3</option></select></label>
+  <label>Тема<select id="theme"><option value="all">Все темы</option><option value="light">Светлая</option><option value="dark">Тёмная</option></select></label>
+  <label>Устройство<select id="device"><option value="all">Все устройства</option><option value="phone">Телефон</option><option value="tablet">Планшет</option></select></label>
+  <button type="reset">Сбросить</button>
+</form>
+<p id="status" role="status">Всего снимков: 115.</p>
+<noscript><p>Для фильтрации включите JavaScript. Все снимки и ссылки на оригиналы доступны ниже.</p></noscript>
+<section class="grid" id="gallery" aria-label="Снимки интерфейса">
+<article class="capture phone" data-screen="home" data-theme="dark" data-device="phone">
+  <div class="capture-title"><h3>Главная</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/home-dark-390x844-font1.0.png" target="_blank" rel="noopener" aria-label="Главная, тёмная тема, телефон, 390×844 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/home-dark-390x844-font1.0.png" alt="Главная, тёмная тема, телефон, 390×844 · шрифт 1.0. Тестовые данные." width="390" height="844" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>390×844 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/home-dark-390x844-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 390×844 px ↗</a>
+</article>
+<article class="capture phone" data-screen="home" data-theme="dark" data-device="phone">
+  <div class="capture-title"><h3>Главная</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/home-dark-430x932-font1.5.png" target="_blank" rel="noopener" aria-label="Главная, тёмная тема, телефон, 430×932 · шрифт 1.5. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/home-dark-430x932-font1.5.png" alt="Главная, тёмная тема, телефон, 430×932 · шрифт 1.5. Тестовые данные." width="430" height="932" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>430×932 · шрифт 1.5</span></div>
+  <a class="original" href="screenshots/home-dark-430x932-font1.5.png" target="_blank" rel="noopener">Полный оригинал · 430×932 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="home" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Главная</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/home-dark-780x800-font1.0.png" target="_blank" rel="noopener" aria-label="Главная, тёмная тема, планшет, 780×800 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/home-dark-780x800-font1.0.png" alt="Главная, тёмная тема, планшет, 780×800 · шрифт 1.0. Тестовые данные." width="780" height="800" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>780×800 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/home-dark-780x800-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 780×800 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="home" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Главная</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/home-dark-834x1112-font1.0.png" target="_blank" rel="noopener" aria-label="Главная, тёмная тема, планшет, 834×1112 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/home-dark-834x1112-font1.0.png" alt="Главная, тёмная тема, планшет, 834×1112 · шрифт 1.0. Тестовые данные." width="834" height="1112" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>834×1112 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/home-dark-834x1112-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 834×1112 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="home" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Главная</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/home-dark-1194x834-font1.0.png" target="_blank" rel="noopener" aria-label="Главная, тёмная тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/home-dark-1194x834-font1.0.png" alt="Главная, тёмная тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные." width="1194" height="834" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>1194×834 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/home-dark-1194x834-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 1194×834 px ↗</a>
+</article>
+<article class="capture phone" data-screen="home" data-theme="light" data-device="phone">
+  <div class="capture-title"><h3>Главная</h3><span>Светлая</span></div>
+  <a class="preview" href="screenshots/home-light-430x932-font1.0.png" target="_blank" rel="noopener" aria-label="Главная, светлая тема, телефон, 430×932 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/home-light-430x932-font1.0.png" alt="Главная, светлая тема, телефон, 430×932 · шрифт 1.0. Тестовые данные." width="430" height="932" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>430×932 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/home-light-430x932-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 430×932 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="home" data-theme="light" data-device="tablet">
+  <div class="capture-title"><h3>Главная</h3><span>Светлая</span></div>
+  <a class="preview" href="screenshots/home-light-1194x834-font1.0.png" target="_blank" rel="noopener" aria-label="Главная, светлая тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/home-light-1194x834-font1.0.png" alt="Главная, светлая тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные." width="1194" height="834" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>1194×834 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/home-light-1194x834-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 1194×834 px ↗</a>
+</article>
+<article class="capture phone" data-screen="calls" data-theme="dark" data-device="phone">
+  <div class="capture-title"><h3>Звонки</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/calls-dark-390x844-font1.0.png" target="_blank" rel="noopener" aria-label="Звонки, тёмная тема, телефон, 390×844 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/calls-dark-390x844-font1.0.png" alt="Звонки, тёмная тема, телефон, 390×844 · шрифт 1.0. Тестовые данные." width="390" height="844" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>390×844 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/calls-dark-390x844-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 390×844 px ↗</a>
+</article>
+<article class="capture phone" data-screen="calls" data-theme="dark" data-device="phone">
+  <div class="capture-title"><h3>Звонки</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/calls-dark-430x932-font1.5.png" target="_blank" rel="noopener" aria-label="Звонки, тёмная тема, телефон, 430×932 · шрифт 1.5. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/calls-dark-430x932-font1.5.png" alt="Звонки, тёмная тема, телефон, 430×932 · шрифт 1.5. Тестовые данные." width="430" height="932" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>430×932 · шрифт 1.5</span></div>
+  <a class="original" href="screenshots/calls-dark-430x932-font1.5.png" target="_blank" rel="noopener">Полный оригинал · 430×932 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="calls" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Звонки</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/calls-dark-780x800-font1.0.png" target="_blank" rel="noopener" aria-label="Звонки, тёмная тема, планшет, 780×800 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/calls-dark-780x800-font1.0.png" alt="Звонки, тёмная тема, планшет, 780×800 · шрифт 1.0. Тестовые данные." width="780" height="800" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>780×800 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/calls-dark-780x800-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 780×800 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="calls" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Звонки</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/calls-dark-834x1112-font1.0.png" target="_blank" rel="noopener" aria-label="Звонки, тёмная тема, планшет, 834×1112 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/calls-dark-834x1112-font1.0.png" alt="Звонки, тёмная тема, планшет, 834×1112 · шрифт 1.0. Тестовые данные." width="834" height="1112" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>834×1112 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/calls-dark-834x1112-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 834×1112 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="calls" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Звонки</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/calls-dark-1194x834-font1.0.png" target="_blank" rel="noopener" aria-label="Звонки, тёмная тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/calls-dark-1194x834-font1.0.png" alt="Звонки, тёмная тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные." width="1194" height="834" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>1194×834 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/calls-dark-1194x834-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 1194×834 px ↗</a>
+</article>
+<article class="capture phone" data-screen="calls" data-theme="light" data-device="phone">
+  <div class="capture-title"><h3>Звонки</h3><span>Светлая</span></div>
+  <a class="preview" href="screenshots/calls-light-430x932-font1.0.png" target="_blank" rel="noopener" aria-label="Звонки, светлая тема, телефон, 430×932 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/calls-light-430x932-font1.0.png" alt="Звонки, светлая тема, телефон, 430×932 · шрифт 1.0. Тестовые данные." width="430" height="932" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>430×932 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/calls-light-430x932-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 430×932 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="calls" data-theme="light" data-device="tablet">
+  <div class="capture-title"><h3>Звонки</h3><span>Светлая</span></div>
+  <a class="preview" href="screenshots/calls-light-1194x834-font1.0.png" target="_blank" rel="noopener" aria-label="Звонки, светлая тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/calls-light-1194x834-font1.0.png" alt="Звонки, светлая тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные." width="1194" height="834" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>1194×834 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/calls-light-1194x834-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 1194×834 px ↗</a>
+</article>
+<article class="capture phone" data-screen="calendar" data-theme="dark" data-device="phone">
+  <div class="capture-title"><h3>Календарь</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/calendar-dark-390x844-font1.0.png" target="_blank" rel="noopener" aria-label="Календарь, тёмная тема, телефон, 390×844 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/calendar-dark-390x844-font1.0.png" alt="Календарь, тёмная тема, телефон, 390×844 · шрифт 1.0. Тестовые данные." width="390" height="844" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>390×844 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/calendar-dark-390x844-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 390×844 px ↗</a>
+</article>
+<article class="capture phone" data-screen="calendar" data-theme="dark" data-device="phone">
+  <div class="capture-title"><h3>Календарь</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/calendar-dark-430x932-font1.5.png" target="_blank" rel="noopener" aria-label="Календарь, тёмная тема, телефон, 430×932 · шрифт 1.5. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/calendar-dark-430x932-font1.5.png" alt="Календарь, тёмная тема, телефон, 430×932 · шрифт 1.5. Тестовые данные." width="430" height="932" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>430×932 · шрифт 1.5</span></div>
+  <a class="original" href="screenshots/calendar-dark-430x932-font1.5.png" target="_blank" rel="noopener">Полный оригинал · 430×932 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="calendar" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Календарь</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/calendar-dark-780x800-font1.0.png" target="_blank" rel="noopener" aria-label="Календарь, тёмная тема, планшет, 780×800 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/calendar-dark-780x800-font1.0.png" alt="Календарь, тёмная тема, планшет, 780×800 · шрифт 1.0. Тестовые данные." width="780" height="800" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>780×800 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/calendar-dark-780x800-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 780×800 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="calendar" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Календарь</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/calendar-dark-834x1112-font1.0.png" target="_blank" rel="noopener" aria-label="Календарь, тёмная тема, планшет, 834×1112 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/calendar-dark-834x1112-font1.0.png" alt="Календарь, тёмная тема, планшет, 834×1112 · шрифт 1.0. Тестовые данные." width="834" height="1112" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>834×1112 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/calendar-dark-834x1112-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 834×1112 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="calendar" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Календарь</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/calendar-dark-1194x834-font1.0.png" target="_blank" rel="noopener" aria-label="Календарь, тёмная тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/calendar-dark-1194x834-font1.0.png" alt="Календарь, тёмная тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные." width="1194" height="834" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>1194×834 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/calendar-dark-1194x834-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 1194×834 px ↗</a>
+</article>
+<article class="capture phone" data-screen="calendar" data-theme="light" data-device="phone">
+  <div class="capture-title"><h3>Календарь</h3><span>Светлая</span></div>
+  <a class="preview" href="screenshots/calendar-light-430x932-font1.0.png" target="_blank" rel="noopener" aria-label="Календарь, светлая тема, телефон, 430×932 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/calendar-light-430x932-font1.0.png" alt="Календарь, светлая тема, телефон, 430×932 · шрифт 1.0. Тестовые данные." width="430" height="932" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>430×932 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/calendar-light-430x932-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 430×932 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="calendar" data-theme="light" data-device="tablet">
+  <div class="capture-title"><h3>Календарь</h3><span>Светлая</span></div>
+  <a class="preview" href="screenshots/calendar-light-1194x834-font1.0.png" target="_blank" rel="noopener" aria-label="Календарь, светлая тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/calendar-light-1194x834-font1.0.png" alt="Календарь, светлая тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные." width="1194" height="834" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>1194×834 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/calendar-light-1194x834-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 1194×834 px ↗</a>
+</article>
+<article class="capture phone" data-screen="meetings" data-theme="dark" data-device="phone">
+  <div class="capture-title"><h3>Все встречи</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/meetings-dark-390x844-font1.0.png" target="_blank" rel="noopener" aria-label="Все встречи, тёмная тема, телефон, 390×844 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/meetings-dark-390x844-font1.0.png" alt="Все встречи, тёмная тема, телефон, 390×844 · шрифт 1.0. Тестовые данные." width="390" height="844" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>390×844 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/meetings-dark-390x844-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 390×844 px ↗</a>
+</article>
+<article class="capture phone" data-screen="meetings" data-theme="dark" data-device="phone">
+  <div class="capture-title"><h3>Все встречи</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/meetings-dark-430x932-font1.5.png" target="_blank" rel="noopener" aria-label="Все встречи, тёмная тема, телефон, 430×932 · шрифт 1.5. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/meetings-dark-430x932-font1.5.png" alt="Все встречи, тёмная тема, телефон, 430×932 · шрифт 1.5. Тестовые данные." width="430" height="932" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>430×932 · шрифт 1.5</span></div>
+  <a class="original" href="screenshots/meetings-dark-430x932-font1.5.png" target="_blank" rel="noopener">Полный оригинал · 430×932 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="meetings" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Все встречи</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/meetings-dark-780x800-font1.0.png" target="_blank" rel="noopener" aria-label="Все встречи, тёмная тема, планшет, 780×800 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/meetings-dark-780x800-font1.0.png" alt="Все встречи, тёмная тема, планшет, 780×800 · шрифт 1.0. Тестовые данные." width="780" height="800" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>780×800 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/meetings-dark-780x800-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 780×800 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="meetings" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Все встречи</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/meetings-dark-834x1112-font1.0.png" target="_blank" rel="noopener" aria-label="Все встречи, тёмная тема, планшет, 834×1112 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/meetings-dark-834x1112-font1.0.png" alt="Все встречи, тёмная тема, планшет, 834×1112 · шрифт 1.0. Тестовые данные." width="834" height="1112" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>834×1112 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/meetings-dark-834x1112-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 834×1112 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="meetings" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Все встречи</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/meetings-dark-1194x834-font1.0.png" target="_blank" rel="noopener" aria-label="Все встречи, тёмная тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/meetings-dark-1194x834-font1.0.png" alt="Все встречи, тёмная тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные." width="1194" height="834" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>1194×834 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/meetings-dark-1194x834-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 1194×834 px ↗</a>
+</article>
+<article class="capture phone" data-screen="meetings" data-theme="light" data-device="phone">
+  <div class="capture-title"><h3>Все встречи</h3><span>Светлая</span></div>
+  <a class="preview" href="screenshots/meetings-light-430x932-font1.0.png" target="_blank" rel="noopener" aria-label="Все встречи, светлая тема, телефон, 430×932 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/meetings-light-430x932-font1.0.png" alt="Все встречи, светлая тема, телефон, 430×932 · шрифт 1.0. Тестовые данные." width="430" height="932" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>430×932 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/meetings-light-430x932-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 430×932 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="meetings" data-theme="light" data-device="tablet">
+  <div class="capture-title"><h3>Все встречи</h3><span>Светлая</span></div>
+  <a class="preview" href="screenshots/meetings-light-1194x834-font1.0.png" target="_blank" rel="noopener" aria-label="Все встречи, светлая тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/meetings-light-1194x834-font1.0.png" alt="Все встречи, светлая тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные." width="1194" height="834" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>1194×834 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/meetings-light-1194x834-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 1194×834 px ↗</a>
+</article>
+<article class="capture phone" data-screen="schedule" data-theme="dark" data-device="phone">
+  <div class="capture-title"><h3>Планирование встречи</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/schedule-dark-390x844-font1.0.png" target="_blank" rel="noopener" aria-label="Планирование встречи, тёмная тема, телефон, 390×844 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/schedule-dark-390x844-font1.0.png" alt="Планирование встречи, тёмная тема, телефон, 390×844 · шрифт 1.0. Тестовые данные." width="390" height="844" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>390×844 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/schedule-dark-390x844-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 390×844 px ↗</a>
+</article>
+<article class="capture phone" data-screen="schedule" data-theme="dark" data-device="phone">
+  <div class="capture-title"><h3>Планирование встречи</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/schedule-dark-430x932-font1.5.png" target="_blank" rel="noopener" aria-label="Планирование встречи, тёмная тема, телефон, 430×932 · шрифт 1.5. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/schedule-dark-430x932-font1.5.png" alt="Планирование встречи, тёмная тема, телефон, 430×932 · шрифт 1.5. Тестовые данные." width="430" height="932" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>430×932 · шрифт 1.5</span></div>
+  <a class="original" href="screenshots/schedule-dark-430x932-font1.5.png" target="_blank" rel="noopener">Полный оригинал · 430×932 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="schedule" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Планирование встречи</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/schedule-dark-780x800-font1.0.png" target="_blank" rel="noopener" aria-label="Планирование встречи, тёмная тема, планшет, 780×800 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/schedule-dark-780x800-font1.0.png" alt="Планирование встречи, тёмная тема, планшет, 780×800 · шрифт 1.0. Тестовые данные." width="780" height="800" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>780×800 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/schedule-dark-780x800-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 780×800 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="schedule" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Планирование встречи</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/schedule-dark-834x1112-font1.0.png" target="_blank" rel="noopener" aria-label="Планирование встречи, тёмная тема, планшет, 834×1112 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/schedule-dark-834x1112-font1.0.png" alt="Планирование встречи, тёмная тема, планшет, 834×1112 · шрифт 1.0. Тестовые данные." width="834" height="1112" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>834×1112 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/schedule-dark-834x1112-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 834×1112 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="schedule" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Планирование встречи</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/schedule-dark-1194x834-font1.0.png" target="_blank" rel="noopener" aria-label="Планирование встречи, тёмная тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/schedule-dark-1194x834-font1.0.png" alt="Планирование встречи, тёмная тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные." width="1194" height="834" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>1194×834 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/schedule-dark-1194x834-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 1194×834 px ↗</a>
+</article>
+<article class="capture phone" data-screen="schedule" data-theme="light" data-device="phone">
+  <div class="capture-title"><h3>Планирование встречи</h3><span>Светлая</span></div>
+  <a class="preview" href="screenshots/schedule-light-430x932-font1.0.png" target="_blank" rel="noopener" aria-label="Планирование встречи, светлая тема, телефон, 430×932 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/schedule-light-430x932-font1.0.png" alt="Планирование встречи, светлая тема, телефон, 430×932 · шрифт 1.0. Тестовые данные." width="430" height="932" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>430×932 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/schedule-light-430x932-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 430×932 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="schedule" data-theme="light" data-device="tablet">
+  <div class="capture-title"><h3>Планирование встречи</h3><span>Светлая</span></div>
+  <a class="preview" href="screenshots/schedule-light-1194x834-font1.0.png" target="_blank" rel="noopener" aria-label="Планирование встречи, светлая тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/schedule-light-1194x834-font1.0.png" alt="Планирование встречи, светлая тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные." width="1194" height="834" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>1194×834 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/schedule-light-1194x834-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 1194×834 px ↗</a>
+</article>
+<article class="capture phone" data-screen="messages" data-theme="dark" data-device="phone">
+  <div class="capture-title"><h3>Чаты</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/messages-dark-390x844-font1.0.png" target="_blank" rel="noopener" aria-label="Чаты, тёмная тема, телефон, 390×844 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/messages-dark-390x844-font1.0.png" alt="Чаты, тёмная тема, телефон, 390×844 · шрифт 1.0. Тестовые данные." width="390" height="844" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>390×844 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/messages-dark-390x844-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 390×844 px ↗</a>
+</article>
+<article class="capture phone" data-screen="messages" data-theme="dark" data-device="phone">
+  <div class="capture-title"><h3>Чаты</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/messages-dark-430x932-font1.5.png" target="_blank" rel="noopener" aria-label="Чаты, тёмная тема, телефон, 430×932 · шрифт 1.5. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/messages-dark-430x932-font1.5.png" alt="Чаты, тёмная тема, телефон, 430×932 · шрифт 1.5. Тестовые данные." width="430" height="932" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>430×932 · шрифт 1.5</span></div>
+  <a class="original" href="screenshots/messages-dark-430x932-font1.5.png" target="_blank" rel="noopener">Полный оригинал · 430×932 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="messages" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Чаты</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/messages-dark-780x800-font1.0.png" target="_blank" rel="noopener" aria-label="Чаты, тёмная тема, планшет, 780×800 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/messages-dark-780x800-font1.0.png" alt="Чаты, тёмная тема, планшет, 780×800 · шрифт 1.0. Тестовые данные." width="780" height="800" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>780×800 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/messages-dark-780x800-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 780×800 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="messages" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Чаты</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/messages-dark-834x1112-font1.0.png" target="_blank" rel="noopener" aria-label="Чаты, тёмная тема, планшет, 834×1112 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/messages-dark-834x1112-font1.0.png" alt="Чаты, тёмная тема, планшет, 834×1112 · шрифт 1.0. Тестовые данные." width="834" height="1112" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>834×1112 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/messages-dark-834x1112-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 834×1112 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="messages" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Чаты</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/messages-dark-1194x834-font1.0.png" target="_blank" rel="noopener" aria-label="Чаты, тёмная тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/messages-dark-1194x834-font1.0.png" alt="Чаты, тёмная тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные." width="1194" height="834" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>1194×834 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/messages-dark-1194x834-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 1194×834 px ↗</a>
+</article>
+<article class="capture phone" data-screen="messages" data-theme="light" data-device="phone">
+  <div class="capture-title"><h3>Чаты</h3><span>Светлая</span></div>
+  <a class="preview" href="screenshots/messages-light-430x932-font1.0.png" target="_blank" rel="noopener" aria-label="Чаты, светлая тема, телефон, 430×932 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/messages-light-430x932-font1.0.png" alt="Чаты, светлая тема, телефон, 430×932 · шрифт 1.0. Тестовые данные." width="430" height="932" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>430×932 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/messages-light-430x932-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 430×932 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="messages" data-theme="light" data-device="tablet">
+  <div class="capture-title"><h3>Чаты</h3><span>Светлая</span></div>
+  <a class="preview" href="screenshots/messages-light-1194x834-font1.0.png" target="_blank" rel="noopener" aria-label="Чаты, светлая тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/messages-light-1194x834-font1.0.png" alt="Чаты, светлая тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные." width="1194" height="834" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>1194×834 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/messages-light-1194x834-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 1194×834 px ↗</a>
+</article>
+<article class="capture phone" data-screen="thread" data-theme="dark" data-device="phone">
+  <div class="capture-title"><h3>Переписка</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/thread-dark-390x844-font1.0.png" target="_blank" rel="noopener" aria-label="Переписка, тёмная тема, телефон, 390×844 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/thread-dark-390x844-font1.0.png" alt="Переписка, тёмная тема, телефон, 390×844 · шрифт 1.0. Тестовые данные." width="390" height="844" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>390×844 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/thread-dark-390x844-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 390×844 px ↗</a>
+</article>
+<article class="capture phone" data-screen="thread" data-theme="dark" data-device="phone">
+  <div class="capture-title"><h3>Переписка</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/thread-dark-430x932-font1.5.png" target="_blank" rel="noopener" aria-label="Переписка, тёмная тема, телефон, 430×932 · шрифт 1.5. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/thread-dark-430x932-font1.5.png" alt="Переписка, тёмная тема, телефон, 430×932 · шрифт 1.5. Тестовые данные." width="430" height="932" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>430×932 · шрифт 1.5</span></div>
+  <a class="original" href="screenshots/thread-dark-430x932-font1.5.png" target="_blank" rel="noopener">Полный оригинал · 430×932 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="thread" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Переписка</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/thread-dark-780x800-font1.0.png" target="_blank" rel="noopener" aria-label="Переписка, тёмная тема, планшет, 780×800 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/thread-dark-780x800-font1.0.png" alt="Переписка, тёмная тема, планшет, 780×800 · шрифт 1.0. Тестовые данные." width="780" height="800" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>780×800 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/thread-dark-780x800-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 780×800 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="thread" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Переписка</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/thread-dark-834x1112-font1.0.png" target="_blank" rel="noopener" aria-label="Переписка, тёмная тема, планшет, 834×1112 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/thread-dark-834x1112-font1.0.png" alt="Переписка, тёмная тема, планшет, 834×1112 · шрифт 1.0. Тестовые данные." width="834" height="1112" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>834×1112 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/thread-dark-834x1112-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 834×1112 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="thread" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Переписка</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/thread-dark-1194x834-font1.0.png" target="_blank" rel="noopener" aria-label="Переписка, тёмная тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/thread-dark-1194x834-font1.0.png" alt="Переписка, тёмная тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные." width="1194" height="834" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>1194×834 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/thread-dark-1194x834-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 1194×834 px ↗</a>
+</article>
+<article class="capture phone" data-screen="thread" data-theme="light" data-device="phone">
+  <div class="capture-title"><h3>Переписка</h3><span>Светлая</span></div>
+  <a class="preview" href="screenshots/thread-light-430x932-font1.0.png" target="_blank" rel="noopener" aria-label="Переписка, светлая тема, телефон, 430×932 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/thread-light-430x932-font1.0.png" alt="Переписка, светлая тема, телефон, 430×932 · шрифт 1.0. Тестовые данные." width="430" height="932" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>430×932 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/thread-light-430x932-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 430×932 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="thread" data-theme="light" data-device="tablet">
+  <div class="capture-title"><h3>Переписка</h3><span>Светлая</span></div>
+  <a class="preview" href="screenshots/thread-light-1194x834-font1.0.png" target="_blank" rel="noopener" aria-label="Переписка, светлая тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/thread-light-1194x834-font1.0.png" alt="Переписка, светлая тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные." width="1194" height="834" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>1194×834 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/thread-light-1194x834-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 1194×834 px ↗</a>
+</article>
+<article class="capture phone" data-screen="profile" data-theme="dark" data-device="phone">
+  <div class="capture-title"><h3>Профиль</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/profile-dark-390x844-font1.0.png" target="_blank" rel="noopener" aria-label="Профиль, тёмная тема, телефон, 390×844 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/profile-dark-390x844-font1.0.png" alt="Профиль, тёмная тема, телефон, 390×844 · шрифт 1.0. Тестовые данные." width="390" height="844" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>390×844 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/profile-dark-390x844-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 390×844 px ↗</a>
+</article>
+<article class="capture phone" data-screen="profile" data-theme="dark" data-device="phone">
+  <div class="capture-title"><h3>Профиль</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/profile-dark-430x932-font1.5.png" target="_blank" rel="noopener" aria-label="Профиль, тёмная тема, телефон, 430×932 · шрифт 1.5. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/profile-dark-430x932-font1.5.png" alt="Профиль, тёмная тема, телефон, 430×932 · шрифт 1.5. Тестовые данные." width="430" height="932" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>430×932 · шрифт 1.5</span></div>
+  <a class="original" href="screenshots/profile-dark-430x932-font1.5.png" target="_blank" rel="noopener">Полный оригинал · 430×932 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="profile" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Профиль</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/profile-dark-780x800-font1.0.png" target="_blank" rel="noopener" aria-label="Профиль, тёмная тема, планшет, 780×800 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/profile-dark-780x800-font1.0.png" alt="Профиль, тёмная тема, планшет, 780×800 · шрифт 1.0. Тестовые данные." width="780" height="800" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>780×800 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/profile-dark-780x800-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 780×800 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="profile" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Профиль</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/profile-dark-834x1112-font1.0.png" target="_blank" rel="noopener" aria-label="Профиль, тёмная тема, планшет, 834×1112 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/profile-dark-834x1112-font1.0.png" alt="Профиль, тёмная тема, планшет, 834×1112 · шрифт 1.0. Тестовые данные." width="834" height="1112" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>834×1112 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/profile-dark-834x1112-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 834×1112 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="profile" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Профиль</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/profile-dark-1194x834-font1.0.png" target="_blank" rel="noopener" aria-label="Профиль, тёмная тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/profile-dark-1194x834-font1.0.png" alt="Профиль, тёмная тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные." width="1194" height="834" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>1194×834 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/profile-dark-1194x834-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 1194×834 px ↗</a>
+</article>
+<article class="capture phone" data-screen="profile" data-theme="light" data-device="phone">
+  <div class="capture-title"><h3>Профиль</h3><span>Светлая</span></div>
+  <a class="preview" href="screenshots/profile-light-430x932-font1.0.png" target="_blank" rel="noopener" aria-label="Профиль, светлая тема, телефон, 430×932 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/profile-light-430x932-font1.0.png" alt="Профиль, светлая тема, телефон, 430×932 · шрифт 1.0. Тестовые данные." width="430" height="932" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>430×932 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/profile-light-430x932-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 430×932 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="profile" data-theme="light" data-device="tablet">
+  <div class="capture-title"><h3>Профиль</h3><span>Светлая</span></div>
+  <a class="preview" href="screenshots/profile-light-1194x834-font1.0.png" target="_blank" rel="noopener" aria-label="Профиль, светлая тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/profile-light-1194x834-font1.0.png" alt="Профиль, светлая тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные." width="1194" height="834" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>1194×834 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/profile-light-1194x834-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 1194×834 px ↗</a>
+</article>
+<article class="capture phone" data-screen="recordings" data-theme="dark" data-device="phone">
+  <div class="capture-title"><h3>Записи</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/recordings-dark-390x844-font1.0.png" target="_blank" rel="noopener" aria-label="Записи, тёмная тема, телефон, 390×844 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/recordings-dark-390x844-font1.0.png" alt="Записи, тёмная тема, телефон, 390×844 · шрифт 1.0. Тестовые данные." width="390" height="844" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>390×844 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/recordings-dark-390x844-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 390×844 px ↗</a>
+</article>
+<article class="capture phone" data-screen="recordings" data-theme="dark" data-device="phone">
+  <div class="capture-title"><h3>Записи</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/recordings-dark-430x932-font1.5.png" target="_blank" rel="noopener" aria-label="Записи, тёмная тема, телефон, 430×932 · шрифт 1.5. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/recordings-dark-430x932-font1.5.png" alt="Записи, тёмная тема, телефон, 430×932 · шрифт 1.5. Тестовые данные." width="430" height="932" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>430×932 · шрифт 1.5</span></div>
+  <a class="original" href="screenshots/recordings-dark-430x932-font1.5.png" target="_blank" rel="noopener">Полный оригинал · 430×932 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="recordings" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Записи</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/recordings-dark-780x800-font1.0.png" target="_blank" rel="noopener" aria-label="Записи, тёмная тема, планшет, 780×800 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/recordings-dark-780x800-font1.0.png" alt="Записи, тёмная тема, планшет, 780×800 · шрифт 1.0. Тестовые данные." width="780" height="800" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>780×800 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/recordings-dark-780x800-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 780×800 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="recordings" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Записи</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/recordings-dark-834x1112-font1.0.png" target="_blank" rel="noopener" aria-label="Записи, тёмная тема, планшет, 834×1112 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/recordings-dark-834x1112-font1.0.png" alt="Записи, тёмная тема, планшет, 834×1112 · шрифт 1.0. Тестовые данные." width="834" height="1112" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>834×1112 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/recordings-dark-834x1112-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 834×1112 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="recordings" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Записи</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/recordings-dark-1194x834-font1.0.png" target="_blank" rel="noopener" aria-label="Записи, тёмная тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/recordings-dark-1194x834-font1.0.png" alt="Записи, тёмная тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные." width="1194" height="834" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>1194×834 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/recordings-dark-1194x834-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 1194×834 px ↗</a>
+</article>
+<article class="capture phone" data-screen="recordings" data-theme="light" data-device="phone">
+  <div class="capture-title"><h3>Записи</h3><span>Светлая</span></div>
+  <a class="preview" href="screenshots/recordings-light-430x932-font1.0.png" target="_blank" rel="noopener" aria-label="Записи, светлая тема, телефон, 430×932 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/recordings-light-430x932-font1.0.png" alt="Записи, светлая тема, телефон, 430×932 · шрифт 1.0. Тестовые данные." width="430" height="932" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>430×932 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/recordings-light-430x932-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 430×932 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="recordings" data-theme="light" data-device="tablet">
+  <div class="capture-title"><h3>Записи</h3><span>Светлая</span></div>
+  <a class="preview" href="screenshots/recordings-light-1194x834-font1.0.png" target="_blank" rel="noopener" aria-label="Записи, светлая тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/recordings-light-1194x834-font1.0.png" alt="Записи, светлая тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные." width="1194" height="834" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>1194×834 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/recordings-light-1194x834-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 1194×834 px ↗</a>
+</article>
+<article class="capture phone" data-screen="recording-detail" data-theme="dark" data-device="phone">
+  <div class="capture-title"><h3>Просмотр записи</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/recording-detail-dark-390x844-font1.0.png" target="_blank" rel="noopener" aria-label="Просмотр записи, тёмная тема, телефон, 390×844 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/recording-detail-dark-390x844-font1.0.png" alt="Просмотр записи, тёмная тема, телефон, 390×844 · шрифт 1.0. Тестовые данные." width="390" height="844" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>390×844 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/recording-detail-dark-390x844-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 390×844 px ↗</a>
+</article>
+<article class="capture phone" data-screen="recording-detail" data-theme="dark" data-device="phone">
+  <div class="capture-title"><h3>Просмотр записи</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/recording-detail-dark-430x932-font1.5.png" target="_blank" rel="noopener" aria-label="Просмотр записи, тёмная тема, телефон, 430×932 · шрифт 1.5. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/recording-detail-dark-430x932-font1.5.png" alt="Просмотр записи, тёмная тема, телефон, 430×932 · шрифт 1.5. Тестовые данные." width="430" height="932" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>430×932 · шрифт 1.5</span></div>
+  <a class="original" href="screenshots/recording-detail-dark-430x932-font1.5.png" target="_blank" rel="noopener">Полный оригинал · 430×932 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="recording-detail" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Просмотр записи</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/recording-detail-dark-780x800-font1.0.png" target="_blank" rel="noopener" aria-label="Просмотр записи, тёмная тема, планшет, 780×800 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/recording-detail-dark-780x800-font1.0.png" alt="Просмотр записи, тёмная тема, планшет, 780×800 · шрифт 1.0. Тестовые данные." width="780" height="800" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>780×800 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/recording-detail-dark-780x800-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 780×800 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="recording-detail" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Просмотр записи</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/recording-detail-dark-834x1112-font1.0.png" target="_blank" rel="noopener" aria-label="Просмотр записи, тёмная тема, планшет, 834×1112 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/recording-detail-dark-834x1112-font1.0.png" alt="Просмотр записи, тёмная тема, планшет, 834×1112 · шрифт 1.0. Тестовые данные." width="834" height="1112" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>834×1112 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/recording-detail-dark-834x1112-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 834×1112 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="recording-detail" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Просмотр записи</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/recording-detail-dark-1194x834-font1.0.png" target="_blank" rel="noopener" aria-label="Просмотр записи, тёмная тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/recording-detail-dark-1194x834-font1.0.png" alt="Просмотр записи, тёмная тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные." width="1194" height="834" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>1194×834 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/recording-detail-dark-1194x834-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 1194×834 px ↗</a>
+</article>
+<article class="capture phone" data-screen="recording-detail" data-theme="light" data-device="phone">
+  <div class="capture-title"><h3>Просмотр записи</h3><span>Светлая</span></div>
+  <a class="preview" href="screenshots/recording-detail-light-430x932-font1.0.png" target="_blank" rel="noopener" aria-label="Просмотр записи, светлая тема, телефон, 430×932 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/recording-detail-light-430x932-font1.0.png" alt="Просмотр записи, светлая тема, телефон, 430×932 · шрифт 1.0. Тестовые данные." width="430" height="932" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>430×932 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/recording-detail-light-430x932-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 430×932 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="recording-detail" data-theme="light" data-device="tablet">
+  <div class="capture-title"><h3>Просмотр записи</h3><span>Светлая</span></div>
+  <a class="preview" href="screenshots/recording-detail-light-1194x834-font1.0.png" target="_blank" rel="noopener" aria-label="Просмотр записи, светлая тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/recording-detail-light-1194x834-font1.0.png" alt="Просмотр записи, светлая тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные." width="1194" height="834" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>1194×834 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/recording-detail-light-1194x834-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 1194×834 px ↗</a>
+</article>
+<article class="capture phone" data-screen="prejoin" data-theme="dark" data-device="phone">
+  <div class="capture-title"><h3>Перед звонком</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/prejoin-dark-390x844-font1.0.png" target="_blank" rel="noopener" aria-label="Перед звонком, тёмная тема, телефон, 390×844 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/prejoin-dark-390x844-font1.0.png" alt="Перед звонком, тёмная тема, телефон, 390×844 · шрифт 1.0. Тестовые данные." width="390" height="844" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>390×844 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/prejoin-dark-390x844-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 390×844 px ↗</a>
+</article>
+<article class="capture phone" data-screen="prejoin" data-theme="dark" data-device="phone">
+  <div class="capture-title"><h3>Перед звонком</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/prejoin-dark-430x932-font1.5.png" target="_blank" rel="noopener" aria-label="Перед звонком, тёмная тема, телефон, 430×932 · шрифт 1.5. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/prejoin-dark-430x932-font1.5.png" alt="Перед звонком, тёмная тема, телефон, 430×932 · шрифт 1.5. Тестовые данные." width="430" height="932" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>430×932 · шрифт 1.5</span></div>
+  <a class="original" href="screenshots/prejoin-dark-430x932-font1.5.png" target="_blank" rel="noopener">Полный оригинал · 430×932 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="prejoin" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Перед звонком</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/prejoin-dark-780x800-font1.0.png" target="_blank" rel="noopener" aria-label="Перед звонком, тёмная тема, планшет, 780×800 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/prejoin-dark-780x800-font1.0.png" alt="Перед звонком, тёмная тема, планшет, 780×800 · шрифт 1.0. Тестовые данные." width="780" height="800" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>780×800 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/prejoin-dark-780x800-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 780×800 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="prejoin" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Перед звонком</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/prejoin-dark-834x1112-font1.0.png" target="_blank" rel="noopener" aria-label="Перед звонком, тёмная тема, планшет, 834×1112 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/prejoin-dark-834x1112-font1.0.png" alt="Перед звонком, тёмная тема, планшет, 834×1112 · шрифт 1.0. Тестовые данные." width="834" height="1112" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>834×1112 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/prejoin-dark-834x1112-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 834×1112 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="prejoin" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Перед звонком</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/prejoin-dark-1194x834-font1.0.png" target="_blank" rel="noopener" aria-label="Перед звонком, тёмная тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/prejoin-dark-1194x834-font1.0.png" alt="Перед звонком, тёмная тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные." width="1194" height="834" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>1194×834 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/prejoin-dark-1194x834-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 1194×834 px ↗</a>
+</article>
+<article class="capture phone" data-screen="prejoin" data-theme="light" data-device="phone">
+  <div class="capture-title"><h3>Перед звонком</h3><span>Светлая</span></div>
+  <a class="preview" href="screenshots/prejoin-light-430x932-font1.0.png" target="_blank" rel="noopener" aria-label="Перед звонком, светлая тема, телефон, 430×932 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/prejoin-light-430x932-font1.0.png" alt="Перед звонком, светлая тема, телефон, 430×932 · шрифт 1.0. Тестовые данные." width="430" height="932" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>430×932 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/prejoin-light-430x932-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 430×932 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="prejoin" data-theme="light" data-device="tablet">
+  <div class="capture-title"><h3>Перед звонком</h3><span>Светлая</span></div>
+  <a class="preview" href="screenshots/prejoin-light-1194x834-font1.0.png" target="_blank" rel="noopener" aria-label="Перед звонком, светлая тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/prejoin-light-1194x834-font1.0.png" alt="Перед звонком, светлая тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные." width="1194" height="834" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>1194×834 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/prejoin-light-1194x834-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 1194×834 px ↗</a>
+</article>
+<article class="capture phone" data-screen="call" data-theme="dark" data-device="phone">
+  <div class="capture-title"><h3>Видеозвонок</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/call-dark-360x800-font1.5.png" target="_blank" rel="noopener" aria-label="Видеозвонок, тёмная тема, телефон, 360×800 · шрифт 1.5. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/call-dark-360x800-font1.5.png" alt="Видеозвонок, тёмная тема, телефон, 360×800 · шрифт 1.5. Тестовые данные." width="360" height="800" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>360×800 · шрифт 1.5</span></div>
+  <a class="original" href="screenshots/call-dark-360x800-font1.5.png" target="_blank" rel="noopener">Полный оригинал · 360×800 px ↗</a>
+</article>
+<article class="capture phone" data-screen="call" data-theme="dark" data-device="phone">
+  <div class="capture-title"><h3>Видеозвонок</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/call-dark-390x844-font1.0.png" target="_blank" rel="noopener" aria-label="Видеозвонок, тёмная тема, телефон, 390×844 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/call-dark-390x844-font1.0.png" alt="Видеозвонок, тёмная тема, телефон, 390×844 · шрифт 1.0. Тестовые данные." width="390" height="844" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>390×844 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/call-dark-390x844-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 390×844 px ↗</a>
+</article>
+<article class="capture phone" data-screen="call" data-theme="dark" data-device="phone">
+  <div class="capture-title"><h3>Видеозвонок</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/call-dark-430x932-font1.5.png" target="_blank" rel="noopener" aria-label="Видеозвонок, тёмная тема, телефон, 430×932 · шрифт 1.5. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/call-dark-430x932-font1.5.png" alt="Видеозвонок, тёмная тема, телефон, 430×932 · шрифт 1.5. Тестовые данные." width="430" height="932" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>430×932 · шрифт 1.5</span></div>
+  <a class="original" href="screenshots/call-dark-430x932-font1.5.png" target="_blank" rel="noopener">Полный оригинал · 430×932 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="call" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Видеозвонок</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/call-dark-780x800-font1.0.png" target="_blank" rel="noopener" aria-label="Видеозвонок, тёмная тема, планшет, 780×800 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/call-dark-780x800-font1.0.png" alt="Видеозвонок, тёмная тема, планшет, 780×800 · шрифт 1.0. Тестовые данные." width="780" height="800" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>780×800 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/call-dark-780x800-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 780×800 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="call" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Видеозвонок</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/call-dark-834x1112-font1.0.png" target="_blank" rel="noopener" aria-label="Видеозвонок, тёмная тема, планшет, 834×1112 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/call-dark-834x1112-font1.0.png" alt="Видеозвонок, тёмная тема, планшет, 834×1112 · шрифт 1.0. Тестовые данные." width="834" height="1112" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>834×1112 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/call-dark-834x1112-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 834×1112 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="call" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Видеозвонок</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/call-dark-1194x834-font1.0.png" target="_blank" rel="noopener" aria-label="Видеозвонок, тёмная тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/call-dark-1194x834-font1.0.png" alt="Видеозвонок, тёмная тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные." width="1194" height="834" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>1194×834 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/call-dark-1194x834-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 1194×834 px ↗</a>
+</article>
+<article class="capture phone" data-screen="call" data-theme="light" data-device="phone">
+  <div class="capture-title"><h3>Видеозвонок</h3><span>Светлая</span></div>
+  <a class="preview" href="screenshots/call-light-430x932-font1.0.png" target="_blank" rel="noopener" aria-label="Видеозвонок, светлая тема, телефон, 430×932 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/call-light-430x932-font1.0.png" alt="Видеозвонок, светлая тема, телефон, 430×932 · шрифт 1.0. Тестовые данные." width="430" height="932" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>430×932 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/call-light-430x932-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 430×932 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="call" data-theme="light" data-device="tablet">
+  <div class="capture-title"><h3>Видеозвонок</h3><span>Светлая</span></div>
+  <a class="preview" href="screenshots/call-light-1194x834-font1.0.png" target="_blank" rel="noopener" aria-label="Видеозвонок, светлая тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/call-light-1194x834-font1.0.png" alt="Видеозвонок, светлая тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные." width="1194" height="834" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>1194×834 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/call-light-1194x834-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 1194×834 px ↗</a>
+</article>
+<article class="capture phone" data-screen="welcome" data-theme="dark" data-device="phone">
+  <div class="capture-title"><h3>Приветствие</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/welcome-dark-390x844-font1.0.png" target="_blank" rel="noopener" aria-label="Приветствие, тёмная тема, телефон, 390×844 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/welcome-dark-390x844-font1.0.png" alt="Приветствие, тёмная тема, телефон, 390×844 · шрифт 1.0. Тестовые данные." width="390" height="844" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>390×844 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/welcome-dark-390x844-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 390×844 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="welcome" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Приветствие</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/welcome-dark-1194x834-font1.0.png" target="_blank" rel="noopener" aria-label="Приветствие, тёмная тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/welcome-dark-1194x834-font1.0.png" alt="Приветствие, тёмная тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные." width="1194" height="834" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>1194×834 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/welcome-dark-1194x834-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 1194×834 px ↗</a>
+</article>
+<article class="capture phone" data-screen="welcome" data-theme="light" data-device="phone">
+  <div class="capture-title"><h3>Приветствие</h3><span>Светлая</span></div>
+  <a class="preview" href="screenshots/welcome-light-430x932-font1.0.png" target="_blank" rel="noopener" aria-label="Приветствие, светлая тема, телефон, 430×932 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/welcome-light-430x932-font1.0.png" alt="Приветствие, светлая тема, телефон, 430×932 · шрифт 1.0. Тестовые данные." width="430" height="932" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>430×932 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/welcome-light-430x932-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 430×932 px ↗</a>
+</article>
+<article class="capture phone" data-screen="connect" data-theme="dark" data-device="phone">
+  <div class="capture-title"><h3>Подключение пространства</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/connect-dark-390x844-font1.0.png" target="_blank" rel="noopener" aria-label="Подключение пространства, тёмная тема, телефон, 390×844 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/connect-dark-390x844-font1.0.png" alt="Подключение пространства, тёмная тема, телефон, 390×844 · шрифт 1.0. Тестовые данные." width="390" height="844" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>390×844 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/connect-dark-390x844-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 390×844 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="connect" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Подключение пространства</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/connect-dark-1194x834-font1.0.png" target="_blank" rel="noopener" aria-label="Подключение пространства, тёмная тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/connect-dark-1194x834-font1.0.png" alt="Подключение пространства, тёмная тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные." width="1194" height="834" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>1194×834 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/connect-dark-1194x834-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 1194×834 px ↗</a>
+</article>
+<article class="capture phone" data-screen="connect" data-theme="light" data-device="phone">
+  <div class="capture-title"><h3>Подключение пространства</h3><span>Светлая</span></div>
+  <a class="preview" href="screenshots/connect-light-430x932-font1.0.png" target="_blank" rel="noopener" aria-label="Подключение пространства, светлая тема, телефон, 430×932 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/connect-light-430x932-font1.0.png" alt="Подключение пространства, светлая тема, телефон, 430×932 · шрифт 1.0. Тестовые данные." width="430" height="932" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>430×932 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/connect-light-430x932-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 430×932 px ↗</a>
+</article>
+<article class="capture phone" data-screen="login" data-theme="dark" data-device="phone">
+  <div class="capture-title"><h3>Авторизация</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/login-dark-390x844-font1.0.png" target="_blank" rel="noopener" aria-label="Авторизация, тёмная тема, телефон, 390×844 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/login-dark-390x844-font1.0.png" alt="Авторизация, тёмная тема, телефон, 390×844 · шрифт 1.0. Тестовые данные." width="390" height="844" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>390×844 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/login-dark-390x844-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 390×844 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="login" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Авторизация</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/login-dark-1194x834-font1.0.png" target="_blank" rel="noopener" aria-label="Авторизация, тёмная тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/login-dark-1194x834-font1.0.png" alt="Авторизация, тёмная тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные." width="1194" height="834" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>1194×834 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/login-dark-1194x834-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 1194×834 px ↗</a>
+</article>
+<article class="capture phone" data-screen="login" data-theme="light" data-device="phone">
+  <div class="capture-title"><h3>Авторизация</h3><span>Светлая</span></div>
+  <a class="preview" href="screenshots/login-light-430x932-font1.0.png" target="_blank" rel="noopener" aria-label="Авторизация, светлая тема, телефон, 430×932 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/login-light-430x932-font1.0.png" alt="Авторизация, светлая тема, телефон, 430×932 · шрифт 1.0. Тестовые данные." width="430" height="932" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>430×932 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/login-light-430x932-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 430×932 px ↗</a>
+</article>
+<article class="capture phone" data-screen="deploy" data-theme="dark" data-device="phone">
+  <div class="capture-title"><h3>Подключение VPS</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/deploy-dark-390x844-font1.0.png" target="_blank" rel="noopener" aria-label="Подключение VPS, тёмная тема, телефон, 390×844 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/deploy-dark-390x844-font1.0.png" alt="Подключение VPS, тёмная тема, телефон, 390×844 · шрифт 1.0. Тестовые данные." width="390" height="844" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>390×844 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/deploy-dark-390x844-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 390×844 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="deploy" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Подключение VPS</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/deploy-dark-1194x834-font1.0.png" target="_blank" rel="noopener" aria-label="Подключение VPS, тёмная тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/deploy-dark-1194x834-font1.0.png" alt="Подключение VPS, тёмная тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные." width="1194" height="834" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>1194×834 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/deploy-dark-1194x834-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 1194×834 px ↗</a>
+</article>
+<article class="capture phone" data-screen="deploy" data-theme="light" data-device="phone">
+  <div class="capture-title"><h3>Подключение VPS</h3><span>Светлая</span></div>
+  <a class="preview" href="screenshots/deploy-light-430x932-font1.0.png" target="_blank" rel="noopener" aria-label="Подключение VPS, светлая тема, телефон, 430×932 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/deploy-light-430x932-font1.0.png" alt="Подключение VPS, светлая тема, телефон, 430×932 · шрифт 1.0. Тестовые данные." width="430" height="932" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>430×932 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/deploy-light-430x932-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 430×932 px ↗</a>
+</article>
+<article class="capture phone" data-screen="hostkey" data-theme="dark" data-device="phone">
+  <div class="capture-title"><h3>Проверка ключа SSH</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/hostkey-dark-390x844-font1.0.png" target="_blank" rel="noopener" aria-label="Проверка ключа SSH, тёмная тема, телефон, 390×844 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/hostkey-dark-390x844-font1.0.png" alt="Проверка ключа SSH, тёмная тема, телефон, 390×844 · шрифт 1.0. Тестовые данные." width="390" height="844" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>390×844 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/hostkey-dark-390x844-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 390×844 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="hostkey" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Проверка ключа SSH</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/hostkey-dark-1194x834-font1.0.png" target="_blank" rel="noopener" aria-label="Проверка ключа SSH, тёмная тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/hostkey-dark-1194x834-font1.0.png" alt="Проверка ключа SSH, тёмная тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные." width="1194" height="834" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>1194×834 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/hostkey-dark-1194x834-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 1194×834 px ↗</a>
+</article>
+<article class="capture phone" data-screen="hostkey" data-theme="light" data-device="phone">
+  <div class="capture-title"><h3>Проверка ключа SSH</h3><span>Светлая</span></div>
+  <a class="preview" href="screenshots/hostkey-light-430x932-font1.0.png" target="_blank" rel="noopener" aria-label="Проверка ключа SSH, светлая тема, телефон, 430×932 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/hostkey-light-430x932-font1.0.png" alt="Проверка ключа SSH, светлая тема, телефон, 430×932 · шрифт 1.0. Тестовые данные." width="430" height="932" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>430×932 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/hostkey-light-430x932-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 430×932 px ↗</a>
+</article>
+<article class="capture phone" data-screen="sshauth" data-theme="dark" data-device="phone">
+  <div class="capture-title"><h3>Авторизация SSH</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/sshauth-dark-390x844-font1.0.png" target="_blank" rel="noopener" aria-label="Авторизация SSH, тёмная тема, телефон, 390×844 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/sshauth-dark-390x844-font1.0.png" alt="Авторизация SSH, тёмная тема, телефон, 390×844 · шрифт 1.0. Тестовые данные." width="390" height="844" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>390×844 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/sshauth-dark-390x844-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 390×844 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="sshauth" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Авторизация SSH</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/sshauth-dark-1194x834-font1.0.png" target="_blank" rel="noopener" aria-label="Авторизация SSH, тёмная тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/sshauth-dark-1194x834-font1.0.png" alt="Авторизация SSH, тёмная тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные." width="1194" height="834" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>1194×834 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/sshauth-dark-1194x834-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 1194×834 px ↗</a>
+</article>
+<article class="capture phone" data-screen="sshauth" data-theme="light" data-device="phone">
+  <div class="capture-title"><h3>Авторизация SSH</h3><span>Светлая</span></div>
+  <a class="preview" href="screenshots/sshauth-light-430x932-font1.0.png" target="_blank" rel="noopener" aria-label="Авторизация SSH, светлая тема, телефон, 430×932 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/sshauth-light-430x932-font1.0.png" alt="Авторизация SSH, светлая тема, телефон, 430×932 · шрифт 1.0. Тестовые данные." width="430" height="932" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>430×932 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/sshauth-light-430x932-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 430×932 px ↗</a>
+</article>
+<article class="capture phone" data-screen="preflight" data-theme="dark" data-device="phone">
+  <div class="capture-title"><h3>Проверка сервера</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/preflight-dark-390x844-font1.0.png" target="_blank" rel="noopener" aria-label="Проверка сервера, тёмная тема, телефон, 390×844 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/preflight-dark-390x844-font1.0.png" alt="Проверка сервера, тёмная тема, телефон, 390×844 · шрифт 1.0. Тестовые данные." width="390" height="844" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>390×844 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/preflight-dark-390x844-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 390×844 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="preflight" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Проверка сервера</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/preflight-dark-1194x834-font1.0.png" target="_blank" rel="noopener" aria-label="Проверка сервера, тёмная тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/preflight-dark-1194x834-font1.0.png" alt="Проверка сервера, тёмная тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные." width="1194" height="834" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>1194×834 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/preflight-dark-1194x834-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 1194×834 px ↗</a>
+</article>
+<article class="capture phone" data-screen="preflight" data-theme="light" data-device="phone">
+  <div class="capture-title"><h3>Проверка сервера</h3><span>Светлая</span></div>
+  <a class="preview" href="screenshots/preflight-light-430x932-font1.0.png" target="_blank" rel="noopener" aria-label="Проверка сервера, светлая тема, телефон, 430×932 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/preflight-light-430x932-font1.0.png" alt="Проверка сервера, светлая тема, телефон, 430×932 · шрифт 1.0. Тестовые данные." width="430" height="932" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>430×932 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/preflight-light-430x932-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 430×932 px ↗</a>
+</article>
+<article class="capture phone" data-screen="install" data-theme="dark" data-device="phone">
+  <div class="capture-title"><h3>Установка</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/install-dark-390x844-font1.0.png" target="_blank" rel="noopener" aria-label="Установка, тёмная тема, телефон, 390×844 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/install-dark-390x844-font1.0.png" alt="Установка, тёмная тема, телефон, 390×844 · шрифт 1.0. Тестовые данные." width="390" height="844" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>390×844 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/install-dark-390x844-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 390×844 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="install" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Установка</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/install-dark-1194x834-font1.0.png" target="_blank" rel="noopener" aria-label="Установка, тёмная тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/install-dark-1194x834-font1.0.png" alt="Установка, тёмная тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные." width="1194" height="834" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>1194×834 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/install-dark-1194x834-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 1194×834 px ↗</a>
+</article>
+<article class="capture phone" data-screen="install" data-theme="light" data-device="phone">
+  <div class="capture-title"><h3>Установка</h3><span>Светлая</span></div>
+  <a class="preview" href="screenshots/install-light-430x932-font1.0.png" target="_blank" rel="noopener" aria-label="Установка, светлая тема, телефон, 430×932 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/install-light-430x932-font1.0.png" alt="Установка, светлая тема, телефон, 430×932 · шрифт 1.0. Тестовые данные." width="430" height="932" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>430×932 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/install-light-430x932-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 430×932 px ↗</a>
+</article>
+<article class="capture phone" data-screen="complete" data-theme="dark" data-device="phone">
+  <div class="capture-title"><h3>Установка завершена</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/complete-dark-390x844-font1.0.png" target="_blank" rel="noopener" aria-label="Установка завершена, тёмная тема, телефон, 390×844 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/complete-dark-390x844-font1.0.png" alt="Установка завершена, тёмная тема, телефон, 390×844 · шрифт 1.0. Тестовые данные." width="390" height="844" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>390×844 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/complete-dark-390x844-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 390×844 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="complete" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Установка завершена</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/complete-dark-1194x834-font1.0.png" target="_blank" rel="noopener" aria-label="Установка завершена, тёмная тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/complete-dark-1194x834-font1.0.png" alt="Установка завершена, тёмная тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные." width="1194" height="834" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>1194×834 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/complete-dark-1194x834-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 1194×834 px ↗</a>
+</article>
+<article class="capture phone" data-screen="complete" data-theme="light" data-device="phone">
+  <div class="capture-title"><h3>Установка завершена</h3><span>Светлая</span></div>
+  <a class="preview" href="screenshots/complete-light-430x932-font1.0.png" target="_blank" rel="noopener" aria-label="Установка завершена, светлая тема, телефон, 430×932 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/complete-light-430x932-font1.0.png" alt="Установка завершена, светлая тема, телефон, 430×932 · шрифт 1.0. Тестовые данные." width="430" height="932" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>430×932 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/complete-light-430x932-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 430×932 px ↗</a>
+</article>
+<article class="capture phone" data-screen="installerror" data-theme="dark" data-device="phone">
+  <div class="capture-title"><h3>Восстановление установки</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/installerror-dark-390x844-font1.0.png" target="_blank" rel="noopener" aria-label="Восстановление установки, тёмная тема, телефон, 390×844 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/installerror-dark-390x844-font1.0.png" alt="Восстановление установки, тёмная тема, телефон, 390×844 · шрифт 1.0. Тестовые данные." width="390" height="844" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>390×844 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/installerror-dark-390x844-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 390×844 px ↗</a>
+</article>
+<article class="capture tablet" data-screen="installerror" data-theme="dark" data-device="tablet">
+  <div class="capture-title"><h3>Восстановление установки</h3><span>Тёмная</span></div>
+  <a class="preview" href="screenshots/installerror-dark-1194x834-font1.0.png" target="_blank" rel="noopener" aria-label="Восстановление установки, тёмная тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/installerror-dark-1194x834-font1.0.png" alt="Восстановление установки, тёмная тема, планшет, 1194×834 · шрифт 1.0. Тестовые данные." width="1194" height="834" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Планшет</strong><span>1194×834 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/installerror-dark-1194x834-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 1194×834 px ↗</a>
+</article>
+<article class="capture phone" data-screen="installerror" data-theme="light" data-device="phone">
+  <div class="capture-title"><h3>Восстановление установки</h3><span>Светлая</span></div>
+  <a class="preview" href="screenshots/installerror-light-430x932-font1.0.png" target="_blank" rel="noopener" aria-label="Восстановление установки, светлая тема, телефон, 430×932 · шрифт 1.0. Тестовые данные. Открыть оригинал.">
+    <img src="screenshots/installerror-light-430x932-font1.0.png" alt="Восстановление установки, светлая тема, телефон, 430×932 · шрифт 1.0. Тестовые данные." width="430" height="932" loading="lazy" decoding="async">
+  </a>
+  <div class="capture-meta"><strong>Телефон</strong><span>430×932 · шрифт 1.0</span></div>
+  <a class="original" href="screenshots/installerror-light-430x932-font1.0.png" target="_blank" rel="noopener">Полный оригинал · 430×932 px ↗</a>
+</article>
+</section>
+<p id="empty" hidden>Для выбранного сочетания снимков пока нет. Измените фильтры.</p>
+<footer>
+  <p>Галерея собрана: 2026-10-11 20:35 UTC · PNG: 115. Здесь перечислены только существующие снимки; наличие PNG само по себе не означает прохождение всех проверок.</p>
+  <p>Для обновления после съёмки: <code>python3 .audit/design-complete/build_gallery.py</code>. Внешние ресурсы и интернет не используются.</p>
+</footer>
+</main>
+<script>
+(() => {
+  const fields = ["screen", "theme", "device"].map(id => document.getElementById(id));
+  const captures = [...document.querySelectorAll(".capture")];
+  const saved = new URLSearchParams(location.hash.slice(1));
+  fields.forEach(field => {
+    const value = saved.get(field.id);
+    if ([...field.options].some(option => option.value === value)) field.value = value;
+  });
+  function filter() {
+    let visible = 0;
+    captures.forEach(capture => {
+      capture.hidden = !fields.every(field => field.value === "all" || capture.dataset[field.id] === field.value);
+      if (!capture.hidden) visible++;
+    });
+    document.getElementById("status").textContent = `Показано ${visible} из ${captures.length} снимков.`;
+    document.getElementById("empty").hidden = visible !== 0;
+    const hash = new URLSearchParams();
+    fields.forEach(field => { if (field.value !== "all") hash.set(field.id, field.value); });
+    // file:// history support varies; filtering remains usable without URL persistence.
+    try { history.replaceState(null, "", location.pathname + location.search + (hash.size ? "#" + hash : "")); } catch (_) {}
+  }
+  document.getElementById("filters").addEventListener("submit", event => event.preventDefault());
+  fields.forEach(field => field.addEventListener("change", filter));
+  document.getElementById("filters").addEventListener("reset", () => { fields.forEach(field => field.value = "all"); filter(); });
+  filter();
+})();
+</script>
+</body>
+</html>

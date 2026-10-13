@@ -1,0 +1,33 @@
+{
+  "label": "tablet-call-media",
+  "elapsedSeconds": 108.19,
+  "serial": "emulator-5556",
+  "sdk": "36",
+  "pageSize": 4096,
+  "tests": [
+    {
+      "class": "com.meetspace.app.LiveCallTest",
+      "test": "screenConsentBackgroundAndStop",
+      "statusCode": 0
+    },
+    {
+      "class": "com.meetspace.app.LiveCallTest",
+      "test": "nativeCameraRelayReconnectAndCleanup",
+      "statusCode": 0
+    },
+    {
+      "class": "com.meetspace.app.LiveCallTest",
+      "test": "unreachableTurnFailsAndRetryRecovers",
+      "statusCode": -2
+    },
+    {
+      "class": "com.meetspace.app.LiveCallTest",
+      "test": "lostNetworkReconnectsWithDevicesOff",
+      "statusCode": 0
+    }
+  ],
+  "passed": 3,
+  "failed": 1,
+  "skipped": 0,
+  "runnerSuccess": false
+}

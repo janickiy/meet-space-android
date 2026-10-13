@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.meetspace.core.data.LiveRecordingsBackendTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-10-11T14:46:35.629Z" hostname="MacBook-Air-janickiy.local" time="0.887">
+  <properties/>
+  <testcase name="actual recording pages authorized metadata and hidden diagnostic artifacts" classname="com.meetspace.core.data.LiveRecordingsBackendTest" time="0.426"/>
+  <testcase name="actual historical transcript and summary remain readable with provider disabled" classname="com.meetspace.core.data.LiveRecordingsBackendTest" time="0.228"/>
+  <testcase name="logout closes an existing actual recording capability" classname="com.meetspace.core.data.LiveRecordingsBackendTest" time="0.067"/>
+  <testcase name="actual MP4 verified stream export and signed HTTPS ranged reads" classname="com.meetspace.core.data.LiveRecordingsBackendTest" time="0.166"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

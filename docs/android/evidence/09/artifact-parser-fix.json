@@ -1,0 +1,30 @@
+{
+  "verifiedAtUtc": "2026-10-11T16:44:11.599766+00:00",
+  "scope": "Only actual bundletool dump manifest and Python parser regressions. No full private scan, rebuild or APK verification rerun.",
+  "baseline": {
+    "command": "bundletool 1.18.3 dump manifest",
+    "exitCode": 0,
+    "stdoutBytes": 13370,
+    "stderrBytes": 66,
+    "stderrIsJvmOptionsNotice": true,
+    "stdoutValidXml": true,
+    "combinedOutputValidXml": false,
+    "combinedParseErrorPosition": [
+      256,
+      0
+    ]
+  },
+  "fix": "Parse manifest stdout only; retain separate stderr for non-XML tool callers. Safe failure diagnostics include operation/exit code or XML line/column, never raw tool output.",
+  "regressionTests": {
+    "tests": 8,
+    "passed": 8,
+    "failures": 0,
+    "newTests": 3,
+    "command": "python3 -m unittest discover -s testing/stage09 -p 'test_artifact_verifier.py' -v"
+  },
+  "after": {
+    "actualPatchedHelperValidXml": true,
+    "bundletoolExitCode": 0,
+    "xmlRoot": "manifest"
+  }
+}

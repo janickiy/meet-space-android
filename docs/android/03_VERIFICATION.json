@@ -1,0 +1,224 @@
+{
+  "stage": 3,
+  "date": "2026-10-11",
+  "appVersion": "0.3.0",
+  "build": {
+    "debug": "PASS",
+    "androidTest": "PASS",
+    "minifiedUnsignedRelease": "PASS",
+    "evidence": ".audit/evidence/stage03-final-build.log"
+  },
+  "environment": {
+    "android": "API 36 ARM64 emulator",
+    "linux": "Disposable Lima/VZ Ubuntu 24.04.5 ARM64 / OpenSSH 9.6p1",
+    "vmResources": {
+      "cpu": 2,
+      "ramGiB": 2,
+      "diskGiB": 12
+    },
+    "testDomain": "stage03.test",
+    "productionSshUsed": false,
+    "narrowWindowVisualReview": {
+      "widthDp": 420,
+      "fontScale": 1.5,
+      "buttonReachableByScrolling": true
+    }
+  },
+  "unit": {
+    "total": 91,
+    "failures": 0,
+    "errors": 0,
+    "suites": [
+      {
+        "module": "core/ssh",
+        "suite": "com.meetspace.core.ssh.PreflightAnalyzerTest",
+        "tests": 10,
+        "failures": 0,
+        "errors": 0
+      },
+      {
+        "module": "core/ssh",
+        "suite": "com.meetspace.core.ssh.PrivateKeyPolicyTest",
+        "tests": 10,
+        "failures": 0,
+        "errors": 0
+      },
+      {
+        "module": "core/ssh",
+        "suite": "com.meetspace.core.ssh.SshInputValidatorTest",
+        "tests": 5,
+        "failures": 0,
+        "errors": 0
+      },
+      {
+        "module": "core/ssh",
+        "suite": "com.meetspace.core.ssh.SshTransportPolicyTest",
+        "tests": 20,
+        "failures": 0,
+        "errors": 0
+      },
+      {
+        "module": "core/data",
+        "suite": "com.meetspace.core.data.FoundationRepositoryTest",
+        "tests": 24,
+        "failures": 0,
+        "errors": 0
+      },
+      {
+        "module": "core/data",
+        "suite": "com.meetspace.core.data.ServerOriginTest",
+        "tests": 2,
+        "failures": 0,
+        "errors": 0
+      },
+      {
+        "module": "core/data",
+        "suite": "com.meetspace.core.data.SessionCookieJarTest",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0
+      },
+      {
+        "module": "app",
+        "suite": "com.meetspace.app.FoundationViewModelTest",
+        "tests": 7,
+        "failures": 0,
+        "errors": 0
+      },
+      {
+        "module": "app",
+        "suite": "com.meetspace.app.SshWizardViewModelTest",
+        "tests": 10,
+        "failures": 0,
+        "errors": 0
+      }
+    ]
+  },
+  "lint": {
+    "errors": 0,
+    "warnings": 23,
+    "warningIds": {
+      "AndroidGradlePluginVersion": 3,
+      "GradleDependency": 10,
+      "NewerVersionAvailable": 10
+    }
+  },
+  "instrumentation": {
+    "compose": {
+      "passed": 16,
+      "foundation": 10,
+      "ssh": 6,
+      "sshRepeatedOnFinalApk": {
+        "passed": 6,
+        "elapsedSeconds": 7.0
+      }
+    },
+    "liveSshRepository": {
+      "passed": 7,
+      "elapsedSeconds": 10.7
+    },
+    "liveSshWizard": {
+      "passed": 1,
+      "elapsedSeconds": 5.4,
+      "independentFingerprintAsserted": true,
+      "activityRecreationAsserted": true
+    },
+    "unknownAndChangedStandalone": {
+      "passed": 2,
+      "notIncludedInSevenUniqueRepositoryScenarios": true
+    }
+  },
+  "hostAuthenticationProof": {
+    "unknown": {
+      "beforeAuthEntries": 2,
+      "afterAuthEntries": 2,
+      "authenticationDelta": 0
+    },
+    "changed": {
+      "beforeAuthEntries": 2,
+      "afterAuthEntries": 2,
+      "authenticationDelta": 0
+    },
+    "repositorySuitePassed": true,
+    "totalAuthEntriesAfterSuite": 6,
+    "configurationAndPackageManifestUnchanged": true
+  },
+  "secretsScan": {
+    "logcatSecretMatchesBeforeSanitization": 0,
+    "filesScanned": 153,
+    "matchingFiles": [],
+    "secretValuesPrinted": false,
+    "finalCleanupLogFilesScanned": 152,
+    "finalCleanupSecretMatches": 0
+  },
+  "apk": [
+    {
+      "variant": "debug",
+      "path": "app/build/outputs/apk/debug/app-debug.apk",
+      "bytes": 28625583,
+      "sha256": "47b820ddf46249da1f49eadf06f1fcced7efcda27ee02f2d2b452a7170b4f158",
+      "runtimeTested": true,
+      "signing": "debug keystore"
+    },
+    {
+      "variant": "release",
+      "path": "app/build/outputs/apk/release/app-release-unsigned.apk",
+      "bytes": 2307294,
+      "sha256": "a550f6467872dac464dcdd1d51117b066376b006872f0cb66e0758cef585beea",
+      "runtimeTested": false,
+      "signing": "unsigned"
+    }
+  ],
+  "screenshots": [
+    "docs/android/screenshots/stage03-details-narrow-large-font-scrolled.png",
+    "docs/android/screenshots/stage03-details-narrow-large-font.png",
+    "docs/android/screenshots/stage03-details.png",
+    "docs/android/screenshots/stage03-fingerprint.png",
+    "docs/android/screenshots/stage03-results.png"
+  ],
+  "resolvedIssues": [
+    "Nullable Java Identity.setPassphrase boundary after encrypted key decryption",
+    "R8 optional desktop/JGSS/logger dependency keep scope",
+    "Cancellation after HOST_KEY_CHANGED cannot restore trusted AUTH",
+    "Initial ActivityScenario teardown failure; cold reboot and complete rerun passed"
+  ],
+  "notRun": [
+    "Production SSH",
+    "Physical devices / API 26 / TalkBack / actual split-screen",
+    "Real-key selection through system SAF provider UI",
+    "Positive TLS path of new preflight probe against production domain",
+    "Signed minified release runtime",
+    "Installer/apply"
+  ],
+  "installationExecuted": false,
+  "cleanup": {
+    "status": "PASS",
+    "vmName": "meetspace-stage03",
+    "vmDeleted": true,
+    "remainingVmNames": [],
+    "createdTunnelStopped": true,
+    "portsChecked": [
+      22103,
+      22203,
+      22204,
+      22205,
+      22213,
+      22214,
+      22215
+    ],
+    "remainingOpenTestPorts": [],
+    "privateAppFixtureRemoved": true,
+    "testHostPinStoreAbsent": true,
+    "privateHostFilesRemoved": true,
+    "globalLimaControlIdentityUnchanged": true,
+    "displayBaselineRestored": true,
+    "display": {
+      "size": "Physical size: 2560x1600",
+      "density": "Physical density: 320",
+      "fontScale": "1.0"
+    },
+    "finalSecretScanFiles": 152,
+    "finalSecretMatches": 0,
+    "secretValuesPrinted": false
+  }
+}

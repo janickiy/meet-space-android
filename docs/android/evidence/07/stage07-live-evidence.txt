@@ -1,0 +1,11 @@
+group-files-folders:group=true;members=2;upload=true;download=true;sha256Match=true;mixedFolderItems=2;notifications=true
+direct:send=true;reply=true;edit=true;delete=true;activityRecreation=true;rotation=true
+offline-reconnect-logout:radioLoss=true;cachedHistoryPreserved=true;freshWss=true;restResync=true;logoutMemoryCleared=true
+foreground-os-notification:actualWss=true;osNotification707=true;genericContent=true;rawBodyExcluded=true;inboxIntent=true;logoutCleared=true
+direct:send=true;reply=true;edit=true;delete=true;activityRecreation=true;rotation=true
+foreground-os-notification:actualWss=true;osNotification707=true;genericContent=true;rawBodyExcluded=true;inboxIntent=true;logoutCleared=true
+saf:systemOpenDocument=true;systemCreateDocument=true;actualUpload=true;actualDownload=true;sha256Match=true;exportObserver=shell
+foreground-os-notification:actualWss=true;osNotification707=true;genericContent=true;rawBodyExcluded=true;inboxIntent=true;logoutCleared=true
+saf:systemOpenDocument=true;systemCreateDocument=true;actualUpload=true;actualDownload=true;sha256Match=true;exportObserver=shell
+foreground-os-notification:actualWss=true;osNotification707=true;genericContent=true;rawBodyExcluded=true;inboxIntent=true;logoutCleared=true
+direct:send=true;reply=true;edit=true;delete=true;activityRecreation=true;rotation=true

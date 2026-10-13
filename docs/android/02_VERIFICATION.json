@@ -1,0 +1,58 @@
+{
+  "date": "2026-10-11",
+  "apk": "app/build/outputs/apk/debug/app-debug.apk",
+  "apkBytes": 20241396,
+  "apkSha256": "cce18f968a5690d84739ab5129efcb1230a8d2c771e3b9497bb60f15a99cbe0e",
+  "unit": [
+    {
+      "name": "com.meetspace.core.data.ServerOriginTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "name": "com.meetspace.core.data.FoundationRepositoryTest",
+      "tests": 24,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "name": "com.meetspace.core.data.SessionCookieJarTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "name": "com.meetspace.app.FoundationViewModelTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0
+    }
+  ],
+  "compose": {
+    "passed": 10,
+    "failures": 0
+  },
+  "realAndroid": {
+    "loginAndRotation": "passed",
+    "processRestartAndLogout": "passed"
+  },
+  "lint": {
+    "errors": 0,
+    "warnings": 23,
+    "issueIds": [
+      "AndroidGradlePluginVersion",
+      "GradleDependency",
+      "NewerVersionAvailable"
+    ]
+  },
+  "emulator": {
+    "api": 36,
+    "abi": "arm64-v8a",
+    "tablet": "2560x1600 @ 320dpi; landscape and portrait",
+    "phoneViewport": "1080x2400 @ 440dpi",
+    "fontScaleTest": 2.0
+  },
+  "credentialCleanup": "temporary host and private device input deleted; encrypted session directory empty after logout",
+  "productionUrlAndAccountAbsentFromDex": true
+}

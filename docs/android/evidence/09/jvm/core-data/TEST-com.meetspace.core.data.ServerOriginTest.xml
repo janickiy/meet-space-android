@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.meetspace.core.data.ServerOriginTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-10-11T16:25:16.516Z" hostname="MacBook-Air-janickiy.local" time="0.01">
+  <testcase name="unsafe and ambiguous URL inputs fail locally" classname="com.meetspace.core.data.ServerOriginTest" time="0.0" />
+  <testcase name="canonical origins include scheme host and effective port" classname="com.meetspace.core.data.ServerOriginTest" time="0.01" />
+  </testsuite>

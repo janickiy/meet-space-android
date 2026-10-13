@@ -1,0 +1,1099 @@
+[
+  {
+    "sourceLog": "stage08-tablet-ui.log",
+    "counts": {
+      "passed": 75,
+      "failed": 1
+    },
+    "tests": [
+      {
+        "class": "com.meetspace.app.FoundationUiTest",
+        "method": "connectSubmitsEnteredOriginAndBlocksRepeatedSubmissionWhileBusy",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.FoundationUiTest",
+        "method": "selectedTabSurvivesWindowChangesAndSavedInstanceStateRecreation",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.FoundationUiTest",
+        "method": "mediumWindowUsesNavigationRail",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.FoundationUiTest",
+        "method": "expandedWindowUsesNavigationDrawer",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.FoundationUiTest",
+        "method": "firstRunConnectOpensServerForm",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.FoundationUiTest",
+        "method": "firstRunInstallerShowsItsActualReadiness",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.FoundationUiTest",
+        "method": "loginKeepsPasswordHiddenUntilExplicitlyRevealedAndSubmitsTypedCredentials",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.FoundationUiTest",
+        "method": "switchingAccountProfileClearsPasswordAndUsesThatAccountsEmail",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.FoundationUiTest",
+        "method": "compactWindowUsesBottomNavigation",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.FoundationUiTest",
+        "method": "savedInstanceStateRestoresEmailButDoesNotPersistPassword",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.SshWizardUiTest",
+        "method": "passwordIsClearedOnSubmitAndIsNotSavedDuringRecreation",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.SshWizardUiTest",
+        "method": "independentFingerprintComparisonIsRequiredForNewTrust",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.SshWizardUiTest",
+        "method": "cancellationClearsPasswordAndLeavesNoEnabledOperationWhileBusy",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.SshWizardUiTest",
+        "method": "detailsSubmitOnlyNonSecretInputsAndNoCredentialsExistBeforeTrust",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.SshWizardUiTest",
+        "method": "structuredResultsExposeAllLevelsAndNoInstallAction",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.SshWizardUiTest",
+        "method": "changedKeyShowsBothFingerprintsAndRequiresSeparateForgetDialog",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.InstallerUiTest",
+        "method": "detachAndServerCancellationAreDifferentActions",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.InstallerUiTest",
+        "method": "unknownStateNeverShowsSuccessOrConnect",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.InstallerUiTest",
+        "method": "completedShowsHttpsConnectionOnlyAfterAllPhases",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.InstallerUiTest",
+        "method": "eachConsentIsRequiredBeforeMutation",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "listFiltersAndPaginationInvokeTheirActualCallbacks",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "createFormValidatesEmptyTitleThenSubmitsTrimmedInputAndBlocksWhileBusy",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "pendingListDoesNotShowSuccessfulEmptyState",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "compactDetailsUseSinglePaneAndTransientFormDoesNotSurviveRestoration",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "accountNameValidationTrimAndBusyState",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "cohostAndUnknownStatusesDoNotGrantOwnerActions",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "uncertainCreationDisablesCreateButKeepsExplicitReconciliationAction",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "invitationFormSubmitsEnteredCodeAndIsDisabledWhileServerPending",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "ambiguousDstFormRequiresExplicitOffsetBeforeSubmitting",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "recordingsShortcutOpensMeetingSelectorAndHistoryOpensScopedRecordings",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "tabletShowsListAndOwnerDetailsSideBySide",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "waitingMemberSeesAdmissionAndCannotJoinAsAdmitted",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "failedListPreservesRowsAndDoesNotMisrepresentFailureAsEmptyData",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "scheduleFormConvertsSelectedZoneToInstantAndChecksDuration",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "calendarDayNavigationShowsLocalDayAndIncompletePageAction",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "ownerScheduledDetailsAllowScheduleAndRequireCancelConfirmation",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.CallUiTest",
+        "method": "participantPanelContainsRealRoster",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.CallUiTest",
+        "method": "reconnectNeverDisplaysConnectedAndDisablesCapture",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.CallUiTest",
+        "method": "failedCallOffersRetryAndShowsActualFailure",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.CallUiTest",
+        "method": "blockedDevicesCannotPublishAndLeaveRemainsAvailable",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.CallUiTest",
+        "method": "prejoinRequiresExplicitConnectAndDeviceActions",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MessagingUiTest",
+        "method": "failedHistoryPreservesCachedMessagesAndNeverClaimsSuccessfulEmptyState",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MessagingUiTest",
+        "method": "configuredPushWaitsForAcknowledgmentAndBlocksBothActionsWhileBusy",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MessagingUiTest",
+        "method": "ownMessageActionsRequireConfirmationForDeleteAndOtherAuthorsCannotBeEdited",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MessagingUiTest",
+        "method": "tombstoneDoesNotExposeTextFilesOrActions",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MessagingUiTest",
+        "method": "resizingComposerBetweenTallAndCompactPreservesDraftAndInput",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MessagingUiTest",
+        "method": "failedListNeverShowsEmptySuccessAndRefreshRemainsAvailable",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MessagingUiTest",
+        "method": "paginationAndServerSearchAreExplicitCallbacks",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MessagingUiTest",
+        "method": "foldersIncludeMeetingsAndRemovingMembershipDoesNotDeleteResource",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MessagingUiTest",
+        "method": "tabletKeepsListAndHistoryVisibleWhilePhoneShowsDetailAndBack",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MessagingUiTest",
+        "method": "notificationPreferencesPreserveTransportFlagsAndOpenResourceIsSeparateFromRead",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MessagingUiTest",
+        "method": "createGroupNeedsTitleAndSelectedUserAndWaitsForAcknowledgment",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MessagingUiTest",
+        "method": "composerRequiresContentAndBlocksDuplicateSendUntilServerReturns",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MessagingUiTest",
+        "method": "attachmentsUsePickerAndExplicitDownloadWithoutOpeningRemoteLinks",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MessagingUiTest",
+        "method": "ambiguousSendLocksPayloadAndOffersRetryWithoutFakeDeliveredStatus",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MessagingUiTest",
+        "method": "largeFontUsesSinglePaneAndKeepsComposerUsable",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MessagingUiTest",
+        "method": "folderNamesAreValidatedBeforeCreateAndDeletionRequiresExplicitConfirmation",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MessagingUiTest",
+        "method": "directChatUsesSelectedPersonIdentity",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MessagingUiTest",
+        "method": "shortLandscapeWithLargeFontPreservesHistoryAndAllComposeActions",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MessagingUiTest",
+        "method": "unconfiguredPushShowsUnavailableWithoutOfferingRegistration",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.RecordingsUiTest",
+        "method": "largeFontDarkLandscapeKeepsDownloadCancelReachableAndBackAccessible",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.RecordingsUiTest",
+        "method": "playAndDownloadRequestSelectedFileAndBlockDuplicateDownload",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.RecordingsUiTest",
+        "method": "meetingSelectorSearchesLoadedPagesAndRetainsPaginationAndActiveFilter",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.RecordingsUiTest",
+        "method": "unavailableMaterialsExplainServerSupportAndNeverExposePipelineStates",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.RecordingsUiTest",
+        "method": "failedRefreshRetainsReadyRowsAndDoesNotClaimEmpty",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.RecordingsUiTest",
+        "method": "searchIsExplicitlyPageScopedAndPrivateQueryIsNotRestored",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.RecordingsUiTest",
+        "method": "historicalReadyMaterialsRemainReadableWhenNewGenerationIsDisabled",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.RecordingsUiTest",
+        "method": "materialsAreReadOnlyAndShowSegmentsSummaryAndNextPage",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.RecordingsUiTest",
+        "method": "unavailableDetailOffersNoPlayOrDownloadEvenWhenOldFilesExist",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.RecordingsUiTest",
+        "method": "keyboardCanActivateARecordingWithoutTouch",
+        "statusCode": -2
+      },
+      {
+        "class": "com.meetspace.app.RecordingsUiTest",
+        "method": "tabletUsesTwoPanesAndResizeKeepsSelectedDetailInSinglePane",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.RecordingsUiTest",
+        "method": "onlyReadyAvailableFinalMediaIsShownAndOffsetContinuationRemainsAccessible",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.SettingsUiTest",
+        "method": "privacyExplainsExportRetentionAndDialogClosesAtLargeFontInDarkTheme",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.SettingsUiTest",
+        "method": "missingFirebaseNeverClaimsBackgroundPushDelivery",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.SettingsUiTest",
+        "method": "settingsShowActualPermissionsAndRequestExistingNotificationCenter",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.SettingsUiTest",
+        "method": "connectedPushStateIsScopedToCurrentAccount",
+        "statusCode": 0
+      }
+    ]
+  },
+  {
+    "sourceLog": "stage08-tablet-final.log",
+    "counts": {
+      "passed": 37
+    },
+    "tests": [
+      {
+        "class": "com.meetspace.app.RecordingsUiTest",
+        "method": "largeFontDarkLandscapeKeepsDownloadCancelReachableAndBackAccessible",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.RecordingsUiTest",
+        "method": "playAndDownloadRequestSelectedFileAndBlockDuplicateDownload",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.RecordingsUiTest",
+        "method": "meetingSelectorSearchesLoadedPagesAndRetainsPaginationAndActiveFilter",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.RecordingsUiTest",
+        "method": "unavailableMaterialsExplainServerSupportAndNeverExposePipelineStates",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.RecordingsUiTest",
+        "method": "failedRefreshRetainsReadyRowsAndDoesNotClaimEmpty",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.RecordingsUiTest",
+        "method": "searchIsExplicitlyPageScopedAndPrivateQueryIsNotRestored",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.RecordingsUiTest",
+        "method": "historicalReadyMaterialsRemainReadableWhenNewGenerationIsDisabled",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.RecordingsUiTest",
+        "method": "materialsAreReadOnlyAndShowSegmentsSummaryAndNextPage",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.RecordingsUiTest",
+        "method": "unavailableDetailOffersNoPlayOrDownloadEvenWhenOldFilesExist",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.RecordingsUiTest",
+        "method": "keyboardCanActivateARecordingWithoutTouch",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.RecordingsUiTest",
+        "method": "tabletUsesTwoPanesAndResizeKeepsSelectedDetailInSinglePane",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.RecordingsUiTest",
+        "method": "onlyReadyAvailableFinalMediaIsShownAndOffsetContinuationRemainsAccessible",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.SettingsUiTest",
+        "method": "privacyExplainsExportRetentionAndDialogClosesAtLargeFontInDarkTheme",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.SettingsUiTest",
+        "method": "missingFirebaseNeverClaimsBackgroundPushDelivery",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.SettingsUiTest",
+        "method": "settingsShowActualPermissionsAndRequestExistingNotificationCenter",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.SettingsUiTest",
+        "method": "connectedPushStateIsScopedToCurrentAccount",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "listFiltersAndPaginationInvokeTheirActualCallbacks",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "createFormValidatesEmptyTitleThenSubmitsTrimmedInputAndBlocksWhileBusy",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "pendingListDoesNotShowSuccessfulEmptyState",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "compactDetailsUseSinglePaneAndTransientFormDoesNotSurviveRestoration",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "accountNameValidationTrimAndBusyState",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "cohostAndUnknownStatusesDoNotGrantOwnerActions",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "uncertainCreationDisablesCreateButKeepsExplicitReconciliationAction",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "invitationFormSubmitsEnteredCodeAndIsDisabledWhileServerPending",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "ambiguousDstFormRequiresExplicitOffsetBeforeSubmitting",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "recordingsShortcutOpensMeetingSelectorAndHistoryOpensScopedRecordings",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "tabletShowsListAndOwnerDetailsSideBySide",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "waitingMemberSeesAdmissionAndCannotJoinAsAdmitted",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "failedListPreservesRowsAndDoesNotMisrepresentFailureAsEmptyData",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "scheduleFormConvertsSelectedZoneToInstantAndChecksDuration",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "calendarDayNavigationShowsLocalDayAndIncompletePageAction",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "ownerScheduledDetailsAllowScheduleAndRequireCancelConfirmation",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.LiveRecordingsTest",
+        "method": "realVideoPlaysSeeksRotatesAndReleases",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.LiveRecordingsTest",
+        "method": "realExistingServerAndUnavailableSshOnboarding",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.LiveRecordingsTest",
+        "method": "realHistoricalMaterialsPaginateAndSettingsReflectActualState",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.LiveRecordingsTest",
+        "method": "actualSystemCreateDocumentDownloadsVerifiedMp4AndCleansItsFile",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.NativeLibrariesSmokeTest",
+        "method": "bundledNativeLibrariesLoadAndWebRtcFactoryDisposes",
+        "statusCode": 0
+      }
+    ]
+  },
+  {
+    "sourceLog": "stage08-all-final.log",
+    "counts": {
+      "passed": 80,
+      "failed": 1
+    },
+    "tests": [
+      {
+        "class": "com.meetspace.app.FoundationUiTest",
+        "method": "connectSubmitsEnteredOriginAndBlocksRepeatedSubmissionWhileBusy",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.FoundationUiTest",
+        "method": "selectedTabSurvivesWindowChangesAndSavedInstanceStateRecreation",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.FoundationUiTest",
+        "method": "mediumWindowUsesNavigationRail",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.FoundationUiTest",
+        "method": "expandedWindowUsesNavigationDrawer",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.FoundationUiTest",
+        "method": "firstRunConnectOpensServerForm",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.FoundationUiTest",
+        "method": "firstRunInstallerShowsItsActualReadiness",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.FoundationUiTest",
+        "method": "loginKeepsPasswordHiddenUntilExplicitlyRevealedAndSubmitsTypedCredentials",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.FoundationUiTest",
+        "method": "switchingAccountProfileClearsPasswordAndUsesThatAccountsEmail",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.FoundationUiTest",
+        "method": "compactWindowUsesBottomNavigation",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.FoundationUiTest",
+        "method": "savedInstanceStateRestoresEmailButDoesNotPersistPassword",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.SshWizardUiTest",
+        "method": "passwordIsClearedOnSubmitAndIsNotSavedDuringRecreation",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.SshWizardUiTest",
+        "method": "independentFingerprintComparisonIsRequiredForNewTrust",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.SshWizardUiTest",
+        "method": "cancellationClearsPasswordAndLeavesNoEnabledOperationWhileBusy",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.SshWizardUiTest",
+        "method": "detailsSubmitOnlyNonSecretInputsAndNoCredentialsExistBeforeTrust",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.SshWizardUiTest",
+        "method": "structuredResultsExposeAllLevelsAndNoInstallAction",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.SshWizardUiTest",
+        "method": "changedKeyShowsBothFingerprintsAndRequiresSeparateForgetDialog",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.InstallerUiTest",
+        "method": "detachAndServerCancellationAreDifferentActions",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.InstallerUiTest",
+        "method": "unknownStateNeverShowsSuccessOrConnect",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.InstallerUiTest",
+        "method": "completedShowsHttpsConnectionOnlyAfterAllPhases",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.InstallerUiTest",
+        "method": "eachConsentIsRequiredBeforeMutation",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "listFiltersAndPaginationInvokeTheirActualCallbacks",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "createFormValidatesEmptyTitleThenSubmitsTrimmedInputAndBlocksWhileBusy",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "pendingListDoesNotShowSuccessfulEmptyState",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "compactDetailsUseSinglePaneAndTransientFormDoesNotSurviveRestoration",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "accountNameValidationTrimAndBusyState",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "cohostAndUnknownStatusesDoNotGrantOwnerActions",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "uncertainCreationDisablesCreateButKeepsExplicitReconciliationAction",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "invitationFormSubmitsEnteredCodeAndIsDisabledWhileServerPending",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "ambiguousDstFormRequiresExplicitOffsetBeforeSubmitting",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "recordingsShortcutOpensMeetingSelectorAndHistoryOpensScopedRecordings",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "tabletShowsListAndOwnerDetailsSideBySide",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "waitingMemberSeesAdmissionAndCannotJoinAsAdmitted",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "failedListPreservesRowsAndDoesNotMisrepresentFailureAsEmptyData",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "scheduleFormConvertsSelectedZoneToInstantAndChecksDuration",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "calendarDayNavigationShowsLocalDayAndIncompletePageAction",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MeetingsUiTest",
+        "method": "ownerScheduledDetailsAllowScheduleAndRequireCancelConfirmation",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.CallUiTest",
+        "method": "participantPanelContainsRealRoster",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.CallUiTest",
+        "method": "reconnectNeverDisplaysConnectedAndDisablesCapture",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.CallUiTest",
+        "method": "failedCallOffersRetryAndShowsActualFailure",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.CallUiTest",
+        "method": "blockedDevicesCannotPublishAndLeaveRemainsAvailable",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.CallUiTest",
+        "method": "prejoinRequiresExplicitConnectAndDeviceActions",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MessagingUiTest",
+        "method": "failedHistoryPreservesCachedMessagesAndNeverClaimsSuccessfulEmptyState",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MessagingUiTest",
+        "method": "configuredPushWaitsForAcknowledgmentAndBlocksBothActionsWhileBusy",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MessagingUiTest",
+        "method": "ownMessageActionsRequireConfirmationForDeleteAndOtherAuthorsCannotBeEdited",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MessagingUiTest",
+        "method": "tombstoneDoesNotExposeTextFilesOrActions",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MessagingUiTest",
+        "method": "resizingComposerBetweenTallAndCompactPreservesDraftAndInput",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MessagingUiTest",
+        "method": "failedListNeverShowsEmptySuccessAndRefreshRemainsAvailable",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MessagingUiTest",
+        "method": "paginationAndServerSearchAreExplicitCallbacks",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MessagingUiTest",
+        "method": "foldersIncludeMeetingsAndRemovingMembershipDoesNotDeleteResource",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MessagingUiTest",
+        "method": "tabletKeepsListAndHistoryVisibleWhilePhoneShowsDetailAndBack",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MessagingUiTest",
+        "method": "notificationPreferencesPreserveTransportFlagsAndOpenResourceIsSeparateFromRead",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MessagingUiTest",
+        "method": "createGroupNeedsTitleAndSelectedUserAndWaitsForAcknowledgment",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MessagingUiTest",
+        "method": "composerRequiresContentAndBlocksDuplicateSendUntilServerReturns",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MessagingUiTest",
+        "method": "attachmentsUsePickerAndExplicitDownloadWithoutOpeningRemoteLinks",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MessagingUiTest",
+        "method": "ambiguousSendLocksPayloadAndOffersRetryWithoutFakeDeliveredStatus",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MessagingUiTest",
+        "method": "largeFontUsesSinglePaneAndKeepsComposerUsable",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MessagingUiTest",
+        "method": "folderNamesAreValidatedBeforeCreateAndDeletionRequiresExplicitConfirmation",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MessagingUiTest",
+        "method": "directChatUsesSelectedPersonIdentity",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MessagingUiTest",
+        "method": "shortLandscapeWithLargeFontPreservesHistoryAndAllComposeActions",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.MessagingUiTest",
+        "method": "unconfiguredPushShowsUnavailableWithoutOfferingRegistration",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.RecordingsUiTest",
+        "method": "largeFontDarkLandscapeKeepsDownloadCancelReachableAndBackAccessible",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.RecordingsUiTest",
+        "method": "playAndDownloadRequestSelectedFileAndBlockDuplicateDownload",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.RecordingsUiTest",
+        "method": "meetingSelectorSearchesLoadedPagesAndRetainsPaginationAndActiveFilter",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.RecordingsUiTest",
+        "method": "unavailableMaterialsExplainServerSupportAndNeverExposePipelineStates",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.RecordingsUiTest",
+        "method": "failedRefreshRetainsReadyRowsAndDoesNotClaimEmpty",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.RecordingsUiTest",
+        "method": "searchIsExplicitlyPageScopedAndPrivateQueryIsNotRestored",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.RecordingsUiTest",
+        "method": "historicalReadyMaterialsRemainReadableWhenNewGenerationIsDisabled",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.RecordingsUiTest",
+        "method": "materialsAreReadOnlyAndShowSegmentsSummaryAndNextPage",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.RecordingsUiTest",
+        "method": "unavailableDetailOffersNoPlayOrDownloadEvenWhenOldFilesExist",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.RecordingsUiTest",
+        "method": "keyboardCanActivateARecordingWithoutTouch",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.RecordingsUiTest",
+        "method": "tabletUsesTwoPanesAndResizeKeepsSelectedDetailInSinglePane",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.RecordingsUiTest",
+        "method": "onlyReadyAvailableFinalMediaIsShownAndOffsetContinuationRemainsAccessible",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.SettingsUiTest",
+        "method": "privacyExplainsExportRetentionAndDialogClosesAtLargeFontInDarkTheme",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.SettingsUiTest",
+        "method": "missingFirebaseNeverClaimsBackgroundPushDelivery",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.SettingsUiTest",
+        "method": "settingsShowActualPermissionsAndRequestExistingNotificationCenter",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.SettingsUiTest",
+        "method": "connectedPushStateIsScopedToCurrentAccount",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.LiveRecordingsTest",
+        "method": "realVideoPlaysSeeksRotatesAndReleases",
+        "statusCode": -2
+      },
+      {
+        "class": "com.meetspace.app.LiveRecordingsTest",
+        "method": "realExistingServerAndUnavailableSshOnboarding",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.LiveRecordingsTest",
+        "method": "realHistoricalMaterialsPaginateAndSettingsReflectActualState",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.LiveRecordingsTest",
+        "method": "actualSystemCreateDocumentDownloadsVerifiedMp4AndCleansItsFile",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.NativeLibrariesSmokeTest",
+        "method": "bundledNativeLibrariesLoadAndWebRtcFactoryDisposes",
+        "statusCode": 0
+      }
+    ]
+  },
+  {
+    "sourceLog": "stage08-video-final.log",
+    "counts": {
+      "passed": 1
+    },
+    "tests": [
+      {
+        "class": "com.meetspace.app.LiveRecordingsTest",
+        "method": "realVideoPlaysSeeksRotatesAndReleases",
+        "statusCode": 0
+      }
+    ]
+  },
+  {
+    "sourceLog": "stage08-phone-live.log",
+    "counts": {
+      "passed": 3,
+      "failed": 1
+    },
+    "tests": [
+      {
+        "class": "com.meetspace.app.LiveRecordingsTest",
+        "method": "realVideoPlaysSeeksRotatesAndReleases",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.LiveRecordingsTest",
+        "method": "realExistingServerAndUnavailableSshOnboarding",
+        "statusCode": -2
+      },
+      {
+        "class": "com.meetspace.app.LiveRecordingsTest",
+        "method": "realHistoricalMaterialsPaginateAndSettingsReflectActualState",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.LiveRecordingsTest",
+        "method": "actualSystemCreateDocumentDownloadsVerifiedMp4AndCleansItsFile",
+        "statusCode": 0
+      }
+    ]
+  },
+  {
+    "sourceLog": "stage08-phone-onboarding-final.log",
+    "counts": {
+      "passed": 1
+    },
+    "tests": [
+      {
+        "class": "com.meetspace.app.LiveRecordingsTest",
+        "method": "realExistingServerAndUnavailableSshOnboarding",
+        "statusCode": 0
+      }
+    ]
+  },
+  {
+    "sourceLog": "stage08-16k-final.log",
+    "counts": {
+      "passed": 5
+    },
+    "tests": [
+      {
+        "class": "com.meetspace.app.LiveRecordingsTest",
+        "method": "realVideoPlaysSeeksRotatesAndReleases",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.LiveRecordingsTest",
+        "method": "realExistingServerAndUnavailableSshOnboarding",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.LiveRecordingsTest",
+        "method": "realHistoricalMaterialsPaginateAndSettingsReflectActualState",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.LiveRecordingsTest",
+        "method": "actualSystemCreateDocumentDownloadsVerifiedMp4AndCleansItsFile",
+        "statusCode": 0
+      },
+      {
+        "class": "com.meetspace.app.NativeLibrariesSmokeTest",
+        "method": "bundledNativeLibrariesLoadAndWebRtcFactoryDisposes",
+        "statusCode": 0
+      }
+    ]
+  },
+  {
+    "sourceLog": "stage08-phone-video-final.log",
+    "counts": {
+      "passed": 1
+    },
+    "tests": [
+      {
+        "class": "com.meetspace.app.LiveRecordingsTest",
+        "method": "realVideoPlaysSeeksRotatesAndReleases",
+        "statusCode": 0
+      }
+    ]
+  }
+]

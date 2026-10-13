@@ -1,0 +1,14 @@
+{
+  "label": "screen-390x844-dark-font1.0-call",
+  "tests": [
+    {
+      "class": "com.meetspace.app.CallRecordingDesignTest",
+      "test": "captureApprovedCallScreenshot",
+      "status": 0
+    }
+  ],
+  "passed": 1,
+  "failed": 0,
+  "seconds": 1.6,
+  "success": true
+}

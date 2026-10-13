@@ -1,0 +1,36 @@
+{
+  "scope": "Host-local Python and OpenSSL tests only. No Gradle, Android, network, SSH, Docker or VPS mutation in this subtask.",
+  "platform": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "python": "3.13.0",
+  "pythonTests": {
+    "command": [
+      "python3",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "installer/tests",
+      "-v"
+    ],
+    "exitCode": 0,
+    "tests": 23,
+    "passed": 23,
+    "durationSeconds": 0.084
+  },
+  "signatureVerified": true,
+  "installerFilesSha256": {
+    "installer/v1/runner.py": "614e4e4743f7cf81db57642300e4175b2c8842d6558167ca4a1837ec968af90a",
+    "installer/v1/release.json": "ceb77712178aea1e7e31f7a29c4209b0dc61a286a43231e92aae51169d02ef6e",
+    "installer/v1/release.sig": "26f12c13f500b77b9f9124ed45ba61136357855e892cee437e0f1d3319c4f3ff",
+    "installer/v1/trust-root.pem": "9f16201125cd17dc9fb90a7579e78589c76ecbfdb1ee80df3428ee34d6b90dfc",
+    "installer/v1/docker.asc": "1500c1f56fa9e26b9b8f42452a553675796ade0807cdce11975eb98170b3a570"
+  },
+  "currentDebugApkAssetsEqualInstallerFiles": {
+    "runner.py": true,
+    "release.json": true,
+    "release.sig": true,
+    "trust-root.pem": true,
+    "docker.asc": true
+  },
+  "assetsSourceSet": "app/build.gradle.kts: main.assets.srcDir(rootProject.file(\"installer/v1\")), excludes __pycache__"
+}

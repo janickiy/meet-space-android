@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.meetspace.app.InstallerViewModelTest" tests="13" skipped="0" failures="0" errors="0" timestamp="2026-10-11T16:25:06.748Z" hostname="MacBook-Air-janickiy.local" time="0.056">
+  <testcase name="backgroundObservationStopsFor120SecondsAndResumesWithoutRemoteCancellation" classname="com.meetspace.app.InstallerViewModelTest" time="0.027" />
+  <testcase name="missingJobAllowsOnlyExplicitSameIdRetry" classname="com.meetspace.app.InstallerViewModelTest" time="0.002" />
+  <testcase name="explicitCancelUsesDurableRemoteSignal" classname="com.meetspace.app.InstallerViewModelTest" time="0.003" />
+  <testcase name="repeatedForegroundCallbacksKeepExactlyOneObservationLoop" classname="com.meetspace.app.InstallerViewModelTest" time="0.005" />
+  <testcase name="terminalStatusDoesNotRestartObservationOnForeground" classname="com.meetspace.app.InstallerViewModelTest" time="0.001" />
+  <testcase name="ticketPersistedBeforeApplyAndLostResponseDoesNotRetryAutomatically" classname="com.meetspace.app.InstallerViewModelTest" time="0.002" />
+  <testcase name="noApplyWithoutEachConsent" classname="com.meetspace.app.InstallerViewModelTest" time="0.002" />
+  <testcase name="lateCancelledObserverCannotOverwriteStatusOrClearReplacementLoop" classname="com.meetspace.app.InstallerViewModelTest" time="0.005" />
+  <testcase name="reconnectToRecoveryDoesNotResumeWithoutUserAction" classname="com.meetspace.app.InstallerViewModelTest" time="0.001" />
+  <testcase name="expiredUnsentTicketReconcilesReadOnlyBeforeNewConfirmation" classname="com.meetspace.app.InstallerViewModelTest" time="0.002" />
+  <testcase name="applyFinishingInBackgroundRetainsTicketAndWaitsForForegroundToObserve" classname="com.meetspace.app.InstallerViewModelTest" time="0.001" />
+  <testcase name="detachDoesNotCancelRemoteJob" classname="com.meetspace.app.InstallerViewModelTest" time="0.001" />
+  <testcase name="expiredPlanCanBeRefreshedWithoutCreatingAJob" classname="com.meetspace.app.InstallerViewModelTest" time="0.001" />
+  </testsuite>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.meetspace.app.MeetingsViewModelTest" tests="13" skipped="0" failures="0" errors="0" timestamp="2026-10-11T16:25:06.823Z" hostname="MacBook-Air-janickiy.local" time="0.07">
+  <testcase name="rejectedCreateDoesNotBecomeAnUncertainPost" classname="com.meetspace.app.MeetingsViewModelTest" time="0.011" />
+  <testcase name="staleFilterResponseCannotReplaceNewFilteredList" classname="com.meetspace.app.MeetingsViewModelTest" time="0.005" />
+  <testcase name="waitingAdmissionNeverClaimsConnectedAudioOrVideo" classname="com.meetspace.app.MeetingsViewModelTest" time="0.004" />
+  <testcase name="homeRequestsRealUpcomingAndActiveOnlyOnceUntilRefreshed" classname="com.meetspace.app.MeetingsViewModelTest" time="0.022" />
+  <testcase name="lateResponseFromPreviousAccountCannotRepopulateClearedWorkspace" classname="com.meetspace.app.MeetingsViewModelTest" time="0.003" />
+  <testcase name="failedReplacementRefreshStopsLoaderAndAllowsRetry" classname="com.meetspace.app.MeetingsViewModelTest" time="0.003" />
+  <testcase name="calendarFetchesAllViewsWithLocalMonthBoundsAndIndependentCursors" classname="com.meetspace.app.MeetingsViewModelTest" time="0.005" />
+  <testcase name="failedRefreshKeepsExistingDataAndPresentsError" classname="com.meetspace.app.MeetingsViewModelTest" time="0.002" />
+  <testcase name="logoutClearsDetailsAndBlocksMutationsWithoutAnAccount" classname="com.meetspace.app.MeetingsViewModelTest" time="0.001" />
+  <testcase name="paginationDeduplicatesIdsUsingNewerProjectionAndStopsRepeatedCursor" classname="com.meetspace.app.MeetingsViewModelTest" time="0.003" />
+  <testcase name="doubleCreateTapSendsOnePostWhilePending" classname="com.meetspace.app.MeetingsViewModelTest" time="0.002" />
+  <testcase name="closingDetailsCancelsLateHistoryAndDoesNotLeakItToNextMeeting" classname="com.meetspace.app.MeetingsViewModelTest" time="0.006" />
+  <testcase name="unknownCreateOutcomeRequiresSuccessfulReadAndExplicitAcknowledgementBeforeAnotherPost" classname="com.meetspace.app.MeetingsViewModelTest" time="0.003" />
+  </testsuite>

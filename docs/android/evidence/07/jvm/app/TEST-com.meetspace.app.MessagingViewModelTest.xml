@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.meetspace.app.MessagingViewModelTest" tests="23" skipped="0" failures="0" errors="0" timestamp="2026-10-11T14:24:15.125Z" hostname="MacBook-Air-janickiy.local" time="0.104">
+  <properties/>
+  <testcase name="unknownGroupCreateReusesIdOnlyForSameIntent" classname="com.meetspace.app.MessagingViewModelTest" time="0.007"/>
+  <testcase name="loadedHistoryRemainsInRamOfflineUntilLogoutThenIsGone" classname="com.meetspace.app.MessagingViewModelTest" time="0.005"/>
+  <testcase name="forbiddenRefreshEvictsHistoryAndDoesNotReuseItOnReopen" classname="com.meetspace.app.MessagingViewModelTest" time="0.008"/>
+  <testcase name="lateResponseFromPreviousAccountCannotRepopulateHistory" classname="com.meetspace.app.MessagingViewModelTest" time="0.003"/>
+  <testcase name="websocketReconnectUsesNewSessionAndDeduplicatesInvalidations" classname="com.meetspace.app.MessagingViewModelTest" time="0.016"/>
+  <testcase name="folderSearchAndGlobalFiltersDoNotRemainStuckInFolder" classname="com.meetspace.app.MessagingViewModelTest" time="0.004"/>
+  <testcase name="readAcknowledgmentsDoNotCreateRealtimeRefreshLoop" classname="com.meetspace.app.MessagingViewModelTest" time="0.005"/>
+  <testcase name="lateSendResponseCannotInsertOldChatMessagesAfterSwitch" classname="com.meetspace.app.MessagingViewModelTest" time="0.004"/>
+  <testcase name="ambiguousSendRetriesSameIdentityAndPayloadWhileDoubleTapIsIgnored" classname="com.meetspace.app.MessagingViewModelTest" time="0.001"/>
+  <testcase name="lateWebsocketOpenAfterLogoutClosesReturnedSession" classname="com.meetspace.app.MessagingViewModelTest" time="0.0"/>
+  <testcase name="olderPaginationMovesPastTwoHundredMessagesWithoutGrowingMemoryOrLosingCursor" classname="com.meetspace.app.MessagingViewModelTest" time="0.01"/>
+  <testcase name="validationRejectionUnlocksDraftAndCorrectedMessageGetsNewIdentity" classname="com.meetspace.app.MessagingViewModelTest" time="0.002"/>
+  <testcase name="readingAndNotificationReadNeverRunAsHiddenScreenSideEffects" classname="com.meetspace.app.MessagingViewModelTest" time="0.003"/>
+  <testcase name="uploadedAndDownloadedTemporaryBytesAreWipedEvenOnFailure" classname="com.meetspace.app.MessagingViewModelTest" time="0.007"/>
+  <testcase name="refreshReconcilesUnknownSendByClientRequestIdWithoutSecondPost" classname="com.meetspace.app.MessagingViewModelTest" time="0.003"/>
+  <testcase name="historyResponseStartedBeforeSendAckCannotEraseAcceptedMessage" classname="com.meetspace.app.MessagingViewModelTest" time="0.003"/>
+  <testcase name="paginationDeduplicatesMessagesUsingNewestVersionAndRejectsRepeatedCursor" classname="com.meetspace.app.MessagingViewModelTest" time="0.001"/>
+  <testcase name="lateGroupMutationCannotReplaceAnotherSelectedConversation" classname="com.meetspace.app.MessagingViewModelTest" time="0.003"/>
+  <testcase name="sameAccountDifferentOriginDiscardsDraftAndBoundedCache" classname="com.meetspace.app.MessagingViewModelTest" time="0.002"/>
+  <testcase name="staleRefreshCannotDowngradeAnObservedMessageVersion" classname="com.meetspace.app.MessagingViewModelTest" time="0.005"/>
+  <testcase name="lateHistoryFailureCannotRollbackAcknowledgedEdit" classname="com.meetspace.app.MessagingViewModelTest" time="0.004"/>
+  <testcase name="deletionReplacesTextWithServerTombstoneAndRefreshesReplies" classname="com.meetspace.app.MessagingViewModelTest" time="0.003"/>
+  <testcase name="replyAndOwnEditCarryCorrectScopeAndOtherAuthorsCannotBeEdited" classname="com.meetspace.app.MessagingViewModelTest" time="0.002"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

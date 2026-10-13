@@ -1,0 +1,293 @@
+{
+  "backendCommit": "6ecd8b648a2aa94fc9bcc844d57784423e2c6f69",
+  "environment": "isolated localhost actual Gin + PostgreSQL 14 + validated HTTPS",
+  "checks": [
+    {
+      "check": "real Argon2/JWT login",
+      "httpStatus": 200,
+      "passed": true
+    },
+    {
+      "check": "real Argon2/JWT login",
+      "httpStatus": 200,
+      "passed": true
+    },
+    {
+      "check": "actual user repository read",
+      "httpStatus": 200,
+      "passed": true
+    },
+    {
+      "check": "actual platform capabilities",
+      "httpStatus": 200,
+      "passed": true
+    },
+    {
+      "check": "timeline rejects absent Bearer",
+      "httpStatus": 401,
+      "passed": true
+    },
+    {
+      "check": "create regular meeting",
+      "httpStatus": 201,
+      "passed": true
+    },
+    {
+      "check": "created owner membership",
+      "httpStatus": 200,
+      "passed": true
+    },
+    {
+      "check": "owner starts registered admitted/left",
+      "passed": true
+    },
+    {
+      "check": "nonmember cannot read detail",
+      "httpStatus": 403,
+      "passed": true
+    },
+    {
+      "check": "missing membership is 403",
+      "httpStatus": 403,
+      "passed": true
+    },
+    {
+      "check": "nonowner cannot start",
+      "httpStatus": 403,
+      "passed": true
+    },
+    {
+      "check": "created meeting cannot be rescheduled",
+      "httpStatus": 409,
+      "passed": true
+    },
+    {
+      "check": "open meeting has no closed history",
+      "httpStatus": 409,
+      "passed": true
+    },
+    {
+      "check": "create scheduled meeting with explicit timezone",
+      "httpStatus": 201,
+      "passed": true
+    },
+    {
+      "check": "schedule normalized to UTC",
+      "passed": true
+    },
+    {
+      "check": "nonowner cannot reschedule",
+      "httpStatus": 403,
+      "passed": true
+    },
+    {
+      "check": "owner updates scheduled date and duration",
+      "httpStatus": 200,
+      "passed": true
+    },
+    {
+      "check": "updated duration returned",
+      "passed": true
+    },
+    {
+      "check": "duration upper bound enforced",
+      "httpStatus": 422,
+      "passed": true
+    },
+    {
+      "check": "past schedule rejected",
+      "httpStatus": 422,
+      "passed": true
+    },
+    {
+      "check": "real invited scheduled membership",
+      "httpStatus": 200,
+      "passed": true
+    },
+    {
+      "check": "scheduled invite registers admitted/left without media claim",
+      "passed": true
+    },
+    {
+      "check": "owner starts scheduled meeting",
+      "httpStatus": 200,
+      "passed": true
+    },
+    {
+      "check": "participant cannot finish",
+      "httpStatus": 403,
+      "passed": true
+    },
+    {
+      "check": "active meeting cannot cancel",
+      "httpStatus": 409,
+      "passed": true
+    },
+    {
+      "check": "admitted active membership joins",
+      "httpStatus": 200,
+      "passed": true
+    },
+    {
+      "check": "active membership joined state",
+      "passed": true
+    },
+    {
+      "check": "owner joins active membership",
+      "httpStatus": 200,
+      "passed": true
+    },
+    {
+      "check": "owner finishes active meeting",
+      "httpStatus": 200,
+      "passed": true
+    },
+    {
+      "check": "participant reads finished history",
+      "httpStatus": 200,
+      "passed": true
+    },
+    {
+      "check": "history participant count is real repository aggregate",
+      "passed": true
+    },
+    {
+      "check": "history elapsed duration nonnegative",
+      "passed": true
+    },
+    {
+      "check": "finished meeting cannot restart",
+      "httpStatus": 409,
+      "passed": true
+    },
+    {
+      "check": "owner cancels created meeting",
+      "httpStatus": 200,
+      "passed": true
+    },
+    {
+      "check": "cancelled history readable",
+      "httpStatus": 200,
+      "passed": true
+    },
+    {
+      "check": "unstarted cancelled duration stays absent",
+      "passed": true
+    },
+    {
+      "check": "real upcoming timeline",
+      "httpStatus": 200,
+      "passed": true
+    },
+    {
+      "check": "upcoming timeline excludes invite secrets",
+      "passed": true
+    },
+    {
+      "check": "real active timeline",
+      "httpStatus": 200,
+      "passed": true
+    },
+    {
+      "check": "active timeline excludes invite secrets",
+      "passed": true
+    },
+    {
+      "check": "real past timeline",
+      "httpStatus": 200,
+      "passed": true
+    },
+    {
+      "check": "past timeline excludes invite secrets",
+      "passed": true
+    },
+    {
+      "check": "timeline limit bound",
+      "httpStatus": 422,
+      "passed": true
+    },
+    {
+      "check": "malformed cursor rejected",
+      "httpStatus": 422,
+      "passed": true
+    },
+    {
+      "check": "actual profile name update",
+      "httpStatus": 200,
+      "passed": true
+    },
+    {
+      "check": "unknown profile field rejected",
+      "httpStatus": 400,
+      "passed": true
+    },
+    {
+      "check": "profile control character rejected",
+      "httpStatus": 422,
+      "passed": true
+    },
+    {
+      "check": "create calendar boundary fixture",
+      "httpStatus": 201,
+      "passed": true
+    },
+    {
+      "check": "create calendar boundary fixture",
+      "httpStatus": 201,
+      "passed": true
+    },
+    {
+      "check": "actual PostgreSQL inclusive local-month bounds",
+      "httpStatus": 200,
+      "passed": true
+    },
+    {
+      "check": "microsecond bound includes last local instant and excludes next month",
+      "passed": true
+    },
+    {
+      "check": "real cursor traversal",
+      "httpStatus": 200,
+      "passed": true
+    },
+    {
+      "check": "pagination avoids repeated IDs",
+      "passed": true
+    },
+    {
+      "check": "cursor progresses",
+      "passed": true
+    },
+    {
+      "check": "real cursor traversal",
+      "httpStatus": 200,
+      "passed": true
+    },
+    {
+      "check": "pagination avoids repeated IDs",
+      "passed": true
+    },
+    {
+      "check": "cursor progresses",
+      "passed": true
+    },
+    {
+      "check": "cursor traverses both remaining scheduled fixtures",
+      "passed": true
+    },
+    {
+      "check": "real session logout",
+      "httpStatus": 200,
+      "passed": true
+    },
+    {
+      "check": "revoked access cannot read timeline",
+      "httpStatus": 401,
+      "passed": true
+    }
+  ],
+  "passed": 60,
+  "productionMutations": false,
+  "usesBusinessMocks": false,
+  "mediaStackExercised": false
+}

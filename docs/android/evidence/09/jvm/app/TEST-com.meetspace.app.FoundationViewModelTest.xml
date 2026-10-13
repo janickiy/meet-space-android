@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.meetspace.app.FoundationViewModelTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-10-11T16:25:06.589Z" hostname="MacBook-Air-janickiy.local" time="0.155">
+  <testcase name="repeatedTapDoesNotStartSecondLoginWhileFirstPending" classname="com.meetspace.app.FoundationViewModelTest" time="0.136" />
+  <testcase name="offlineStartupDoesNotClaimServerWasVerified" classname="com.meetspace.app.FoundationViewModelTest" time="0.002" />
+  <testcase name="expiredRestoreOpensLoginWithSafeError" classname="com.meetspace.app.FoundationViewModelTest" time="0.002" />
+  <testcase name="downstreamApiSessionExpiryLeavesWorkspaceAndShowsLogin" classname="com.meetspace.app.FoundationViewModelTest" time="0.005" />
+  <testcase name="unauthenticatedNavigationCannotEnterWorkspace" classname="com.meetspace.app.FoundationViewModelTest" time="0.002" />
+  <testcase name="expiredSelectedProfileOpensLoginDirectlyAfterSuccessfulProbe" classname="com.meetspace.app.FoundationViewModelTest" time="0.002" />
+  <testcase name="offlineLogoutClearsWorkspaceAndExplainsUnconfirmedRevocation" classname="com.meetspace.app.FoundationViewModelTest" time="0.003" />
+  <testcase name="failedThemeWriteKeepsAuthenticatedWorkspace" classname="com.meetspace.app.FoundationViewModelTest" time="0.002" />
+  </testsuite>

@@ -1,0 +1,8 @@
+{
+  "migrationCount": 33,
+  "migrationReplayStable": true,
+  "backupRestoreSeparateDatabase": true,
+  "secretsStable": true,
+  "generatedSecretsInLogs": false,
+  "privateModesVerified": true
+}

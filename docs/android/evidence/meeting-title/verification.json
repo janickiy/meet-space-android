@@ -1,0 +1,15 @@
+{
+  "versionName": "0.9.7",
+  "versionCode": 15,
+  "buildType": "debug",
+  "apk": "/Users/aleksandranickij/htdocs/Android/dist/MeetSpace-0.9.7.apk",
+  "sha256": "c9e77537c5f89a0d9c8b68235bd4fdda404bb8c903c8894dabd16ba27dff36e8",
+  "apkBytes": 77586084,
+  "signatureVerified": true,
+  "alignment16KVerified": true,
+  "meetingsUiTestsPassed": 28,
+  "lintErrors": 0,
+  "prototypePhoneTitleNavigationVerified": true,
+  "prototypeTabletTitleNavigationVerified": true,
+  "change": "Removed Open buttons; meeting titles invoke the existing meeting opening action."
+}

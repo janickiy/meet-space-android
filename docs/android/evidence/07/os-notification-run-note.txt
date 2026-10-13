@@ -1,0 +1,39 @@
+The OS notification method passed in a combined run whose SAF test failed in its shell observer.
+The SAF observer was subsequently corrected; its final result is recorded separately.
+
+
+com.meetspace.app.LiveMessagingSafTest:
+Error in actualDocumentPickSendAndCreateDocumentDownloadPreserveBytes(com.meetspace.app.LiveMessagingSafTest):
+java.lang.AssertionError: Cleanup of the test's own document URIs must succeed
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+	at com.meetspace.app.LiveMessagingSafTest.cleanup(LiveMessagingSafTest.kt:86)
+
+com.meetspace.app.LiveMessagingTest:.
+
+Time: 41.922
+There were 2 failures:
+1) actualDocumentPickSendAndCreateDocumentDownloadPreserveBytes(com.meetspace.app.LiveMessagingSafTest)
+java.lang.IllegalStateException: Could not hash the test's exact CreateDocument export
+	at com.meetspace.app.LiveMessagingSafTest.shellExportHash(LiveMessagingSafTest.kt:210)
+	at com.meetspace.app.LiveMessagingSafTest.access$shellExportHash(LiveMessagingSafTest.kt:33)
+	at com.meetspace.app.LiveMessagingSafTest$actualDocumentPickSendAndCreateDocumentDownloadPreserveBytes$1.invokeSuspend(LiveMessagingSafTest.kt:165)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.EventLoopImplBase.processNextEvent(EventLoop.common.kt:263)
+	at kotlinx.coroutines.BlockingCoroutine.joinBlocking(Builders.kt:94)
+	at kotlinx.coroutines.BuildersKt__BuildersKt.runBlocking(Builders.kt:70)
+	at kotlinx.coroutines.BuildersKt.runBlocking(Unknown Source:1)
+	at kotlinx.coroutines.BuildersKt__BuildersKt.runBlocking$default(Builders.kt:48)
+	at kotlinx.coroutines.BuildersKt.runBlocking$default(Unknown Source:1)
+	at com.meetspace.app.LiveMessagingSafTest.actualDocumentPickSendAndCreateDocumentDownloadPreserveBytes(LiveMessagingSafTest.kt:89)
+2) actualDocumentPickSendAndCreateDocumentDownloadPreserveBytes(com.meetspace.app.LiveMessagingSafTest)
+java.lang.AssertionError: Cleanup of the test's own document URIs must succeed
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+	at com.meetspace.app.LiveMessagingSafTest.cleanup(LiveMessagingSafTest.kt:86)
+
+FAILURES!!!
+Tests run: 2,  Failures: 2
+
+

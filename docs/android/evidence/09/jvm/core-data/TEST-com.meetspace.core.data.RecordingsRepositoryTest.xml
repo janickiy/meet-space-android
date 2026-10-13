@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.meetspace.core.data.RecordingsRepositoryTest" tests="20" skipped="0" failures="0" errors="0" timestamp="2026-10-11T16:25:14.037Z" hostname="MacBook-Air-janickiy.local" time="2.479">
+  <testcase name="acquiring nonready or unavailable file never accesses object storage" classname="com.meetspace.core.data.RecordingsRepositoryTest" time="0.022" />
+  <testcase name="malformed identity size MIME and duplicate files are rejected" classname="com.meetspace.core.data.RecordingsRepositoryTest" time="0.024" />
+  <testcase name="content absent data and mismatching conference fail safely" classname="com.meetspace.core.data.RecordingsRepositoryTest" time="0.021" />
+  <testcase name="disabled transcript retains existing ready text metadata and summary" classname="com.meetspace.core.data.RecordingsRepositoryTest" time="0.022" />
+  <testcase name="cancel download immediately closes lease and retains no completed result" classname="com.meetspace.core.data.RecordingsRepositoryTest" time="2.033" />
+  <testcase name="redirect is never followed and does not leak capability to target" classname="com.meetspace.core.data.RecordingsRepositoryTest" time="0.048" />
+  <testcase name="recording metadata contains supported materials but never capability or diagnostic text" classname="com.meetspace.core.data.RecordingsRepositoryTest" time="0.029" />
+  <testcase name="ignoring range or substituting byte interval is rejected" classname="com.meetspace.core.data.RecordingsRepositoryTest" time="0.024" />
+  <testcase name="invalid paths or pagination never make a network request" classname="com.meetspace.core.data.RecordingsRepositoryTest" time="0.021" />
+  <testcase name="insecure credentialed ambiguous and fragment URLs are rejected before transfer" classname="com.meetspace.core.data.RecordingsRepositoryTest" time="0.023" />
+  <testcase name="complete export rejects wrong content length and checksum" classname="com.meetspace.core.data.RecordingsRepositoryTest" time="0.022" />
+  <testcase name="truncated body is a failed export" classname="com.meetspace.core.data.RecordingsRepositoryTest" time="0.02" />
+  <testcase name="object 401 never clears or refreshes the account session" classname="com.meetspace.core.data.RecordingsRepositoryTest" time="0.02" />
+  <testcase name="cross origin storage streams bytes and never receives account authorization cookies or auth retry" classname="com.meetspace.core.data.RecordingsRepositoryTest" time="0.022" />
+  <testcase name="export is bounded to declared size even for chunked data" classname="com.meetspace.core.data.RecordingsRepositoryTest" time="0.022" />
+  <testcase name="byte range supports seek and validates complete resource size" classname="com.meetspace.core.data.RecordingsRepositoryTest" time="0.021" />
+  <testcase name="logout closes obtained unopened and already open leases" classname="com.meetspace.core.data.RecordingsRepositoryTest" time="0.021" />
+  <testcase name="range that reaches end clamps to actual file size" classname="com.meetspace.core.data.RecordingsRepositoryTest" time="0.02" />
+  <testcase name="transcript page validates order identities and pagination" classname="com.meetspace.core.data.RecordingsRepositoryTest" time="0.02" />
+  <testcase name="list uses conference scoped offset and preserves next page before ready filtering" classname="com.meetspace.core.data.RecordingsRepositoryTest" time="0.02" />
+  </testsuite>

@@ -1,0 +1,12 @@
+{
+  "successfulProjectionStarted": false,
+  "networkSessionOpened": false,
+  "fpsMeasured": false,
+  "rejectedStartupCycles": 3,
+  "repeatedStopIsIdempotent": true,
+  "allScreenOwnershipCleared": true,
+  "callFactoryReleasedOnLeave": true,
+  "screenHelperThreadTerminated": true,
+  "projectionOwnerReleasedCount": 3,
+  "status": "passed"
+}

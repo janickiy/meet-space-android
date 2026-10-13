@@ -1,0 +1,38 @@
+{
+  "tests": 53,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "suites": {
+    "com.meetspace.core.data.ServerOriginTest": {
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "com.meetspace.core.data.FoundationRepositoryTest": {
+      "tests": 24,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "com.meetspace.core.data.MeetingsRepositoryTest": {
+      "tests": 23,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "com.meetspace.core.data.SessionCookieJarTest": {
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "com.meetspace.core.data.LiveMeetingsRepositoryTest": {
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "device": "API36 ARM64 strict16KiB emulator",
+  "variant": "temporary-signed release APK from finalAAB",
+  "method": "actual launcher Split action with Android Settings second task; divider resized from1/2 toapproximately1/3 appwidth",
+  "actualMultiWindow": true,
+  "configuration": "CurrentConfiguration={1.0 310mcc260mnc [en_US] ldltr sw432dp w432dp h800dp 320dpi nrml port finger qwerty/v/v dpad/v winConfig={ mBounds=Rect(1696, 0 - 2560, 1600) mAppBounds=Rect(1696, 0 - 2560, 1600) mMaxBounds=Rect(0, 0 - 2560, 1600) mDisplayRotation=ROTATION_0 mWindowingMode=multi-window mActivityType=standard mAlwaysOnTop=undefined mRotation=ROTATION_0} as.3 s.9 fontWeightAdjustment=0}",
+  "visibleOnboardingActions": [
+    {
+      "text": "Подключиться к серверу",
+      "bounds": "[1912,1056][2294,1094]"
+    },
+    {
+      "text": "Развернуть свой сервер",
+      "bounds": "[1912,1316][2279,1354]"
+    }
+  ],
+  "scope": "Unauthenticated onboarding layout and resize only; no authenticated conference in multiwindow",
+  "connectFormOpened": true
+}

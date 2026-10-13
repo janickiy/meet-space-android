@@ -1,0 +1,20 @@
+{
+  "debug": {
+    "path": "app/build/outputs/apk/debug/app-debug.apk",
+    "bytes": 23453009,
+    "sha256": "f67cc0899ccc0f91067839494340535b3e870a1d74931ba4fe1135471b5ecfa4"
+  },
+  "releaseUnsigned": {
+    "path": "app/build/outputs/apk/release/app-release-unsigned.apk",
+    "bytes": 2478187,
+    "sha256": "05039e1039d8dfcf2d735e9546e4263423cd924397dfdb546675383695d8df1e"
+  },
+  "installerAssetsExactMatch": {
+    "runner.py": true,
+    "release.json": true,
+    "release.sig": true,
+    "trust-root.pem": true,
+    "docker.asc": true
+  },
+  "privateFixtureFilesBundled": false
+}

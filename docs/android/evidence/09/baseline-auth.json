@@ -1,0 +1,184 @@
+{
+  "schema": 1,
+  "label": "baseline",
+  "method": "auth",
+  "sdk": 36,
+  "pageSize": 4096,
+  "abi": "arm64-v8a",
+  "versionName": "0.8.0",
+  "samples": [
+    {
+      "phase": "warmup",
+      "completedCycles": 3,
+      "elapsedRealtimeMs": 902023,
+      "processCpuMs": 2031,
+      "javaUsedBytes": 6060240,
+      "javaCommittedBytes": 11882911,
+      "nativeHeapAllocatedBytes": 19652768,
+      "nativeHeapBytes": 26505216,
+      "pssTotalKb": 219346,
+      "pssDalvikKb": 4640,
+      "pssNativeKb": 12714,
+      "rssKb": 352688,
+      "threads": 40,
+      "fds": 135,
+      "uidRxBytes": 2936581,
+      "uidTxBytes": 3156945,
+      "runtimeStats": {
+        "art.gc.bytes-allocated": 15186736,
+        "art.gc.bytes-freed": 9146976,
+        "art.gc.gc-count": 3,
+        "art.gc.gc-time": 69,
+        "art.gc.blocking-gc-count": 3,
+        "art.gc.blocking-gc-time": 70
+      },
+      "weakReferences": {
+        "session": {
+          "watched": 3,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "recordingDetail": {
+          "watched": 3,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        }
+      }
+    },
+    {
+      "phase": "batch",
+      "completedCycles": 13,
+      "elapsedRealtimeMs": 907701,
+      "processCpuMs": 3295,
+      "javaUsedBytes": 6076624,
+      "javaCommittedBytes": 11915678,
+      "nativeHeapAllocatedBytes": 19660096,
+      "nativeHeapBytes": 70807552,
+      "pssTotalKb": 231101,
+      "pssDalvikKb": 4660,
+      "pssNativeKb": 23672,
+      "rssKb": 367648,
+      "threads": 40,
+      "fds": 135,
+      "uidRxBytes": 3098851,
+      "uidTxBytes": 3190442,
+      "runtimeStats": {
+        "art.gc.bytes-allocated": 25352768,
+        "art.gc.bytes-freed": 19296624,
+        "art.gc.gc-count": 7,
+        "art.gc.gc-time": 169,
+        "art.gc.blocking-gc-count": 6,
+        "art.gc.blocking-gc-time": 142
+      },
+      "weakReferences": {
+        "session": {
+          "watched": 13,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "recordingDetail": {
+          "watched": 13,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        }
+      }
+    },
+    {
+      "phase": "batch",
+      "completedCycles": 23,
+      "elapsedRealtimeMs": 912735,
+      "processCpuMs": 3813,
+      "javaUsedBytes": 6080720,
+      "javaCommittedBytes": 11923869,
+      "nativeHeapAllocatedBytes": 19658304,
+      "nativeHeapBytes": 70807552,
+      "pssTotalKb": 230669,
+      "pssDalvikKb": 4664,
+      "pssNativeKb": 23112,
+      "rssKb": 367264,
+      "threads": 39,
+      "fds": 135,
+      "uidRxBytes": 3260933,
+      "uidTxBytes": 3223850,
+      "runtimeStats": {
+        "art.gc.bytes-allocated": 35576032,
+        "art.gc.bytes-freed": 29515792,
+        "art.gc.gc-count": 11,
+        "art.gc.gc-time": 264,
+        "art.gc.blocking-gc-count": 9,
+        "art.gc.blocking-gc-time": 213
+      },
+      "weakReferences": {
+        "session": {
+          "watched": 23,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "recordingDetail": {
+          "watched": 23,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        }
+      }
+    },
+    {
+      "phase": "settled",
+      "completedCycles": 23,
+      "elapsedRealtimeMs": 918424,
+      "processCpuMs": 3886,
+      "javaUsedBytes": 6080720,
+      "javaCommittedBytes": 11923869,
+      "nativeHeapAllocatedBytes": 19658304,
+      "nativeHeapBytes": 70807552,
+      "pssTotalKb": 230669,
+      "pssDalvikKb": 4664,
+      "pssNativeKb": 23112,
+      "rssKb": 367188,
+      "threads": 39,
+      "fds": 135,
+      "uidRxBytes": 3260933,
+      "uidTxBytes": 3223850,
+      "runtimeStats": {
+        "art.gc.bytes-allocated": 35928288,
+        "art.gc.bytes-freed": 29868048,
+        "art.gc.gc-count": 14,
+        "art.gc.gc-time": 325,
+        "art.gc.blocking-gc-count": 12,
+        "art.gc.blocking-gc-time": 275
+      },
+      "weakReferences": {
+        "session": {
+          "watched": 23,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "recordingDetail": {
+          "watched": 23,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        }
+      }
+    }
+  ],
+  "hprofs": [
+    {
+      "phase": "warmup",
+      "filename": "stage09-quality-baseline-auth-warmup.hprof",
+      "status": "written",
+      "privateUnsanitized": true
+    },
+    {
+      "phase": "end",
+      "filename": "stage09-quality-baseline-auth-end.hprof",
+      "status": "written",
+      "privateUnsanitized": true
+    }
+  ],
+  "captureStarted": false,
+  "interpretation": "GC and RSS are observations; retained-reference paths and trends require independent analysis",
+  "warmupCycles": 3,
+  "measuredCycles": 20,
+  "completedCycles": 23,
+  "status": "completed",
+  "phase": "measured"
+}

@@ -1,0 +1,14 @@
+{
+  "label": "screen-1194x834-light-font1.0-account-profile",
+  "tests": [
+    {
+      "class": "com.meetspace.app.ProfileDesignTest",
+      "test": "captureProfileAndOnboardingScreenshot",
+      "status": 0
+    }
+  ],
+  "passed": 1,
+  "failed": 0,
+  "seconds": 2.13,
+  "success": true
+}

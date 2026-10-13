@@ -1,0 +1,37 @@
+{
+  "checks": [
+    "service-health",
+    "image-ids",
+    "private-ports",
+    "https-system-trust",
+    "api-version",
+    "frontend-version",
+    "wss-unauthenticated-denied",
+    "turn-tls",
+    "turn-auth",
+    "turn-private-peer-denied"
+  ],
+  "commit": "6ecd8b648a2aa94fc9bcc844d57784423e2c6f69",
+  "externalCloudFirewallVerified": false,
+  "images": {
+    "api": "sha256:1948c2c7c3637ad1147e5e98cbba91984e48e61acfc42f2935068e019d620026",
+    "certbot": "sha256:f70ad0adbb7e117f0fe42a63c553f28ea451edabc0148757b6efcd9735acaa20",
+    "coturn": "sha256:bbefd3e1fdfdc0d58770fe01b581fd8b00d9f3a5580d00acb77cf719a6bc78e3",
+    "frontend": "sha256:fe876d4a43f72f503217387dbecb4f9ac6ab23ff166087c32f5acddf3a954f33",
+    "live-worker": "sha256:2220ebb206fd60a1e6c79ce89b894b223fe9ed331dabd4fe70b3fe25194d8fab",
+    "media-worker": "sha256:caca128fcde3248229f44414ae801efaec982d4951e846436d5584d5f4d3c9ba",
+    "minio": "sha256:5db65615b527b3c6c53f3ba708cc8a92c61134aebdc72c84e08db49f9a84b5d0",
+    "postgres": "sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea",
+    "product-worker": "sha256:d8dec1c6ac0b88ed60b3b429b479ceb394486244d8c2e643917310328c086ebe",
+    "proxy": "sha256:0985e772fb9f729e6fa0980da05fca5d9c468e870eed43071545afa9d2e27d94",
+    "rabbitmq": "sha256:9e9fd21d60f060acc9ecbd847cd1dcb87e6550bdb0297c27e79a40bfe1766ce4",
+    "redis": "sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499",
+    "worker": "sha256:345b66e39d7d0a81adf3f35c518599bc09e244d23a4ae7b043495e8a34a54983"
+  },
+  "mediaEndToEndVerified": false,
+  "profile": "integration-v1",
+  "publicCaIssuance": false,
+  "schema": 1,
+  "verifiedAt": 1791695065,
+  "version": "v0.4.0-source.6ecd8b648a2a"
+}

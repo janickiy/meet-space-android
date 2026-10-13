@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.meetspace.app.MessagingFilesTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-11T16:25:06.894Z" hostname="MacBook-Air-janickiy.local" time="0.002">
+  <testcase name="filenameControlsAreRemovedAndBlankNamesGetUsableFallback" classname="com.meetspace.app.MessagingFilesTest" time="0.001" />
+  <testcase name="providerNamesAreBoundedAndOrdinaryUnicodeRemainsReadable" classname="com.meetspace.app.MessagingFilesTest" time="0.001" />
+  <testcase name="filenamesCannotCarryAPathAcrossPickerAndExportBoundaries" classname="com.meetspace.app.MessagingFilesTest" time="0.0" />
+  </testsuite>

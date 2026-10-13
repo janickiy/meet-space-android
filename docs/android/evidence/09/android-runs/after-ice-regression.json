@@ -1,0 +1,18 @@
+{
+  "label": "after-ice-regression",
+  "elapsedSeconds": 4.47,
+  "serial": "emulator-5556",
+  "sdk": "36",
+  "pageSize": 4096,
+  "tests": [
+    {
+      "class": "com.meetspace.app.CallSignalingLifecycleTest",
+      "test": "rejectedIceClosesAlreadyOpenedSignaling",
+      "statusCode": 0
+    }
+  ],
+  "passed": 1,
+  "failed": 0,
+  "skipped": 0,
+  "runnerSuccess": true
+}

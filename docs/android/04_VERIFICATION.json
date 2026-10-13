@@ -1,0 +1,109 @@
+{
+  "stage": 4,
+  "date": "2026-10-11",
+  "appVersion": "0.4.0",
+  "versionCode": 3,
+  "backendCommit": "6ecd8b648a2aa94fc9bcc844d57784423e2c6f69",
+  "backendTag": null,
+  "profile": "source-build",
+  "runnerSha256": "614e4e4743f7cf81db57642300e4175b2c8842d6558167ca4a1837ec968af90a",
+  "releaseManifestSha256": "ceb77712178aea1e7e31f7a29c4209b0dc61a286a43231e92aae51169d02ef6e",
+  "tests": {
+    "python": {
+      "passed": 23,
+      "failed": 0
+    },
+    "jvm": {
+      "passed": 111,
+      "failed": 0
+    },
+    "composeTablet": {
+      "passed": 20,
+      "failed": 0
+    },
+    "composePhone360dpFont150Percent": {
+      "passed": 4,
+      "failed": 0
+    },
+    "androidRealPinnedSsh": {
+      "passed": 1,
+      "failed": 0
+    },
+    "backendSmoke": [
+      "frontend",
+      "auth",
+      "capabilities",
+      "ice-configuration",
+      "admin-denied",
+      "conference-create-join",
+      "wss-snapshot"
+    ],
+    "migrationCount": 33,
+    "migrationReplayStable": true,
+    "backupRestoreSeparateDatabase": true
+  },
+  "builds": {
+    "debug": "success",
+    "releaseUnsignedMinified": "success",
+    "lintErrors": 0,
+    "lintDependencyWarnings": 23
+  },
+  "integration": {
+    "vm": "meetspace-stage04",
+    "os": "Ubuntu 24.04",
+    "arch": "arm64",
+    "cpu": 4,
+    "ramGiB": 8,
+    "diskGiB": 60,
+    "jobId": "01558ea5-76b0-4d29-af59-fe4cc91776fe",
+    "state": "completed",
+    "testProfile": "integration-v1",
+    "testCA": "Pebble; explicitly trusted only inside disposable VM",
+    "liveServicesMocked": false,
+    "tlsVerificationDisabled": false,
+    "freshDockerInstallationVerified": true,
+    "initialRunUsedEmptyDockerCache": true,
+    "finalRunReusedBuildCacheAfterRepairs": true,
+    "negativeScenarios": [
+      "DNS_FAILED",
+      "DISK_SPACE",
+      "PORT_OCCUPIED"
+    ],
+    "sshDropJobContinued": true,
+    "cancelResumeVerified": true,
+    "idempotentRetryVerified": true,
+    "alreadyInstalledVerified": true,
+    "secretsStable": true,
+    "generatedSecretsDetectedInLogs": false,
+    "tlsRenewalServiceResult": "success; current certificate not yet due"
+  },
+  "notRun": [
+    "amd64 deployment",
+    "public CA issuance",
+    "external cloud firewall reachability",
+    "real devices",
+    "media audio/video end-to-end",
+    "forced certificate rotation",
+    "release APK signing and publication"
+  ],
+  "productionModified": false,
+  "cleanup": {
+    "disposableVmRemoved": true,
+    "privateTestFixturesRemoved": true,
+    "localDevelopmentReleaseSigningKeyPreserved": true
+  },
+  "artifacts": {
+    "debugApk": {
+      "path": "app/build/outputs/apk/debug/app-debug.apk",
+      "sha256": "d2bc3af7229aa9ea3007d40f6650516a452f444c9d580da6a9fca8ed7595c26c",
+      "bytes": 23061368
+    },
+    "unsignedReleaseApk": {
+      "path": "app/build/outputs/apk/release/app-release-unsigned.apk",
+      "sha256": "a593625a2d14717dd147ff81ee49dd1a0e5adb73d20b1291ea3345919e8d92a5",
+      "bytes": 2396267
+    },
+    "bundledPublicFilesVerified": true,
+    "debugApkSignatureVerified": true
+  }
+}

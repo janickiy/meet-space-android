@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.meetspace.core.data.RecordingsRepositoryTest" tests="20" skipped="0" failures="0" errors="0" timestamp="2026-10-11T15:16:36.938Z" hostname="MacBook-Air-janickiy.local" time="2.523">
+  <properties/>
+  <testcase name="acquiring nonready or unavailable file never accesses object storage" classname="com.meetspace.core.data.RecordingsRepositoryTest" time="0.025"/>
+  <testcase name="malformed identity size MIME and duplicate files are rejected" classname="com.meetspace.core.data.RecordingsRepositoryTest" time="0.027"/>
+  <testcase name="content absent data and mismatching conference fail safely" classname="com.meetspace.core.data.RecordingsRepositoryTest" time="0.023"/>
+  <testcase name="disabled transcript retains existing ready text metadata and summary" classname="com.meetspace.core.data.RecordingsRepositoryTest" time="0.022"/>
+  <testcase name="cancel download immediately closes lease and retains no completed result" classname="com.meetspace.core.data.RecordingsRepositoryTest" time="2.035"/>
+  <testcase name="redirect is never followed and does not leak capability to target" classname="com.meetspace.core.data.RecordingsRepositoryTest" time="0.048"/>
+  <testcase name="recording metadata contains supported materials but never capability or diagnostic text" classname="com.meetspace.core.data.RecordingsRepositoryTest" time="0.032"/>
+  <testcase name="ignoring range or substituting byte interval is rejected" classname="com.meetspace.core.data.RecordingsRepositoryTest" time="0.029"/>
+  <testcase name="invalid paths or pagination never make a network request" classname="com.meetspace.core.data.RecordingsRepositoryTest" time="0.024"/>
+  <testcase name="insecure credentialed ambiguous and fragment URLs are rejected before transfer" classname="com.meetspace.core.data.RecordingsRepositoryTest" time="0.028"/>
+  <testcase name="complete export rejects wrong content length and checksum" classname="com.meetspace.core.data.RecordingsRepositoryTest" time="0.024"/>
+  <testcase name="truncated body is a failed export" classname="com.meetspace.core.data.RecordingsRepositoryTest" time="0.023"/>
+  <testcase name="object 401 never clears or refreshes the account session" classname="com.meetspace.core.data.RecordingsRepositoryTest" time="0.023"/>
+  <testcase name="cross origin storage streams bytes and never receives account authorization cookies or auth retry" classname="com.meetspace.core.data.RecordingsRepositoryTest" time="0.026"/>
+  <testcase name="export is bounded to declared size even for chunked data" classname="com.meetspace.core.data.RecordingsRepositoryTest" time="0.022"/>
+  <testcase name="byte range supports seek and validates complete resource size" classname="com.meetspace.core.data.RecordingsRepositoryTest" time="0.022"/>
+  <testcase name="logout closes obtained unopened and already open leases" classname="com.meetspace.core.data.RecordingsRepositoryTest" time="0.023"/>
+  <testcase name="range that reaches end clamps to actual file size" classname="com.meetspace.core.data.RecordingsRepositoryTest" time="0.022"/>
+  <testcase name="transcript page validates order identities and pagination" classname="com.meetspace.core.data.RecordingsRepositoryTest" time="0.024"/>
+  <testcase name="list uses conference scoped offset and preserves next page before ready filtering" classname="com.meetspace.core.data.RecordingsRepositoryTest" time="0.021"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[окт. 11, 2026 6:16:39 PM okhttp3.internal.platform.Platform log
+INFO: Http2Connection.Listener failure for MockWebServer localhost
+java.io.IOException: closed
+	at okhttp3.internal.http2.Http2Writer.flush(Http2Writer.kt:119)
+	at okhttp3.internal.http2.Http2Connection.flush(Http2Connection.kt:408)
+	at okhttp3.internal.http2.Http2Stream$FramingSink.close(Http2Stream.kt:624)
+	at okio.RealBufferedSink.close(RealBufferedSink.kt:287)
+	at kotlin.io.CloseableKt.closeFinally(Closeable.kt:46)
+	at okhttp3.mockwebserver.MockWebServer$Http2SocketHandler.writeResponse(MockWebServer.kt:1096)
+	at okhttp3.mockwebserver.MockWebServer$Http2SocketHandler.onStream(MockWebServer.kt:977)
+	at okhttp3.internal.http2.Http2Connection$ReaderRunnable$headers$lambda$2$$inlined$execute$default$1.runOnce(TaskQueue.kt:220)
+	at okhttp3.internal.concurrent.TaskRunner.runTask(TaskRunner.kt:116)
+	at okhttp3.internal.concurrent.TaskRunner.access$runTask(TaskRunner.kt:42)
+	at okhttp3.internal.concurrent.TaskRunner$runnable$1.run(TaskRunner.kt:65)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+
+]]></system-err>
+</testsuite>

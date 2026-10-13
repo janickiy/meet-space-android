@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.meetspace.core.ssh.PrivateKeyPolicyTest" tests="10" skipped="0" failures="0" errors="0" timestamp="2026-10-11T16:37:08.118Z" hostname="MacBook-Air-janickiy.local" time="0.059">
+  <testcase name="acceptsDefaultOpenSshKdfAndExplicitUpperBound" classname="com.meetspace.core.ssh.PrivateKeyPolicyTest" time="0.002" />
+  <testcase name="rejectsClaimedDerLengthsAndDeepNestedFieldsBeforeJschAllocates" classname="com.meetspace.core.ssh.PrivateKeyPolicyTest" time="0.014" />
+  <testcase name="rejectsExpensiveOrOverflowingKdfBeforeDecryption" classname="com.meetspace.core.ssh.PrivateKeyPolicyTest" time="0.0" />
+  <testcase name="maliciousIterationsLeaveNoCredentialBytesAfterRepositoryFailure" classname="com.meetspace.core.ssh.PrivateKeyPolicyTest" time="0.033" />
+  <testcase name="rejectsMalformedWireLengthsKeyCountAndTrailingBytes" classname="com.meetspace.core.ssh.PrivateKeyPolicyTest" time="0.001" />
+  <testcase name="rejectsEncryptedTraditionalPemAndExplainsOpenSshAlternative" classname="com.meetspace.core.ssh.PrivateKeyPolicyTest" time="0.001" />
+  <testcase name="rejectsIncompletePemUnexpectedPayloadAndOversizeKey" classname="com.meetspace.core.ssh.PrivateKeyPolicyTest" time="0.003" />
+  <testcase name="rejectsUnsupportedKdfCipherAndInconsistentUnencryptedHeader" classname="com.meetspace.core.ssh.PrivateKeyPolicyTest" time="0.001" />
+  <testcase name="rejectsPkcs8PuttyAndUnsupportedPemWithUsefulSafeFormatMessage" classname="com.meetspace.core.ssh.PrivateKeyPolicyTest" time="0.001" />
+  <testcase name="acceptsTraditionalRsaAndEcPemWithBoundedDer" classname="com.meetspace.core.ssh.PrivateKeyPolicyTest" time="0.0" />
+  </testsuite>

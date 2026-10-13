@@ -1,0 +1,155 @@
+{
+  "fixture": "beta010",
+  "passed": true,
+  "checks": [
+    {
+      "name": "registration_201_0",
+      "passed": true
+    },
+    {
+      "name": "registration_without_session_0",
+      "passed": true
+    },
+    {
+      "name": "duplicate_409_0",
+      "passed": true
+    },
+    {
+      "name": "login_200_0",
+      "passed": true
+    },
+    {
+      "name": "me_identity_1",
+      "passed": true
+    },
+    {
+      "name": "capabilities_1",
+      "passed": true
+    },
+    {
+      "name": "registration_201_1",
+      "passed": true
+    },
+    {
+      "name": "registration_without_session_1",
+      "passed": true
+    },
+    {
+      "name": "duplicate_409_1",
+      "passed": true
+    },
+    {
+      "name": "login_200_1",
+      "passed": true
+    },
+    {
+      "name": "me_identity_2",
+      "passed": true
+    },
+    {
+      "name": "capabilities_2",
+      "passed": true
+    },
+    {
+      "name": "registration_201_2",
+      "passed": true
+    },
+    {
+      "name": "registration_without_session_2",
+      "passed": true
+    },
+    {
+      "name": "duplicate_409_2",
+      "passed": true
+    },
+    {
+      "name": "login_200_2",
+      "passed": true
+    },
+    {
+      "name": "me_identity_3",
+      "passed": true
+    },
+    {
+      "name": "capabilities_3",
+      "passed": true
+    },
+    {
+      "name": "cookie_refresh_without_bearer",
+      "passed": true
+    },
+    {
+      "name": "call_ringing_created",
+      "passed": true
+    },
+    {
+      "name": "call_idempotent_replay",
+      "passed": true
+    },
+    {
+      "name": "callee_incoming_active",
+      "passed": true
+    },
+    {
+      "name": "outsider_cannot_read_call",
+      "passed": true
+    },
+    {
+      "name": "caller_cannot_accept",
+      "passed": true
+    },
+    {
+      "name": "callee_accept_creates_conference",
+      "passed": true
+    },
+    {
+      "name": "wrong_endpoint_cannot_get_media_ticket",
+      "passed": true
+    },
+    {
+      "name": "owner_endpoint_gets_media_ticket",
+      "passed": true
+    },
+    {
+      "name": "actual_turn_relay_configuration",
+      "passed": true
+    },
+    {
+      "name": "caller_end_confirmed",
+      "passed": true
+    },
+    {
+      "name": "callee_active_slot_released",
+      "passed": true
+    },
+    {
+      "name": "actual_history_call_message",
+      "passed": true
+    },
+    {
+      "name": "ringing_decline",
+      "passed": true
+    },
+    {
+      "name": "actual_decline",
+      "passed": true
+    },
+    {
+      "name": "ringing_cancel",
+      "passed": true
+    },
+    {
+      "name": "actual_cancel",
+      "passed": true
+    },
+    {
+      "name": "logout_server_confirmation",
+      "passed": true
+    },
+    {
+      "name": "revoked_token_rejected",
+      "passed": true
+    }
+  ],
+  "checkCount": 37
+}

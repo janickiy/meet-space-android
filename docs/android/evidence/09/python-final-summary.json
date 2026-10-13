@@ -1,0 +1,24 @@
+{
+  "verifiedAtUtc": "2026-10-11T16:57:04.186530+00:00",
+  "suites": [
+    {
+      "source": ".audit/stage09/installer-final-verification.log",
+      "sourceSha256": "5ab70c7608b8a051817029ae775929472d8aa4ecf56522b7c0b7a49fba437fea",
+      "tests": 23,
+      "passed": 23,
+      "failures": 0,
+      "durationSeconds": 0.091
+    },
+    {
+      "source": ".audit/stage09/python-final-verification.log",
+      "sourceSha256": "a501aec0da26a7e315c97ffd76ed13d071a759cddacff2c461ed3f35a31b8d84",
+      "tests": 16,
+      "passed": 16,
+      "failures": 0,
+      "durationSeconds": 1.632
+    }
+  ],
+  "totalPassed": 39,
+  "testComposition": "23 existing installer tests + 8 initialization regressions + 8 artifact-verifier regressions",
+  "scope": "Host-local unit/filesystem/subprocess checks; not VM deployment or full APK scan."
+}

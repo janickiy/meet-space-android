@@ -1,0 +1,89 @@
+{
+  "label": "native-media-1",
+  "tests": [
+    {
+      "class": "com.meetspace.app.AccountMediaPanelsTest",
+      "test": "audioStartsSilentAndChangesOnlyTheRequestedPreferences",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.AccountMediaPanelsTest",
+      "test": "largeFontVideoKeepsPreviewAndPreferenceLabelsReadable",
+      "status": -2
+    },
+    {
+      "class": "com.meetspace.app.AccountMediaPanelsTest",
+      "test": "videoStartsWithoutCameraAndPreferenceCallbacksDoNotStartIt",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.AccountMediaPanelsTest",
+      "test": "notificationSoundReflectsAndroidAndDoesNotAutoplay",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.AccountMediaPanelsTest",
+      "test": "realMicrophoneStopsOnBackgroundAndCanBeOpenedAgain",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.AccountMediaPanelsTest",
+      "test": "realCameraProducesFramesStopsAndCanBeOpenedAgain",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.AccountMediaPanelsTest",
+      "test": "realSpeakerAndNotificationTestsReleaseAtTheirDeadlines",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.RecordingInlinePlayerTest",
+      "test": "inlineAudioBecomesReadyInsideWorkspaceAndClosingDisposesNativeResources",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.RecordingInlinePlayerTest",
+      "test": "lifecycleStopPausesPlaybackAndRemountRetainsExplicitPauseAndSeekPosition",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.ProfileDesignTest",
+      "test": "identityEditorValidatesNameAndSendsOnlyAfterSave",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.ProfileDesignTest",
+      "test": "phoneThreadHidesBottomNavigationAndTabletKeepsIt",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.ProfileDesignTest",
+      "test": "notificationDraftWaitsForExplicitSave",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.ProfileDesignTest",
+      "test": "connectionRejectsNonHttpsAndOnlySavesChangedAddress",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.ProfileDesignTest",
+      "test": "themeIsImmediateAndLogoutRequiresChoice",
+      "status": 0
+    },
+    {
+      "class": "com.meetspace.app.ProfileDesignTest",
+      "test": "tabletProfileUsesSidebarAndCompactShowsMenu",
+      "status": -2
+    },
+    {
+      "class": "com.meetspace.app.ProfileDesignTest",
+      "test": "captureProfileAndOnboardingScreenshot",
+      "status": -4
+    }
+  ],
+  "passed": 13,
+  "failed": 2,
+  "seconds": 38.32,
+  "success": false
+}

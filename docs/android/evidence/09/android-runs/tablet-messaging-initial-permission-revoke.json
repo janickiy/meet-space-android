@@ -1,0 +1,18 @@
+{
+  "label": "tablet-messaging",
+  "elapsedSeconds": 41.81,
+  "serial": "emulator-5556",
+  "sdk": "36",
+  "pageSize": 4096,
+  "tests": [
+    {
+      "class": "com.meetspace.app.LiveMessagingTest",
+      "test": "realGroupFoldersMinioFilesAndNotificationCenter",
+      "statusCode": 0
+    }
+  ],
+  "passed": 1,
+  "failed": 0,
+  "skipped": 0,
+  "runnerSuccess": false
+}

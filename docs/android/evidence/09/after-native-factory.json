@@ -1,0 +1,549 @@
+{
+  "schema": 1,
+  "label": "after",
+  "method": "native-factory",
+  "sdk": 36,
+  "pageSize": 4096,
+  "abi": "arm64-v8a",
+  "versionName": "0.9.0",
+  "samples": [
+    {
+      "phase": "warmup",
+      "completedCycles": 10,
+      "elapsedRealtimeMs": 1554151,
+      "processCpuMs": 1919,
+      "javaUsedBytes": 2911856,
+      "javaCommittedBytes": 3724095,
+      "nativeHeapAllocatedBytes": 11317536,
+      "nativeHeapBytes": 18575360,
+      "pssTotalKb": 209052,
+      "pssDalvikKb": 1542,
+      "pssNativeKb": 10002,
+      "rssKb": 324864,
+      "threads": 18,
+      "fds": 103,
+      "uidRxBytes": 21226155,
+      "uidTxBytes": 6595114,
+      "runtimeStats": {
+        "art.gc.bytes-allocated": 6652384,
+        "art.gc.bytes-freed": 3761008,
+        "art.gc.gc-count": 3,
+        "art.gc.gc-time": 14,
+        "art.gc.blocking-gc-count": 3,
+        "art.gc.blocking-gc-time": 14
+      },
+      "weakReferences": {
+        "factory": {
+          "watched": 10,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "audioModule": {
+          "watched": 10,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "egl": {
+          "watched": 10,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        }
+      }
+    },
+    {
+      "phase": "batch",
+      "completedCycles": 20,
+      "elapsedRealtimeMs": 1555795,
+      "processCpuMs": 2934,
+      "javaUsedBytes": 2920048,
+      "javaCommittedBytes": 3735018,
+      "nativeHeapAllocatedBytes": 11314816,
+      "nativeHeapBytes": 59731968,
+      "pssTotalKb": 243094,
+      "pssDalvikKb": 1550,
+      "pssNativeKb": 46694,
+      "rssKb": 361532,
+      "threads": 18,
+      "fds": 103,
+      "uidRxBytes": 21226155,
+      "uidTxBytes": 6595114,
+      "runtimeStats": {
+        "art.gc.bytes-allocated": 8442336,
+        "art.gc.bytes-freed": 5542768,
+        "art.gc.gc-count": 7,
+        "art.gc.gc-time": 37,
+        "art.gc.blocking-gc-count": 6,
+        "art.gc.blocking-gc-time": 31
+      },
+      "weakReferences": {
+        "factory": {
+          "watched": 20,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "audioModule": {
+          "watched": 20,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "egl": {
+          "watched": 20,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        }
+      }
+    },
+    {
+      "phase": "batch",
+      "completedCycles": 30,
+      "elapsedRealtimeMs": 1556460,
+      "processCpuMs": 2989,
+      "javaUsedBytes": 2924144,
+      "javaCommittedBytes": 3740479,
+      "nativeHeapAllocatedBytes": 11315840,
+      "nativeHeapBytes": 59731968,
+      "pssTotalKb": 225110,
+      "pssDalvikKb": 1554,
+      "pssNativeKb": 28706,
+      "rssKb": 343388,
+      "threads": 18,
+      "fds": 103,
+      "uidRxBytes": 21226155,
+      "uidTxBytes": 6595114,
+      "runtimeStats": {
+        "art.gc.bytes-allocated": 10310112,
+        "art.gc.bytes-freed": 7406448,
+        "art.gc.gc-count": 11,
+        "art.gc.gc-time": 53,
+        "art.gc.blocking-gc-count": 9,
+        "art.gc.blocking-gc-time": 43
+      },
+      "weakReferences": {
+        "factory": {
+          "watched": 30,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "audioModule": {
+          "watched": 30,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "egl": {
+          "watched": 30,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        }
+      }
+    },
+    {
+      "phase": "batch",
+      "completedCycles": 40,
+      "elapsedRealtimeMs": 1557124,
+      "processCpuMs": 3041,
+      "javaUsedBytes": 2928240,
+      "javaCommittedBytes": 3745941,
+      "nativeHeapAllocatedBytes": 11316656,
+      "nativeHeapBytes": 59731968,
+      "pssTotalKb": 225270,
+      "pssDalvikKb": 1558,
+      "pssNativeKb": 28710,
+      "rssKb": 343764,
+      "threads": 18,
+      "fds": 103,
+      "uidRxBytes": 21226155,
+      "uidTxBytes": 6595114,
+      "runtimeStats": {
+        "art.gc.bytes-allocated": 12222944,
+        "art.gc.bytes-freed": 9315184,
+        "art.gc.gc-count": 15,
+        "art.gc.gc-time": 69,
+        "art.gc.blocking-gc-count": 12,
+        "art.gc.blocking-gc-time": 55
+      },
+      "weakReferences": {
+        "factory": {
+          "watched": 40,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "audioModule": {
+          "watched": 40,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "egl": {
+          "watched": 40,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        }
+      }
+    },
+    {
+      "phase": "batch",
+      "completedCycles": 50,
+      "elapsedRealtimeMs": 1557793,
+      "processCpuMs": 3094,
+      "javaUsedBytes": 2932336,
+      "javaCommittedBytes": 3751402,
+      "nativeHeapAllocatedBytes": 11317616,
+      "nativeHeapBytes": 59731968,
+      "pssTotalKb": 225274,
+      "pssDalvikKb": 1562,
+      "pssNativeKb": 28710,
+      "rssKb": 343872,
+      "threads": 18,
+      "fds": 103,
+      "uidRxBytes": 21226155,
+      "uidTxBytes": 6595114,
+      "runtimeStats": {
+        "art.gc.bytes-allocated": 14385632,
+        "art.gc.bytes-freed": 11473776,
+        "art.gc.gc-count": 20,
+        "art.gc.gc-time": 87,
+        "art.gc.blocking-gc-count": 16,
+        "art.gc.blocking-gc-time": 69
+      },
+      "weakReferences": {
+        "factory": {
+          "watched": 50,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "audioModule": {
+          "watched": 50,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "egl": {
+          "watched": 50,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        }
+      }
+    },
+    {
+      "phase": "batch",
+      "completedCycles": 60,
+      "elapsedRealtimeMs": 1558459,
+      "processCpuMs": 3148,
+      "javaUsedBytes": 2936432,
+      "javaCommittedBytes": 3756863,
+      "nativeHeapAllocatedBytes": 11318640,
+      "nativeHeapBytes": 59731968,
+      "pssTotalKb": 225281,
+      "pssDalvikKb": 1566,
+      "pssNativeKb": 28713,
+      "rssKb": 343692,
+      "threads": 18,
+      "fds": 103,
+      "uidRxBytes": 21226155,
+      "uidTxBytes": 6595114,
+      "runtimeStats": {
+        "art.gc.bytes-allocated": 16581088,
+        "art.gc.bytes-freed": 13665136,
+        "art.gc.gc-count": 25,
+        "art.gc.gc-time": 106,
+        "art.gc.blocking-gc-count": 20,
+        "art.gc.blocking-gc-time": 84
+      },
+      "weakReferences": {
+        "factory": {
+          "watched": 60,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "audioModule": {
+          "watched": 60,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "egl": {
+          "watched": 60,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        }
+      }
+    },
+    {
+      "phase": "batch",
+      "completedCycles": 70,
+      "elapsedRealtimeMs": 1559127,
+      "processCpuMs": 3204,
+      "javaUsedBytes": 3006160,
+      "javaCommittedBytes": 3762325,
+      "nativeHeapAllocatedBytes": 11322208,
+      "nativeHeapBytes": 59731968,
+      "pssTotalKb": 225415,
+      "pssDalvikKb": 1602,
+      "pssNativeKb": 28729,
+      "rssKb": 344100,
+      "threads": 18,
+      "fds": 103,
+      "uidRxBytes": 21226155,
+      "uidTxBytes": 6595114,
+      "runtimeStats": {
+        "art.gc.bytes-allocated": 18928192,
+        "art.gc.bytes-freed": 15942512,
+        "art.gc.gc-count": 30,
+        "art.gc.gc-time": 125,
+        "art.gc.blocking-gc-count": 23,
+        "art.gc.blocking-gc-time": 95
+      },
+      "weakReferences": {
+        "factory": {
+          "watched": 70,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "audioModule": {
+          "watched": 70,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "egl": {
+          "watched": 70,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        }
+      }
+    },
+    {
+      "phase": "batch",
+      "completedCycles": 80,
+      "elapsedRealtimeMs": 1559799,
+      "processCpuMs": 3260,
+      "javaUsedBytes": 2952816,
+      "javaCommittedBytes": 3778709,
+      "nativeHeapAllocatedBytes": 11323408,
+      "nativeHeapBytes": 59731968,
+      "pssTotalKb": 214135,
+      "pssDalvikKb": 1582,
+      "pssNativeKb": 17649,
+      "rssKb": 332856,
+      "threads": 18,
+      "fds": 103,
+      "uidRxBytes": 21226155,
+      "uidTxBytes": 6595114,
+      "runtimeStats": {
+        "art.gc.bytes-allocated": 21287488,
+        "art.gc.bytes-freed": 18355152,
+        "art.gc.gc-count": 35,
+        "art.gc.gc-time": 143,
+        "art.gc.blocking-gc-count": 26,
+        "art.gc.blocking-gc-time": 106
+      },
+      "weakReferences": {
+        "factory": {
+          "watched": 80,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "audioModule": {
+          "watched": 80,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "egl": {
+          "watched": 80,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        }
+      }
+    },
+    {
+      "phase": "batch",
+      "completedCycles": 90,
+      "elapsedRealtimeMs": 1560461,
+      "processCpuMs": 3313,
+      "javaUsedBytes": 2956912,
+      "javaCommittedBytes": 3784170,
+      "nativeHeapAllocatedBytes": 11324768,
+      "nativeHeapBytes": 59731968,
+      "pssTotalKb": 214147,
+      "pssDalvikKb": 1586,
+      "pssNativeKb": 17657,
+      "rssKb": 333092,
+      "threads": 18,
+      "fds": 103,
+      "uidRxBytes": 21226155,
+      "uidTxBytes": 6595114,
+      "runtimeStats": {
+        "art.gc.bytes-allocated": 23867968,
+        "art.gc.bytes-freed": 20931536,
+        "art.gc.gc-count": 40,
+        "art.gc.gc-time": 161,
+        "art.gc.blocking-gc-count": 29,
+        "art.gc.blocking-gc-time": 117
+      },
+      "weakReferences": {
+        "factory": {
+          "watched": 90,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "audioModule": {
+          "watched": 90,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "egl": {
+          "watched": 90,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        }
+      }
+    },
+    {
+      "phase": "batch",
+      "completedCycles": 100,
+      "elapsedRealtimeMs": 1561131,
+      "processCpuMs": 3367,
+      "javaUsedBytes": 2961008,
+      "javaCommittedBytes": 3789631,
+      "nativeHeapAllocatedBytes": 11325792,
+      "nativeHeapBytes": 59731968,
+      "pssTotalKb": 214167,
+      "pssDalvikKb": 1590,
+      "pssNativeKb": 17673,
+      "rssKb": 332892,
+      "threads": 18,
+      "fds": 103,
+      "uidRxBytes": 21226155,
+      "uidTxBytes": 6595114,
+      "runtimeStats": {
+        "art.gc.bytes-allocated": 26448448,
+        "art.gc.bytes-freed": 23507920,
+        "art.gc.gc-count": 45,
+        "art.gc.gc-time": 179,
+        "art.gc.blocking-gc-count": 32,
+        "art.gc.blocking-gc-time": 129
+      },
+      "weakReferences": {
+        "factory": {
+          "watched": 100,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "audioModule": {
+          "watched": 100,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "egl": {
+          "watched": 100,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        }
+      }
+    },
+    {
+      "phase": "batch",
+      "completedCycles": 110,
+      "elapsedRealtimeMs": 1561793,
+      "processCpuMs": 3421,
+      "javaUsedBytes": 2965104,
+      "javaCommittedBytes": 3795093,
+      "nativeHeapAllocatedBytes": 11326816,
+      "nativeHeapBytes": 59731968,
+      "pssTotalKb": 214191,
+      "pssDalvikKb": 1594,
+      "pssNativeKb": 17689,
+      "rssKb": 333008,
+      "threads": 18,
+      "fds": 103,
+      "uidRxBytes": 21226155,
+      "uidTxBytes": 6595114,
+      "runtimeStats": {
+        "art.gc.bytes-allocated": 29172288,
+        "art.gc.bytes-freed": 26227664,
+        "art.gc.gc-count": 50,
+        "art.gc.gc-time": 198,
+        "art.gc.blocking-gc-count": 35,
+        "art.gc.blocking-gc-time": 139
+      },
+      "weakReferences": {
+        "factory": {
+          "watched": 110,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "audioModule": {
+          "watched": 110,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "egl": {
+          "watched": 110,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        }
+      }
+    },
+    {
+      "phase": "settled",
+      "completedCycles": 110,
+      "elapsedRealtimeMs": 1567420,
+      "processCpuMs": 3440,
+      "javaUsedBytes": 2969200,
+      "javaCommittedBytes": 3800554,
+      "nativeHeapAllocatedBytes": 11326704,
+      "nativeHeapBytes": 59731968,
+      "pssTotalKb": 214147,
+      "pssDalvikKb": 1598,
+      "pssNativeKb": 17689,
+      "rssKb": 333112,
+      "threads": 18,
+      "fds": 103,
+      "uidRxBytes": 21226155,
+      "uidTxBytes": 6595114,
+      "runtimeStats": {
+        "art.gc.bytes-allocated": 29606464,
+        "art.gc.bytes-freed": 26657744,
+        "art.gc.gc-count": 53,
+        "art.gc.gc-time": 209,
+        "art.gc.blocking-gc-count": 38,
+        "art.gc.blocking-gc-time": 151
+      },
+      "weakReferences": {
+        "factory": {
+          "watched": 110,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "audioModule": {
+          "watched": 110,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        },
+        "egl": {
+          "watched": 110,
+          "alive": 0,
+          "aliveOlderThanOneCycle": 0
+        }
+      }
+    }
+  ],
+  "hprofs": [
+    {
+      "phase": "warmup",
+      "filename": "stage09-quality-after-native-factory-warmup.hprof",
+      "status": "written",
+      "privateUnsanitized": true
+    },
+    {
+      "phase": "end",
+      "filename": "stage09-quality-after-native-factory-end.hprof",
+      "status": "written",
+      "privateUnsanitized": true
+    }
+  ],
+  "captureStarted": false,
+  "interpretation": "GC and RSS are observations; retained-reference paths and trends require independent analysis",
+  "warmupCycles": 10,
+  "measuredCycles": 100,
+  "completedCycles": 110,
+  "status": "completed",
+  "phase": "measured",
+  "extraIdleSettleMs": 0
+}

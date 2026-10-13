@@ -1,0 +1,109 @@
+{
+  "label": "after",
+  "traceSha256": "e8ab1bc3885b6d825a183ec8b9957594e9cf387615dfc7e839659d3cf103ee5f",
+  "configuredDurationMs": 45000,
+  "scope": "First 45 seconds of debug instrumented recording/recreation workload with SwiftShader, GC and heap dump. Main process identified by unique main-thread Linux comm m.meetspace.app because process names are unavailable. Surface frames only. Not isolated user scroll or physical-device jank.",
+  "processorVersion": "58.2",
+  "processorSha256": "d29864d1ba3b36855527bb1b0ca3aa7f703cdce338b9680bb922c5c151b358fa",
+  "traceErrors": [],
+  "scheduledCpu": [
+    {
+      "slices": "51527",
+      "cpu_ms": "28324.540000"
+    }
+  ],
+  "surfaceFrames": 391,
+  "appDeadlineMissedFrames": 202,
+  "frameCategories": [
+    {
+      "jank_type": "App Deadline Missed",
+      "frames": "2",
+      "mean_ms": "203.281000"
+    },
+    {
+      "jank_type": "App Deadline Missed, Buffer Stuffing, SurfaceFlinger Stuffing",
+      "frames": "3",
+      "mean_ms": "74.532000"
+    },
+    {
+      "jank_type": "App Deadline Missed, SurfaceFlinger Stuffing",
+      "frames": "6",
+      "mean_ms": "45.819000"
+    },
+    {
+      "jank_type": "Buffer Stuffing, SurfaceFlinger Stuffing",
+      "frames": "25",
+      "mean_ms": "48.984000"
+    },
+    {
+      "jank_type": "Buffer Stuffing, Unknown Jank",
+      "frames": "2",
+      "mean_ms": "72.343000"
+    },
+    {
+      "jank_type": "Display HAL",
+      "frames": "5",
+      "mean_ms": "3.212000"
+    },
+    {
+      "jank_type": "Display HAL, App Deadline Missed",
+      "frames": "16",
+      "mean_ms": "35.778000"
+    },
+    {
+      "jank_type": "Display HAL, App Deadline Missed, Buffer Stuffing",
+      "frames": "8",
+      "mean_ms": "66.511000"
+    },
+    {
+      "jank_type": "Display HAL, Buffer Stuffing",
+      "frames": "15",
+      "mean_ms": "41.320000"
+    },
+    {
+      "jank_type": "None",
+      "frames": "1",
+      "mean_ms": "2.772000"
+    },
+    {
+      "jank_type": "Prediction Error",
+      "frames": "7",
+      "mean_ms": "5.126000"
+    },
+    {
+      "jank_type": "Prediction Error, App Deadline Missed",
+      "frames": "63",
+      "mean_ms": "58.727000"
+    },
+    {
+      "jank_type": "Prediction Error, App Deadline Missed, Buffer Stuffing",
+      "frames": "39",
+      "mean_ms": "67.512000"
+    },
+    {
+      "jank_type": "Prediction Error, Buffer Stuffing",
+      "frames": "84",
+      "mean_ms": "43.884000"
+    },
+    {
+      "jank_type": "SurfaceFlinger CPU Deadline Missed",
+      "frames": "7",
+      "mean_ms": "6.958000"
+    },
+    {
+      "jank_type": "SurfaceFlinger CPU Deadline Missed, App Deadline Missed",
+      "frames": "34",
+      "mean_ms": "128.162000"
+    },
+    {
+      "jank_type": "SurfaceFlinger CPU Deadline Missed, App Deadline Missed, Buffer Stuffing",
+      "frames": "31",
+      "mean_ms": "79.333000"
+    },
+    {
+      "jank_type": "SurfaceFlinger CPU Deadline Missed, Buffer Stuffing",
+      "frames": "43",
+      "mean_ms": "52.528000"
+    }
+  ]
+}

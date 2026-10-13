@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.meetspace.core.data.MeetingsRepositoryTest" tests="27" skipped="0" failures="0" errors="0" timestamp="2026-10-11T14:00:20.751Z" hostname="MacBook-Air-janickiy.local" time="3.872">
+  <properties/>
+  <testcase name="profile changes only supported name and preserves account capabilities" classname="com.meetspace.core.data.MeetingsRepositoryTest" time="0.034"/>
+  <testcase name="bad call identifier never reaches network" classname="com.meetspace.core.data.MeetingsRepositoryTest" time="0.031"/>
+  <testcase name="unsafe resource path never receives bearer and redirect never reaches another server" classname="com.meetspace.core.data.MeetingsRepositoryTest" time="0.072"/>
+  <testcase name="expired session erases credential even if profile persistence fails" classname="com.meetspace.core.data.MeetingsRepositoryTest" time="0.027"/>
+  <testcase name="call redirect cannot leak a ticket or bearer to another origin" classname="com.meetspace.core.data.MeetingsRepositoryTest" time="0.041"/>
+  <testcase name="missing timeline route is an API gap rather than an empty successful list" classname="com.meetspace.core.data.MeetingsRepositoryTest" time="0.036"/>
+  <testcase name="expired session drops durable profile link even if credential deletion fails" classname="com.meetspace.core.data.MeetingsRepositoryTest" time="0.027"/>
+  <testcase name="only membership 404 is nullable and membership user cannot cross accounts" classname="com.meetspace.core.data.MeetingsRepositoryTest" time="0.032"/>
+  <testcase name="connection loss after submitted create has unknown outcome and is never replayed" classname="com.meetspace.core.data.MeetingsRepositoryTest" time="0.025"/>
+  <testcase name="history maps counts participants and timestamps without implementing record download" classname="com.meetspace.core.data.MeetingsRepositoryTest" time="0.028"/>
+  <testcase name="unauthorized mutation refreshes session and requires explicit user retry" classname="com.meetspace.core.data.MeetingsRepositoryTest" time="0.028"/>
+  <testcase name="timeline sends exact scoped filters UTC range and encoded cursor without cookie" classname="com.meetspace.core.data.MeetingsRepositoryTest" time="0.036"/>
+  <testcase name="logout invalidates active call before clearing credentials" classname="com.meetspace.core.data.MeetingsRepositoryTest" time="0.034"/>
+  <testcase name="unknown admission states remain visible but never grant participation" classname="com.meetspace.core.data.MeetingsRepositoryTest" time="0.027"/>
+  <testcase name="create and schedule serialize UTC instants and explicit duration constraints" classname="com.meetspace.core.data.MeetingsRepositoryTest" time="0.028"/>
+  <testcase name="wrong resource malformed instant duplicates and oversize response fail contract" classname="com.meetspace.core.data.MeetingsRepositoryTest" time="0.046"/>
+  <testcase name="forbidden conflict and missing resource errors expose no server diagnostic" classname="com.meetspace.core.data.MeetingsRepositoryTest" time="0.03"/>
+  <testcase name="Go null items is a real empty page and unknown status grants no actions" classname="com.meetspace.core.data.MeetingsRepositoryTest" time="0.026"/>
+  <testcase name="maximum Unicode titles fit a bounded hundred-item calendar page" classname="com.meetspace.core.data.MeetingsRepositoryTest" time="0.04"/>
+  <testcase name="each GET operation refreshes once and persists cookie before retry" classname="com.meetspace.core.data.MeetingsRepositoryTest" time="0.029"/>
+  <testcase name="second unauthorized response deletes stored credential and clears account session" classname="com.meetspace.core.data.MeetingsRepositoryTest" time="0.027"/>
+  <testcase name="copied invitation stays on selected origin and rejects foreign URLs before network" classname="com.meetspace.core.data.MeetingsRepositoryTest" time="0.025"/>
+  <testcase name="transition and membership use only audited methods and paths" classname="com.meetspace.core.data.MeetingsRepositoryTest" time="0.031"/>
+  <testcase name="call socket uses scoped one time ticket and preserves relay configuration" classname="com.meetspace.core.data.MeetingsRepositoryTest" time="0.028"/>
+  <testcase name="extreme or year zero timestamps cannot crash calendar date conversion" classname="com.meetspace.core.data.MeetingsRepositoryTest" time="0.027"/>
+  <testcase name="refresh for another account clears the prior account instead of using its token" classname="com.meetspace.core.data.MeetingsRepositoryTest" time="0.026"/>
+  <testcase name="cancelled meeting request releases account mutex without retry" classname="com.meetspace.core.data.MeetingsRepositoryTest" time="3.031"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[окт. 11, 2026 5:00:24 PM okhttp3.internal.platform.Platform log
+INFO: Http2Connection.Listener failure for MockWebServer localhost
+java.io.IOException: closed
+	at okhttp3.internal.http2.Http2Writer.flush(Http2Writer.kt:119)
+	at okhttp3.internal.http2.Http2Connection.flush(Http2Connection.kt:408)
+	at okhttp3.internal.http2.Http2Stream$FramingSink.close(Http2Stream.kt:624)
+	at okio.RealBufferedSink.close(RealBufferedSink.kt:287)
+	at kotlin.io.CloseableKt.closeFinally(Closeable.kt:46)
+	at okhttp3.mockwebserver.MockWebServer$Http2SocketHandler.writeResponse(MockWebServer.kt:1096)
+	at okhttp3.mockwebserver.MockWebServer$Http2SocketHandler.onStream(MockWebServer.kt:977)
+	at okhttp3.internal.http2.Http2Connection$ReaderRunnable$headers$lambda$2$$inlined$execute$default$1.runOnce(TaskQueue.kt:220)
+	at okhttp3.internal.concurrent.TaskRunner.runTask(TaskRunner.kt:116)
+	at okhttp3.internal.concurrent.TaskRunner.access$runTask(TaskRunner.kt:42)
+	at okhttp3.internal.concurrent.TaskRunner$runnable$1.run(TaskRunner.kt:65)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+
+]]></system-err>
+</testsuite>

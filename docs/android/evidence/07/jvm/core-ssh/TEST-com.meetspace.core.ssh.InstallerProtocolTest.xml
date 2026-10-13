@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.meetspace.core.ssh.InstallerProtocolTest" tests="12" skipped="0" failures="0" errors="0" timestamp="2026-10-11T14:00:15.222Z" hostname="MacBook-Air-janickiy.local" time="0.18">
+  <properties/>
+  <testcase name="changedManifestSignatureRejected" classname="com.meetspace.core.ssh.InstallerProtocolTest" time="0.025"/>
+  <testcase name="signedBundleValidatesOnJvm" classname="com.meetspace.core.ssh.InstallerProtocolTest" time="0.026"/>
+  <testcase name="completedRequiresAllCheckpointsAndCorrectJobIdentity" classname="com.meetspace.core.ssh.InstallerProtocolTest" time="0.033"/>
+  <testcase name="changedCodeFailsBeforeRemoteExecution" classname="com.meetspace.core.ssh.InstallerProtocolTest" time="0.004"/>
+  <testcase name="ownTimeoutBecomesRecoveryFailure" classname="com.meetspace.core.ssh.InstallerProtocolTest" time="0.057"/>
+  <testcase name="planHashAndReleaseBindingChecked" classname="com.meetspace.core.ssh.InstallerProtocolTest" time="0.009"/>
+  <testcase name="userInputIsOnlyBase64DataInFixedBootstrap" classname="com.meetspace.core.ssh.InstallerProtocolTest" time="0.012"/>
+  <testcase name="wrongProtocolAndOversizedResponsesRejected" classname="com.meetspace.core.ssh.InstallerProtocolTest" time="0.004"/>
+  <testcase name="arbitraryActionCannotReachShell" classname="com.meetspace.core.ssh.InstallerProtocolTest" time="0.004"/>
+  <testcase name="parentDeadlineIsNotConvertedIntoASshError" classname="com.meetspace.core.ssh.InstallerProtocolTest" time="0.003"/>
+  <testcase name="callerCancellationRemainsCancellation" classname="com.meetspace.core.ssh.InstallerProtocolTest" time="0.002"/>
+  <testcase name="errorsCannotRenderArbitraryRemoteOutput" classname="com.meetspace.core.ssh.InstallerProtocolTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

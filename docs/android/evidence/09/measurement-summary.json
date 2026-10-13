@@ -1,0 +1,791 @@
+{
+  "condition": "Debug/API36 ARM64 4KiB emulator; same workload, explicit GC, fixture only; instrumentation and dump overhead included. Differences are observations, not a controlled speedup or physical battery benchmark.",
+  "workloads": {
+    "native-factory": {
+      "baseline": {
+        "status": "completed",
+        "warmupCycles": 10,
+        "measuredCycles": 100,
+        "sourceSha256": "a3a5d7a4acc6c55118439c6e5fb3070e5d3ff05a27ae9cbe44ea3478e6ff15de",
+        "warmup": {
+          "javaUsedBytes": 2903664,
+          "nativeHeapAllocatedBytes": 11317520,
+          "pssTotalKb": 209145,
+          "rssKb": 324888,
+          "threads": 18,
+          "fds": 103
+        },
+        "settled": {
+          "javaUsedBytes": 2961008,
+          "nativeHeapAllocatedBytes": 11326832,
+          "pssTotalKb": 214227,
+          "rssKb": 332448,
+          "threads": 18,
+          "fds": 103
+        },
+        "weakReferences": {
+          "factory": {
+            "watched": 110,
+            "alive": 0,
+            "aliveOlderThanOneCycle": 0
+          },
+          "audioModule": {
+            "watched": 110,
+            "alive": 0,
+            "aliveOlderThanOneCycle": 0
+          },
+          "egl": {
+            "watched": 110,
+            "alive": 0,
+            "aliveOlderThanOneCycle": 0
+          }
+        },
+        "processCpuMsDuringMeasuredWork": 1563,
+        "elapsedMsDuringMeasuredWork": 13323,
+        "uidRxBytesDuringMeasuredWork": 0,
+        "uidTxBytesDuringMeasuredWork": 0,
+        "allocationAndGcDelta": {
+          "art.gc.bytes-allocated": 22949984,
+          "art.gc.bytes-freed": 22892640,
+          "art.gc.gc-count": 50,
+          "art.gc.gc-time": 347,
+          "art.gc.blocking-gc-count": 35,
+          "art.gc.blocking-gc-time": 277
+        }
+      },
+      "after": {
+        "status": "completed",
+        "warmupCycles": 10,
+        "measuredCycles": 100,
+        "sourceSha256": "593e2dac11122553d319fd75f71a3491f656f22d9df4090ca443d1cf2f0123ff",
+        "warmup": {
+          "javaUsedBytes": 2911856,
+          "nativeHeapAllocatedBytes": 11317536,
+          "pssTotalKb": 209052,
+          "rssKb": 324864,
+          "threads": 18,
+          "fds": 103
+        },
+        "settled": {
+          "javaUsedBytes": 2969200,
+          "nativeHeapAllocatedBytes": 11326704,
+          "pssTotalKb": 214147,
+          "rssKb": 333112,
+          "threads": 18,
+          "fds": 103
+        },
+        "weakReferences": {
+          "factory": {
+            "watched": 110,
+            "alive": 0,
+            "aliveOlderThanOneCycle": 0
+          },
+          "audioModule": {
+            "watched": 110,
+            "alive": 0,
+            "aliveOlderThanOneCycle": 0
+          },
+          "egl": {
+            "watched": 110,
+            "alive": 0,
+            "aliveOlderThanOneCycle": 0
+          }
+        },
+        "processCpuMsDuringMeasuredWork": 1521,
+        "elapsedMsDuringMeasuredWork": 13269,
+        "uidRxBytesDuringMeasuredWork": 0,
+        "uidTxBytesDuringMeasuredWork": 0,
+        "allocationAndGcDelta": {
+          "art.gc.bytes-allocated": 22954080,
+          "art.gc.bytes-freed": 22896736,
+          "art.gc.gc-count": 50,
+          "art.gc.gc-time": 195,
+          "art.gc.blocking-gc-count": 35,
+          "art.gc.blocking-gc-time": 137
+        }
+      }
+    },
+    "real-call": {
+      "baseline": {
+        "status": "completed",
+        "warmupCycles": 10,
+        "measuredCycles": 100,
+        "sourceSha256": "0442ad00fcb020164048384b1360060bc9e860a1b4840a13d6a09bdda81ef9b1",
+        "warmup": {
+          "javaUsedBytes": 5781968,
+          "nativeHeapAllocatedBytes": 19512720,
+          "pssTotalKb": 227452,
+          "rssKb": 365088,
+          "threads": 40,
+          "fds": 139
+        },
+        "settled": {
+          "javaUsedBytes": 5794256,
+          "nativeHeapAllocatedBytes": 19716032,
+          "pssTotalKb": 236003,
+          "rssKb": 375952,
+          "threads": 50,
+          "fds": 139
+        },
+        "weakReferences": {},
+        "processCpuMsDuringMeasuredWork": 9736,
+        "elapsedMsDuringMeasuredWork": 149170,
+        "uidRxBytesDuringMeasuredWork": 2577955,
+        "uidTxBytesDuringMeasuredWork": 2843817,
+        "allocationAndGcDelta": {
+          "art.gc.bytes-allocated": 259084800,
+          "art.gc.bytes-freed": 259072512,
+          "art.gc.gc-count": 73,
+          "art.gc.gc-time": 1143,
+          "art.gc.blocking-gc-count": 34,
+          "art.gc.blocking-gc-time": 674
+        },
+        "extraIdle": {
+          "delayMs": 65000,
+          "javaUsedBytes": 5798352,
+          "nativeHeapAllocatedBytes": 19633200,
+          "pssTotalKb": 251266,
+          "rssKb": 391556,
+          "threads": 45,
+          "fds": 136,
+          "weakReferences": {}
+        }
+      },
+      "after": {
+        "status": "completed",
+        "warmupCycles": 10,
+        "measuredCycles": 100,
+        "sourceSha256": "629e4ea2abfbbffa96cec965d87f8670adc98746905fc2110a232bceccadd881",
+        "warmup": {
+          "javaUsedBytes": 5708240,
+          "nativeHeapAllocatedBytes": 19522208,
+          "pssTotalKb": 227352,
+          "rssKb": 364724,
+          "threads": 41,
+          "fds": 139
+        },
+        "settled": {
+          "javaUsedBytes": 5786064,
+          "nativeHeapAllocatedBytes": 19719936,
+          "pssTotalKb": 235624,
+          "rssKb": 375680,
+          "threads": 51,
+          "fds": 139
+        },
+        "weakReferences": {},
+        "processCpuMsDuringMeasuredWork": 9623,
+        "elapsedMsDuringMeasuredWork": 148949,
+        "uidRxBytesDuringMeasuredWork": 2579781,
+        "uidTxBytesDuringMeasuredWork": 2843240,
+        "allocationAndGcDelta": {
+          "art.gc.bytes-allocated": 258986624,
+          "art.gc.bytes-freed": 258908800,
+          "art.gc.gc-count": 73,
+          "art.gc.gc-time": 1129,
+          "art.gc.blocking-gc-count": 34,
+          "art.gc.blocking-gc-time": 639
+        },
+        "extraIdle": {
+          "delayMs": 65000,
+          "javaUsedBytes": 5790160,
+          "nativeHeapAllocatedBytes": 19637856,
+          "pssTotalKb": 247496,
+          "rssKb": 387680,
+          "threads": 46,
+          "fds": 136,
+          "weakReferences": {}
+        }
+      }
+    },
+    "activity-recording": {
+      "baseline": {
+        "status": "completed",
+        "warmupCycles": 3,
+        "measuredCycles": 20,
+        "sourceSha256": "98efa66cd5b31f05c2bf1a59fc583299f715a06bbaa359c30daf8523576a727e",
+        "warmup": {
+          "javaUsedBytes": 6965104,
+          "nativeHeapAllocatedBytes": 19868112,
+          "pssTotalKb": 230534,
+          "rssKb": 377156,
+          "threads": 52,
+          "fds": 167
+        },
+        "settled": {
+          "javaUsedBytes": 6947488,
+          "nativeHeapAllocatedBytes": 20063984,
+          "pssTotalKb": 240119,
+          "rssKb": 391096,
+          "threads": 57,
+          "fds": 160
+        },
+        "weakReferences": {
+          "activity": {
+            "watched": 46,
+            "alive": 0,
+            "aliveOlderThanOneCycle": 0
+          },
+          "decorView": {
+            "watched": 46,
+            "alive": 0,
+            "aliveOlderThanOneCycle": 0
+          },
+          "recordingsViewModel": {
+            "watched": 23,
+            "alive": 0,
+            "aliveOlderThanOneCycle": 0
+          },
+          "foundationViewModel": {
+            "watched": 23,
+            "alive": 0,
+            "aliveOlderThanOneCycle": 0
+          },
+          "messagingViewModel": {
+            "watched": 23,
+            "alive": 0,
+            "aliveOlderThanOneCycle": 0
+          },
+          "meetingsViewModel": {
+            "watched": 23,
+            "alive": 0,
+            "aliveOlderThanOneCycle": 0
+          },
+          "playerView": {
+            "watched": 46,
+            "alive": 0,
+            "aliveOlderThanOneCycle": 0
+          },
+          "player": {
+            "watched": 46,
+            "alive": 1,
+            "aliveOlderThanOneCycle": 0
+          }
+        },
+        "processCpuMsDuringMeasuredWork": 39551,
+        "elapsedMsDuringMeasuredWork": 84267,
+        "uidRxBytesDuringMeasuredWork": 13176744,
+        "uidTxBytesDuringMeasuredWork": 199669,
+        "allocationAndGcDelta": {
+          "art.gc.bytes-allocated": 209329520,
+          "art.gc.bytes-freed": 209347136,
+          "art.gc.gc-count": 31,
+          "art.gc.gc-time": 2339,
+          "art.gc.blocking-gc-count": 11,
+          "art.gc.blocking-gc-time": 572
+        }
+      },
+      "after": {
+        "status": "completed",
+        "warmupCycles": 3,
+        "measuredCycles": 20,
+        "sourceSha256": "d6021f454099d6d8e82bc39c7ac3f67d36087e3c2089736c5946f091d60a31c2",
+        "warmup": {
+          "javaUsedBytes": 6910032,
+          "nativeHeapAllocatedBytes": 19872672,
+          "pssTotalKb": 230200,
+          "rssKb": 376496,
+          "threads": 53,
+          "fds": 155
+        },
+        "settled": {
+          "javaUsedBytes": 6955088,
+          "nativeHeapAllocatedBytes": 20071808,
+          "pssTotalKb": 240182,
+          "rssKb": 391108,
+          "threads": 59,
+          "fds": 155
+        },
+        "weakReferences": {
+          "activity": {
+            "watched": 46,
+            "alive": 0,
+            "aliveOlderThanOneCycle": 0
+          },
+          "decorView": {
+            "watched": 46,
+            "alive": 0,
+            "aliveOlderThanOneCycle": 0
+          },
+          "recordingsViewModel": {
+            "watched": 23,
+            "alive": 0,
+            "aliveOlderThanOneCycle": 0
+          },
+          "foundationViewModel": {
+            "watched": 23,
+            "alive": 0,
+            "aliveOlderThanOneCycle": 0
+          },
+          "messagingViewModel": {
+            "watched": 23,
+            "alive": 0,
+            "aliveOlderThanOneCycle": 0
+          },
+          "meetingsViewModel": {
+            "watched": 23,
+            "alive": 0,
+            "aliveOlderThanOneCycle": 0
+          },
+          "playerView": {
+            "watched": 46,
+            "alive": 0,
+            "aliveOlderThanOneCycle": 0
+          },
+          "player": {
+            "watched": 46,
+            "alive": 0,
+            "aliveOlderThanOneCycle": 0
+          }
+        },
+        "processCpuMsDuringMeasuredWork": 42263,
+        "elapsedMsDuringMeasuredWork": 87353,
+        "uidRxBytesDuringMeasuredWork": 12890285,
+        "uidTxBytesDuringMeasuredWork": 198490,
+        "allocationAndGcDelta": {
+          "art.gc.bytes-allocated": 211243360,
+          "art.gc.bytes-freed": 211198304,
+          "art.gc.gc-count": 31,
+          "art.gc.gc-time": 3207,
+          "art.gc.blocking-gc-count": 11,
+          "art.gc.blocking-gc-time": 869
+        },
+        "extraIdle": {
+          "delayMs": 65000,
+          "javaUsedBytes": 6955056,
+          "nativeHeapAllocatedBytes": 14496880,
+          "pssTotalKb": 235898,
+          "rssKb": 386568,
+          "threads": 53,
+          "fds": 147,
+          "weakReferences": {
+            "activity": {
+              "watched": 46,
+              "alive": 0,
+              "aliveOlderThanOneCycle": 0
+            },
+            "decorView": {
+              "watched": 46,
+              "alive": 0,
+              "aliveOlderThanOneCycle": 0
+            },
+            "recordingsViewModel": {
+              "watched": 23,
+              "alive": 0,
+              "aliveOlderThanOneCycle": 0
+            },
+            "foundationViewModel": {
+              "watched": 23,
+              "alive": 0,
+              "aliveOlderThanOneCycle": 0
+            },
+            "messagingViewModel": {
+              "watched": 23,
+              "alive": 0,
+              "aliveOlderThanOneCycle": 0
+            },
+            "meetingsViewModel": {
+              "watched": 23,
+              "alive": 0,
+              "aliveOlderThanOneCycle": 0
+            },
+            "playerView": {
+              "watched": 46,
+              "alive": 0,
+              "aliveOlderThanOneCycle": 0
+            },
+            "player": {
+              "watched": 46,
+              "alive": 0,
+              "aliveOlderThanOneCycle": 0
+            }
+          }
+        }
+      }
+    },
+    "auth": {
+      "baseline": {
+        "status": "completed",
+        "warmupCycles": 3,
+        "measuredCycles": 20,
+        "sourceSha256": "8b394708c97b4224bb82bef96a9310e6b800b02a290020d929061388d9686810",
+        "warmup": {
+          "javaUsedBytes": 6060240,
+          "nativeHeapAllocatedBytes": 19652768,
+          "pssTotalKb": 219346,
+          "rssKb": 352688,
+          "threads": 40,
+          "fds": 135
+        },
+        "settled": {
+          "javaUsedBytes": 6080720,
+          "nativeHeapAllocatedBytes": 19658304,
+          "pssTotalKb": 230669,
+          "rssKb": 367188,
+          "threads": 39,
+          "fds": 135
+        },
+        "weakReferences": {
+          "session": {
+            "watched": 23,
+            "alive": 0,
+            "aliveOlderThanOneCycle": 0
+          },
+          "recordingDetail": {
+            "watched": 23,
+            "alive": 0,
+            "aliveOlderThanOneCycle": 0
+          }
+        },
+        "processCpuMsDuringMeasuredWork": 1855,
+        "elapsedMsDuringMeasuredWork": 16401,
+        "uidRxBytesDuringMeasuredWork": 324352,
+        "uidTxBytesDuringMeasuredWork": 66905,
+        "allocationAndGcDelta": {
+          "art.gc.bytes-allocated": 20741552,
+          "art.gc.bytes-freed": 20721072,
+          "art.gc.gc-count": 11,
+          "art.gc.gc-time": 256,
+          "art.gc.blocking-gc-count": 9,
+          "art.gc.blocking-gc-time": 205
+        }
+      },
+      "after": {
+        "status": "completed",
+        "warmupCycles": 3,
+        "measuredCycles": 20,
+        "sourceSha256": "95c02bf99b3b9896383371abc8d11ddcb8a63da3aa197d553ecc26ef8275184e",
+        "warmup": {
+          "javaUsedBytes": 6125776,
+          "nativeHeapAllocatedBytes": 19670784,
+          "pssTotalKb": 219568,
+          "rssKb": 353320,
+          "threads": 41,
+          "fds": 144
+        },
+        "settled": {
+          "javaUsedBytes": 6150352,
+          "nativeHeapAllocatedBytes": 19684448,
+          "pssTotalKb": 231199,
+          "rssKb": 368140,
+          "threads": 40,
+          "fds": 153
+        },
+        "weakReferences": {
+          "session": {
+            "watched": 23,
+            "alive": 0,
+            "aliveOlderThanOneCycle": 0
+          },
+          "recordingDetail": {
+            "watched": 23,
+            "alive": 0,
+            "aliveOlderThanOneCycle": 0
+          }
+        },
+        "processCpuMsDuringMeasuredWork": 2245,
+        "elapsedMsDuringMeasuredWork": 17380,
+        "uidRxBytesDuringMeasuredWork": 324187,
+        "uidTxBytesDuringMeasuredWork": 67018,
+        "allocationAndGcDelta": {
+          "art.gc.bytes-allocated": 22826448,
+          "art.gc.bytes-freed": 22801872,
+          "art.gc.gc-count": 11,
+          "art.gc.gc-time": 202,
+          "art.gc.blocking-gc-count": 9,
+          "art.gc.blocking-gc-time": 181
+        }
+      }
+    }
+  },
+  "baselineStartup": {
+    "label": "baseline",
+    "measuredAtUtc": "2026-10-11T16:05:04.795224+00:00",
+    "serial": "emulator-5556",
+    "apkSha256": "16807136a0152e08005d5ba2261593b18f378dec9934b4f102264eefed9f1802",
+    "condition": "Explicit Activity start after force-stop; 2 warmup launches excluded, 7 measured; no data clear; first-display TotalTime, not fully-drawn time.",
+    "samples": [
+      {
+        "TotalTime": 936,
+        "WaitTime": 955,
+        "iteration": 0,
+        "excludedWarmup": true
+      },
+      {
+        "TotalTime": 890,
+        "WaitTime": 916,
+        "iteration": 1,
+        "excludedWarmup": true
+      },
+      {
+        "TotalTime": 840,
+        "WaitTime": 881,
+        "iteration": 2,
+        "excludedWarmup": false
+      },
+      {
+        "TotalTime": 942,
+        "WaitTime": 945,
+        "iteration": 3,
+        "excludedWarmup": false
+      },
+      {
+        "TotalTime": 1145,
+        "WaitTime": 1154,
+        "iteration": 4,
+        "excludedWarmup": false
+      },
+      {
+        "TotalTime": 924,
+        "WaitTime": 929,
+        "iteration": 5,
+        "excludedWarmup": false
+      },
+      {
+        "TotalTime": 1041,
+        "WaitTime": 1056,
+        "iteration": 6,
+        "excludedWarmup": false
+      },
+      {
+        "TotalTime": 1768,
+        "WaitTime": 1775,
+        "iteration": 7,
+        "excludedWarmup": false
+      },
+      {
+        "TotalTime": 897,
+        "WaitTime": 898,
+        "iteration": 8,
+        "excludedWarmup": false
+      }
+    ],
+    "totalTimeMs": {
+      "median": 942,
+      "min": 840,
+      "max": 1768
+    },
+    "fingerprint": "Android/sdk_phone64_arm64/emu64a:16/BE2A.250530.026.D1/13818094:userdebug/test-keys",
+    "pageSize": 4096,
+    "physicalDeviceBattery": "not measured",
+    "networkRequests": "not measured by this startup command"
+  },
+  "afterStartup": {
+    "label": "after",
+    "measuredAtUtc": "2026-10-11T16:36:28.461568+00:00",
+    "serial": "emulator-5556",
+    "apkSha256": "b793443b035f9346b403fc650d37bc4a13448bac183226bc143ed9b15727ef2e",
+    "condition": "Explicit Activity start after force-stop; 2 warmup launches excluded, 7 measured; no data clear; first-display TotalTime, not fully-drawn time.",
+    "samples": [
+      {
+        "TotalTime": 829,
+        "WaitTime": 829,
+        "iteration": 0,
+        "excludedWarmup": true
+      },
+      {
+        "TotalTime": 1025,
+        "WaitTime": 1050,
+        "iteration": 1,
+        "excludedWarmup": true
+      },
+      {
+        "TotalTime": 813,
+        "WaitTime": 841,
+        "iteration": 2,
+        "excludedWarmup": false
+      },
+      {
+        "TotalTime": 773,
+        "WaitTime": 783,
+        "iteration": 3,
+        "excludedWarmup": false
+      },
+      {
+        "TotalTime": 884,
+        "WaitTime": 896,
+        "iteration": 4,
+        "excludedWarmup": false
+      },
+      {
+        "TotalTime": 870,
+        "WaitTime": 873,
+        "iteration": 5,
+        "excludedWarmup": false
+      },
+      {
+        "TotalTime": 2147,
+        "WaitTime": 2161,
+        "iteration": 6,
+        "excludedWarmup": false
+      },
+      {
+        "TotalTime": 858,
+        "WaitTime": 861,
+        "iteration": 7,
+        "excludedWarmup": false
+      },
+      {
+        "TotalTime": 1100,
+        "WaitTime": 1109,
+        "iteration": 8,
+        "excludedWarmup": false
+      }
+    ],
+    "totalTimeMs": {
+      "median": 870,
+      "min": 773,
+      "max": 2147
+    },
+    "fingerprint": "Android/sdk_phone64_arm64/emu64a:16/BE2A.250530.026.D1/13818094:userdebug/test-keys",
+    "pageSize": 4096,
+    "physicalDeviceBattery": "not measured",
+    "networkRequests": "not measured by this startup command"
+  },
+  "sfuLifecycle": {
+    "baseline": {
+      "sourceSha256": "4fe76ca56ed490f59b06dcebf5ac4871a171d96eda84c4ddad0fbe26e56ffe8b",
+      "scope": "Real fixture Pion/TURN control/transport join-leave; Android camera/mic/screen disabled; no permanent peer assumption. Host open-file records include non-FD mappings.",
+      "excludedSamples": [
+        {
+          "phase": "settled",
+          "completedCycles": 110,
+          "peerConnectionCounterDelta": 0,
+          "reason": "Premature phase read from prior device-cache result; exclude from current-run curve. Historical JSON preserved."
+        }
+      ],
+      "before": {
+        "phase": "before",
+        "completedCycles": 0,
+        "runtime": {
+          "gcCount": 179,
+          "goroutines": 17,
+          "heapAllocBytes": 3671808,
+          "heapObjects": 17643,
+          "totalAllocBytes": 1184831832,
+          "unixMillis": 1791735602135
+        },
+        "sfu": {
+          "roomsActive": 0,
+          "mediaPeersActive": 0,
+          "tracksPublished": 0,
+          "subscriptions": 0,
+          "peerConnectionTotal": 111,
+          "peerConnectionFailures": 1,
+          "relayConnections": 78,
+          "directConnections": 33,
+          "packetsForwarded": 0,
+          "bytesForwarded": 0,
+          "packetsDropped": 0,
+          "recordingOutputs": 0,
+          "recordingDrops": 0,
+          "audioTaps": 0,
+          "audioTapDrops": 0
+        },
+        "hostOpenFileRecords": 21,
+        "hostThreadRows": 14
+      },
+      "final": {
+        "phase": "after",
+        "completedCycles": 110,
+        "runtime": {
+          "gcCount": 314,
+          "goroutines": 16,
+          "heapAllocBytes": 3642768,
+          "heapObjects": 17534,
+          "totalAllocBytes": 1647992528,
+          "unixMillis": 1791735842842
+        },
+        "sfu": {
+          "roomsActive": 0,
+          "mediaPeersActive": 0,
+          "tracksPublished": 0,
+          "subscriptions": 0,
+          "peerConnectionTotal": 221,
+          "peerConnectionFailures": 1,
+          "relayConnections": 151,
+          "directConnections": 70,
+          "packetsForwarded": 0,
+          "bytesForwarded": 0,
+          "packetsDropped": 0,
+          "recordingOutputs": 0,
+          "recordingDrops": 0,
+          "audioTaps": 0,
+          "audioTapDrops": 0
+        },
+        "hostOpenFileRecords": 20,
+        "hostThreadRows": 14
+      },
+      "peerConnectionCounterDelta": 110,
+      "limitation": "Historical observer phase is invalid and no complete batch curve is asserted. Sampling is asynchronous to Android cycles. No active-media throughput or encoded-media stress is measured here."
+    },
+    "after": {
+      "sourceSha256": "9e8e1604830e3b6feb874bf0c174dbf1fc794c74e00b430c4856b220d0d1b528",
+      "scope": "Real fixture Pion/TURN control/transport join-leave; Android camera/mic/screen disabled; no permanent peer assumption. Host open-file records include non-FD mappings.",
+      "excludedSamples": [],
+      "before": {
+        "phase": "before",
+        "completedCycles": 0,
+        "runtime": {
+          "gcCount": 321,
+          "goroutines": 16,
+          "heapAllocBytes": 3840928,
+          "heapObjects": 18321,
+          "totalAllocBytes": 1809336744,
+          "unixMillis": 1791736098869
+        },
+        "sfu": {
+          "roomsActive": 0,
+          "mediaPeersActive": 0,
+          "tracksPublished": 0,
+          "subscriptions": 0,
+          "peerConnectionTotal": 222,
+          "peerConnectionFailures": 1,
+          "relayConnections": 151,
+          "directConnections": 70,
+          "packetsForwarded": 0,
+          "bytesForwarded": 0,
+          "packetsDropped": 0,
+          "recordingOutputs": 0,
+          "recordingDrops": 0,
+          "audioTaps": 0,
+          "audioTapDrops": 0
+        },
+        "hostOpenFileRecords": 20,
+        "hostThreadRows": 14
+      },
+      "final": {
+        "phase": "after",
+        "completedCycles": 110,
+        "runtime": {
+          "gcCount": 472,
+          "goroutines": 16,
+          "heapAllocBytes": 3685832,
+          "heapObjects": 17984,
+          "totalAllocBytes": 2280801064,
+          "unixMillis": 1791736339489
+        },
+        "sfu": {
+          "roomsActive": 0,
+          "mediaPeersActive": 0,
+          "tracksPublished": 0,
+          "subscriptions": 0,
+          "peerConnectionTotal": 332,
+          "peerConnectionFailures": 1,
+          "relayConnections": 244,
+          "directConnections": 87,
+          "packetsForwarded": 0,
+          "bytesForwarded": 0,
+          "packetsDropped": 0,
+          "recordingOutputs": 0,
+          "recordingDrops": 0,
+          "audioTaps": 0,
+          "audioTapDrops": 0
+        },
+        "hostOpenFileRecords": 20,
+        "hostThreadRows": 14
+      },
+      "peerConnectionCounterDelta": 110,
+      "limitation": "Sampling is asynchronous to Android cycles. No active-media throughput or encoded-media stress is measured here."
+    }
+  }
+}

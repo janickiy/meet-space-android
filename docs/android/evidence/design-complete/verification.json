@@ -1,0 +1,109 @@
+{
+  "version": "0.9.2",
+  "versionCode": 10,
+  "reference": "reference.json",
+  "scope": "Полный проход по основным экранам варианта 02 Web и связанным состояниям Android",
+  "sections": [
+    "calendar",
+    "call",
+    "calls",
+    "complete",
+    "connect",
+    "deploy",
+    "home",
+    "hostkey",
+    "install",
+    "installerror",
+    "login",
+    "meetings",
+    "messages",
+    "preflight",
+    "prejoin",
+    "profile",
+    "recording-detail",
+    "recordings",
+    "schedule",
+    "sshauth",
+    "thread",
+    "welcome"
+  ],
+  "uiTestsPassed": 108,
+  "uiTestsFailed": 0,
+  "finalFoundationRetestPassed": 11,
+  "finalCallAndCalendarRetestPassed": 31,
+  "appJvmTestsPassed": 94,
+  "appJvmTestsFailed": 0,
+  "lintErrors": 0,
+  "lintWarnings": 46,
+  "newLintWarnings": 0,
+  "screenshotCount": 115,
+  "screenshotRunsPassed": 94,
+  "workspaceConfigurations": [
+    {
+      "widthDp": 1194,
+      "heightDp": 834,
+      "theme": "dark",
+      "fontScale": 1.0
+    },
+    {
+      "widthDp": 390,
+      "heightDp": 844,
+      "theme": "dark",
+      "fontScale": 1.0
+    },
+    {
+      "widthDp": 834,
+      "heightDp": 1112,
+      "theme": "dark",
+      "fontScale": 1.0
+    },
+    {
+      "widthDp": 780,
+      "heightDp": 800,
+      "theme": "dark",
+      "fontScale": 1.0
+    },
+    {
+      "widthDp": 430,
+      "heightDp": 932,
+      "theme": "dark",
+      "fontScale": 1.5
+    },
+    {
+      "widthDp": 1194,
+      "heightDp": 834,
+      "theme": "light",
+      "fontScale": 1.0
+    },
+    {
+      "widthDp": 430,
+      "heightDp": 932,
+      "theme": "light",
+      "fontScale": 1.0
+    }
+  ],
+  "additionalCallCheck": {
+    "widthDp": 360,
+    "heightDp": 800,
+    "theme": "dark",
+    "fontScale": 1.5
+  },
+  "onboardingConfigurations": [
+    "1194x834 dark",
+    "390x844 dark",
+    "430x932 light"
+  ],
+  "visualReview": "completed; final large-font calendar time and call participant labels verified after correction",
+  "screenshotsUseSyntheticTestData": true,
+  "screenshotsModifiedAfterCapture": false,
+  "productionAccountsUsed": false,
+  "realBackendRtcAndInstallerRerun": false,
+  "nativeDifferences": [
+    "Android system bars and accessibility scaling remain native.",
+    "UI shows repository data, permissions and server capabilities rather than fictional prototype records.",
+    "User presence, chat calling, read receipts and reactions are not invented where the API does not support them."
+  ],
+  "artifactSha256": "93a497254155ccfe42002d32efe7152339247cc60f48e0063c2836a1e3bd064b",
+  "artifact": "dist/MeetSpace-0.9.2.apk",
+  "gallery": "index.html"
+}

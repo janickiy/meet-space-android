@@ -1,0 +1,25 @@
+{
+  "scope": "TemporaryDirectory only; ownership guard and host preconditions patched; actual apply/write_atomic/managed_marker/status code. No network, SSH, Docker or systemd execution.",
+  "cases": [
+    {
+      "faultBefore": "managed.json",
+      "initialResult": "INJECTED_IO_FAILURE",
+      "sameJobRetryResult": "SUCCESS",
+      "sameJobStatusResult": "SUCCESS",
+      "managedMarkerExists": true,
+      "jobPlanExists": true,
+      "jobStateExists": true,
+      "temporaryAtomicFiles": []
+    },
+    {
+      "faultBefore": "state.json",
+      "initialResult": "INJECTED_IO_FAILURE",
+      "sameJobRetryResult": "SUCCESS",
+      "sameJobStatusResult": "SUCCESS",
+      "managedMarkerExists": true,
+      "jobPlanExists": true,
+      "jobStateExists": true,
+      "temporaryAtomicFiles": []
+    }
+  ]
+}

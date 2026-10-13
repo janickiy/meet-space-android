@@ -1,0 +1,16 @@
+{
+  "fixtureStopped": true,
+  "postgresStopped": true,
+  "releasedPorts": [
+    15455,
+    18455
+  ],
+  "privatePropertiesRemoved": true,
+  "jwtSettingsRemoved": true,
+  "tlsKeysAndCaRemoved": true,
+  "temporaryDatabaseRemoved": true,
+  "temporaryGoCommandRemoved": true,
+  "buildLogsAndEvidencePreserved": true,
+  "systemCaModified": false,
+  "productionMutations": false
+}

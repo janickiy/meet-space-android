@@ -1,0 +1,13 @@
+{
+  "applicationId": "com.meetspace.app",
+  "versionName": "0.9.1",
+  "versionCode": 9,
+  "variant": "debug",
+  "artifact": "dist/MeetSpace-0.9.1.apk",
+  "sizeBytes": 77634878,
+  "sha256": "dd28b24d616f42806c3be7b5f662b91625e3946bbd2c8e2b09e368d89e8e5ee2",
+  "signatureVerified": true,
+  "sameCertificateAsPreviousApk": true,
+  "zipAlignment16KiBVerified": true,
+  "testDataBundled": false
+}

@@ -1,0 +1,13 @@
+{
+  "version": "0.9.1",
+  "uiTestsPassed": 59,
+  "uiTestsFailed": 0,
+  "appJvmTestsPassed": 93,
+  "screenshotConfigurations": 8,
+  "visualReview": "completed",
+  "screenshotsUseSyntheticTestData": true,
+  "productionAccountsUsed": false,
+  "newLintErrors": 0,
+  "layout": "phone stack / tablet conversations pane at viewport width >=780dp",
+  "artifactSha256": "dd28b24d616f42806c3be7b5f662b91625e3946bbd2c8e2b09e368d89e8e5ee2"
+}

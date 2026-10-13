@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.meetspace.app.RecordingsViewModelTest" tests="13" skipped="0" failures="0" errors="0" timestamp="2026-10-11T15:16:30.232Z" hostname="MacBook-Air-janickiy.local" time="0.014">
+  <properties/>
+  <testcase name="disabledProviderStillLoadsAuthorizedHistoricalTranscript" classname="com.meetspace.app.RecordingsViewModelTest" time="0.005"/>
+  <testcase name="lateAcquiredLeaseIsClosedWhenRouteChanges" classname="com.meetspace.app.RecordingsViewModelTest" time="0.001"/>
+  <testcase name="successfulExportKeepsDocumentAndClosesLease" classname="com.meetspace.app.RecordingsViewModelTest" time="0.001"/>
+  <testcase name="failedPageKeepsLoadedRowsAndRetryStopsSpinner" classname="com.meetspace.app.RecordingsViewModelTest" time="0.001"/>
+  <testcase name="queuedExportIsDroppedOnAccountChange" classname="com.meetspace.app.RecordingsViewModelTest" time="0.001"/>
+  <testcase name="cancelBeforeExportStartsStillRemovesDocument" classname="com.meetspace.app.RecordingsViewModelTest" time="0.0"/>
+  <testcase name="accountChangeDropsEvenLateNonCancellableResponse" classname="com.meetspace.app.RecordingsViewModelTest" time="0.001"/>
+  <testcase name="transcriptsUseServerOffsetsAcrossDuplicates" classname="com.meetspace.app.RecordingsViewModelTest" time="0.0"/>
+  <testcase name="readyPlaybackAccessIsReacquiredAndClosedOnLogout" classname="com.meetspace.app.RecordingsViewModelTest" time="0.001"/>
+  <testcase name="denyDetailClearsLoadedPrivateMaterials" classname="com.meetspace.app.RecordingsViewModelTest" time="0.001"/>
+  <testcase name="openingOtherMeetingCancelsOldPageAndDetail" classname="com.meetspace.app.RecordingsViewModelTest" time="0.001"/>
+  <testcase name="activeMeetingFilterAndRepeatedCursorAreHandled" classname="com.meetspace.app.RecordingsViewModelTest" time="0.001"/>
+  <testcase name="failingFreshAccessRemovesEmptyCreatedDocument" classname="com.meetspace.app.RecordingsViewModelTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

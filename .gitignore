@@ -1,0 +1,19 @@
+.audit/
+.gradle/
+**/build/
+local.properties
+.idea/
+*.iml
+.DS_Store
+
+__pycache__/
+*.pyc
+
+# Firebase client config is supplied separately for an explicitly configured build.
+app/google-services.json
+
+# Release identities and passwords belong outside the source checkout.
+*.jks
+*.keystore
+keystore.properties
+signing.properties

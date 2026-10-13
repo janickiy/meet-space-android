@@ -1,0 +1,18 @@
+{
+  "backendCommit": "6ecd8b648a2aa94fc9bcc844d57784423e2c6f69",
+  "freshPrivateHome": true,
+  "source": "local Git clone excluding untracked changes",
+  "businessMocks": false,
+  "actualMigrations": 33,
+  "postgresMajor": 14,
+  "normalHttpsHostnameValidation": true,
+  "checksPassed": 60,
+  "stopAndRemovePassed": true,
+  "releasedPorts": [
+    15456,
+    18456
+  ],
+  "systemCaModified": false,
+  "productionMutations": false,
+  "privateHomeRemoved": true
+}

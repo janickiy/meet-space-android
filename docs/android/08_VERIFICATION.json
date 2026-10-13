@@ -1,0 +1,225 @@
+{
+  "date": "2026-10-11",
+  "versionName": "0.8.0",
+  "versionCode": 7,
+  "applicationId": "com.meetspace.app",
+  "minSdk": 26,
+  "targetSdk": 36,
+  "compileSdk": 36,
+  "backendCommit": "6ecd8b648a2aa94fc9bcc844d57784423e2c6f69",
+  "androidWorkspaceIsGitRepository": false,
+  "productionModified": false,
+  "stageImplementationComplete": true,
+  "publicationPerformed": false,
+  "releaseSigningConfigured": false,
+  "backendContractAssertionsPassed": 758,
+  "jvm": {
+    "modules": {
+      "app": {
+        "tests": 88,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "core/data": {
+        "tests": 107,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 5
+      },
+      "core/ssh": {
+        "tests": 57,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "core/media": {
+        "tests": 14,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    "total": {
+      "tests": 266,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 5
+    },
+    "passed": 261,
+    "stage08LiveTestsPassed": 4,
+    "skipReason": "Five opt-in live tests from stages05/06/07; stage08 live suite enabled"
+  },
+  "android": {
+    "uniqueUiTestsPassed": 76,
+    "uniqueLiveRecordingScenariosPassed": 4,
+    "nativeSmokePassed": true,
+    "all81UniqueTestsHavePassingFinalResult": true,
+    "finalCombinedTabletRun": {
+      "tests": 81,
+      "passed": 80,
+      "failed": 1,
+      "failure": "Test ActivityScenario bookkeeping while delivering new Intent; test fixed and focused rerun passed"
+    },
+    "finalFocusedVideoAndInboxRerun": {
+      "tests": 1,
+      "passed": 1
+    },
+    "phoneFontScale150": {
+      "allFourUniqueScenariosPassedAcrossRuns": true,
+      "onboardingRerunPassed": true,
+      "finalVideoAndInboxRerunPassed": true,
+      "displayPixels": "1080x1920",
+      "densityDpi": 480
+    },
+    "strict16KiBArm64": {
+      "tests": 5,
+      "passed": 5,
+      "failures": 0,
+      "skipped": 0,
+      "compatibilityDisabled": true
+    },
+    "uiEvidenceLimits": [
+      "Automated semantics and key injection; manual TalkBack/hardware keyboard not tested",
+      "Compose window-size changes; actual split-screen not exercised"
+    ]
+  },
+  "builds": {
+    "debugApk": true,
+    "debugAndroidTest": true,
+    "minifiedUnsignedReleaseApk": true,
+    "unsignedReleaseBundle": true,
+    "releaseLint": true
+  },
+  "lint": {
+    "errors": 0,
+    "warnings": 46,
+    "warningIds": {
+      "ApplySharedPref": 8,
+      "AndroidGradlePluginVersion": 3,
+      "GradleDependency": 12,
+      "NewerVersionAvailable": 10,
+      "UseKtx": 9,
+      "UseTomlInstead": 4
+    }
+  },
+  "artifacts": [
+    {
+      "variant": "debug",
+      "path": "app/build/outputs/apk/debug/app-debug.apk",
+      "bytes": 82442432,
+      "sha256": "16807136a0152e08005d5ba2261593b18f378dec9934b4f102264eefed9f1802",
+      "staticPackagingChecksPassed": true,
+      "signature": {
+        "verified": true,
+        "expected": "debug",
+        "apkSigningBlockPresent": true,
+        "v2Verified": true,
+        "certificateSha256": "5472281448cf33dea7fe8a4b119683701cd43815d5e038bb34fad92e22b1e471",
+        "debugCertificate": true,
+        "confirmedUnsigned": false
+      }
+    },
+    {
+      "variant": "release",
+      "path": "app/build/outputs/apk/release/app-release-unsigned.apk",
+      "bytes": 52001077,
+      "sha256": "7797827e040ed6348e1ff9a26ced652c64388c27078f418f45fc13b97cedf503",
+      "staticPackagingChecksPassed": true,
+      "signature": {
+        "verified": false,
+        "expected": "unsigned",
+        "apkSigningBlockPresent": false,
+        "confirmedUnsigned": true
+      }
+    },
+    {
+      "variant": "releaseBundle",
+      "path": "app/build/outputs/bundle/release/app-release.aab",
+      "bytes": 30739810,
+      "sha256": "5e657447e7a9866e7a9738f198ff14c71c2d1d9be5e6eb1a76fef9ececbd4fe8",
+      "staticPackagingChecksPassed": true,
+      "signature": {
+        "expected": "unsigned",
+        "jarIsUnsigned": true,
+        "toolExitCode": 0,
+        "confirmedUnsigned": true
+      }
+    }
+  ],
+  "r8Mapping": {
+    "path": "app/build/outputs/mapping/release/mapping.txt",
+    "sha256": "d3c8e6c5c45ab65e12616f928cf436b17eeeba460038c9a1306be96c4ab342ad",
+    "bytes": 65571133
+  },
+  "sourceInventory": {
+    "path": "docs/android/evidence/08/source-files.sha256",
+    "sha256": "18f56ee36db00f31db883d6e3c388bad4c133a31aa564c16a8ac08b765f2fe30",
+    "implementationAndBuildFileCount": 147
+  },
+  "native": {
+    "all64BitPtLoadCompatibleWith16KiB": true,
+    "all64BitGnuRelroEndsAlignedTo16KiB": false,
+    "remainingGnuRelroFindings": [
+      "graphics-path: arm64-v8a",
+      "graphics-path: x86_64",
+      "WebRTC: x86_64"
+    ],
+    "runtimeVerifiedForAbi": {
+      "arm64-v8a": true,
+      "x86_64": null
+    },
+    "runtimeScope": "ARM64 only: debug JNI loads for three libraries, WebRTC factory create/dispose, and recording playback; release APK from current AAB launches without test CA. API36 graphics-path UI uses the system PathIterator, so its native path-iteration operations are not established by this test. x86_64 and all other native operations/devices remain unverified.",
+    "runtimeEvidence": "docs/android/evidence/08/runtime-16k.json"
+  },
+  "releaseSmoke": {
+    "fromCurrentAab": true,
+    "ordinaryColdLaunchOn16KiBPassed": true,
+    "temporarySigningKeyDeleted": true,
+    "permanentSigningKeyCreated": false,
+    "fixtureCaPresent": false,
+    "releaseAuthenticationOrPlaybackTested": false
+  },
+  "push": {
+    "firebaseConfigured": false,
+    "foregroundAndInAppExistingImplementationRetained": true,
+    "backgroundDeliveryVerified": false
+  },
+  "cleanup": {
+    "fixtureHomeRemoved": true,
+    "fixturePortsListening": {
+      "15488": false,
+      "16388": false,
+      "18488": false,
+      "19088": false,
+      "19488": false
+    },
+    "preexistingContainersUnchanged": true,
+    "preexistingContainerCount": 11,
+    "fixtureContainersRunning": 0,
+    "androidPrivateInputsRemoved": true,
+    "androidTestExportsRemaining": 0,
+    "existingTabletKeptWithFinalDebug": true,
+    "display": "Physical size: 2560x1600",
+    "density": "Physical density: 320",
+    "fontScale": "1.0",
+    "showImeWithHardwareKeyboard": "0",
+    "wifi": "1",
+    "mobileData": "1",
+    "owned16KiBEmulatorStopped": true,
+    "owned16KiBAvdAndPrivateUserdataRemoved": true,
+    "verifiedPublicSystemImageCacheRetained": true,
+    "productionModified": false
+  },
+  "notTested": [
+    "Full live capture Pion/worker/STT/AI pipeline",
+    "New authorized VPS installation and DNS",
+    "FCM gateway and delivery",
+    "Physical devices/OEM/battery scenarios and x86_64 runtime",
+    "Manual TalkBack, actual hardware keyboard and OS split-screen",
+    "Multi-gigabyte recordings, real out-of-space and all cloud document providers",
+    "Permanent signing/upgrade and Google Play delivery"
+  ],
+  "backendLimitation": "Previously-issued signed storage capability remains valid up to 24h after membership revocation; fresh API access denied immediately",
+  "finalReport": "docs/android/08_RECORDINGS_REPORT.md"
+}

@@ -1,0 +1,10 @@
+
+com.meetspace.app.MessagingUiTest:...................
+com.meetspace.app.LiveMessagingSafTest:.
+com.meetspace.app.LiveMessagingTest:.
+
+Time: 64.849
+
+OK (21 tests)
+
+

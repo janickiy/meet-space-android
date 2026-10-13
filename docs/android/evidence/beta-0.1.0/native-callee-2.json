@@ -1,0 +1,35 @@
+{
+  "role": "callee",
+  "actualProductionDataRepository": true,
+  "realHTTPSWebSocketSFU": true,
+  "physicalDevice": false,
+  "success": true,
+  "incomingBeforeMedia": true,
+  "incomingCallUpdatedEventObserved": true,
+  "initialRtp": {
+    "relay": true,
+    "receivedAudioBytes": 0,
+    "decodedFrames": 26,
+    "sentBytes": 6026,
+    "microphone": true,
+    "camera": false
+  },
+  "initialVideoCatalogId": "cea5e6c3-b5f8-4ac7-9909-98e1339a9c3e",
+  "remoteParticipantId": "6000f504-c858-4bf0-99fa-1cda05a4df9d",
+  "reconnectedVideoCatalogId": "fbdc0f90-6bd7-4250-b5ff-4bcca705790c",
+  "reconnectedVideoAuthoritativeBinding": true,
+  "cameraCatalogRemovalAndNewFeedVerified": true,
+  "republishedVideoRtp": {
+    "relay": true,
+    "receivedAudioBytes": 0,
+    "decodedFrames": 18,
+    "sentBytes": 59381,
+    "microphone": true,
+    "camera": false
+  },
+  "durationSec": 43,
+  "historyRows": 1,
+  "serverEndReleasedMedia": true,
+  "heartbeatErrors": 0,
+  "ordinaryMeetingRequests": 0
+}

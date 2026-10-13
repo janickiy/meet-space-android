@@ -1,0 +1,20 @@
+{
+  "scope": "Known LeakCanary/Shark class descriptors and quality test marker strings; no claim about all possible diagnostics",
+  "artifacts": [
+    {
+      "path": "app/build/outputs/apk/debug/app-debug.apk",
+      "sha256": "721cd11273e9d60984a195922d34a77196c86c20e6774d88c56dead48b288864",
+      "diagnosticClassMarkersFound": false
+    },
+    {
+      "path": "app/build/outputs/apk/release/app-release-unsigned.apk",
+      "sha256": "aec4056dd7f4055299048068d52351116c8f81e8f87fc231b8ca01e183ab2c59",
+      "diagnosticClassMarkersFound": false
+    },
+    {
+      "path": "app/build/outputs/bundle/release/app-release.aab",
+      "sha256": "ddc48905ab5054bfdaaf6ecc7f58a21955d3a8483fc94fafa079ad75704ea21f",
+      "diagnosticClassMarkersFound": false
+    }
+  ]
+}
