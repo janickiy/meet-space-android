@@ -1,0 +1,163 @@
+{
+  "ok": true,
+  "browser": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/155.0.0.0 Safari/537.36",
+  "physicalMicrophoneUsed": false,
+  "silentAudioSink": true,
+  "source": "synthetic oscillators through live MediaStreamAudioDestinationNode",
+  "rawEndedTest": "synthetic ended event after track stop",
+  "audibleConnections": 0,
+  "checks": [
+    {
+      "name": "constant gain is 0.8",
+      "passed": true
+    },
+    {
+      "name": "1-channel live WebAudio RMS ratio 0.8",
+      "passed": true
+    },
+    {
+      "name": "1-channel microphone preserves advertised channel count",
+      "passed": true
+    },
+    {
+      "name": "processed track speech content hint",
+      "passed": true
+    },
+    {
+      "name": "dispose stops raw and processed track",
+      "passed": true
+    },
+    {
+      "name": "dispose closes processor context",
+      "passed": true
+    },
+    {
+      "name": "2-channel live WebAudio RMS ratio 0.8",
+      "passed": true
+    },
+    {
+      "name": "2-channel microphone preserves advertised channel count",
+      "passed": true
+    },
+    {
+      "name": "processed track speech content hint",
+      "passed": true
+    },
+    {
+      "name": "dispose stops raw and processed track",
+      "passed": true
+    },
+    {
+      "name": "dispose closes processor context",
+      "passed": true
+    },
+    {
+      "name": "capture ended event stops output and notifies once",
+      "passed": true
+    },
+    {
+      "name": "ended cleanup removes listener and closes context",
+      "passed": true
+    },
+    {
+      "name": "new device processor can start before old one is disposed",
+      "passed": true
+    },
+    {
+      "name": "replacement disposes old tracks without ending new track",
+      "passed": true
+    },
+    {
+      "name": "ended input error cleans output and context",
+      "passed": true
+    },
+    {
+      "name": "node creation error stops capture and closes context",
+      "passed": true
+    },
+    {
+      "name": "resume rejection cleans raw output and context",
+      "passed": true
+    },
+    {
+      "name": "duplicate attach rejects and releases both input tracks",
+      "passed": true
+    },
+    {
+      "name": "ConferenceMediaClient publishes processed track instead of raw capture",
+      "passed": true
+    },
+    {
+      "name": "microphone start creates exactly one processing context",
+      "passed": true
+    },
+    {
+      "name": "ConferenceMediaClient stop closes raw output and processing context",
+      "passed": true
+    },
+    {
+      "name": "raw capture ended updates ConferenceMediaClient before server join",
+      "passed": true
+    },
+    {
+      "name": "stop during pending capture closes late raw track and processing context without joining",
+      "passed": true
+    },
+    {
+      "name": "processing failure stops captured track and prevents raw fallback publication",
+      "passed": true
+    },
+    {
+      "name": "receive-only connection does not acquire microphone or create audio processing",
+      "passed": true
+    },
+    {
+      "name": "no node connected to speaker destination",
+      "passed": true
+    }
+  ],
+  "details": [
+    {
+      "channels": 1,
+      "sampleRate": 48000,
+      "inputChannels": 1,
+      "outputChannels": 1,
+      "contextState": "running",
+      "currentTime": 0.6506666666666666,
+      "sinkId": {},
+      "inputRms": [
+        0.2827789880357757
+      ],
+      "outputRms": [
+        0.22620674085689166
+      ],
+      "ratios": [
+        0.7999418288754649
+      ],
+      "contentHint": "speech"
+    },
+    {
+      "channels": 2,
+      "sampleRate": 48000,
+      "inputChannels": 2,
+      "outputChannels": 2,
+      "contextState": "running",
+      "currentTime": 0.6213333333333333,
+      "sinkId": {},
+      "inputRms": [
+        0.2828027917493089,
+        0.14142815839388
+      ],
+      "outputRms": [
+        0.22633097853228307,
+        0.1131228480921447
+      ],
+      "ratios": [
+        0.8003138057170052,
+        0.7998608578151425
+      ],
+      "contentHint": "speech"
+    }
+  ],
+  "error": null
+}

@@ -39,6 +39,12 @@ internal class MessagingApi(private val api: MeetSpaceApi) {
         distinct(items.map { it.id })
         return MessagePage(items, body.cursor(), body.count("unreadCount"), body.optionalId("lastReadMessageId"))
     }
+    suspend fun messagePage(origin: String, token: String, id: String, suffix: List<String>, query: Map<String, String> = emptyMap()): ChatPage<ChatMessage> {
+        val body = request(origin, token, path(id) + suffix, query = query)
+        val items = body.items(100).map { message(it, id) }
+        distinct(items.map { it.id })
+        return ChatPage(items, body.cursor())
+    }
     suspend fun mutateMessage(origin: String, token: String, id: String, messageId: String?, method: String,
         payload: JsonObject? = null): ChatMessage {
         val target = path(id) + "messages" + listOfNotNull(messageId?.let(::inputId))
@@ -250,7 +256,7 @@ internal class MessagingApi(private val api: MeetSpaceApi) {
             return ChatMessage(o.id(), scope, o.id("senderId"), o.text("senderName", 400), o.id("clientRequestId"),
                 o.text("text", 16000), sequence, version, o.instant("createdAt"), o.instant("updatedAt"),
                 o.optionalInstant("deletedAt"), o.optionalId("replyTo"), reply, attachments,
-                if (call == null) "message" else "call", call)
+                if (call == null) "message" else "call", call, o.optionalBool("pinned") ?: false)
         }
         fun folder(o: JsonObject): ChatFolder = ChatFolder(o.id(), o.text("name", 200), o.count("position").toInt(),
             o.count("itemCount"), o.count("conversationCount"), o.count("conferenceCount"))

@@ -69,6 +69,8 @@ class MessagingUiTest {
                     consumeWorkspaceRequest = { request = false })
             }
         }
+        compose.onNodeWithTag("folders-workspace").assertIsDisplayed()
+        compose.onNodeWithTag("folder-primary").performClick()
         compose.onNodeWithTag("folder-name").assertIsDisplayed()
         compose.runOnIdle { assertFalse(request) }
     }
@@ -298,6 +300,7 @@ class MessagingUiTest {
         compose.setContent { Screen(ready.copy(selectedId = null, folders = MessagingLoad(listOf(folder))), MessagingActions(createFolder = { created = it }, deleteFolder = { deleted = it }), 1000) }
         compose.onNodeWithTag("chat-folder-filter").performScrollTo().performClick()
         compose.onNodeWithTag("folders-manage").performClick()
+        compose.onNodeWithTag("folder-primary").performClick()
         compose.onNodeWithTag("folder-save").assertIsNotEnabled()
         compose.onNodeWithTag("folder-name").performScrollTo().performTextInput("  Работа  ")
         compose.onNodeWithTag("folder-save").performScrollTo().performClick()
@@ -550,9 +553,10 @@ class MessagingUiTest {
         val theme = args.getString("designTheme", "light")
         val screen = args.getString("designScreen", "messages")
         require(theme in setOf("light", "dark"))
-        require(screen in setOf("messages", "thread"))
+        require(screen in setOf("messages", "thread", "folders", "message-actions"))
         val configuration = instrumentation.targetContext.resources.configuration
-        val snapshot = if (screen == "thread" || configuration.screenWidthDp >= 780) ready.copy(messages = MessagingLoad(listOf(ownMessage, peerMessage.copy(attachments = listOf(file)))))
+        val snapshot = if (screen == "folders") ready.copy(selectedId = null, folders = MessagingLoad(listOf(folder.copy(name = "Проект MeetSpace", itemCount = 8, conversationCount = 3, conferenceCount = 5), folder.copy(id = "personal", name = "Рабочие встречи", itemCount = 3), folder.copy(id = "design", name = "Дизайн"))))
+            else if (screen in setOf("thread", "message-actions") || configuration.screenWidthDp >= 780) ready.copy(messages = MessagingLoad(listOf(ownMessage, peerMessage.copy(attachments = listOf(file)))))
             else ready.copy(selectedId = null)
         val profile = ServerProfile("visual-server", "https://team.example")
         val repository = RepositoryState(profiles = listOf(profile), selectedProfileId = profile.id,
@@ -567,20 +571,21 @@ class MessagingUiTest {
                 FoundationUi(FoundationUiState(FoundationScreen.WORKSPACE, repository),
                     onConnect = {}, onSelectProfile = {}, onRemoveProfile = {}, onLogin = { _, _ -> }, onLogout = {}, onTheme = {}, onNavigate = {}, onClearMessage = {},
                     messageThreadOpen = snapshot.selectedId != null,
-                    workspaceContent = { tab, _ -> if (tab == WorkspaceTab.MESSAGES) MessagingWorkspace(snapshot, MessagingActions(), serverOrigin = profile.origin) })
+                    workspaceContent = { tab, _ -> if (tab == WorkspaceTab.MESSAGES) MessagingWorkspace(snapshot, MessagingActions(), serverOrigin = profile.origin, foldersRequested = screen == "folders") })
             }
         }
         // Keep pointer press/ripple effects out of the visual fixture.
         compose.onNodeWithTag("tab-messages").performSemanticsAction(SemanticsActions.OnClick) { assertTrue(it()) }
-        compose.onNodeWithTag("messaging-workspace").assertIsDisplayed()
-        if (configuration.screenWidthDp < 780 && screen == "thread") compose.onNodeWithTag("bottom-navigation").assertDoesNotExist()
+        compose.onNodeWithTag(if (screen == "folders") "folders-workspace" else "messaging-workspace").assertIsDisplayed()
+        if (configuration.screenWidthDp < 780 && screen in setOf("thread", "message-actions")) compose.onNodeWithTag("bottom-navigation").assertDoesNotExist()
         else compose.onNodeWithTag("bottom-navigation").assertIsDisplayed()
         compose.mainClock.advanceTimeBy(1_000)
         compose.waitForIdle()
         val directory = checkNotNull(instrumentation.targetContext.getExternalFilesDir("screenshots"))
         check(directory.isDirectory || directory.mkdirs())
         val filename = "$screen-$theme-${configuration.screenWidthDp}x${configuration.screenHeightDp}-font${configuration.fontScale}.png"
-        val image = compose.onNodeWithTag("workspace").captureToImage().asAndroidBitmap()
+        if (screen == "message-actions") { compose.onNodeWithTag("message-menu-${peerMessage.id}").performClick(); compose.waitForIdle() }
+        val image = if (screen == "message-actions") checkNotNull(instrumentation.uiAutomation.takeScreenshot()) else compose.onNodeWithTag("workspace").captureToImage().asAndroidBitmap()
         File(directory, filename).outputStream().use { assertTrue(image.compress(Bitmap.CompressFormat.PNG, 100, it)) }
     }
 

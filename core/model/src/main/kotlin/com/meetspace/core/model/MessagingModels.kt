@@ -27,6 +27,7 @@ data class ChatMessage(
     val replyTo: String? = null, val replyPreview: ChatReply? = null,
     val attachments: List<ChatAttachment> = emptyList(),
     val kind: String = "message", val call: DirectCallHistory? = null,
+    val pinned: Boolean = false,
 )
 data class ChatMessageInput(val clientRequestId: String, val text: String,
     val replyTo: String? = null, val attachmentIds: List<String> = emptyList())

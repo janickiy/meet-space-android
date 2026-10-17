@@ -363,6 +363,7 @@ class DirectCallViewModel internal constructor(
     private fun duration(call: DirectCall): Long = if (call.status != "accepted") call.durationSec
         else call.acceptedAt?.let { Duration.between(it, clock.instant()).seconds.coerceAtLeast(0) } ?: 0
     private fun identity(): String? = foundation.state.value.let { s ->
+        if (s.session?.guestMeeting != null) return null
         val p = s.selectedProfile ?: return null; val user = s.session?.user ?: return null
         "${p.id}|${p.origin}|${user.id}"
     }

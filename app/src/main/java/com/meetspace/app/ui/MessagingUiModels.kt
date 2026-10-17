@@ -13,7 +13,7 @@ import com.meetspace.core.model.NotificationPreferences
 /** Private messaging content is transient: no rememberSaveable or saved-state persistence. */
 data class MessagingLoad<T>(val data: T? = null, val loading: Boolean = false, val error: String? = null)
 
-enum class ChatFilter { ALL, DIRECT, UNREAD }
+enum class ChatFilter { ALL, DIRECT, GROUP, UNREAD }
 
 data class MessagingUiState(
     val selfId: String = "",
@@ -25,6 +25,15 @@ data class MessagingUiState(
     val detail: MessagingLoad<ChatConversation> = MessagingLoad(),
     val messages: MessagingLoad<List<ChatMessage>> = MessagingLoad(),
     val messageCursor: String? = null,
+    val searchQuery: String = "",
+    val searchResults: MessagingLoad<List<ChatMessage>> = MessagingLoad(),
+    val searchCursor: String? = null,
+    val pins: MessagingLoad<List<ChatMessage>> = MessagingLoad(),
+    val pinsCursor: String? = null,
+    val focusedMessageId: String? = null,
+    val viewingContext: Boolean = false,
+    val drafts: Map<String, String> = emptyMap(),
+    val folderFilter: String = "all",
     val draft: String = "",
     val replyTo: ChatMessage? = null,
     val editing: ChatMessage? = null,
@@ -71,6 +80,15 @@ data class MessagingActions(
     val back: () -> Unit = {},
     val refreshMessages: () -> Unit = {},
     val moreMessages: () -> Unit = {},
+    val searchMessages: (String) -> Unit = {},
+    val moreSearch: () -> Unit = {},
+    val loadPins: () -> Unit = {},
+    val morePins: () -> Unit = {},
+    val pin: (ChatMessage, Boolean) -> Unit = { _, _ -> },
+    val focusMessage: (String) -> Unit = {},
+    val latestMessages: () -> Unit = {},
+    val clearConversation: (Boolean) -> Unit = {},
+    val folderFilter: (String) -> Unit = {},
     val draft: (String) -> Unit = {},
     val send: () -> Unit = {},
     val reply: (ChatMessage) -> Unit = {},

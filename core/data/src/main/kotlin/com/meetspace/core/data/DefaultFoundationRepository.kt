@@ -98,12 +98,17 @@ internal class DefaultFoundationRepository(
     override suspend fun recording(conferenceId: String, recordingId: String) = meetingOperation(true) {
         recordingsApi.read(it.scope.origin, it.token, conferenceId, recordingId).recording
     }
+    override suspend fun deleteRecording(conferenceId: String, recordingId: String) { meetingOperation(false) {
+        recordingsApi.delete(it.scope.origin, it.token, conferenceId, recordingId)
+        // Revoke active file leases after confirmed deletion.
+        synchronized(recordingLeases) { recordingLeases.toList() }.forEach { it.close() }
+    } }
     override suspend fun recordingAccess(conferenceId: String, recordingId: String, fileId: String): RecordingAccess = meetingOperation(true) {
         RecordingsApi.fileId(fileId)
         val card = recordingsApi.read(it.scope.origin, it.token, conferenceId, recordingId)
         val file = card.recording.files.firstOrNull { item -> item.id == fileId && item.available }
         val url = card.urls[fileId]
-        if (card.recording.status != "ready" || file == null || url == null) {
+        if (card.recording.status !in setOf("ready", "partial_ready") || file == null || url == null) {
             throw AppFailure(FailureKind.NOT_FOUND, "Файл записи пока недоступен.")
         }
         val lease = ScopedRecordingAccess(file, url, api.recordingClient()) { ended ->
@@ -165,6 +170,23 @@ internal class DefaultFoundationRepository(
         messagingApi.mutateConversation(it.scope.origin, it.token, path(id) + "preferences", "PATCH", fields("notificationsEnabled" to enabled), id)
     }
     override suspend fun messages(id: String, cursor: String?) = meetingOperation(true) { messagingApi.messages(it.scope.origin, it.token, id, cursor) }
+    override suspend fun searchMessages(id: String, query: String, cursor: String?) = meetingOperation(true) {
+        val q = inputText(query, 200, true)
+        messagingApi.messagePage(it.scope.origin, it.token, id, listOf("messages", "search"),
+            mapOf("q" to q, "limit" to "20") + (cursor?.let { mapOf("before" to it) } ?: emptyMap()))
+    }
+    override suspend fun messageContext(id: String, messageId: String) = meetingOperation(true) {
+        messagingApi.messagePage(it.scope.origin, it.token, id, listOf("messages", inputId(messageId), "context"))
+    }
+    override suspend fun messagePins(id: String, cursor: String?) = meetingOperation(true) {
+        messagingApi.messagePage(it.scope.origin, it.token, id, listOf("pins"), mapOf("limit" to "50") + (cursor?.let { mapOf("before" to it) } ?: emptyMap()))
+    }
+    override suspend fun pinMessage(id: String, messageId: String, pinned: Boolean) { meetingOperation(false) {
+        messagingApi.request(it.scope.origin, it.token, path(id) + listOf("pins", inputId(messageId)), if (pinned) "PUT" else "DELETE")
+    } }
+    override suspend fun clearConversation(id: String, hide: Boolean) { meetingOperation(false) {
+        messagingApi.request(it.scope.origin, it.token, path(id) + if (hide) "hide" else "clear-history", "POST")
+    } }
     override suspend fun sendMessage(id: String, input: ChatMessageInput) = meetingOperation(false) {
         if (input.attachmentIds.size > 5 || input.attachmentIds.distinct().size != input.attachmentIds.size) input()
         input.attachmentIds.forEach(::inputId)
@@ -302,6 +324,21 @@ internal class DefaultFoundationRepository(
     override suspend fun transitionMeeting(id: String, transition: MeetingTransition): Meeting =
         meetingOperation(readOnly = false) { meetingsApi.transition(it.scope.origin, it.token, id, transition) }
 
+    override suspend fun participants(id: String) = meetingOperation(true) { meetingsApi.participants(it.scope.origin, it.token, id) }
+    override suspend fun admitParticipant(id: String, participantId: String, admit: Boolean) = meetingOperation(false) {
+        meetingsApi.control(it.scope.origin, it.token, id, participantId, null, admit)
+    }
+    override suspend fun moderateParticipant(id: String, participantId: String, action: MeetingModeration) = meetingOperation(false) {
+        meetingsApi.control(it.scope.origin, it.token, id, participantId, action, null)
+    }
+    override suspend fun invitationUsers(id: String, query: String) = meetingOperation(true) {
+        val response = messagingApi.request(it.scope.origin, it.token, listOf("conferences", inputId(id), "invitation-users"), query = mapOf("query" to inputText(query, 100, true)))
+        response.items(20).map { user -> MeetingInviteUser(user.id(), user.text("displayName", 400), user.text("email", 254)) }
+    }
+    override suspend fun inviteParticipants(id: String, userIds: List<String>, emails: List<String>) { meetingOperation(false) {
+        if (userIds.size + emails.size !in 1..20 || userIds.distinct().size != userIds.size || emails.any { email -> email.length > 254 || !email.matches(Regex("[^\\s@]+@[^\\s@]+\\.[^\\s@]+")) }) input()
+        messagingApi.request(it.scope.origin, it.token, listOf("conferences", inputId(id), "invitations"), "POST", fields("userIds" to userIds.map(::inputId), "emails" to emails))
+    } }
     override suspend fun membership(id: String): MeetingParticipant? = meetingOperation(readOnly = true) {
         meetingsApi.membership(it.scope.origin, it.token, id)?.also { member ->
             if (member.userId != it.scope.accountId) throw InvalidContract()
@@ -548,6 +585,36 @@ internal class DefaultFoundationRepository(
             catch (_: Exception) { mutableState.value = state.value.copy(version = null, session = null) }
             if (cleanupFailed) throw AppFailure(FailureKind.STORAGE,
                 "Аккаунт удалён на сервере, но локальную сессию не удалось очистить. Очистите данные приложения.")
+        }
+    }
+
+    override suspend fun joinGuest(invitation: String, displayName: String): Unit = mutex.withLock {
+        protect {
+            loadSettings()
+            if (state.value.session != null) throw AppFailure(FailureKind.CONFLICT, "Для входа гостем выйдите из аккаунта.")
+            val profile = selected()
+            if (profile.accountId != null) throw AppFailure(FailureKind.CONFLICT, "Сначала выйдите из сохранённого аккаунта.")
+            val name = displayName.trim()
+            if (name.isBlank() || name.codePointCount(0, name.length) > 80 || name.any(Char::isISOControl)) throw AppFailure(FailureKind.VALIDATION, "Введите имя от 1 до 80 символов.")
+            val code = MeetingInvites.parse(profile.origin, invitation)
+            if (state.value.version == null) mutableState.value = state.value.copy(version = api.version(profile.origin))
+            val guest = api.joinGuest(profile.origin, code, name)
+            val meeting = meetingsApi.conference(profile.origin, guest.token, guest.conferenceId)
+            val member = meetingsApi.membership(profile.origin, guest.token, guest.conferenceId) ?: throw InvalidContract()
+            if (member.userId != guest.user.id || member.role != "guest" || meeting.isClosed) throw InvalidContract()
+            clearMemory()
+            active = AuthContext(SessionScope(profile.origin, guest.user.id), guest.token, SessionCookieJar(profile.origin))
+            // Guest credentials and identity are deliberately never written to either store.
+            mutableState.value = state.value.copy(session = AccountSession(guest.user, Capabilities(), false, meeting))
+        }
+    }
+    override suspend fun refreshGuestMeeting() {
+        val id = state.value.session?.guestMeeting?.id ?: return
+        meetingOperation(true) { context ->
+            val meeting = meetingsApi.conference(context.scope.origin, context.token, id)
+            val session = state.value.session ?: throw InvalidContract()
+            if (session.guestMeeting?.id != id) throw InvalidContract()
+            mutableState.value = state.value.copy(session = session.copy(guestMeeting = meeting))
         }
     }
 

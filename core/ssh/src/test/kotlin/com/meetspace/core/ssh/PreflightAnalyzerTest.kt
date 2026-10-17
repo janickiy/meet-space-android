@@ -29,9 +29,30 @@ class PreflightAnalyzerTest {
         assertTrue(result.checks.filter { it.id.startsWith("port-") }.all { it.level == PreflightLevel.UNKNOWN })
     }
     @Test fun lowResourcesAreExplicitEstimatesAndNotUnsupportedPlatform() {
-        val result = report(mapOf("cpu" to "2", "ram_kib" to "2097152", "disk_kib" to "12582912"))
+        val result = report(mapOf("cpu" to "1", "ram_kib" to "2097152", "disk_kib" to "12582912"))
         for (id in listOf("cpu", "ram", "disk")) assertEquals(PreflightLevel.WARN, result.check(id).level)
         assertEquals(PreflightLevel.PASS, result.check("os").level)
+    }
+    @Test fun supportedUbuntuVersionsAcceptCompactMinimumOnBothArchitectures() {
+        for (version in listOf("22.04", "24.04")) for (arch in listOf("x86_64", "aarch64")) {
+            val result = report(mapOf("distro_version" to version, "arch" to arch, "cpu" to "2", "ram_kib" to "3145728", "disk_kib" to "18874368"))
+            for (id in listOf("os", "arch", "cpu", "ram", "disk")) assertEquals("$version/$arch/$id", PreflightLevel.PASS, result.check(id).level)
+            assertTrue(result.check("os").detail.contains("Поддерживается установщиком"))
+            assertTrue(result.check("ram").detail.contains("4 ГБ RAM (от 3 ГиБ доступно системе)"))
+            assertTrue(result.check("disk").detail.contains("около 20 ГБ"))
+        }
+    }
+    @Test fun measurementsBelowCompactMinimumRemainWarnings() {
+        val result = report(mapOf("cpu" to "1", "ram_kib" to "3145727", "disk_kib" to "18874367"))
+        for (id in listOf("cpu", "ram", "disk")) assertEquals(id, PreflightLevel.WARN, result.check(id).level)
+    }
+    @Test fun debianIsSupportedOnlyForPreliminarySshChecks() {
+        for (version in listOf("12", "13")) {
+            val check = report(mapOf("distro" to "debian", "distro_version" to version)).check("os")
+            assertEquals(PreflightLevel.PASS, check.level)
+            assertTrue(check.detail.contains("только для предварительной SSH-проверки"))
+            assertTrue(check.detail.contains("Автоматическая установка поддерживает Ubuntu 22.04 и 24.04 LTS"))
+        }
     }
     @Test fun unsupportedPlatformAndExistingInstallBlock() {
         val result = report(mapOf("distro" to "alpine", "distro_version" to "3.20", "arch" to "armv7l", "existing_paths" to "yes"))

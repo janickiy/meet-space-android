@@ -20,6 +20,11 @@ interface MessagingRepository {
     suspend fun deleteGroup(id: String)
     suspend fun setConversationNotifications(id: String, enabled: Boolean): ChatConversation
     suspend fun messages(id: String, cursor: String? = null): MessagePage
+    suspend fun searchMessages(id: String, query: String, cursor: String? = null): ChatPage<ChatMessage> = throw AppFailure(FailureKind.UNAVAILABLE, "Поиск сообщений недоступен.")
+    suspend fun messageContext(id: String, messageId: String): ChatPage<ChatMessage> = throw AppFailure(FailureKind.UNAVAILABLE, "Контекст сообщения недоступен.")
+    suspend fun messagePins(id: String, cursor: String? = null): ChatPage<ChatMessage> = throw AppFailure(FailureKind.UNAVAILABLE, "Закрепления недоступны.")
+    suspend fun pinMessage(id: String, messageId: String, pinned: Boolean): Unit = throw AppFailure(FailureKind.UNAVAILABLE, "Закрепления недоступны.")
+    suspend fun clearConversation(id: String, hide: Boolean): Unit = throw AppFailure(FailureKind.UNAVAILABLE, "Действие недоступно.")
     suspend fun sendMessage(id: String, input: ChatMessageInput): ChatMessage
     suspend fun editMessage(id: String, messageId: String, text: String): ChatMessage
     suspend fun deleteMessage(id: String, messageId: String): ChatMessage

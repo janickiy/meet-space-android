@@ -80,6 +80,7 @@ fun MessagingWorkspace(state: MessagingUiState, actions: MessagingActions, modif
         if (newChatRequested) { actions.searchUsers(""); newChat = true; consumeWorkspaceRequest() }
         else if (foldersRequested) { folders = true; consumeWorkspaceRequest() }
     }
+    if (folders) { FoldersWorkspace(state, actions) { folders = false }; return }
     BackHandler(enabled = state.selectedId != null, onBack = actions.back)
     var searchOpen by remember { mutableStateOf(state.query.isNotBlank()) }
     var inviteDismissed by remember { mutableStateOf(false) }
@@ -97,8 +98,7 @@ fun MessagingWorkspace(state: MessagingUiState, actions: MessagingActions, modif
                     MessagingNotice(state.error, state.notice, actions.clearMessage)
                 }
             }
-            val stage = Modifier.weight(1f).fillMaxWidth().padding(horizontal = if (wide) 24.dp else 0.dp)
-                .clip(if (wide || listOnly) RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp) else RoundedCornerShape(0.dp))
+            val stage = Modifier.weight(1f).fillMaxWidth()
             val list: @Composable () -> Unit = {
                 Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
                     ConversationList(state, actions, searchOpen, serverOrigin, inviteDismissed, { inviteDismissed = true }, smallPhone,
@@ -126,7 +126,7 @@ fun MessagingWorkspace(state: MessagingUiState, actions: MessagingActions, modif
                 }
             }
             if (wide) {
-                Row(stage.testTag("messaging-two-pane")) {
+                Row(stage.padding(horizontal = 24.dp).testTag("messaging-two-pane")) {
                     Box(Modifier.width(sidebarWidth).fillMaxHeight()) { list() }
                     VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     Box(Modifier.weight(1f).fillMaxHeight()) { detail() }
@@ -137,7 +137,7 @@ fun MessagingWorkspace(state: MessagingUiState, actions: MessagingActions, modif
         }
     }
     if (newChat) NewChatDialog(state, actions) { newChat = false }
-    if (folders) FoldersDialog(state, actions) { folders = false }
+
     if (candidates && state.selectedFolderId != null) FolderCandidatesDialog(state, actions) { candidates = false }
     if (members && state.detail.data != null) MembersDialog(state, actions) { members = false }
     if (notifications) NotificationsDialog(state, actions) { notifications = false }
@@ -154,8 +154,8 @@ fun MessagingWorkspace(state: MessagingUiState, actions: MessagingActions, modif
 
 @Composable
 private fun MessagingHeader(wide: Boolean, searchOpen: Boolean, onSearch: () -> Unit) {
-    Row(Modifier.fillMaxWidth().heightIn(min = if (wide) 84.dp else 77.dp)
-        .padding(start = if (wide) 30.dp else 20.dp, end = if (wide) 24.dp else 12.dp, bottom = if (wide) 15.dp else 10.dp)
+    Row(Modifier.fillMaxWidth().heightIn(min = 75.dp).background(MaterialTheme.colorScheme.surface)
+        .padding(start = if (wide) 30.dp else 20.dp, end = if (wide) 24.dp else 12.dp, bottom = 0.dp)
         .testTag("messaging-header"), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
         if (wide) Image(painterResource(R.drawable.ic_meetspace), null, Modifier.size(32.dp))
         Text("Чаты", Modifier.weight(1f).semantics { heading() }, fontSize = if (wide) 25.sp else 23.sp,
@@ -177,7 +177,7 @@ private fun ConversationList(state: MessagingUiState, actions: MessagingActions,
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 17.dp), horizontalArrangement = Arrangement.spacedBy(23.dp)) {
             ChatFilter.entries.forEach { filter ->
-                MessagingFilter(when (filter) { ChatFilter.ALL -> "Все"; ChatFilter.DIRECT -> "Личные"; ChatFilter.UNREAD -> "Новые" },
+                MessagingFilter(when (filter) { ChatFilter.ALL -> "Все"; ChatFilter.DIRECT -> "Личные"; ChatFilter.GROUP -> "Группы"; ChatFilter.UNREAD -> "Новые" },
                     state.selectedFolderId == null && state.filter == filter, "chat-filter-${filter.name.lowercase()}",
                     count = if (filter == ChatFilter.UNREAD) state.conversations.data?.count { it.unreadCount > 0 }?.takeIf { it > 0 } else null,
                     onClick = { actions.filter(filter) })
@@ -235,7 +235,7 @@ private fun ConversationList(state: MessagingUiState, actions: MessagingActions,
             } else {
                 val conversations = state.conversations.data.orEmpty()
                 if (conversations.isEmpty() && state.conversations.data != null && !loading && error == null) item { EmptyChat(if (state.query.isBlank()) "Пока нет чатов в этом разделе" else "Чаты не найдены") }
-                items(conversations, key = { it.id }) { conversation -> ConversationRow(conversation, state.selectedId == conversation.id, smallPhone) { actions.open(conversation.id) } }
+                items(conversations, key = { it.id }) { conversation -> ConversationRow(conversation, state.selectedId == conversation.id, smallPhone, state.drafts[conversation.id]) { actions.open(conversation.id) } }
                 if (state.conversationCursor != null) item { MoreButton("Загрузить ещё чаты", "conversations-more", loading, actions.moreConversations) }
             }
         }
@@ -278,7 +278,7 @@ private fun ChatInviteBanner(origin: String, dismiss: () -> Unit) {
 }
 
 @Composable
-private fun ConversationRow(conversation: ChatConversation, selected: Boolean, smallPhone: Boolean = false, open: () -> Unit) {
+private fun ConversationRow(conversation: ChatConversation, selected: Boolean, smallPhone: Boolean = false, draft: String? = null, open: () -> Unit) {
     Surface(onClick = open, modifier = Modifier.fillMaxWidth().heightIn(min = if (conversation.type == "group") 98.dp else 87.dp).testTag("conversation-${conversation.id}"),
         color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface) {
         Row(Modifier.padding(vertical = 15.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -286,7 +286,7 @@ private fun ConversationRow(conversation: ChatConversation, selected: Boolean, s
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(conversation.title.ifBlank { "Чат" }, fontSize = if (smallPhone) 13.sp else 15.sp, lineHeight = 22.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (conversation.type == "group") Text("Группа · ${memberCountLabel(conversation.memberCount)}", fontSize = 10.sp, lineHeight = 15.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(conversation.preview.ifBlank { "Сообщений пока нет" }, fontSize = if (smallPhone) 12.sp else 13.sp, lineHeight = 19.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(draft?.let { "Черновик: $it" } ?: conversation.preview.ifBlank { "Сообщений пока нет" }, fontSize = if (smallPhone) 12.sp else 13.sp, lineHeight = 19.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 conversation.lastMessageAt?.let { Text(timeLabel(it), fontSize = 10.sp, lineHeight = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
@@ -335,6 +335,13 @@ private fun ConversationDetail(state: MessagingUiState, actions: MessagingAction
         return
     }
     val conversation = state.detail.data
+    var historyDialog by remember(state.selectedId) { mutableStateOf<String?>(null) }
+    var clearHistory by remember(state.selectedId) { mutableStateOf<Boolean?>(null) }
+    historyDialog?.let { value -> ChatHistoryDialog(state, actions, value == "pins") { historyDialog = null } }
+    clearHistory?.let { hide -> AlertDialog(onDismissRequest = { clearHistory = null }, title = { Text(if (hide) "Удалить чат?" else "Очистить историю?") },
+        text = { Text("История будет скрыта только для вас. У собеседника сообщения сохранятся.") },
+        confirmButton = { TextButton({ actions.clearConversation(hide); clearHistory = null }, enabled = !state.busy) { Text("Подтвердить") } },
+        dismissButton = { TextButton({ clearHistory = null }) { Text("Отмена") } }) }
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).testTag("conversation-detail")) {
         var options by remember(state.selectedId) { mutableStateOf(false) }
         Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface)
@@ -360,9 +367,15 @@ private fun ConversationDetail(state: MessagingUiState, actions: MessagingAction
             }
             // Keep creation reachable on short tablet windows without consuming history height.
             if (onNewChat != null && compactHeight) IconButton(onClick = onNewChat, enabled = !state.busy, modifier = Modifier.testTag("messaging-new")) { Icon(Icons.Outlined.Add, "Новый чат") }
+            IconButton({ historyDialog = "search" }, Modifier.testTag("chat-search-messages")) { Icon(Icons.Outlined.Search, "Поиск по сообщениям", Modifier.size(20.dp)) }
             Box {
                 IconButton(onClick = { options = true }, modifier = Modifier.testTag("conversation-options")) { Icon(Icons.Outlined.MoreHoriz, "Информация и действия с чатом") }
                 DropdownMenu(expanded = options, onDismissRequest = { options = false }) {
+                    DropdownMenuItem(text = { Text("Закреплённые сообщения") }, leadingIcon = { Icon(Icons.Outlined.PushPin, null) }, onClick = { options = false; actions.loadPins(); historyDialog = "pins" })
+                    if (conversation?.type == "direct") {
+                        DropdownMenuItem(text = { Text("Очистить историю") }, onClick = { options = false; clearHistory = false })
+                        DropdownMenuItem(text = { Text("Удалить чат") }, onClick = { options = false; clearHistory = true })
+                    }
                     DropdownMenuItem(text = { Text("Обновить сообщения") }, leadingIcon = { Icon(Icons.Outlined.Refresh, null) }, enabled = !state.messages.loading,
                         onClick = { options = false; actions.refreshMessages() }, modifier = Modifier.testTag("messages-refresh"))
                     if (conversation?.type == "group") DropdownMenuItem(text = { Text("Участники и настройки группы") }, leadingIcon = { Icon(Icons.Outlined.Group, null) },
@@ -376,6 +389,7 @@ private fun ConversationDetail(state: MessagingUiState, actions: MessagingAction
             }
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        ChatPinBar(state, actions) { historyDialog = "pins"; actions.loadPins() }
         if (personalCallLabel != null && conversation?.type == "direct") Surface(onClick = onResumeCall,
             color = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.primary,
             modifier = Modifier.fillMaxWidth().testTag("personal-call-chat-banner")) {
@@ -400,8 +414,11 @@ private fun ConversationDetail(state: MessagingUiState, actions: MessagingAction
         }
         val messages = remember(state.messages.data) { state.messages.data.orEmpty().sortedByDescending { it.sequence } }
         val scroll = rememberLazyListState()
+        LaunchedEffect(state.focusedMessageId, state.messages.data) {
+            state.focusedMessageId?.let { id -> messages.indexOfFirst { it.id == id }.takeIf { it >= 0 }?.let { scroll.scrollToItem(it) } }
+        }
         LaunchedEffect(state.selectedId, messages.firstOrNull()?.id) {
-            if (messages.isNotEmpty() && (scroll.firstVisibleItemIndex <= 1 || messages.first().senderId == state.selfId)) scroll.scrollToItem(0)
+            if (!state.viewingContext && messages.isNotEmpty() && (scroll.firstVisibleItemIndex <= 1 || messages.first().senderId == state.selfId)) scroll.scrollToItem(0)
         }
         LazyColumn(state = scroll, reverseLayout = true, modifier = Modifier.weight(1f).fillMaxWidth().background(MaterialTheme.colorScheme.background).testTag("message-history"),
             contentPadding = PaddingValues(horizontal = if (showBack) 16.dp else 24.dp, vertical = 20.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
@@ -424,6 +441,7 @@ private fun ConversationDetail(state: MessagingUiState, actions: MessagingAction
             }
             if (state.messageCursor != null) item { MoreButton("Предыдущие сообщения", "messages-more", state.messages.loading, actions.moreMessages) }
         }
+        if (state.viewingContext) TextButton(actions.latestMessages, Modifier.fillMaxWidth().testTag("messages-latest")) { Text("Вернуться к новым сообщениям") }
         if (onNewChat != null && !compactHeight) ThreadCreateAction(state.busy, onNewChat)
         HorizontalDivider()
         if (conversation != null) MessageComposer(state, actions, compactHeight, showBack)
@@ -455,7 +473,7 @@ private fun MessageBubble(message: ChatMessage, selfId: String, busy: Boolean, a
         val bubbleWidth = maxWidth * if (compactWidth) .93f else .9f
         val avatarSize = if (compactWidth) 26.dp else 30.dp
         Row(Modifier.fillMaxWidth(), horizontalArrangement = if (own) Arrangement.End else Arrangement.Start,
-            verticalAlignment = Alignment.Bottom) {
+            verticalAlignment = Alignment.Top) {
             if (!own && !deleted) { ChatAvatar(message.senderName, false, avatarSize); Spacer(Modifier.width(10.dp)) }
             Box(Modifier.widthIn(max = if (own) bubbleWidth else bubbleWidth - avatarSize - 10.dp).testTag("message-${message.id}")) {
                 Surface(modifier = if (deleted) Modifier else Modifier.testTag("message-menu-${message.id}").clickable(enabled = !busy, onClickLabel = "Действия с сообщением") { menu = true },
@@ -463,7 +481,7 @@ private fun MessageBubble(message: ChatMessage, selfId: String, busy: Boolean, a
                     color = if (own) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
                     border = if (own) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
                     Column(Modifier.padding(horizontal = if (compactWidth) 13.dp else 15.dp, vertical = if (compactWidth) 11.dp else 13.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                        if (!own && !deleted) Text(message.senderName.ifBlank { "Участник" }, fontSize = 11.sp, lineHeight = 16.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF9872BC))
+                        if (!own && !deleted) Text(message.senderName.ifBlank { "Участник" }, fontSize = 11.sp, lineHeight = 16.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
                         if (!deleted) message.replyPreview?.let { reply ->
                             Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth().testTag("message-reply-preview-${message.id}")) {
                                 Column(Modifier.padding(10.dp)) {
@@ -489,13 +507,7 @@ private fun MessageBubble(message: ChatMessage, selfId: String, busy: Boolean, a
                             color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.align(Alignment.End))
                     }
                 }
-                DropdownMenu(expanded = menu && !deleted, onDismissRequest = { menu = false }) {
-                    DropdownMenuItem(text = { Text("Ответить") }, leadingIcon = { Icon(Icons.AutoMirrored.Outlined.Reply, null) }, onClick = { menu = false; actions.reply(message) }, modifier = Modifier.testTag("message-reply-${message.id}"))
-                    if (own) {
-                        DropdownMenuItem(text = { Text("Редактировать") }, leadingIcon = { Icon(Icons.Outlined.Edit, null) }, onClick = { menu = false; actions.edit(message) }, modifier = Modifier.testTag("message-edit-${message.id}"))
-                        DropdownMenuItem(text = { Text("Удалить") }, leadingIcon = { Icon(Icons.Outlined.DeleteOutline, null) }, onClick = { menu = false; delete(message) }, modifier = Modifier.testTag("message-delete-${message.id}"))
-                    }
-                }
+                if (menu && !deleted) MessageActionsDialog(message, own, actions, { delete(message) }) { menu = false }
             }
         }
     }
@@ -636,7 +648,7 @@ private fun NewChatDialog(state: MessagingUiState, actions: MessagingActions, di
 }
 
 @Composable
-private fun FoldersDialog(state: MessagingUiState, actions: MessagingActions, dismiss: () -> Unit) {
+internal fun FoldersDialog(state: MessagingUiState, actions: MessagingActions, dismiss: () -> Unit) {
     var editing by remember { mutableStateOf<ChatFolder?>(null) }
     var name by remember { mutableStateOf("") }
     var deleting by remember { mutableStateOf<ChatFolder?>(null) }
@@ -673,7 +685,7 @@ private fun FoldersDialog(state: MessagingUiState, actions: MessagingActions, di
 }
 
 @Composable
-private fun FolderCandidatesDialog(state: MessagingUiState, actions: MessagingActions, dismiss: () -> Unit) {
+internal fun FolderCandidatesDialog(state: MessagingUiState, actions: MessagingActions, dismiss: () -> Unit) {
     val folderId = state.selectedFolderId ?: return
     AlertDialog(onDismissRequest = dismiss, title = { Text("Чаты и встречи в папке") },
         text = { Column(Modifier.heightIn(max = 520.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {

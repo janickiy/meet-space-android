@@ -258,23 +258,25 @@ private fun InstallationPhaseChecklist(status: InstallStatus, stale: Boolean) {
 private fun InstallAccess(state: InstallerUiState, onImport: (Uri) -> Unit, onAuthenticate: (InstallOptions, String, Boolean) -> Unit) {
     var domain by rememberSaveable(state.endpoint) { mutableStateOf(state.options.domain) }
     var ip by rememberSaveable(state.endpoint) { mutableStateOf(state.options.publicIpv4) }
-    var email by rememberSaveable(state.endpoint) { mutableStateOf(state.options.acmeEmail) }
     var useKey by rememberSaveable { mutableStateOf(false) }
     // Deliberately not rememberSaveable: no secret in SavedState, disk, UI logs or navigation args.
     var password by remember(state.credentialReset, useKey) { mutableStateOf("") }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { it?.let(onImport) }
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         if (state.ticket == null) {
-            Text("Новый выделенный VPS: Ubuntu 24.04, 4 CPU, 8 ГиБ RAM, 30 ГиБ свободно. Нужен root или sudo без пароля. DNS A должен указывать на этот IPv4; IPv6 и CDN пока не поддерживаются.")
-            OutlinedTextField(domain, { domain = it }, shape = RoundedCornerShape(10.dp), colors = onboardingFieldColors(), textStyle = onboardingInputStyle(), label = { Text("Домен MeetSpace", fontSize = 11.sp) }, singleLine = true, enabled = !state.busy, modifier = Modifier.fillMaxWidth().testTag("install-domain"))
+            Text("Новый выделенный VPS: Ubuntu 22.04 или 24.04 LTS, amd64 или arm64. Минимум: 2 CPU, 4 ГБ RAM и около 20 ГБ свободного диска (18 ГиБ). Рекомендуется: 4 CPU, 8 ГБ RAM и 30 ГиБ свободно.", modifier = Modifier.testTag("install-requirements"))
+            Text("Минимальная конфигурация рассчитана на небольшую нагрузку. Для параллельных встреч и записи выбирайте рекомендуемую конфигурацию; доступная нагрузка зависит от участников и качества видео.", style = MaterialTheme.typography.bodySmall)
+            Text("Нужен root или sudo без пароля. DNS A должен указывать на этот IPv4; IPv6 и CDN пока не поддерживаются.")
+            OutlinedTextField(domain, { domain = it }, shape = RoundedCornerShape(10.dp), colors = onboardingFieldColors(), textStyle = onboardingInputStyle(), label = { Text("Домен MeetSpace", fontSize = 11.sp) }, singleLine = true, enabled = !state.busy && state.needsAccess, modifier = Modifier.fillMaxWidth().testTag("install-domain"))
             OutlinedTextField(ip, { ip = it }, shape = RoundedCornerShape(10.dp), colors = onboardingFieldColors(), textStyle = onboardingInputStyle(), label = { Text("Публичный IPv4 VPS", fontSize = 11.sp) }, singleLine = true, enabled = !state.busy, modifier = Modifier.fillMaxWidth().testTag("install-ip"))
-            OutlinedTextField(email, { email = it }, shape = RoundedCornerShape(10.dp), colors = onboardingFieldColors(), textStyle = onboardingInputStyle(), label = { Text("Email для сертификата", fontSize = 11.sp) }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), enabled = !state.busy, modifier = Modifier.fillMaxWidth().testTag("install-email"))
         } else Text("Восстановление задания ${state.ticket.jobId}. Сначала запросим его состояние; продолжение требует отдельного подтверждения.")
-        Row(verticalAlignment = Alignment.CenterVertically) { Switch(useKey, { useKey = it }, enabled = !state.busy); Spacer(Modifier.width(12.dp)); Text("Войти по приватному ключу") }
-        if (useKey) OutlinedButton(shape = RoundedCornerShape(10.dp), onClick = { picker.launch(arrayOf("*/*")) }, enabled = !state.busy, modifier = Modifier.heightIn(min = 48.dp)) { Text(if (state.keyLoaded) "Ключ выбран · заменить" else "Выбрать приватный ключ") }
-        OutlinedTextField(password, { password = it }, shape = RoundedCornerShape(10.dp), colors = onboardingFieldColors(), textStyle = onboardingInputStyle(), label = { Text(if (useKey) "Парольная фраза ключа" else "Пароль SSH", fontSize = 11.sp) }, visualTransformation = PasswordVisualTransformation(), singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password), enabled = !state.busy, modifier = Modifier.fillMaxWidth().testTag("install-password"))
-        Button(shape = RoundedCornerShape(10.dp), onClick = { onAuthenticate(InstallOptions(domain, ip, email), password, useKey); password = "" }, enabled = !state.busy && (!useKey || state.keyLoaded), modifier = Modifier.heightIn(min = 49.dp).testTag("install-plan")) {
+        if (state.needsAccess) {
+            Row(verticalAlignment = Alignment.CenterVertically) { Switch(useKey, { useKey = it }, enabled = !state.busy); Spacer(Modifier.width(12.dp)); Text("Войти по приватному ключу") }
+            if (useKey) OutlinedButton(shape = RoundedCornerShape(10.dp), onClick = { picker.launch(arrayOf("*/*")) }, enabled = !state.busy, modifier = Modifier.heightIn(min = 48.dp)) { Text(if (state.keyLoaded) "Ключ выбран · заменить" else "Выбрать приватный ключ") }
+            OutlinedTextField(password, { password = it }, shape = RoundedCornerShape(10.dp), colors = onboardingFieldColors(), textStyle = onboardingInputStyle(), label = { Text(if (useKey) "Парольная фраза ключа" else "Пароль SSH", fontSize = 11.sp) }, visualTransformation = PasswordVisualTransformation(), singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password), enabled = !state.busy, modifier = Modifier.fillMaxWidth().testTag("install-password"))
+        } else Text("Доступ SSH уже проверен. Укажите публичный IPv4 этого VPS, чтобы подготовить план установки.", modifier = Modifier.testTag("install-access-verified"))
+        Button(shape = RoundedCornerShape(10.dp), onClick = { onAuthenticate(InstallOptions(domain, ip, ""), password, useKey); password = "" }, enabled = !state.busy && (!state.needsAccess || !useKey || state.keyLoaded), modifier = Modifier.heightIn(min = 49.dp).testTag("install-plan")) {
             Text(if (state.ticket == null) "Получить план без установки" else "Проверить состояние задания")
         }
     }
@@ -284,11 +286,22 @@ private fun InstallAccess(state: InstallerUiState, onImport: (Uri) -> Unit, onAu
 private fun InstallPlanCard(plan: InstallPlan) {
     Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, onboardingTone(0xFFDFE6F4, 0xFF364359)), colors = CardDefaults.cardColors(containerColor = onboardingTone(0xFFF6F8FC, 0xFF252F40))) { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("План изменений", style = MaterialTheme.typography.titleLarge)
+        val compact = plan.resourceProfile == "compact-test"
+        Text(if (compact) "Режим: компактный" else "Режим: стандартный", modifier = Modifier.testTag("install-resource-profile"))
+        if (compact) Text("Для небольшой нагрузки: 2 CPU, 4 ГБ RAM и около 20 ГБ свободного диска (18 ГиБ). Параллельные встречи и запись требуют больше ресурсов: рекомендуются 4 CPU, 8 ГБ RAM и 30 ГиБ свободного диска. Доступная нагрузка зависит от участников и качества видео.",
+            style = MaterialTheme.typography.bodySmall, modifier = Modifier.testTag("install-resource-guidance"))
         Text("https://${plan.options.domain}\nIPv4: ${plan.options.publicIpv4}\nАрхитектура: ${plan.architecture}\nВерсия: ${plan.version}")
         SelectionContainer { Text("Commit: ${plan.commit}\nSHA-256 плана: ${plan.hash}", style = MaterialTheme.typography.bodySmall) }
-        Text("${if (plan.installDocker) "Установить закреплённые Docker и Compose" else "Использовать Docker и Compose на сервере"}; скачать проверенный исходный код; собрать 7 образов; создать /opt/meetspace, секреты и закрытые тома; сохранить копию БД; выполнить миграции; настроить HTTPS/WSS и TURN; проверить готовность.")
+        plan.sourceSelection?.let { Text("Источник GitHub: $it", style = MaterialTheme.typography.bodySmall) }
+        plan.sourceSha256?.let { SelectionContainer { Text("SHA-256 исходников: $it", style = MaterialTheme.typography.bodySmall) } }
+        val dockerAction = when {
+            plan.installDockerPluginsOnly -> "Установить недостающие компоненты Docker (${plan.dockerPluginNames}); использовать установленный Docker"
+            plan.installDocker -> "Установить закреплённые Docker, Compose и Buildx"
+            else -> "Использовать Docker, Compose и Buildx на сервере"
+        }
+        Text("$dockerAction; скачать проверенный исходный код; собрать 7 образов; создать /opt/meetspace, секреты и закрытые тома; сохранить копию БД; выполнить миграции; настроить HTTPS/WSS и TURN; проверить готовность.")
         Text("Публичные порты: TCP 80, 443, 3478, 5349, 50010; UDP 3478, 50010, 49160–49259. Откройте их в firewall провайдера. Docker может обходить правила UFW. БД, Redis, RabbitMQ и S3 наружу не публикуются.")
-        Text("Откат данных автоматически не выполняется. Копия БД локальная; внешние резервные копии настраиваются отдельно. Продление сертификата перезапускает TURN. Upstream tag отсутствует; исходники и базовые образы закреплены, пакеты внутри сборки могут меняться.", style = MaterialTheme.typography.bodySmall)
+        Text("Выбранные версия и commit сохраняются на сервере; повторный запуск продолжает этот же план. Откат данных автоматически не выполняется. Копия БД локальная; внешние резервные копии настраиваются отдельно. Продление сертификата перезапускает TURN. Исходники и базовые образы закреплены, пакеты внутри сборки могут меняться.", style = MaterialTheme.typography.bodySmall)
     } }
 }
 
@@ -298,19 +311,21 @@ private fun InstallConsent(plan: InstallPlan, disabled: Boolean, onApply: (Boole
     var docker by remember(plan.hash) { mutableStateOf(!plan.installDocker) }
     var terms by remember(plan.hash) { mutableStateOf(false) }
     val uri = LocalUriHandler.current
-    if (plan.installDocker) Consent("Разрешаю установить Docker и Compose из официального репозитория", docker, !disabled, "install-docker-consent") { docker = it }
-    Consent("Принимаю условия Let's Encrypt; email будет передан центру сертификации", terms, !disabled, "install-acme-consent") { terms = it }
+    if (plan.installDocker) Consent(if (plan.installDockerPluginsOnly) "Разрешаю установить недостающие компоненты Docker (${plan.dockerPluginNames}) из официального репозитория" else "Разрешаю установить Docker, Compose и Buildx из официального репозитория", docker, !disabled, "install-docker-consent") { docker = it }
+    Consent("Принимаю условия Let's Encrypt", terms, !disabled, "install-acme-consent") { terms = it }
+    Text("Для выпуска HTTPS-сертификата домен передаётся Let's Encrypt.", style = MaterialTheme.typography.bodySmall)
     TextButton(onClick = { uri.openUri("https://letsencrypt.org/repository/") }) { Text("Условия Let's Encrypt") }
     Consent("Проверил план и разрешаю изменения на этом VPS", confirmed, !disabled, "install-confirm") { confirmed = it }
     Button(shape = RoundedCornerShape(10.dp), onClick = { onApply(confirmed, docker, terms) }, enabled = !disabled && confirmed && docker && terms,
         modifier = Modifier.fillMaxWidth().heightIn(min = 49.dp).testTag("install-apply")) { Text("Установить MeetSpace") }
 }
+private val InstallPlan.dockerPluginNames: String get() = missingDockerPlugins.joinToString("/").ifEmpty { "Compose/Buildx" }
 @Composable
 private fun Consent(label: String, checked: Boolean, enabled: Boolean, tag: String, onChange: (Boolean) -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) { Checkbox(checked, onChange, enabled = enabled, modifier = Modifier.testTag(tag)); Text(label, modifier = Modifier.weight(1f)) }
 }
 fun phaseLabel(phase: String): String = when (phase.substringBefore(':')) {
-    "queued" -> "Запуск задания"; "resuming" -> "Продолжение"; "docker" -> "Docker и Compose"; "source" -> "Проверка исходников"
+    "queued" -> "Запуск задания"; "resuming" -> "Продолжение"; "docker" -> "Docker, Compose и Buildx"; "source" -> "Проверка исходников"
     "images" -> "Сборка образов${phase.substringAfter(':', "").takeIf { it.isNotEmpty() }?.let { " · $it" } ?: ""}"
     "configuration" -> "Конфигурация и секреты"; "dependencies" -> "База, очередь и хранилище"; "backup" -> "Резервная копия"
     "migrations" -> "Миграции БД"; "https" -> "HTTPS и сертификат"; "services" -> "Запуск MeetSpace"; "readiness" -> "Проверка готовности"; else -> phase

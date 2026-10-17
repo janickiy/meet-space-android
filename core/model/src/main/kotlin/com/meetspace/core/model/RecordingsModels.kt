@@ -12,7 +12,7 @@ data class Recording(
 ) {
     val media: RecordingFile? get() = files.firstOrNull { it.type == "final_mp4" && it.available }
         ?: files.firstOrNull { it.type == "final_audio" && it.available }
-    val playable: Boolean get() = status == "ready" && media != null
+    val playable: Boolean get() = status in setOf("ready", "partial_ready") && media != null
 }
 
 data class RecordingFile(

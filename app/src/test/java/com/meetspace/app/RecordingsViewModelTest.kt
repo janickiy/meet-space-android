@@ -15,6 +15,27 @@ class RecordingsViewModelTest {
     private val dispatcher = StandardTestDispatcher()
     @Before fun before() { Dispatchers.setMain(dispatcher) }
     @After fun after() { Dispatchers.resetMain() }
+    @Test fun transcriptSeekReusesLeaseAndArchiveCanBeExportedWithoutPlayableVideo() = runTest {
+        val r = Records(); val m = RecordingsViewModel(Foundation(), Meetings(), r)
+        m.show("room"); runCurrent(); m.openRecording("record"); runCurrent()
+        m.seek(12000); runCurrent(); assertEquals(12000L, m.playback.value!!.positionMs)
+        val lease = r.leases.single(); m.seek(25000); runCurrent()
+        assertSame(lease, r.leases.single()); assertEquals(25000L, m.playback.value!!.seekRequest.value!!.second)
+        val archive = media.copy(type = "tracks_archive", filename = "tracks.zip", mimeType = "application/zip")
+        val tracks = record().copy(mode = "individual_tracks", files = listOf(archive))
+        assertFalse(tracks.playable); assertNotNull(m.queueExport(tracks, archive)); m.close()
+    }
+    @Test fun deletingRecordKeepsDataUntilAcknowledgedAndClosesPlayerThen() = runTest {
+        val r = Records(); val gate = CompletableDeferred<Unit>(); r.deletion = { gate.await() }
+        val m = RecordingsViewModel(Foundation(), Meetings(), r)
+        m.show("room"); runCurrent(); m.openRecording("record"); runCurrent(); m.play(record(), media); runCurrent()
+        m.deleteRecording(record().copy(requestedBy = "user")); runCurrent()
+        assertTrue(m.state.value.deleting); assertNotNull(m.state.value.detail.data); assertFalse(r.leases.single().closed)
+        gate.complete(Unit); runCurrent()
+        assertFalse(m.state.value.deleting); assertTrue(r.leases.single().closed); assertNull(m.state.value.detailId)
+        assertTrue(m.state.value.recordings.data!!.items.isEmpty()); m.close()
+    }
+
     @Test fun accountChangeDropsEvenLateNonCancellableResponse() = runTest {
         val f = Foundation(); val r = Records(); val gate = CompletableDeferred<RecordingPage>()
         r.list = { withContext(NonCancellable) { gate.await() } }
@@ -339,6 +360,8 @@ class RecordingsViewModelTest {
         override fun close() { closed = true }
     }
     private class Records : RecordingsRepository {
+        var deletion: suspend () -> Unit = {}
+        override suspend fun deleteRecording(conferenceId: String, recordingId: String) = deletion()
         override suspend fun startRecording(conferenceId: String, mode: String): Recording = error("unused")
         override suspend fun stopRecording(conferenceId: String, recordingId: String): Recording = error("unused")
         var transcriptEnabled = true

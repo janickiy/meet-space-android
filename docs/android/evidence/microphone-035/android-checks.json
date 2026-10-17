@@ -1,0 +1,51 @@
+{
+  "versionName": "0.3.5-beta",
+  "versionCode": 23,
+  "microphoneAmplitudeGain": 0.8,
+  "appliesTo": "outgoing microphone only",
+  "checks": {
+    "mediaUnit": {
+      "tests": 28,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "appUnit": {
+      "tests": 178,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "nativeLifecycle": {
+      "tests": 1,
+      "passed": true,
+      "factoryLifetimes": 3,
+      "avd": "MeetSpace_Tablet_API_36",
+      "microphoneCapture": false,
+      "network": false
+    },
+    "apkSignature": {
+      "valid": true,
+      "scheme": "v2",
+      "signers": 1
+    },
+    "webProductionCheck": {
+      "format": true,
+      "typecheck": true,
+      "build": true,
+      "node": "24.19.0"
+    },
+    "webLifecycle": {
+      "tests": 13,
+      "passed": 13,
+      "contextsClosed": 17
+    },
+    "androidLint": {
+      "passed": true,
+      "errors": 0,
+      "warnings": 56
+    },
+    "assembleDebug": true,
+    "assembleDebugAndroidTest": true
+  }
+}

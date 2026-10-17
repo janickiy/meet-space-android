@@ -13,22 +13,27 @@ object PreflightAnalyzer {
         fun add(id: String, title: String, level: PreflightLevel, detail: String) { checks += PreflightCheck(id, title, level, detail) }
         val distro = data.getValue("distro")
         val version = data.getValue("distro_version")
-        val supported = data["kernel"] == "Linux" && ((distro == "ubuntu" && version in setOf("22.04", "24.04")) || (distro == "debian" && version.substringBefore('.') in setOf("12", "13")))
+        val installerSupported = data["kernel"] == "Linux" && distro == "ubuntu" && version in setOf("22.04", "24.04")
+        val supported = installerSupported || (data["kernel"] == "Linux" && distro == "debian" && version.substringBefore('.') in setOf("12", "13"))
         add("os", "Операционная система", if (supported) PreflightLevel.PASS else PreflightLevel.BLOCKED,
-            if (supported) "$distro $version, Linux. Подходит для предварительной проверки; матрица установщика ещё не утверждена." else "Платформа $distro $version (${data["kernel"]}) вне предварительной матрицы Ubuntu 22.04/24.04 и Debian 12/13.")
+            when {
+                installerSupported -> "Ubuntu $version LTS, Linux. Поддерживается установщиком; окончательная готовность определяется при получении плана."
+                supported -> "$distro $version, Linux. Подходит только для предварительной SSH-проверки. Автоматическая установка поддерживает Ubuntu 22.04 и 24.04 LTS."
+                else -> "Платформа $distro $version (${data["kernel"]}) вне предварительной матрицы Ubuntu 22.04/24.04 и Debian 12/13. Автоматическая установка поддерживает Ubuntu 22.04 и 24.04 LTS."
+            })
         val arch = data.getValue("arch")
         add("arch", "Архитектура", if (arch in setOf("aarch64", "arm64", "x86_64", "amd64")) PreflightLevel.PASS else PreflightLevel.BLOCKED,
-            "$arch. Для будущей установки потребуется release именно этой архитектуры.")
+            "$arch. Установщик поддерживает amd64 и arm64; окончательная совместимость проверяется в плане.")
         val cpu = number(data, "cpu")
-        add("cpu", "CPU", when { cpu == null -> PreflightLevel.UNKNOWN; cpu < 4 -> PreflightLevel.WARN; else -> PreflightLevel.PASS },
-            cpu?.let { "$it логических CPU. Ориентир полного стека: от 4; это не гарантия вместимости медианагрузки." } ?: "Не удалось определить число CPU.")
-        fun resource(id: String, field: String, title: String, thresholdGiB: Long) {
+        add("cpu", "CPU", when { cpu == null -> PreflightLevel.UNKNOWN; cpu < 2 -> PreflightLevel.WARN; else -> PreflightLevel.PASS },
+            cpu?.let { "$it логических CPU. Минимум установщика: 2. Для параллельных встреч и записи рекомендуется от 4 CPU; это не гарантия вместимости медианагрузки." } ?: "Не удалось определить число CPU.")
+        fun resource(id: String, field: String, title: String, thresholdGiB: Long, guidance: String) {
             val kib = number(data, field)
             add(id, title, when { kib == null -> PreflightLevel.UNKNOWN; kib < thresholdGiB * 1_048_576L -> PreflightLevel.WARN; else -> PreflightLevel.PASS },
-                kib?.let { "${"%.1f".format(java.util.Locale.ROOT, it / 1_048_576.0)} GiB. Предварительный ориентир: от $thresholdGiB GiB; будущий план должен учесть профиль и записи." } ?: "Ресурс не удалось определить.")
+                kib?.let { "${"%.1f".format(java.util.Locale.ROOT, it / 1_048_576.0)} ГиБ. $guidance Окончательная готовность определяется при получении плана." } ?: "Ресурс не удалось определить.")
         }
-        resource("ram", "ram_kib", "Оперативная память", 8)
-        resource("disk", "disk_kib", "Свободное место в /", 30)
+        resource("ram", "ram_kib", "Оперативная память", 3, "Минимум установщика: VPS с 4 ГБ RAM (от 3 ГиБ доступно системе). Для параллельных встреч и записи рекомендуется 8 ГБ RAM; нагрузка зависит от участников и качества видео.")
+        resource("disk", "disk_kib", "Свободное место в /", 18, "Минимум для новой установки: 18 ГиБ свободно (около 20 ГБ). Рекомендуется 30 ГиБ и дополнительное место для записей.")
         val uid = data.getValue("uid")
         add("sudo", "Права пользователя", when (data["sudo"]) { "root" -> PreflightLevel.WARN; "noninteractive" -> PreflightLevel.PASS; else -> PreflightLevel.WARN },
             when (data["sudo"]) { "root" -> "UID $uid: root-доступ. Будущий план должен явно перечислить привилегированные действия."; "noninteractive" -> "UID $uid: sudo -n true разрешён. Это не подтверждает разрешение всех команд установки; пароль в sudo не передаётся."; else -> "UID $uid: noninteractive sudo не подтверждён. Настройка прав требует отдельного плана." })

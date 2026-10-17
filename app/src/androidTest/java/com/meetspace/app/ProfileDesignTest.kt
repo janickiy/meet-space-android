@@ -105,6 +105,8 @@ class ProfileDesignTest {
         compose.onNodeWithTag("account-add-cancel").performScrollTo().performClick()
         compose.onNodeWithTag("account-delete").performScrollTo().performClick()
         compose.onNodeWithTag("account-delete-password").performTextInput("synthetic-password")
+        compose.onNodeWithTag("account-delete-confirm").assertIsNotEnabled()
+        compose.onNodeWithTag("account-delete-acknowledge").performClick()
         compose.onNodeWithTag("account-delete-confirm").performClick()
         assertEquals("synthetic-password", deleted)
     }

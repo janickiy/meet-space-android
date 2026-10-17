@@ -5,6 +5,7 @@ The SSH bootstrap supplies trusted source/key/manifest bytes from the signed APK
 After apply the same files live in a root-owned directory. Never executes config.
 """
 import base64
+import copy
 import contextlib
 import fcntl
 import hashlib
@@ -37,7 +38,19 @@ TERMINAL = {"completed", "cancelled", "failed", "needs_recovery"}
 PHASES = ("docker", "source", "images", "configuration", "dependencies", "backup", "migrations", "https", "services", "readiness")
 APP_SERVICES = ("api", "media-worker", "worker", "product-worker", "live-worker", "frontend", "minio")
 PORTS = {"tcp": [80, 443, 3478, 5349, 50010], "udp": [3478, 50010] + list(range(49160, 49260))}
+SOURCE_POLICY = "github-latest-stable-v1"
+UBUNTU_SUITES = {"22.04": "jammy", "24.04": "noble"}
+SUPPORTED_ARCHES = {"amd64", "arm64"}
+DOCKER_PACKAGES = {"containerd.io", "docker-ce", "docker-ce-cli", "docker-buildx-plugin", "docker-compose-plugin"}
+RESOURCE_PROFILES = {
+    "standard": {"cpus": 4, "memoryKiB": 7 * 1024 ** 2, "freshDiskBytes": 30 * 1024 ** 3},
+    "compact-test": {"cpus": 2, "memoryKiB": 3 * 1024 ** 2, "freshDiskBytes": 18 * 1024 ** 3},
+}
+REPOSITORY = "janickiy/meet-space"
+GITHUB_API = "https://api.github.com/repos/" + REPOSITORY
 SAFE_ENV = {"PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin", "LANG": "C.UTF-8", "LC_ALL": "C.UTF-8", "HOME": "/root", "DEBIAN_FRONTEND": "noninteractive", "GIT_TERMINAL_PROMPT": "0"}
+DOCKER_PLUGINS = (("installCompose", "docker-compose-plugin", "install-compose", "COMPOSE_REQUIRED"),
+                  ("installBuildx", "docker-buildx-plugin", "install-buildx", "BUILDX_REQUIRED"))
 
 
 class InstallError(Exception):
@@ -58,7 +71,7 @@ def digest(data):
     return hashlib.sha256(data).hexdigest()
 
 
-def strict_json(raw, maximum=MAX_JSON):
+def strict_json(raw, maximum=MAX_JSON, *, expected_type=dict):
     if len(raw) > maximum:
         fail("INVALID_REQUEST")
     def pairs(items):
@@ -70,7 +83,7 @@ def strict_json(raw, maximum=MAX_JSON):
         return out
     try:
         value = json.loads(raw, object_pairs_hook=pairs)
-        if not isinstance(value, dict):
+        if not isinstance(value, expected_type):
             fail("INVALID_REQUEST")
         return value
     except (ValueError, TypeError, UnicodeError):
@@ -166,6 +179,7 @@ def verify_bundle(source, pem, raw, signature, docker_key):
             fail("RELEASE_INVALID")
     if set(manifest.get("dockerfiles", {})) != set(APP_SERVICES):
         fail("RELEASE_INVALID")
+    validate_docker_manifest(manifest)
     return manifest
 
 
@@ -181,8 +195,180 @@ def load_bundle():
     return manifest, bundle
 
 
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        fail("SOURCE_LOOKUP_FAILED")
+
+
+def github_json(path, *, missing_ok=False, expected_type=dict):
+    """Anonymous public metadata only; a missing release is the sole fallback condition."""
+    request = urllib.request.Request(GITHUB_API + path, headers={
+        "User-Agent": "MeetSpace-Installer/1", "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28"})
+    try:
+        with urllib.request.build_opener(NoRedirect()).open(request, timeout=15) as response:
+            return strict_json(response.read(MAX_JSON + 1), expected_type=expected_type)
+    except InstallError as error:
+        if error.code == "INVALID_REQUEST":
+            fail("SOURCE_INVALID")
+        raise
+    except urllib.error.HTTPError as error:
+        if error.code == 404 and missing_ok:
+            return None
+        fail("SOURCE_RATE_LIMIT" if error.code in (403, 429) else "SOURCE_LOOKUP_FAILED")
+    except (OSError, urllib.error.URLError):
+        fail("SOURCE_LOOKUP_FAILED")
+
+
+def source_url(commit):
+    return "https://codeload.github.com/" + REPOSITORY + "/tar.gz/" + commit
+
+
+def source_snapshot(commit, recipe):
+    """Hash the commit archive and required inputs without extracting or executing it."""
+    with tempfile.TemporaryDirectory(prefix="meetspace-source-") as temporary:
+        archive = pathlib.Path(temporary) / "source.tar.gz"
+        total, checksum, deadline = 0, hashlib.sha256(), time.monotonic() + 90
+        try:
+            request = urllib.request.Request(source_url(commit), headers={"User-Agent": "MeetSpace-Installer/1"})
+            with urllib.request.build_opener(NoRedirect()).open(request, timeout=20) as response, archive.open("wb") as output:
+                while True:
+                    chunk = response.read(128 * 1024)
+                    if not chunk:
+                        break
+                    total += len(chunk)
+                    if total > 100 * 1024 * 1024 or time.monotonic() > deadline:
+                        fail("DOWNLOAD_LIMIT")
+                    checksum.update(chunk)
+                    output.write(chunk)
+            contents = {}
+            prefix = "meet-space-" + commit + "/"
+            with tarfile.open(archive, "r:gz") as source:
+                count, expanded, seen = 0, 0, set()
+                for member in source:
+                    count += 1
+                    expanded += member.size
+                    path = pathlib.PurePosixPath(member.name)
+                    in_root = member.name.startswith(prefix) or (member.isdir() and member.name == prefix[:-1])
+                    if count > 30000 or expanded > 256 * 1024 * 1024 or path.is_absolute() or ".." in path.parts or not in_root or not (member.isfile() or member.isdir()) or member.name in seen:
+                        fail("SOURCE_INVALID")
+                    seen.add(member.name)
+                    relative = member.name[len(prefix):]
+                    if relative in recipe["sourceFiles"] and member.isfile():
+                        if member.size > 2 * 1024 * 1024:
+                            fail("SOURCE_INCOMPATIBLE")
+                        with source.extractfile(member) as stream:
+                            contents[relative] = stream.read()
+            if set(contents) != set(recipe["sourceFiles"]):
+                fail("SOURCE_INCOMPATIBLE")
+            for dockerfile in recipe["dockerfiles"].values():
+                pinned_dockerfile(contents[dockerfile["path"]].decode("utf-8"), recipe["baseImages"])
+            return checksum.hexdigest(), {path: digest(data) for path, data in contents.items()}
+        except (OSError, urllib.error.URLError, tarfile.TarError, UnicodeError):
+            fail("SOURCE_LOOKUP_FAILED")
+
+
+def resolve_source(recipe):
+    release = github_json("/releases/latest", missing_ok=True)
+    if release is None:
+        ref = github_json("").get("default_branch")
+        channel, version = "default-branch", None
+    else:
+        if release.get("draft") is not False or release.get("prerelease") is not False:
+            fail("SOURCE_INVALID")
+        ref = release.get("tag_name")
+        channel, version = "release", ref
+        if not isinstance(version, str) or not re.fullmatch(r"v?[0-9]+\.[0-9]+\.[0-9]+(?:[+-][A-Za-z0-9.-]+)?", version) or len(version) > 64:
+            fail("SOURCE_INCOMPATIBLE")
+    if not isinstance(ref, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._/+-]{0,199}", ref):
+        fail("SOURCE_INVALID")
+    # List one commit from the selected ref. Unlike /commits/{ref}, this endpoint
+    # excludes changed files and patches, so a large release diff stays bounded.
+    # https://docs.github.com/en/rest/commits/commits#list-commits
+    entries = github_json("/commits?sha=" + urllib.parse.quote(ref, safe="") + "&per_page=1", expected_type=list)
+    if not isinstance(entries, list) or len(entries) != 1 or not isinstance(entries[0], dict):
+        fail("SOURCE_INVALID")
+    metadata = entries[0]
+    commit = metadata.get("sha", "")
+    details = metadata.get("commit")
+    committer = details.get("committer") if isinstance(details, dict) else None
+    committed_at = committer.get("date") if isinstance(committer, dict) else None
+    if not isinstance(commit, str) or not re.fullmatch(r"[a-f0-9]{40}", commit) or not isinstance(committed_at, str) or not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z", committed_at):
+        fail("SOURCE_INVALID")
+    checksum, files = source_snapshot(commit, recipe)
+    lock = {"repository": REPOSITORY, "channel": channel, "ref": ref,
+            "version": version or "0.0.0-source." + commit[:12], "commit": commit,
+            "builtAt": committed_at, "sourceUrl": source_url(commit), "sourceSha256": checksum, "sourceFiles": files}
+    locked_manifest(recipe, lock)  # Validate before a plan can be presented.
+    return lock
+
+
+def locked_manifest(recipe, lock):
+    if recipe.get("sourcePolicy") != SOURCE_POLICY or not isinstance(lock, dict) or set(lock) != {"repository", "channel", "ref", "version", "commit", "builtAt", "sourceUrl", "sourceSha256", "sourceFiles"}:
+        fail("PLAN_CHANGED")
+    def matches(pattern, value):
+        return isinstance(value, str) and re.fullmatch(pattern, value)
+    if lock["repository"] != REPOSITORY or lock["channel"] not in ("release", "default-branch") or not matches(r"[a-f0-9]{40}", lock["commit"]) or not matches(r"[a-f0-9]{64}", lock["sourceSha256"]) or lock["sourceUrl"] != source_url(lock["commit"]):
+        fail("PLAN_CHANGED")
+    if not matches(r"[A-Za-z0-9][A-Za-z0-9._/+-]{0,199}", lock["ref"]) or not matches(r"v?[0-9]+\.[0-9]+\.[0-9]+(?:[+-][A-Za-z0-9.-]+)?", lock["version"]) or len(lock["version"]) > 64 or not matches(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z", lock["builtAt"]):
+        fail("PLAN_CHANGED")
+    if (lock["channel"] == "release" and lock["version"] != lock["ref"]) or (lock["channel"] == "default-branch" and lock["version"] != "0.0.0-source." + lock["commit"][:12]):
+        fail("PLAN_CHANGED")
+    files = lock["sourceFiles"]
+    if not isinstance(files, dict) or set(files) != set(recipe["sourceFiles"]) or not all(matches(r"[a-f0-9]{64}", value) for value in files.values()):
+        fail("PLAN_CHANGED")
+    result = copy.deepcopy(recipe)
+    for key in ("version", "commit", "builtAt", "sourceUrl", "sourceSha256", "sourceFiles"):
+        result[key] = lock[key]
+    result["backendTag"] = lock["ref"] if lock["channel"] == "release" else None
+    for dockerfile in result["dockerfiles"].values():
+        dockerfile["sha256"] = files[dockerfile["path"]]
+    return result
+
+
+def manifest_for_plan(recipe, plan):
+    contents = {key: value for key, value in plan.items() if key != "hash"}
+    if plan.get("hash") != digest(canonical(contents)):
+        fail("PLAN_CHANGED")
+    plan_resource_profile(plan)
+    if "sourceLock" in plan:
+        if plan.get("recipeSha256") != digest(canonical(recipe)):
+            fail("PLAN_CHANGED")
+        manifest = locked_manifest(recipe, plan["sourceLock"])
+    else:
+        manifest = recipe  # Legacy pinned plans remain readable; never resolve latest here.
+    if plan.get("releaseSha256") != digest(canonical(manifest)) or plan.get("commit") != manifest["commit"] or plan.get("releaseVersion") != manifest["version"]:
+        fail("PLAN_CHANGED")
+    if "platform" in plan or "dockerPackages" in plan:
+        expected = docker_packages(manifest, plan.get("platform"), legacy=True, code="PLAN_CHANGED")
+        if plan.get("dockerPackages") != expected:
+            fail("PLAN_CHANGED")
+    return manifest
+
+
+def plan_latest(options, recipe):
+    validate_options(options, recipe)
+    marker = managed_marker()
+    if marker:
+        previous = read_json(job_directory(marker["jobId"]) / "plan.json")
+        manifest_for_plan(recipe, previous)
+        lock = previous.get("sourceLock")
+        profile = plan_resource_profile(previous)
+    else:
+        lock = resolve_source(recipe) if recipe.get("sourcePolicy") == SOURCE_POLICY else None
+        profile = None
+    return create_plan(options, recipe, source_lock=lock, resource_profile=profile)
+
+
+def plan_resource_profile(plan):
+    profile = plan.get("resourceProfile", "standard")
+    if not isinstance(profile, str) or profile not in RESOURCE_PROFILES:
+        fail("PLAN_CHANGED")
+    return profile
+
+
 def validate_options(options, manifest):
-    if not isinstance(options, dict) or set(options) != {"domain", "publicIpv4", "acmeEmail"}:
+    if not isinstance(options, dict) or set(options) not in ({"domain", "publicIpv4"}, {"domain", "publicIpv4", "acmeEmail"}):
         fail("INVALID_REQUEST")
     domain = options["domain"]
     if not isinstance(domain, str) or len(domain) > 253 or domain != domain.lower() or not re.fullmatch(r"[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?", domain):
@@ -201,10 +387,75 @@ def validate_options(options, manifest):
         fail("INVALID_PUBLIC_IP")
     if manifest["profile"] == "source-v1" and (not ip.is_global or labels[-1] in {"test", "invalid", "localhost", "local", "internal", "example"}):
         fail("PUBLIC_DOMAIN_REQUIRED")
-    email = options["acmeEmail"]
-    if not isinstance(email, str) or len(email) > 254 or not re.fullmatch(r"[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,63}", email):
+    email = options.get("acmeEmail", "")
+    if not isinstance(email, str) or (email and (len(email) > 254 or not re.fullmatch(r"[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,63}", email))):
         fail("INVALID_EMAIL")
     return {"domain": domain, "publicIpv4": str(ip), "acmeEmail": email}
+
+
+def ubuntu_suite(platform, *, legacy=False, code="UNSUPPORTED_PLATFORM"):
+    if not isinstance(platform, dict):
+        fail(code)
+    # Older v1 plans contain only the architecture in some callers; their sole
+    # supported target was Ubuntu 24.04. Never infer Jammy from package text.
+    version = platform.get("osVersion", "24.04" if legacy else None)
+    arch = platform.get("arch")
+    if platform.get("os", "ubuntu" if legacy else None) != "ubuntu" or not isinstance(version, str) or version not in UBUNTU_SUITES or not isinstance(arch, str) or arch not in SUPPORTED_ARCHES:
+        fail(code)
+    return UBUNTU_SUITES[version]
+
+
+def validate_docker_packages(packages, version, *, code="RELEASE_INVALID"):
+    if not isinstance(packages, dict) or set(packages) != DOCKER_PACKAGES:
+        fail(code)
+    suffix = "~ubuntu." + version + "~" + UBUNTU_SUITES[version]
+    for pin in packages.values():
+        if not isinstance(pin, str) or len(pin) > 128 or not re.fullmatch(r"[0-9][A-Za-z0-9.+:~\-]*", pin) or not pin.endswith(suffix):
+            fail(code)
+    return dict(packages)
+
+
+def validate_docker_manifest(manifest):
+    legacy = manifest.get("dockerPackages")
+    if not isinstance(legacy, dict) or set(legacy) != SUPPORTED_ARCHES:
+        fail("RELEASE_INVALID")
+    for packages in legacy.values():
+        validate_docker_packages(packages, "24.04")
+    if "dockerPackagesByUbuntu" in manifest:
+        matrix = manifest["dockerPackagesByUbuntu"]
+        if not isinstance(matrix, dict) or set(matrix) != set(UBUNTU_SUITES):
+            fail("RELEASE_INVALID")
+        for version, arches in matrix.items():
+            if not isinstance(arches, dict) or set(arches) != SUPPORTED_ARCHES:
+                fail("RELEASE_INVALID")
+            for packages in arches.values():
+                validate_docker_packages(packages, version)
+
+
+def docker_packages(manifest, platform, *, legacy=False, code="RELEASE_INVALID"):
+    suite = ubuntu_suite(platform, legacy=legacy, code=code)
+    version = next(version for version, name in UBUNTU_SUITES.items() if name == suite)
+    if "dockerPackagesByUbuntu" in manifest:
+        matrix = manifest["dockerPackagesByUbuntu"]
+        if not isinstance(matrix, dict) or not isinstance(matrix.get(version), dict):
+            fail(code)
+        packages = matrix[version].get(platform["arch"])
+    else:
+        # A Noble-only signed recipe must never be used to install Jammy.
+        if version != "24.04":
+            fail(code)
+        arches = manifest.get("dockerPackages")
+        if not isinstance(arches, dict):
+            fail(code)
+        packages = arches.get(platform["arch"])
+    return validate_docker_packages(packages, version, code=code)
+
+
+def same_platform(plan, facts):
+    previous = plan.get("platform")
+    ubuntu_suite(previous, legacy=True, code="PLAN_CHANGED")
+    if any(previous.get(key, "ubuntu" if key == "os" else "24.04" if key == "osVersion" else None) != facts.get(key) for key in ("os", "osVersion", "arch")):
+        fail("PLAN_CHANGED")
 
 
 def platform_facts():
@@ -214,12 +465,12 @@ def platform_facts():
             key, value = line.split("=", 1)
             values[key] = value.strip().strip('"')
     arch = {"aarch64": "arm64", "x86_64": "amd64"}.get(os.uname().machine, "unsupported")
-    if values.get("ID") != "ubuntu" or values.get("VERSION_ID") != "24.04" or arch == "unsupported":
-        fail("UNSUPPORTED_PLATFORM")
+    platform = {"os": values.get("ID"), "osVersion": values.get("VERSION_ID"), "arch": arch}
+    ubuntu_suite(platform)
     if not pathlib.Path("/run/systemd/system").is_dir() or not shutil.which("systemd-run"):
         fail("SYSTEMD_REQUIRED")
     memory = int(re.search(r"^MemTotal:\s+(\d+)", pathlib.Path("/proc/meminfo").read_text(), re.M).group(1))
-    return {"os": "ubuntu", "osVersion": "24.04", "arch": arch, "cpus": os.cpu_count() or 0, "memoryKiB": memory}
+    return dict(platform, cpus=os.cpu_count() or 0, memoryKiB=memory)
 
 
 def disk_free():
@@ -280,21 +531,65 @@ def docker_facts():
                     raise
         return {"installed": False, "version": None, "composeVersion": None}
     version = run(["docker", "version", "--format", "{{.Server.Version}}"], capture=True, code="DOCKER_UNAVAILABLE").decode().strip()
-    compose_version = run(["docker", "compose", "version", "--short"], capture=True, code="COMPOSE_REQUIRED").decode().strip()
-    if not re.fullmatch(r"v?[0-9]+\.[0-9]+\.[0-9]+(?:[-+][A-Za-z0-9.-]+)?", version) or not re.fullmatch(r"v?[0-9]+\.[0-9]+\.[0-9]+(?:[-+][A-Za-z0-9.-]+)?", compose_version):
+    if not re.fullmatch(r"v?[0-9]+\.[0-9]+\.[0-9]+(?:[-+][A-Za-z0-9.-]+)?", version) or int(version.lstrip("v").split(".")[0]) < 24:
         fail("DOCKER_UNSUPPORTED")
-    if int(version.lstrip("v").split(".")[0]) < 24 or int(compose_version.lstrip("v").split(".")[0]) < 2:
-        fail("DOCKER_UNSUPPORTED")
-    return {"installed": True, "version": version, "composeVersion": compose_version}
+    facts = {"installed": True, "version": version, "composeVersion": None}
+    try:
+        compose_version = run(["docker", "compose", "version", "--short"], capture=True, code="COMPOSE_REQUIRED").decode().strip()
+    except InstallError as error:
+        if error.code != "COMPOSE_REQUIRED":
+            raise
+        facts["installCompose"] = True
+    else:
+        if not re.fullmatch(r"v?[0-9]+\.[0-9]+\.[0-9]+(?:[-+][A-Za-z0-9.-]+)?", compose_version) or int(compose_version.lstrip("v").split(".")[0]) < 2:
+            fail("DOCKER_UNSUPPORTED")
+        facts["composeVersion"] = compose_version
+    # Check the daemon first: an unavailable Engine is never treated as a missing
+    # client plugin. `buildx version` itself does not contact or create a builder.
+    try:
+        buildx_version = run(["docker", "buildx", "version"], capture=True, code="BUILDX_REQUIRED").decode().strip()
+    except InstallError as error:
+        if error.code != "BUILDX_REQUIRED":
+            raise
+        facts["installBuildx"] = True
+    else:
+        if not re.fullmatch(r"(?:github\.com/docker/buildx )?v?[0-9]+\.[0-9]+\.[0-9]+(?:[-+][A-Za-z0-9.-]+)?(?: [A-Za-z0-9._-]+)?", buildx_version):
+            fail("DOCKER_UNSUPPORTED")
+    return facts
 
 
-def create_plan(options, manifest, *, issued_at=None):
+def docker_install_required(facts):
+    return not facts["installed"] or any(facts.get(flag) for flag, _, _, _ in DOCKER_PLUGINS)
+
+
+def docker_actions(facts):
+    if not facts["installed"]:
+        return ["install-docker"]
+    return [action for flag, _, action, _ in DOCKER_PLUGINS if facts.get(flag)] or ["reuse-docker"]
+
+
+def create_plan(options, manifest, *, issued_at=None, source_lock=None, resource_profile=None, legacy_plan=False):
+    recipe = manifest
+    if source_lock is not None:
+        manifest = locked_manifest(recipe, source_lock)
     options = validate_options(options, manifest)
     facts = platform_facts()
-    if facts["cpus"] < 4 or facts["memoryKiB"] < 7 * 1024 * 1024:
-        fail("RESOURCES_INSUFFICIENT")
     marker = managed_marker()
-    if disk_free() < (2 if marker else 30) * 1024 ** 3:
+    free = disk_free()
+    previous = read_json(job_directory(marker["jobId"]) / "plan.json") if marker else None
+    if legacy_plan:
+        resource_profile = "standard"
+    elif resource_profile is None:
+        if previous:
+            resource_profile = plan_resource_profile(previous)
+        else:
+            standard = RESOURCE_PROFILES["standard"]
+            resource_profile = "standard" if facts["cpus"] >= standard["cpus"] and facts["memoryKiB"] >= standard["memoryKiB"] and free >= standard["freshDiskBytes"] else "compact-test"
+    resource_profile = plan_resource_profile({"resourceProfile": resource_profile})
+    limits = RESOURCE_PROFILES[resource_profile]
+    if facts["cpus"] < limits["cpus"] or facts["memoryKiB"] < limits["memoryKiB"]:
+        fail("RESOURCES_INSUFFICIENT")
+    if free < (2 * 1024 ** 3 if marker else limits["freshDiskBytes"]):
         fail("DISK_SPACE")
     docker = docker_facts()
     if marker:
@@ -314,15 +609,23 @@ def create_plan(options, manifest, *, issued_at=None):
     dns = dns_check(options)
     created = int(time.time()) if issued_at is None else issued_at
     plan = {"schema": 1, "installerVersion": VERSION, "releaseVersion": manifest["version"], "commit": manifest["commit"],
-            "backendTag": None, "releaseSha256": digest(canonical(manifest)), "runnerSha256": manifest["runnerSha256"],
+            "backendTag": manifest.get("backendTag"), "releaseSha256": digest(canonical(manifest)), "runnerSha256": manifest["runnerSha256"],
             "options": options, "platform": facts, "root": str(ROOT), "project": PROJECT,
-            "docker": docker, "dockerPackages": manifest["dockerPackages"][facts["arch"]],
+            "docker": docker, "dockerPackages": docker_packages(manifest, facts),
             "dnsAddresses": dns, "existingJobId": marker.get("jobId") if marker else None,
-            "existingPlanHash": read_json(job_directory(marker["jobId"]) / "plan.json")["hash"] if marker else None,
+            "existingPlanHash": previous["hash"] if marker else None,
             "issuedAt": created, "expiresAt": created + 900,
-            "actions": ["install-docker" if not docker["installed"] else "reuse-docker", "fetch-verified-source", "build-and-pin-images", "generate-secrets", "private-volumes", "backup-and-migrate", "acme-https-wss", "authenticated-turn", "readiness"],
+            "actions": [*docker_actions(docker), "fetch-verified-source", "build-and-pin-images", "generate-secrets", "private-volumes", "backup-and-migrate", "acme-https-wss", "authenticated-turn", "readiness"],
             "ports": {"tcp": PORTS["tcp"], "udp": ["3478", "50010", "49160-49259"]},
             "warnings": ["source-build-not-hermetic", "docker-firewall-bypass", "external-ports-must-be-open", "no-automatic-data-rollback", "local-backup-not-offsite", "no-upstream-release-tag", "turn-restarts-on-certificate-renewal"]}
+    if source_lock is not None:
+        plan.update(sourceLock=source_lock, recipeSha256=digest(canonical(recipe)))
+    if not legacy_plan:
+        plan["resourceProfile"] = resource_profile
+    if resource_profile == "compact-test":
+        plan["warnings"].append("compact-test-resources")
+    if manifest.get("backendTag"):
+        plan["warnings"].remove("no-upstream-release-tag")
     plan["hash"] = digest(canonical(plan))
     return plan
 
@@ -408,9 +711,12 @@ def initialize_layout(value, plan, manifest, bundle):
         for name, data in bundle.items():
             write_atomic(prepared / "installer" / "v1" / name, data)
         write_atomic(directory / "plan.json", canonical(plan))
+        if "sourceLock" in plan:
+            write_atomic(directory / "source-lock.json", canonical(plan["sourceLock"]))
         state_write(directory, "running", "queued")
         write_atomic(prepared / "managed.json", canonical({"schema": 1, "owner": "meetspace-installer-v1", "jobId": value,
-                     "domain": plan["options"]["domain"], "commit": manifest["commit"], "releaseSha256": digest(canonical(manifest))}))
+                     "domain": plan["options"]["domain"], "commit": manifest["commit"], "version": manifest["version"],
+                     "sourceSha256": manifest["sourceSha256"], "releaseSha256": digest(canonical(manifest))}))
         # File writes fsync their direct parent. Persist every newly created directory
         # entry as well before making the complete tree visible at its final location.
         for folder in (directory, prepared / "jobs", prepared / "installer" / "v1", prepared / "installer", prepared):
@@ -438,6 +744,8 @@ def apply(request, manifest, bundle):
     contents = {key: value for key, value in plan.items() if key != "hash"}
     if digest(canonical(contents)) != plan.get("hash"):
         fail("PLAN_CHANGED")
+    recipe = manifest
+    manifest = manifest_for_plan(recipe, plan)
     value = job_id(request.get("jobId"))
     # Creation of the lock is itself an approved apply action; plan never creates it.
     with lock_file(pathlib.Path("/run/meetspace-installer-control.lock")):
@@ -452,12 +760,13 @@ def apply(request, manifest, bundle):
         now = int(time.time())
         if not isinstance(plan.get("issuedAt"), int) or now > plan.get("expiresAt", 0) or plan["issuedAt"] > now + 30:
             fail("PLAN_EXPIRED")
-        fresh = create_plan(plan.get("options"), manifest, issued_at=plan["issuedAt"])
+        fresh = create_plan(plan.get("options"), recipe, issued_at=plan["issuedAt"], source_lock=plan.get("sourceLock"),
+                            resource_profile=plan_resource_profile(plan), legacy_plan="resourceProfile" not in plan)
         if fresh["hash"] != plan["hash"]:
             fail("PLAN_CHANGED")
         if request.get("acceptAcmeTerms") is not True:
             fail("ACME_TERMS_REQUIRED")
-        if not fresh["docker"]["installed"] and request.get("confirmDockerInstall") is not True:
+        if docker_install_required(fresh["docker"]) and request.get("confirmDockerInstall") is not True:
             fail("DOCKER_CONFIRMATION_REQUIRED")
         initialize_layout(value, plan, manifest, bundle)
         directory = job_directory(value)
@@ -472,6 +781,7 @@ def control(action, request, manifest):
     value = job_id(request.get("jobId"))
     directory = job_directory(value)
     plan = read_json(directory / "plan.json")
+    manifest = manifest_for_plan(manifest, plan)
     if plan["releaseSha256"] != digest(canonical(manifest)) or plan["hash"] != request.get("planHash"):
         fail("PLAN_CHANGED")
     if action == "status":
@@ -489,6 +799,11 @@ def control(action, request, manifest):
             if request.get("confirmedPlanHash") != plan["hash"]:
                 fail("CONFIRMATION_REQUIRED")
             validate_options(plan["options"], manifest)
+            facts = platform_facts()
+            same_platform(plan, facts)
+            limits = RESOURCE_PROFILES[plan_resource_profile(plan)]
+            if facts["cpus"] < limits["cpus"] or facts["memoryKiB"] < limits["memoryKiB"]:
+                fail("RESOURCES_INSUFFICIENT")
             dns_check(plan["options"])
             if disk_free() < 2 * 1024 ** 3:
                 fail("DISK_SPACE")
@@ -556,20 +871,38 @@ def extract_source(archive, destination, commit):
                     write_atomic(target, stream.read(), 0o755 if member.mode & 0o111 else 0o644)
 
 
-def pinned_dockerfile(content, bases):
-    lines, stages = [], set()
+def pinned_dockerfile(content, bases, resource_profile="standard"):
+    resource_profile = plan_resource_profile({"resourceProfile": resource_profile})
+    lines, stages = [], {}
     for line in content.splitlines():
-        if line.startswith("FROM "):
+        if re.match(r"^\s*FROM\s+", line, re.I):
             fields = line.split()
+            fields[0] = "FROM"
             index = 2 if fields[1].startswith("--platform=") else 1
+            if len(fields) <= index or len(fields) not in (index + 1, index + 3):
+                fail("SOURCE_INCOMPATIBLE")
             image = fields[index]
-            if image not in stages and image != "scratch":
+            kind = stages.get(image.lower())
+            if image.lower() not in stages and image != "scratch":
                 if image not in bases:
                     fail("UNPINNED_BASE_IMAGE")
                 fields[index] = bases[image]
-            if "AS" in fields:
-                stages.add(fields[fields.index("AS") + 1])
+                kind = "go" if re.match(r"(?:docker\.io/library/)?golang:", image) else "node" if re.match(r"(?:docker\.io/library/)?node:", image) else None
+            if len(fields) == index + 3:
+                if fields[index + 1].lower() != "as" or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", fields[index + 2]):
+                    fail("SOURCE_INCOMPATIBLE")
+                fields[index + 1] = "AS"
+                stages[fields[index + 2].lower()] = kind
             line = " ".join(fields)
+            lines.append(line)
+            if resource_profile == "compact-test":
+                # These ENV instructions precede RUN and take effect in the actual
+                # compiler/npm processes; unused build args alone would not do so.
+                if kind == "go":
+                    lines.append("ENV GOMAXPROCS=2 GOFLAGS=-p=1 GOMEMLIMIT=1536MiB")
+                elif kind == "node":
+                    lines.append("ENV NODE_OPTIONS=--max-old-space-size=1536 UV_THREADPOOL_SIZE=2 npm_config_jobs=1 GOMAXPROCS=2")
+            continue
         lines.append(line)
     return "\n".join(lines) + "\n"
 
@@ -578,13 +911,21 @@ class Worker:
     def __init__(self, value, manifest):
         self.directory = job_directory(value)
         self.plan = read_json(self.directory / "plan.json")
-        self.manifest = manifest
+        self.manifest = manifest_for_plan(manifest, self.plan)
         self.options = self.plan["options"]
-        self.release = ROOT / "releases" / manifest["commit"]
+        self.release = ROOT / "releases" / self.manifest["commit"]
         self.config = ROOT / "config"
         self.compose_file = self.config / "compose.json"
         self.images_file = self.directory / "images.json"
         self.env_file = self.config / "server.env"
+
+    @property
+    def compact(self):
+        return plan_resource_profile(getattr(self, "plan", {})) == "compact-test"
+
+    def check_build_space(self):
+        if disk_free() < (6 if self.compact else 8) * 1024 ** 3:
+            fail("DISK_SPACE")
 
     def compose(self, *args, capture=False, timeout=300, code="COMPOSE_FAILED", data=None):
         return run(["docker", "compose", "--project-name", PROJECT, "--project-directory", str(self.release),
@@ -592,7 +933,11 @@ class Worker:
                    capture=capture, timeout=timeout, code=code, data=data)
 
     def phase_docker(self):
-        if docker_facts()["installed"]:
+        suite = ubuntu_suite(self.plan.get("platform"), legacy=True, code="PLAN_CHANGED")
+        if self.plan.get("dockerPackages") != docker_packages(self.manifest, self.plan.get("platform"), legacy=True, code="PLAN_CHANGED"):
+            fail("PLAN_CHANGED")
+        facts = docker_facts()
+        if not docker_install_required(facts):
             return
         key_target = pathlib.Path("/etc/apt/keyrings/meetspace-docker.asc")
         source_target = pathlib.Path("/etc/apt/sources.list.d/meetspace-docker.sources")
@@ -601,17 +946,28 @@ class Worker:
         key = (ROOT / "installer" / "v1" / "docker.asc").read_bytes()
         if digest(key) != self.manifest["dockerKeySha256"]:
             fail("RELEASE_CHECKSUM")
-        sources = ("Types: deb\nURIs: https://download.docker.com/linux/ubuntu\nSuites: noble\nComponents: stable\n"
+        sources = ("Types: deb\nURIs: https://download.docker.com/linux/ubuntu\nSuites: " + suite + "\nComponents: stable\n"
                    "Architectures: " + self.plan["platform"]["arch"] + "\nSigned-By: " + str(key_target) + "\n").encode()
         for path, data in ((key_target, key), (source_target, sources)):
             if path.exists() and path.read_bytes() != data:
                 fail("APT_SOURCE_CONFLICT")
             write_atomic(path, data, 0o644)
         run(["apt-get", "-o", "DPkg::Lock::Timeout=120", "update", "-qq"], timeout=600, code="DOCKER_INSTALL_FAILED")
-        packages = [key + "=" + value for key, value in sorted(self.plan["dockerPackages"].items())]
-        run(["apt-get", "-o", "DPkg::Lock::Timeout=120", "install", "-y", "--no-install-recommends", *packages], timeout=900, code="DOCKER_INSTALL_FAILED")
-        run(["systemctl", "enable", "--now", "docker"], timeout=90, code="DOCKER_INSTALL_FAILED")
-        docker_facts()
+        if facts["installed"]:
+            packages = [package + "=" + self.plan["dockerPackages"][package]
+                        for flag, package, _, _ in DOCKER_PLUGINS if facts.get(flag)]
+            run(["apt-get", "-o", "DPkg::Lock::Timeout=120", "install", "-y", "--no-install-recommends", "--no-upgrade", *packages],
+                timeout=900, code="DOCKER_INSTALL_FAILED", env=dict(SAFE_ENV, NEEDRESTART_MODE="l"))
+        else:
+            packages = [key + "=" + value for key, value in sorted(self.plan["dockerPackages"].items())]
+            run(["apt-get", "-o", "DPkg::Lock::Timeout=120", "install", "-y", "--no-install-recommends", *packages], timeout=900, code="DOCKER_INSTALL_FAILED")
+            run(["systemctl", "enable", "--now", "docker"], timeout=90, code="DOCKER_INSTALL_FAILED")
+        current = docker_facts()
+        if not current["installed"]:
+            fail("DOCKER_UNAVAILABLE")
+        for flag, _, _, error_code in DOCKER_PLUGINS:
+            if current.get(flag):
+                fail(error_code)
 
     def phase_source(self):
         self.release.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -640,6 +996,7 @@ class Worker:
         images = read_json(self.images_file) if self.images_file.exists() else {}
         for service, reference in self.manifest["images"].items():
             self.check_cancel()
+            self.check_build_space()
             run(["docker", "pull", "--platform", "linux/" + self.plan["platform"]["arch"], reference], timeout=900, code="IMAGE_PULL_FAILED")
             details = self.image_details(reference)
             if service in images and images[service] != details["Id"]:
@@ -648,6 +1005,7 @@ class Worker:
             write_atomic(self.images_file, canonical(images))
         for service in APP_SERVICES:
             self.check_cancel()
+            self.check_build_space()
             recipe = self.manifest["dockerfiles"][service]
             dockerfile = self.release / recipe["path"]
             if digest(dockerfile.read_bytes()) != recipe["sha256"]:
@@ -657,17 +1015,22 @@ class Worker:
                 labels = details.get("Config", {}).get("Labels", {}) or {}
                 if labels.get("io.meetspace.recipe") != self.plan["releaseSha256"] or labels.get("org.opencontainers.image.revision") != self.manifest["commit"]:
                     fail("IMAGE_CHANGED")
+                if labels.get("io.meetspace.resource-profile", "standard") != plan_resource_profile(self.plan):
+                    fail("IMAGE_CHANGED")
                 continue
             prepared = self.directory / (service + ".Dockerfile")
-            write_atomic(prepared, pinned_dockerfile(dockerfile.read_text(), self.manifest["baseImages"]).encode())
+            write_atomic(prepared, pinned_dockerfile(dockerfile.read_text(), self.manifest["baseImages"], plan_resource_profile(self.plan)).encode())
             context = self.release / recipe["context"]
             tag = "meetspace-installer/" + service + ":" + self.manifest["commit"][:12] + "-" + self.plan["releaseSha256"][:12]
+            if self.compact:
+                tag += "-compact-test"
             # Docker output may contain build/dependency data: discard, expose fixed phase events only.
             run(["docker", "build", "--platform", "linux/" + self.plan["platform"]["arch"], "--target", "runtime", "--file", str(prepared),
                  "--tag", tag, "--build-arg", "BUILD_VERSION=" + self.manifest["version"], "--build-arg", "BUILD_COMMIT=" + self.manifest["commit"],
                  "--build-arg", "BUILD_TIME=" + self.manifest["builtAt"], "--build-arg", "TARGETARCH=" + self.plan["platform"]["arch"],
                  "--build-arg", "CLIENT_TELEMETRY_ENABLED=false", "--label", "org.opencontainers.image.revision=" + self.manifest["commit"],
-                 "--label", "io.meetspace.recipe=" + self.plan["releaseSha256"], str(context)], timeout=3600, code="IMAGE_BUILD_FAILED")
+                 "--label", "io.meetspace.recipe=" + self.plan["releaseSha256"],
+                 "--label", "io.meetspace.resource-profile=" + plan_resource_profile(self.plan), str(context)], timeout=7200 if self.compact else 3600, code="IMAGE_BUILD_FAILED")
             details = self.image_details(tag)
             images[service] = details["Id"]
             write_atomic(self.images_file, canonical(images))
@@ -681,14 +1044,25 @@ class Worker:
                 out[key] = value
         return out
 
+    def compact_environment(self):
+        if not self.compact:
+            return {}
+        # Keep every service/feature available while admitting one expensive job
+        # at a time. Per-service heap limits are added in the Compose document.
+        return {"GOMAXPROCS": "2", "GOMEMLIMIT": "96MiB", "DB_MAX_OPEN": "3", "DB_MAX_IDLE": "1",
+                "RECORDING_MAX_ACTIVE": "1", "RECORDING_FFMPEG_CONCURRENCY": "1", "RECORDING_DISK_RESERVE_MIB": "2048",
+                "PRODUCT_DELIVERY_CONCURRENCY": "1", "PRODUCT_CALENDAR_CONCURRENCY": "1", "TRANSCRIPTION_CONCURRENCY": "1",
+                "AI_JOB_CONCURRENCY": "1", "AI_CHUNK_CONCURRENCY": "1", "EMBEDDING_CONCURRENCY": "1",
+                "LIVE_MAX_CONFERENCES": "1", "LIVE_MAX_SESSIONS": "10"}
+
     def phase_configuration(self):
         self.config.mkdir(mode=0o700, parents=True, exist_ok=True)
-        for folder in ("recordings", "tls", "acme", "challenge", "backups"):
+        for folder in ("recordings", "tls", "acme", "challenge", "backups", *(("product-tmp",) if self.compact else ())):
             path = ROOT / folder
             path.mkdir(mode=0o755 if folder in ("tls", "challenge") else 0o700, exist_ok=True)
             if folder in ("tls", "challenge"):
                 os.chmod(path, 0o755)
-            if folder == "recordings":
+            if folder in ("recordings", "product-tmp"):
                 os.chown(path, 1000, 1000)
                 os.chmod(path, 0o700)
         # Docker-assigned subnet avoids a hardcoded network that could collide with host/VPN routes.
@@ -720,8 +1094,11 @@ class Worker:
                 "TURN_URLS": "turn:" + domain + ":3478?transport=udp,turn:" + domain + ":3478?transport=tcp,turns:" + domain + ":5349?transport=tcp",
                 "RECORDER_STORAGE_DIR": str(ROOT / "recordings"), "TLS_CERT_DIR": str(ROOT / "tls"), "TURN_TLS_CERT_DIR": str(ROOT / "tls"),
                 "DB_MAX_OPEN": "10", "DB_MAX_IDLE": "5", "MEDIA_MAX_ROOMS": "10", "MEDIA_MAX_PEERS": "10"})
+            values.update(self.compact_environment())
             write_atomic(self.env_file, ("\n".join(key + "=" + value for key, value in sorted(values.items())) + "\n").encode())
         values = self.environment()
+        if any(values.get(key) != value for key, value in self.compact_environment().items()):
+            fail("CONFIG_CHANGED")
         if values.get("PUBLIC_FRONTEND_URL") != "https://" + self.options["domain"] or values.get("HTTP_TRUSTED_PROXIES") != subnet:
             fail("CONFIG_CHANGED")
         route_source = self.release / "dockers/production/routes.conf"
@@ -798,6 +1175,24 @@ server {
             "volumes": [str(self.config / "turnserver.conf") + ":/run/config/turnserver.conf:ro", str(ROOT / "tls") + ":/run/certs:ro"],
             "ports": ["3478:3478/udp", "3478:3478/tcp", "5349:5349/tcp", "49160-49259:49160-49259/udp"], "labels": common["labels"], "logging": common["logging"]}
         services["migrate"] = dict(common, image=images["api"] , profiles=["migration"], restart="no", read_only=True, entrypoint=["/app/recorder-migrate", "migrate"])
+        if self.compact:
+            # 2128 MiB total for long-running services leaves at least 944 MiB
+            # for the host at this profile's minimum 3 GiB of usable RAM.
+            memory = {"api": 160, "media-worker": 256, "worker": 512, "product-worker": 256, "live-worker": 96,
+                      "frontend": 48, "proxy": 48, "postgres": 160, "redis": 64, "rabbitmq": 224, "minio": 224, "coturn": 80, "migrate": 160}
+            heaps = {"api": 96, "media-worker": 160, "worker": 80, "product-worker": 128, "live-worker": 64, "minio": 128, "migrate": 96}
+            for name, budget in memory.items():
+                services[name].update(mem_limit=str(budget) + "m", memswap_limit=str(budget) + "m", cpus=1.25 if name == "worker" else 1 if name == "media-worker" else 0.5)
+                if name in heaps:
+                    services[name]["environment"] = dict(services[name].get("environment", {}), GOMAXPROCS="2", GOMEMLIMIT=str(heaps[name]) + "MiB")
+            # Transcription can download a 1 GiB input plus audio into /tmp.
+            # Use job-owned disk here instead of charging that data to RAM.
+            services["product-worker"].pop("tmpfs", None)
+            services["product-worker"]["volumes"] = [str(ROOT / "product-tmp") + ":/tmp"]
+            services["product-worker"]["user"] = "1000:1000"
+            services["postgres"]["command"] = ["postgres", "-c", "max_connections=40", "-c", "shared_buffers=32MB"]
+            services["redis"]["command"][-1] = services["redis"]["command"][-1].replace("--maxmemory 128mb", "--maxmemory 32mb")
+            services["rabbitmq"]["environment"]["RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS"] = "+S 1:1 +A 2"
         document = {"services": services, "networks": {"private": {"external": True, "name": PROJECT + "_private"}},
                     "volumes": {name: {"labels": common["labels"]} for name in ("postgres", "rabbitmq", "objects")}}
         write_atomic(self.compose_file, canonical(document))
@@ -899,7 +1294,8 @@ server {
         self.write_nginx(tls=False)
         self.compose("up", "-d", "--no-build", "--no-deps", "proxy")
         self.compose("exec", "-T", "proxy", "nginx", "-t", code="PROXY_FAILED")
-        self.certbot("certonly", "--non-interactive", "--agree-tos", "--email", self.options["acmeEmail"],
+        registration = ["--email", self.options["acmeEmail"]] if self.options["acmeEmail"] else ["--register-unsafely-without-email"]
+        self.certbot("certonly", "--non-interactive", "--agree-tos", *registration,
                      "--webroot", "-w", "/var/www/certbot", "--domain", self.options["domain"],
                      "--cert-name", self.options["domain"], "--keep-until-expiring", "--server", self.manifest["acmeDirectory"])
         self.copy_certificate()
@@ -975,6 +1371,7 @@ server {
             fail("TURN_TLS_READINESS")
         turn_readiness(self.environment()["TURN_SHARED_SECRET"], self.options["domain"])
         evidence = {"schema": 1, "commit": self.manifest["commit"], "version": self.manifest["version"],
+                    "sourceLock": self.plan.get("sourceLock"), "releaseSha256": self.plan["releaseSha256"],
                     "images": images, "verifiedAt": int(time.time()), "profile": self.manifest["profile"],
                     "checks": ["service-health", "image-ids", "private-ports", "https-system-trust", "api-version", "frontend-version", "wss-unauthenticated-denied", "turn-tls", "turn-auth", "turn-private-peer-denied"],
                     "externalCloudFirewallVerified": False, "mediaEndToEndVerified": False,
@@ -993,7 +1390,9 @@ server {
                         return
                     if phase in completed:
                         continue
-                    if disk_free() < (2 * 1024 ** 3 if phase not in ("source", "images") else 8 * 1024 ** 3):
+                    if phase in ("source", "images"):
+                        self.check_build_space()
+                    elif disk_free() < 2 * 1024 ** 3:
                         fail("DISK_SPACE")
                     state_write(self.directory, "running", phase, completed=completed)
                     getattr(self, "phase_" + phase)()
@@ -1080,7 +1479,7 @@ def main(action, request):
     os.umask(0o077)
     manifest, bundle = load_bundle()
     if action == "plan":
-        return create_plan(request.get("options"), manifest)
+        return plan_latest(request.get("options"), manifest)
     if action == "apply":
         return apply(request, manifest, bundle)
     if action in ("status", "cancel", "resume"):

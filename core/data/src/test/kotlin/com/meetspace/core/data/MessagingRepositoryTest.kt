@@ -41,6 +41,32 @@ class MessagingRepositoryTest {
     }
     @After fun stop() { server.shutdown() }
 
+    @Test fun `search context and shared pins remain scoped and encode query`() = runBlocking {
+        login()
+        server.enqueue(json("""{"items":[${message().dropLast(1)},"pinned":true}],"nextCursor":"next+/="}"""))
+        val page = repository.searchMessages(CHAT, "text & query", "old+/=")
+        assertTrue(page.items.single().pinned)
+        val search = take(); assertEquals("/api/v1/conversations/$CHAT/messages/search", search.requestUrl!!.encodedPath)
+        assertEquals("text & query", search.requestUrl!!.queryParameter("q")); assertEquals("old+/=", search.requestUrl!!.queryParameter("before"))
+        server.enqueue(json("""{"items":[${message()}]}""")); repository.messageContext(CHAT, MESSAGE)
+        assertEquals("/api/v1/conversations/$CHAT/messages/$MESSAGE/context", take().path)
+        server.enqueue(json("""{"items":[${message()}]}""")); repository.messagePins(CHAT)
+        assertEquals("/api/v1/conversations/$CHAT/pins", take().requestUrl!!.encodedPath)
+        repeat(2) { i -> server.enqueue(json("{}")); repository.pinMessage(CHAT, MESSAGE, i == 0)
+            val req = take(); assertEquals(if (i == 0) "PUT" else "DELETE", req.method); assertEquals("/api/v1/conversations/$CHAT/pins/$MESSAGE", req.path) }
+    }
+    @Test fun `foreign search and pinned message responses are rejected`() = runBlocking {
+        login(); repeat(2) { server.enqueue(json("""{"items":[${message().replace(CHAT, OTHER)}]}""")) }
+        assertFailure(FailureKind.INVALID_RESPONSE) { repository.searchMessages(CHAT, "query") }
+        assertFailure(FailureKind.INVALID_RESPONSE) { repository.messagePins(CHAT) }
+    }
+    @Test fun `clear and hide use personal endpoints and not group deletion`() = runBlocking {
+        login(); server.enqueue(json("{}")); repository.clearConversation(CHAT, false)
+        val clear = take(); assertEquals("POST", clear.method); assertEquals("/api/v1/conversations/$CHAT/clear-history", clear.path)
+        server.enqueue(json("{}")); repository.clearConversation(CHAT, true)
+        val hide = take(); assertEquals("POST", hide.method); assertEquals("/api/v1/conversations/$CHAT/hide", hide.path)
+    }
+
     @Test fun `conversation filters and cursor are encoded and bearer is scoped without cookie`() = runBlocking {
         login(); server.enqueue(json("""{"items":[${conversation()}],"nextCursor":"new+/=","unreadCount":3}"""))
         val page = repository.conversations(ChatQuery("Team & A", "group", true, "old+/="))

@@ -96,11 +96,13 @@ data class CallUiDetails(
     val chat: CallTextPanelState = CallTextPanelState(),
     val comments: CallTextPanelState = CallTextPanelState(),
     val commentCount: Int? = null,
+    val room: MeetingRoomUiState = MeetingRoomUiState(),
     val recordingState: CallRecordingUiState = CallRecordingUiState(),
 )
 
 data class CallPanelActions(
     val open: (CallPanel?) -> Unit = {},
+    val room: MeetingRoomActions = MeetingRoomActions(),
     val chatDraft: (String) -> Unit = {},
     val sendChat: () -> Unit = {},
     val retryChat: () -> Unit = {},

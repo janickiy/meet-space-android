@@ -20,6 +20,9 @@ interface FoundationRepository {
     suspend fun deleteAccount(password: String) {
         throw AppFailure(FailureKind.INCOMPATIBLE_SERVER, "Удаление аккаунта недоступно для этого подключения.")
     }
+    suspend fun joinGuest(invitation: String, displayName: String): Unit =
+        throw AppFailure(FailureKind.INCOMPATIBLE_SERVER, "Гостевой вход недоступен на этом сервере.")
+    suspend fun refreshGuestMeeting(): Unit = Unit
     suspend fun login(email: String, password: String)
     suspend fun register(displayName: String, email: String, password: String): RegistrationResult =
         throw AppFailure(FailureKind.INCOMPATIBLE_SERVER, "Регистрация недоступна для этого подключения.")

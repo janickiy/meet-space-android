@@ -180,6 +180,7 @@ class PushController(private val context: Context, private val foundation: Found
     }
     internal fun identity(): String? {
         val value = foundation.state.value
+        if (value.session?.guestMeeting != null) return null
         val origin = value.selectedProfile?.origin ?: return null
         val user = value.session?.user?.id ?: return null
         return "$origin|$user"

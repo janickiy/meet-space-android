@@ -345,7 +345,7 @@ private fun HomeConversations(
                     modifier = Modifier.heightIn(min = 48.dp).testTag("home-filter-${filter.name.lowercase()}").semantics { selected = active },
                 ) {
                     Box(Modifier.padding(horizontal = 10.dp, vertical = 12.dp), contentAlignment = Alignment.Center) {
-                        Text(when (filter) { ChatFilter.ALL -> "Все"; ChatFilter.DIRECT -> "Личные"; ChatFilter.UNREAD -> "Новые" }, fontSize = 12.sp, lineHeight = 20.sp,
+                        Text(when (filter) { ChatFilter.ALL -> "Все"; ChatFilter.DIRECT -> "Личные"; ChatFilter.GROUP -> "Группы"; ChatFilter.UNREAD -> "Новые" }, fontSize = 12.sp, lineHeight = 20.sp,
                             fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal, color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }

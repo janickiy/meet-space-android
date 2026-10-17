@@ -42,6 +42,7 @@ data class AccountSession(
     val user: User,
     val capabilities: Capabilities,
     val supportsPersistentSession: Boolean,
+    val guestMeeting: Meeting? = null,
 )
 
 data class RepositoryState(

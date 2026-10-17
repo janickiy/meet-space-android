@@ -80,6 +80,7 @@ fun RecordingPlayer(playback: RecordingPlayback, close: () -> Unit, retry: () ->
             playWhenReady = playback.playWhenReady
         }
     }
+    LaunchedEffect(player, playback) { playback.seekRequest.collect { it?.let { (_, position) -> player.seekTo(position) } } }
     DisposableEffect(player, lifecycle) {
         val listener = object : Player.Listener {
             override fun onRenderedFirstFrame() { renderedFrame = true }

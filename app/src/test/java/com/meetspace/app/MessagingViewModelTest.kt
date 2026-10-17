@@ -20,6 +20,38 @@ class MessagingViewModelTest {
     @Before fun setup() { Dispatchers.setMain(dispatcher) }
     @After fun teardown() { Dispatchers.resetMain() }
 
+    @Test fun draftsFollowConversationAndAreDiscardedOnAccountChange() = runTest(dispatcher) {
+        val f = FakeFoundation(); val m = model(FakeMessaging(), f)
+        m.open("one"); runCurrent(); m.draft("First draft")
+        m.open("two"); runCurrent(); assertEquals("", m.state.value.draft); m.draft("Second draft")
+        m.open("one"); runCurrent(); assertEquals("First draft", m.state.value.draft)
+        m.back(); m.open("two"); runCurrent(); assertEquals("Second draft", m.state.value.draft)
+        f.state.value = f.state.value.copy(session = null); runCurrent()
+        assertTrue(m.state.value.drafts.isEmpty())
+    }
+    @Test fun obsoleteSearchAndContextCannotReplaceAnotherChat() = runTest(dispatcher) {
+        val search = CompletableDeferred<ChatPage<ChatMessage>>(); val context = CompletableDeferred<ChatPage<ChatMessage>>()
+        val r = FakeMessaging().apply { searchResult = { _, _, _ -> withContext(NonCancellable) { search.await() } }; contextResult = { _, _ -> withContext(NonCancellable) { context.await() } } }
+        val m = model(r); m.open("room"); runCurrent(); m.searchMessages("secret"); advanceTimeBy(301); runCurrent(); m.focusMessage("old"); runCurrent()
+        m.open("two"); runCurrent(); search.complete(ChatPage(listOf(message("secret")))); context.complete(ChatPage(listOf(message("old")))); runCurrent()
+        assertEquals("two", m.state.value.selectedId); assertNull(m.state.value.searchResults.data)
+        assertNull(m.state.value.focusedMessageId); assertFalse(m.state.value.messages.data.orEmpty().any { it.id == "secret" || it.id == "old" })
+    }
+    @Test fun pinIsAppliedOnlyAfterServerAcknowledgesAndContextDoesNotAdvanceReadCursor() = runTest(dispatcher) {
+        val gate = CompletableDeferred<Unit>(); val r = FakeMessaging().apply { pinResult = { gate.await() } }
+        val m = model(r); m.foreground(true); m.workspaceVisible(true); m.open("room"); runCurrent()
+        val message = m.state.value.messages.data!!.single(); m.pin(message, true); runCurrent()
+        assertFalse(m.state.value.messages.data!!.single().pinned)
+        gate.complete(Unit); runCurrent(); assertTrue(m.state.value.messages.data!!.single().pinned)
+        m.focusMessage("old"); runCurrent(); val reads = r.reads.size; m.markRead(); runCurrent(); assertEquals(reads, r.reads.size)
+        m.suspendWork()
+    }
+    @Test fun folderFilterChangesResetPagingAndUseServerFilter() = runTest(dispatcher) {
+        val r = FakeMessaging(); val m = model(r); m.selectFolder("folder"); advanceTimeBy(251); runCurrent()
+        m.folderFilter("conference"); advanceTimeBy(251); runCurrent()
+        assertEquals("conference", r.folderQueries.last().second.type); assertNull(r.folderQueries.last().second.cursor)
+    }
+
     @Test fun lateResponseFromPreviousAccountCannotRepopulateHistory() = runTest(dispatcher) {
         val gate = CompletableDeferred<MessagePage>()
         val foundation = FakeFoundation()
@@ -387,6 +419,13 @@ class MessagingViewModelTest {
         val reads = mutableListOf<Pair<String, String>>()
         val notificationReads = mutableListOf<String>()
         val groupCreates = mutableListOf<List<String>>()
+        var searchResult: suspend (String, String, String?) -> ChatPage<ChatMessage> = { id, _, _ -> ChatPage(listOf(message("result", id))) }
+        var contextResult: suspend (String, String) -> ChatPage<ChatMessage> = { id, mid -> ChatPage(listOf(message(mid, id))) }
+        var pinResult: suspend () -> Unit = {}
+        override suspend fun searchMessages(id: String, query: String, cursor: String?) = searchResult(id, query, cursor)
+        override suspend fun messageContext(id: String, messageId: String) = contextResult(id, messageId)
+        override suspend fun messagePins(id: String, cursor: String?) = ChatPage<ChatMessage>(emptyList())
+        override suspend fun pinMessage(id: String, messageId: String, pinned: Boolean) = pinResult()
         var eventOpens = 0
         var messageResult: suspend (String, String?) -> MessagePage = { id, _ -> MessagePage(listOf(message("$id-message", id))) }
         var sendResult: suspend (String, ChatMessageInput) -> ChatMessage = { id, input -> message("sent", id).copy(text = input.text, clientRequestId = input.clientRequestId, replyTo = input.replyTo) }

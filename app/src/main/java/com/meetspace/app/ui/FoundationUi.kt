@@ -172,6 +172,7 @@ fun FoundationUi(
     requestedWorkspaceTab: WorkspaceTab? = null,
     consumeWorkspaceTab: () -> Unit = {},
     onRegister: ((String, String, String, String) -> Unit)? = null,
+    onGuest: ((String, String) -> Unit)? = null,
 ) {
     BackHandler(enabled = state.screen in listOf(FoundationScreen.CONNECT, FoundationScreen.LOGIN, FoundationScreen.REGISTER, FoundationScreen.INSTALLER) && !state.busy && !(state.screen == FoundationScreen.INSTALLER && installerContent != null)) {
         onNavigate(backDestination(state))
@@ -202,7 +203,7 @@ fun FoundationUi(
                     when (state.screen) {
                         FoundationScreen.WELCOME -> Welcome(expanded, state.busy, onNavigate)
                         FoundationScreen.CONNECT -> Connect(state, onConnect, onSelectProfile, onRemoveProfile)
-                        FoundationScreen.LOGIN -> Login(state, onLogin, onNavigate, registrationAvailable = onRegister != null)
+                        FoundationScreen.LOGIN -> Login(state, onLogin, onNavigate, registrationAvailable = onRegister != null, onGuest = onGuest)
                         FoundationScreen.REGISTER -> Register(state, onRegister, onNavigate, onClearMessage)
                         FoundationScreen.INSTALLER -> Installer(onNavigate)
                         FoundationScreen.WORKSPACE -> Unit
@@ -433,7 +434,8 @@ private fun ServerProfiles(profiles: List<ServerProfile>, selectedId: String?, b
 }
 
 @Composable
-private fun Login(state: FoundationUiState, onLogin: (String, String) -> Unit, onNavigate: (FoundationScreen) -> Unit, registrationAvailable: Boolean) {
+private fun Login(state: FoundationUiState, onLogin: (String, String) -> Unit, onNavigate: (FoundationScreen) -> Unit, registrationAvailable: Boolean, onGuest: ((String, String) -> Unit)?) {
+    var guest by remember { mutableStateOf(false) }
     val profile = state.repository.selectedProfile
     val dark = MaterialTheme.colorScheme.background.luminance() < .5f
     var email by rememberSaveable(profile?.id) { mutableStateOf(
@@ -484,6 +486,7 @@ private fun Login(state: FoundationUiState, onLogin: (String, String) -> Unit, o
             keyboardActions = KeyboardActions(onDone = { submit() }),
             modifier = Modifier.fillMaxWidth().testTag("password"),
         )
+        if (onGuest != null) TextButton({ guest = true }, enabled = !state.busy, modifier = Modifier.fillMaxWidth().testTag("open-guest")) { Text("Войти гостем по приглашению") }
         PrimaryButton("Войти в MeetSpace", state.busy, email.isNotBlank() && password.isNotEmpty(), "login-submit", submit)
         Text("Если не получается войти, обратитесь к администратору этого сервера.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (registrationAvailable) {
@@ -494,6 +497,7 @@ private fun Login(state: FoundationUiState, onLogin: (String, String) -> Unit, o
             }
         }
     }
+    if (guest && onGuest != null) GuestJoinDialog(state, onGuest) { guest = false }
 }
 
 @Composable
@@ -787,7 +791,7 @@ internal fun WorkspaceNavigation(selectedTab: WorkspaceTab, onSelect: (Workspace
                                         color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
                                 }
                             }
-                        } else Icon(tab.icon, contentDescription = null, tint = color, modifier = Modifier.size(27.dp))
+                        } else Icon(tab.icon, contentDescription = null, tint = color, modifier = Modifier.size(35.dp).background(if (selected) MaterialTheme.colorScheme.primaryContainer else androidx.compose.ui.graphics.Color.Transparent, RoundedCornerShape(9.dp)).padding(4.dp))
                         Text(tab.title, fontSize = 11.sp, lineHeight = 15.sp,
                             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
                             color = color, maxLines = 1, overflow = TextOverflow.Ellipsis)

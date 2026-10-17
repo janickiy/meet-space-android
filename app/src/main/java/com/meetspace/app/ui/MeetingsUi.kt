@@ -26,8 +26,20 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.Login
+import androidx.compose.material.icons.automirrored.outlined.Logout
+import androidx.compose.material.icons.outlined.CallEnd
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.EditCalendar
+import androidx.compose.material.icons.outlined.EventAvailable
+import androidx.compose.material.icons.outlined.EventBusy
+import androidx.compose.material.icons.outlined.PersonAdd
+import androidx.compose.material.icons.outlined.PlayArrow
+import androidx.compose.material.icons.outlined.PlayCircleOutline
 import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.VideoCall
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
@@ -36,6 +48,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -53,6 +66,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
@@ -107,6 +122,7 @@ data class MeetingsUiState(
     val detail: MeetingsLoad<Meeting> = MeetingsLoad(),
     val self: MeetingsLoad<MeetingParticipant> = MeetingsLoad(),
     val history: MeetingsLoad<MeetingHistory> = MeetingsLoad(),
+    val invitation: MeetingRoomUiState = MeetingRoomUiState(),
     val actionBusy: Boolean = false,
     val profileBusy: Boolean = false,
     val creationUncertain: Boolean = false,
@@ -142,6 +158,7 @@ data class MeetingsActions(
     val recordings: (String?) -> Unit = {},
     val acknowledgeUncertainCreate: () -> Unit = {},
     val clearMessage: () -> Unit = {},
+    val invitations: MeetingRoomActions = MeetingRoomActions(),
 )
 
 private data class MeetingForm(val scheduled: Boolean, val meeting: Meeting? = null)
@@ -156,6 +173,7 @@ fun MeetingsWorkspace(
     onTab: (WorkspaceTab) -> Unit,
     homeContent: (@Composable (() -> Unit, () -> Unit, () -> Unit) -> Unit)? = null,
     callsSearchVisible: Boolean = false,
+    onFolders: () -> Unit = {},
 ) {
     var form by remember { mutableStateOf<MeetingForm?>(null) }
     var joinDialog by remember { mutableStateOf(false) }
@@ -217,7 +235,7 @@ fun MeetingsWorkspace(
                 val overview: @Composable (Modifier) -> Unit = { pane ->
                     Box(pane) {
                         when (tab) {
-                            WorkspaceTab.CALLS -> CallsDashboard(state, repository, actions, { form = MeetingForm(false) }, { form = MeetingForm(true) }, { joinDialog = true }, { zoneDialog = true })
+                            WorkspaceTab.CALLS -> CallsDashboard(state, repository, actions, { form = MeetingForm(false) }, { form = MeetingForm(true) }, { joinDialog = true }, { zoneDialog = true }, onFolders)
                             WorkspaceTab.CALENDAR -> CalendarDashboard(state, actions, { form = MeetingForm(true) }, { zoneDialog = true })
                             WorkspaceTab.PROFILE -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp)) { MeetingsAccount(state, repository, actions) }
                             WorkspaceTab.HOME, WorkspaceTab.MESSAGES -> Unit
@@ -258,8 +276,11 @@ fun MeetingsWorkspace(
                 Text("Встреча «${meeting.title}» ${if (transition == MeetingTransition.CANCEL) "будет отменена" else "будет завершена"} для всех участников. Это действие нельзя отменить.")
                 state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             } },
-            confirmButton = { Button(onClick = { actions.transition(meeting.id, transition) }, enabled = !state.actionBusy, modifier = Modifier.testTag("meeting-confirm-transition")) { Text(if (transition == MeetingTransition.CANCEL) "Отменить встречу" else "Завершить") } },
-            dismissButton = { TextButton(onClick = { confirmation = null }, enabled = !state.actionBusy) { Text("Оставить встречу") } },
+            confirmButton = { Button(onClick = { actions.transition(meeting.id, transition) }, enabled = !state.actionBusy, modifier = Modifier.testTag("meeting-confirm-transition")) {
+                MeetingActionLabel(if (transition == MeetingTransition.CANCEL) Icons.Outlined.EventBusy else Icons.Outlined.CallEnd,
+                    if (transition == MeetingTransition.CANCEL) "Отменить встречу" else "Завершить", "meeting-confirm-transition-icon")
+            } },
+            dismissButton = { TextButton(onClick = { confirmation = null }, enabled = !state.actionBusy) { MeetingActionLabel(Icons.Outlined.Close, "Оставить встречу", "meeting-dismiss-transition-icon") } },
         )
     }
 }
@@ -271,6 +292,7 @@ private fun MeetingDetails(state: MeetingsUiState, repository: RepositoryState, 
     val owner = meeting?.ownerId == repository.session?.user?.id
     val clipboard = LocalClipboard.current
     val coroutineScope = rememberCoroutineScope()
+    var invite by remember(meeting?.id) { mutableStateOf(false) }
     var copied by remember(meeting?.id) { mutableStateOf(false) }
     var copyError by remember(meeting?.id) { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth().testTag("meeting-detail"), verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -293,14 +315,18 @@ private fun MeetingDetails(state: MeetingsUiState, repository: RepositoryState, 
                     if (self.status == "waiting" || self.admissionState == "waiting") Text("Ожидайте решения организатора. Нажмите обновление, чтобы проверить допуск.")
                     if (self.canParticipate) Text("Допуск подтверждён. Можно подключить камеру и микрофон.", style = MaterialTheme.typography.bodyMedium)
                     if (self.status == "left" && self.isAdmitted) Text(if (meeting.status in listOf("created", "scheduled")) "Вы зарегистрированы. Организатор ещё не начал встречу." else "Вы сейчас не находитесь во встрече. Можно войти.", style = MaterialTheme.typography.bodyMedium)
-                    if (self.status in listOf("joined", "waiting") && self.admissionState !in listOf("kicked", "rejected")) OutlinedButton(onClick = { actions.leave(meeting.id) }, enabled = !state.actionBusy, modifier = Modifier.fillMaxWidth().testTag("meeting-detail-leave")) { Text("Выйти из встречи") }
+                    if (self.status in listOf("joined", "waiting") && self.admissionState !in listOf("kicked", "rejected")) OutlinedButton(onClick = { actions.leave(meeting.id) }, enabled = !state.actionBusy, modifier = Modifier.fillMaxWidth().testTag("meeting-detail-leave")) { MeetingActionLabel(Icons.AutoMirrored.Outlined.Logout, "Выйти из встречи", "meeting-detail-leave-icon") }
                 }
                 if (meeting.status == "active" && actions.call != null && self?.admissionState !in listOf("kicked", "rejected", "waiting")) {
                     Button(onClick = { actions.call.invoke(meeting) }, enabled = !state.actionBusy,
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("meeting-call")) { Text("Подключиться к звонку") }
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("meeting-call")) { MeetingActionLabel(Icons.Outlined.VideoCall, "Подключиться к звонку", "meeting-call-icon") }
                 }
                 val joinAllowed = !state.self.loading && state.self.error == null && (self == null || (meeting.status == "active" && self.status == "left" && self.isAdmitted))
-                if (joinAllowed) Button(onClick = { actions.joinMeeting(meeting.id) }, enabled = !state.actionBusy, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("meeting-detail-join")) { Text(if (meeting.status in listOf("created", "scheduled")) "Зарегистрироваться на встречу" else "Войти во встречу") }
+                if (joinAllowed) Button(onClick = { actions.joinMeeting(meeting.id) }, enabled = !state.actionBusy, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("meeting-detail-join")) {
+                    val registration = meeting.status in listOf("created", "scheduled")
+                    MeetingActionLabel(if (registration) Icons.Outlined.EventAvailable else Icons.AutoMirrored.Outlined.Login,
+                        if (registration) "Зарегистрироваться на встречу" else "Войти во встречу", "meeting-detail-join-icon")
+                }
                 OutlinedButton(onClick = {
                     val origin = repository.selectedProfile?.origin ?: return@OutlinedButton
                     coroutineScope.launch {
@@ -308,14 +334,15 @@ private fun MeetingDetails(state: MeetingsUiState, repository: RepositoryState, 
                             .onSuccess { copied = true; copyError = false }
                             .onFailure { copyError = true }
                     }
-                }, enabled = meeting.inviteCode.isNotBlank(), modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("meeting-copy-invite")) { Text(if (copied) "Ссылка скопирована" else "Скопировать приглашение") }
+                }, enabled = meeting.inviteCode.isNotBlank(), modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("meeting-copy-invite")) { MeetingActionLabel(if (copied) Icons.Outlined.Check else Icons.Outlined.ContentCopy, if (copied) "Ссылка скопирована" else "Скопировать приглашение", "meeting-copy-invite-icon") }
                 if (copyError) Text("Не удалось скопировать ссылку.", color = MaterialTheme.colorScheme.error)
+                if (owner || meeting.status == "active" && self?.canParticipate == true && self.role == "co_host") OutlinedButton({ invite = true; actions.invitations.searchUsers("") }, modifier = Modifier.fillMaxWidth().testTag("meeting-invite-users")) { MeetingActionLabel(Icons.Outlined.PersonAdd, "Пригласить участников", "meeting-invite-users-icon") }
                 if (owner && meeting.status in listOf("created", "scheduled")) {
-                    Button(onClick = { actions.transition(meeting.id, MeetingTransition.START) }, enabled = !state.actionBusy, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("meeting-detail-start")) { Text("Начать встречу") }
-                    if (meeting.status == "scheduled") OutlinedButton(onClick = { edit(meeting) }, enabled = !state.actionBusy, modifier = Modifier.fillMaxWidth().testTag("meeting-detail-edit")) { Text("Изменить расписание") }
-                    TextButton(onClick = { confirm(meeting, MeetingTransition.CANCEL) }, enabled = !state.actionBusy, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("meeting-detail-cancel")) { Text("Отменить встречу", color = MaterialTheme.colorScheme.error) }
+                    Button(onClick = { actions.transition(meeting.id, MeetingTransition.START) }, enabled = !state.actionBusy, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("meeting-detail-start")) { MeetingActionLabel(Icons.Outlined.PlayArrow, "Начать встречу", "meeting-detail-start-icon") }
+                    if (meeting.status == "scheduled") OutlinedButton(onClick = { edit(meeting) }, enabled = !state.actionBusy, modifier = Modifier.fillMaxWidth().testTag("meeting-detail-edit")) { MeetingActionLabel(Icons.Outlined.EditCalendar, "Изменить расписание", "meeting-detail-edit-icon") }
+                    TextButton(onClick = { confirm(meeting, MeetingTransition.CANCEL) }, enabled = !state.actionBusy, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("meeting-detail-cancel")) { MeetingActionLabel(Icons.Outlined.EventBusy, "Отменить встречу", "meeting-detail-cancel-icon", MaterialTheme.colorScheme.error) }
                 }
-                if (owner && meeting.status == "active") TextButton(onClick = { confirm(meeting, MeetingTransition.FINISH) }, enabled = !state.actionBusy, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("meeting-detail-finish")) { Text("Завершить для всех", color = MaterialTheme.colorScheme.error) }
+                if (owner && meeting.status == "active") TextButton(onClick = { confirm(meeting, MeetingTransition.FINISH) }, enabled = !state.actionBusy, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("meeting-detail-finish")) { MeetingActionLabel(Icons.Outlined.CallEnd, "Завершить для всех", "meeting-detail-finish-icon", MaterialTheme.colorScheme.error) }
             }
             if (meeting.isClosed) {
                 HorizontalDivider()
@@ -336,9 +363,17 @@ private fun MeetingDetails(state: MeetingsUiState, repository: RepositoryState, 
                     if (history.recordings.ready > 0) Text("Доступные записи: ${history.recordings.ready}")
                 }
             }
-            if (meeting.status == "active" || meeting.isClosed) OutlinedButton(onClick = { actions.recordings(meeting.id) }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("meeting-detail-recordings")) { Text("Записи и материалы") }
+            if (meeting.status == "active" || meeting.isClosed) OutlinedButton(onClick = { actions.recordings(meeting.id) }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("meeting-detail-recordings")) { MeetingActionLabel(Icons.Outlined.PlayCircleOutline, "Записи и материалы", "meeting-detail-recordings-icon") }
         }
     }
+    if (invite) MeetingInvitationDialog(state.invitation, actions.invitations) { invite = false }
+}
+
+@Composable
+private fun MeetingActionLabel(icon: ImageVector, text: String, iconTag: String, color: Color = LocalContentColor.current) {
+    Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp).testTag(iconTag), tint = color)
+    Spacer(Modifier.width(8.dp))
+    Text(text, color = color)
 }
 
 @Composable

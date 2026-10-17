@@ -84,6 +84,12 @@ class FoundationViewModel(private val repository: FoundationRepository,
         }
     }
 
+    fun joinGuest(invitation: String, displayName: String) = identityOperation {
+        repository.joinGuest(invitation, displayName)
+        routeFromSession()
+    }
+    fun refreshGuest() = runOperation { repository.refreshGuestMeeting() }
+
     fun login(email: String, password: String) = identityOperation {
         repository.login(email.trim(), password)
         routeFromSession()

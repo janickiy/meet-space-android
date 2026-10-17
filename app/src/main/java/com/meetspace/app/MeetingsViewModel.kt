@@ -3,6 +3,9 @@ package com.meetspace.app
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.meetspace.app.ui.MeetingRoomUiState
+import com.meetspace.app.ui.MeetingRoomActions
+import kotlinx.coroutines.delay
 import com.meetspace.app.ui.MeetingsActions
 import com.meetspace.app.ui.MeetingsLoad
 import com.meetspace.app.ui.MeetingsUiState
@@ -58,7 +61,7 @@ class MeetingsViewModel(
         refreshDetail = ::refreshDetail, create = ::create, edit = ::edit,
         transition = ::transition, join = ::join, joinMeeting = ::joinMeeting, leave = ::leave,
         updateProfile = ::updateProfile, acknowledgeUncertainCreate = ::acknowledgeUncertainCreate,
-        clearMessage = ::clearMessage,
+        clearMessage = ::clearMessage, invitations = MeetingRoomActions(searchUsers = ::searchInviteUsers, invite = ::inviteUsers),
     )
 
     /** Called before logout/profile switches so a pending GET cannot delay credential cleanup. */
@@ -200,8 +203,33 @@ class MeetingsViewModel(
     }
 
     fun closeDetail() {
-        listOf("detail", "self", "history").forEach(::cancel)
-        mutableState.update { it.copy(detailId = null, detail = MeetingsLoad(), self = MeetingsLoad(), history = MeetingsLoad()) }
+        listOf("detail", "self", "history", "invite-search", "invite").forEach(::cancel)
+        mutableState.update { it.copy(detailId = null, detail = MeetingsLoad(), self = MeetingsLoad(), history = MeetingsLoad(), invitation = MeetingRoomUiState()) }
+    }
+
+    private fun canInvite(): Boolean {
+        val s = state.value; val meeting = s.detail.data ?: return false
+        return meeting.status in setOf("created", "scheduled", "active") &&
+            (meeting.ownerId == foundation.state.value.session?.user?.id || meeting.status == "active" && s.self.data?.let { it.canParticipate && it.role == "co_host" } == true)
+    }
+    fun searchInviteUsers(query: String) {
+        val id = state.value.detailId ?: return
+        if (!canInvite()) return
+        val q = query.take(100)
+        mutableState.update { it.copy(invitation = it.invitation.copy(query = q, users = emptyList(), error = null, notice = null)) }
+        request("invite-search", { e -> mutableState.update { it.copy(invitation = it.invitation.copy(error = e.message)) } }) {
+            delay(300); val users = repository.invitationUsers(id, q.trim()); checkCurrent()
+            mutableState.update { it.copy(invitation = it.invitation.copy(users = users)) }
+        }
+    }
+    fun inviteUsers(ids: List<String>, emails: List<String>) {
+        val id = state.value.detailId ?: return
+        if (!canInvite() || state.value.invitation.busy || ids.size + emails.size !in 1..20) return
+        mutableState.update { it.copy(invitation = it.invitation.copy(busy = true, error = null, notice = null)) }
+        request("invite", { e -> mutableState.update { it.copy(invitation = it.invitation.copy(busy = false, error = e.message)) } }) {
+            repository.inviteParticipants(id, ids, emails); checkCurrent()
+            mutableState.update { it.copy(invitation = it.invitation.copy(busy = false, notice = "Приглашения приняты сервером.", query = "", users = emptyList())) }
+        }
     }
 
     fun refreshDetail() {

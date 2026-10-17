@@ -1,0 +1,48 @@
+{
+  "versionName": "0.3.6-beta",
+  "versionCode": 24,
+  "modules": {
+    "app": {
+      "tests": 197,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "core/ssh": {
+      "tests": 66,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "core/media": {
+      "tests": 28,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "core/data": {
+      "tests": 177,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 12
+    }
+  },
+  "lintErrors": 0,
+  "lintWarnings": 56,
+  "finalBuild": "BUILD SUCCESSFUL; 249 tasks up-to-date, 1 executed",
+  "ui": {
+    "selected": 21,
+    "initialPassed": 20,
+    "initialFailures": 1,
+    "initialFailureReason": "ambiguous test selector, identical label in workspace and dialog",
+    "correctedRetryPassed": 1,
+    "finalDistinctPassed": 21,
+    "avd": "MeetSpace_Tablet_API_36"
+  },
+  "packageBuild": {
+    "result": "BUILD SUCCESSFUL",
+    "executed": 4,
+    "upToDate": 117,
+    "reason": "final source whitespace cleanup; no behavior change"
+  }
+}

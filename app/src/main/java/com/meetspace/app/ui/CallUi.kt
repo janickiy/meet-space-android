@@ -224,6 +224,10 @@ fun CallScreen(
             if (prejoin) Prejoin(state, widePrejoin, !phone, maxWidth >= 780.dp, microphone, camera, connect, leave, switchCamera, onWorkspaceTab, profileLabel, joinPending, { devices = true })
             else Column(Modifier.fillMaxSize()) {
                 CallHeader(state, details, compactControls, menu, { menu = it }, share, switchCamera, { refreshRoutes(); audio = true }, openSystemSettings, { recordingDialog = true }, shortHeight)
+                if (!shortHeight && details.room.self != null) Row(Modifier.fillMaxWidth().padding(horizontal = if (phone) 14.dp else 24.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Вы — ${meetingRole(details.room.self?.role).lowercase()}", Modifier.weight(1f), color = CallMuted, fontSize = 11.sp)
+                    TextButton({ openPanel(CallPanel.PARTICIPANTS) }) { Text(if (details.room.self?.role == "owner" && details.room.waiting.isNotEmpty()) "Зал ожидания · ${details.room.waiting.size}" else "Участники", color = Color(0xFFDFE6FF), fontSize = 11.sp) }
+                }
                 Box(Modifier.fillMaxWidth().weight(1f).padding(horizontal = if (phone) 12.dp else 20.dp)
                     .padding(top = if (shortHeight) 4.dp else if (phone) 8.dp else 6.dp, bottom = if (shortHeight) 4.dp else if (phone) 8.dp else 12.dp).testTag("call-body")) {
                     val panel = selectedPanel
@@ -240,7 +244,7 @@ fun CallScreen(
                         val window = (LocalView.current.parent as? DialogWindowProvider)?.window
                         SideEffect { window?.setGravity(if (phone) Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL else Gravity.CENTER) }
                         Box(Modifier.fillMaxWidth().padding(if (phone) 14.dp else 20.dp), contentAlignment = Alignment.Center) {
-                            ParticipantPanel(state, Modifier.widthIn(max = 440.dp).fillMaxWidth(), close, phone)
+                            MeetingRoomPanel(state, details.room, panelActions.room, Modifier.widthIn(max = 520.dp).fillMaxWidth(), close)
                         }
                     }
                 }
@@ -301,7 +305,7 @@ private fun callElapsed(seconds: Long): String {
 
 @Composable
 private fun CallPanelContent(panel: CallPanel, state: CallState, details: CallUiDetails, actions: CallPanelActions, close: () -> Unit, modifier: Modifier) {
-    if (panel == CallPanel.PARTICIPANTS) ParticipantPanel(state, modifier, close)
+    if (panel == CallPanel.PARTICIPANTS) MeetingRoomPanel(state, details.room, actions.room, modifier, close)
     else CallTextPanel(panel, state.title, if (panel == CallPanel.COMMENTS) details.comments else details.chat,
         if (panel == CallPanel.COMMENTS) details.commentCount else null, actions, close, modifier)
 }

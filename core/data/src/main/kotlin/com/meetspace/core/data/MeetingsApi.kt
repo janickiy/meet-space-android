@@ -2,7 +2,7 @@ package com.meetspace.core.data
 
 import com.meetspace.core.model.AppFailure
 import com.meetspace.core.model.FailureKind
-import com.meetspace.core.model.Meeting
+import com.meetspace.core.model.*
 import com.meetspace.core.model.MeetingHistory
 import com.meetspace.core.model.MeetingInput
 import com.meetspace.core.model.MeetingPage
@@ -48,6 +48,29 @@ internal class MeetingsApi(private val api: MeetSpaceApi) {
     suspend fun conference(origin: String, token: String, id: String): Meeting = meetingResponse(
         api.authenticatedRequest(origin, conferencePath(id), token), origin, id)
 
+    suspend fun participants(origin: String, token: String, id: String): List<MeetingParticipant> {
+        val result = mutableListOf<MeetingParticipant>()
+        repeat(10) { page ->
+            val response = decode<ParticipantsResponse>(api.authenticatedRequest(origin, conferencePath(id) + "participants", token, mapOf("limit" to "100", "offset" to "${page * 100}")))
+            success(response.status)
+            val items = response.items.orEmpty().map { it.model() }
+            if (items.size > 100 || items.any { it.conferenceId != id }) throw InvalidContract()
+            result.addAll(items)
+            if (items.size < 100) { if (result.map { it.id }.distinct().size != result.size) throw InvalidContract(); return result }
+        }
+        throw AppFailure(FailureKind.UNAVAILABLE, "Список слишком большой. Обновите участников позже.")
+    }
+    suspend fun control(origin: String, token: String, id: String, participantId: String, action: MeetingModeration?, admit: Boolean?): MeetingParticipant {
+        MessagingApi.inputId(participantId)
+        if (action != null && (action.action !in setOf("mute", "camera", "screen", "kick", "role") ||
+            action.action == "role" && action.role !in setOf("co_host", "participant") ||
+            action.action in setOf("mute", "camera", "screen") && action.blocked == null)) invalidInput()
+        val payload = if (action == null) MessagingApi.fields("decision" to if (admit == true) "admit" else "reject")
+            else MessagingApi.fields("action" to action.action, "blocked" to action.blocked, "role" to action.role)
+        val response = decode<ParticipantResponse>(api.authenticatedRequest(origin, conferencePath(id) + listOf("participants", participantId, if (action == null) "admission" else "moderation"), token, method = "POST", payload = payload.toString()))
+        success(response.status)
+        return response.item.model().also { if (it.id != participantId || it.conferenceId != id) throw InvalidContract() }
+    }
     suspend fun create(origin: String, token: String, input: MeetingInput): Meeting {
         val title = input.title.trim()
         if (title.isEmpty() || title.codePointCount(0, title.length) > 200 || title.any(Char::isISOControl)) invalidInput()
@@ -204,13 +227,14 @@ catch (_: IllegalArgumentException) { throw InvalidContract() }
     val id: String, val conferenceId: String, val userId: String?, val displayName: String,
     val role: String, val status: String, val admissionState: String? = null,
     val joinedAt: String? = null, val leftAt: String? = null,
+    val microphoneBlocked: Boolean = false, val cameraBlocked: Boolean = false, val screenBlocked: Boolean = false,
 ) {
     fun model(): MeetingParticipant {
         wireId(id); wireId(conferenceId); userId?.let(::wireId)
         safeText(displayName, 256); safeText(role, 64); safeText(status, 64); admissionState?.let { safeText(it, 64) }
         if (role.isBlank() || status.isBlank()) throw InvalidContract()
         return MeetingParticipant(id, conferenceId, userId, displayName, role, status, admissionState,
-            joinedAt?.let(::instant), leftAt?.let(::instant))
+            joinedAt?.let(::instant), leftAt?.let(::instant), microphoneBlocked, cameraBlocked, screenBlocked)
     }
 }
 @Serializable private data class HistoryResponse(val status: String, val item: HistoryDto)
@@ -219,3 +243,5 @@ catch (_: IllegalArgumentException) { throw InvalidContract() }
     val recordings: RecordingDto, val chatAvailable: Boolean, val chatReadOnly: Boolean)
 @Serializable private data class OwnerDto(val id: String, val displayName: String? = null)
 @Serializable private data class RecordingDto(val total: Long, val ready: Long, val processing: Long, val failed: Long)
+
+@Serializable private data class ParticipantsResponse(val status: String, val items: List<ParticipantDto>? = null)

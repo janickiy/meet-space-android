@@ -14,6 +14,7 @@ interface RecordingsRepository {
     suspend fun recordings(conferenceId: String, offset: Int = 0, limit: Int = 20): RecordingPage
     suspend fun recording(conferenceId: String, recordingId: String): Recording
     /** Rechecks backend access. This lease is closed on logout/server/account change. */
+    suspend fun deleteRecording(conferenceId: String, recordingId: String): Unit = throw AppFailure(FailureKind.UNAVAILABLE, "Удаление записи недоступно.")
     suspend fun recordingAccess(conferenceId: String, recordingId: String, fileId: String): RecordingAccess
     suspend fun recordingTranscript(conferenceId: String, recordingId: String): RecordingTranscriptState
     suspend fun recordingSegments(conferenceId: String, recordingId: String, offset: Int = 0, limit: Int = 100): RecordingSegmentPage

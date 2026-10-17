@@ -9,6 +9,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.foundation.selection.selectable
+import com.meetspace.core.model.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Alignment
@@ -35,6 +40,8 @@ import androidx.compose.ui.window.DialogWindowProvider
 enum class CallRecordingStatus { UNKNOWN, STOPPED, STARTING, RECORDING, PAUSED, STOPPING }
 
 data class CallRecordingUiState(
+    val modes: List<String> = emptyList(),
+    val selectedMode: String = "composite",
     val status: CallRecordingStatus = CallRecordingStatus.UNKNOWN,
     val busy: Boolean = false,
     val canStart: Boolean = false,
@@ -47,6 +54,7 @@ data class CallRecordingUiState(
 )
 
 data class CallRecordingActions(
+    val selectMode: (String) -> Unit = {},
     val start: () -> Unit = {},
     val pause: () -> Unit = {},
     val resume: () -> Unit = {},
@@ -128,10 +136,24 @@ internal fun CallRecordingDialog(title: String, state: CallRecordingUiState, act
                     Text(error, color = colors.error, fontSize = 13.sp, lineHeight = 22.sp, modifier = Modifier.testTag("call-recording-error").semantics { liveRegion = LiveRegionMode.Polite })
                     TextButton(actions.retry, Modifier.heightIn(min = 48.dp).testTag("call-recording-retry"), enabled = !state.busy) { Text("Обновить состояние") }
                 }
+                if (state.status == CallRecordingStatus.STOPPED && state.canStart) {
+                    Text("Режим записи", fontWeight = FontWeight.SemiBold)
+                    state.modes.forEach { mode ->
+                        val selected = mode == state.selectedMode
+                        Surface(shape = RoundedCornerShape(12.dp), color = if (selected) colors.primaryContainer else colors.surface,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, if (selected) colors.primary else colors.outlineVariant),
+                            modifier = Modifier.fillMaxWidth().selectable(selected, enabled = !state.busy, role = Role.RadioButton) { actions.selectMode(mode) }.testTag("recording-mode-$mode")) {
+                            Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                RadioButton(selected, null)
+                                Column { Text(recordingModeName(mode), fontSize = 13.sp, fontWeight = FontWeight.SemiBold); Text(recordingModeDescription(mode), color = colors.onSurfaceVariant, fontSize = 11.sp) }
+                            }
+                        }
+                    }
+                }
                 val enabled = !state.busy
                 when (state.status) {
                     CallRecordingStatus.STOPPED -> RecordingAction("Начать запись", CallIcons.Circle, enabled && state.canStart, "start", actions.start)
-                    CallRecordingStatus.RECORDING -> RecordingAction("Приостановить запись", CallIcons.Pause, enabled && state.canPause, "pause", actions.pause)
+                    CallRecordingStatus.RECORDING -> if (state.canPause) RecordingAction("Приостановить запись", CallIcons.Pause, enabled, "pause", actions.pause)
                     CallRecordingStatus.PAUSED -> RecordingAction("Продолжить запись", CallIcons.Play, enabled && state.canResume, "resume", actions.resume)
                     else -> Unit
                 }
@@ -152,3 +174,6 @@ private fun RecordingAction(label: String, icon: ImageVector, enabled: Boolean, 
         Icon(icon, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text(label)
     }
 }
+
+internal fun recordingModeName(mode: String) = when (mode) { "audio_only" -> "Только аудио"; "individual_tracks" -> "Отдельные дорожки"; "screen_focus" -> "Фокус на экране"; else -> "Общая запись" }
+internal fun recordingModeDescription(mode: String) = when (mode) { "audio_only" -> "Голоса участников без видео"; "individual_tracks" -> "Файлы участников для монтажа"; "screen_focus" -> "Демонстрация экрана и звук встречи"; else -> "Участники и демонстрация экрана" }

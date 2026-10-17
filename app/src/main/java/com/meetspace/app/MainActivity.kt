@@ -2,6 +2,7 @@ package com.meetspace.app
 
 import android.os.Bundle
 import android.content.Intent
+import android.media.AudioManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -29,6 +30,7 @@ import androidx.compose.ui.graphics.luminance
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.meetspace.app.ui.GuestMeetingLobby
 import com.meetspace.app.ui.FoundationUi
 import com.meetspace.app.ui.FoundationScreen
 import com.meetspace.app.ui.SshWizardUi
@@ -74,6 +76,11 @@ class MainActivity : ComponentActivity() {
                 !AccountDevicePreferencesStore(meetSpace.getSharedPreferences("account-device-preferences", MODE_PRIVATE)).read().autoMute
             })
             val directSession = directCalls.state.collectAsStateWithLifecycle().value
+            DisposableEffect(directSession.incoming && !directSession.ending) {
+                val previous = volumeControlStream
+                if (directSession.incoming && !directSession.ending) volumeControlStream = AudioManager.STREAM_RING
+                onDispose { volumeControlStream = previous }
+            }
             IncomingCallRingtone(directSession)
             val requestedInbox = openInbox.collectAsStateWithLifecycle().value
             val meetingsState = meetingsModel.state.collectAsStateWithLifecycle().value
@@ -109,6 +116,12 @@ class MainActivity : ComponentActivity() {
             val installerModel: InstallerViewModel = viewModel(factory = InstallerViewModel.Factory(meetSpace.installerRepository))
             val installState = installerModel.state.collectAsStateWithLifecycle().value
             val sshState = sshModel.state.collectAsStateWithLifecycle().value
+            LaunchedEffect(state.screen) {
+                if (state.screen != FoundationScreen.INSTALLER) {
+                    sshModel.reset()
+                    installerModel.detach()
+                }
+            }
             LaunchedEffect(requestedInbox, state.repository.session?.user?.id, recordingsState.visible) {
                 // A notification is an explicit navigation request even when Foundation is
                 // temporarily outside composition behind the recording/player route.
@@ -183,15 +196,17 @@ class MainActivity : ComponentActivity() {
                 else if (meetingVisible && !callMinimized.value) MeetingCallHost(meetSpace.callEngine, callState, callDiscussion, callDetails,
                     authScope = listOf(state.repository.selectedProfile?.id, state.repository.selectedProfile?.origin, state.repository.session?.user?.id).joinToString("|"),
                     profileLabel = state.repository.session?.user?.displayLabel.orEmpty(),
-                    onWorkspaceTab = { callDiscussion.actions.open(null); recordingsModel.close(); callMinimized.value = true; workspaceRequest.value = it })
+                    onWorkspaceTab = if (state.repository.session?.guestMeeting != null) null else { tab -> callDiscussion.actions.open(null); recordingsModel.close(); callMinimized.value = true; workspaceRequest.value = tab })
                 else if (recordingsState.visible) RecordingsHost(recordingsModel, recordingsState, recordingPlayback, onWorkspaceTab = { recordingsModel.close(); workspaceRequest.value = it }, profileLabel = state.repository.session?.user?.displayLabel.orEmpty())
+                else if (state.repository.session?.guestMeeting != null) GuestMeetingLobby(state,
+                    join = { state.repository.session?.guestMeeting?.let(meetSpace.callEngine::prepare) }, refresh = model::refreshGuest, leave = model::logout)
                 else foundationHolder.SaveableStateProvider("foundation") { FoundationUi(
                     state = state,
                     onConnect = { recordingsModel.close(); meetingsModel.suspendWork(); messagingModel.suspendWork(); model.connect(it) },
                     onSelectProfile = { recordingsModel.close(); meetingsModel.suspendWork(); messagingModel.suspendWork(); model.selectProfile(it) },
                     onRemoveProfile = { recordingsModel.close(); meetingsModel.suspendWork(); messagingModel.suspendWork(); model.removeProfile(it) },
                     onLogin = { email, password -> recordingsModel.close(); meetingsModel.suspendWork(); messagingModel.suspendWork(); model.login(email, password) },
-                    onRegister = model::register,
+                    onRegister = model::register, onGuest = model::joinGuest,
                     onLogout = { recordingsModel.close(); meetingsModel.suspendWork(); messagingModel.suspendWork(); meetSpace.messagingNotifications.clear(); model.logout() },
                     onTheme = model::theme,
                     onNavigate = model::navigate,
@@ -260,6 +275,7 @@ class MainActivity : ComponentActivity() {
                                     else meetSpace.callEngine.prepare(meeting)
                                 }, recordings = recordingsModel::show), onTab,
                                     callsSearchVisible = callsSearchVisible.value,
+                                    onFolders = { foldersRequested.value = true; onTab(com.meetspace.app.ui.WorkspaceTab.MESSAGES) },
                                     homeContent = { create, schedule, join ->
                                         HomeDashboard(state.repository, messagingState, messagingModel.actions,
                                             meetingsState.actionBusy, meetingsState.actionBusy || meetingsState.creationUncertain,
@@ -296,7 +312,9 @@ class MainActivity : ComponentActivity() {
                             onBack = sshModel::back,
                             onExit = { sshModel.reset(); model.navigate(FoundationScreen.WELCOME) },
                             onClearMessage = sshModel::clearMessage,
-                            onInstall = if (installState.pending != null) null else sshState.request?.let { request -> { installerModel.start(request.endpoint, request.domain) } },
+                            onInstall = if (installState.pending != null) null else sshState.request?.let { request -> {
+                                installerModel.start(request.endpoint, request.domain, sshModel.takeInstallationAccess())
+                            } },
                             onReconnectInstall = if (installState.pending != null) installerModel::reconnect else null,
                         )
                     },

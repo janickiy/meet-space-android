@@ -46,10 +46,10 @@ internal class JschSshTransport : SshTransport {
 
     internal suspend fun executeInstaller(endpoint: SshEndpoint, credentials: SshCredentials, pin: SshHostKey, payload: ByteArray): String {
         require(payload.size <= 512 * 1024)
-        return executeCommand(endpoint, credentials, pin, "if [ \"$(id -u)\" = 0 ]; then exec /usr/bin/python3 -; else exec sudo -n /usr/bin/python3 -; fi", payload, 256 * 1024)
+        return executeCommand(endpoint, credentials, pin, "if [ \"$(id -u)\" = 0 ]; then exec /usr/bin/python3 -; else exec sudo -n /usr/bin/python3 -; fi", payload, 256 * 1024, keepAlive = true)
     }
 
-    private suspend fun executeCommand(endpoint: SshEndpoint, credentials: SshCredentials, pin: SshHostKey, command: String, input: ByteArray, maximumOutput: Int = MAX_STDOUT_BYTES): String {
+    private suspend fun executeCommand(endpoint: SshEndpoint, credentials: SshCredentials, pin: SshHostKey, command: String, input: ByteArray, maximumOutput: Int = MAX_STDOUT_BYTES, keepAlive: Boolean = false): String {
         // Transport owns a separate copy, including when cancellation races queued/blocking work.
         val owned = when (credentials) {
             is SshCredentials.Password -> SshCredentials.Password(credentials.password.copyOf())
@@ -61,6 +61,7 @@ internal class JschSshTransport : SshTransport {
                 val guard = PinnedHostKeyRepository(endpoint, pin, inspectionOnly = false)
                 jsch.setHostKeyRepository(guard)
                 val session = configuredSession(jsch, endpoint, operation)
+                if (keepAlive) { session.setServerAliveInterval(10_000); session.setServerAliveCountMax(18) }
                 var identity: InMemoryIdentity? = null
                 try {
                     operation.checkActive()

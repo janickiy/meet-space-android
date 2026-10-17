@@ -377,6 +377,56 @@ class MeetingsRepositoryTest {
         assertEquals(before, server.requestCount)
     }
 
+    @Test fun `moderation and admission validate identities and send exact commands`() = runBlocking {
+        signIn()
+        val blocked = participant().dropLast(1) + ",\"microphoneBlocked\":true,\"cameraBlocked\":true,\"screenBlocked\":false}"
+        server.enqueue(json("""{"status":"success","items":[$blocked]}"""))
+        val member = repository.participants(ID).single()
+        assertTrue(member.microphoneBlocked); assertTrue(member.cameraBlocked); assertFalse(member.screenBlocked)
+        assertEquals("/api/v1/conferences/$ID/participants?limit=100&offset=0", take().path)
+        server.enqueue(json(participantBody()))
+        repository.admitParticipant(ID, PARTICIPANT, false)
+        val reject = take(); assertEquals("POST", reject.method); assertTrue(reject.path!!.endsWith("/admission")); assertEquals("{\"decision\":\"reject\"}", reject.body.readUtf8())
+        server.enqueue(json(participantBody()))
+        repository.moderateParticipant(ID, PARTICIPANT, com.meetspace.core.model.MeetingModeration("screen", true))
+        val moderation = take(); assertTrue(moderation.path!!.endsWith("/moderation")); assertTrue(moderation.body.readUtf8().contains("\"blocked\":true"))
+        server.enqueue(json(participantBody().replace(ID, OTHER_ID)))
+        assertEquals(FailureKind.INVALID_RESPONSE, failure { repository.moderateParticipant(ID, PARTICIPANT, com.meetspace.core.model.MeetingModeration("kick")) }.kind)
+    }
+    @Test fun `invitation search encodes query and emails are validated before posting`() = runBlocking {
+        signIn(); server.enqueue(json("""{"status":"success","items":[{"id":"$OTHER_USER","displayName":"Peer","email":"peer@example.test"}]}"""))
+        assertEquals(OTHER_USER, repository.invitationUsers(ID, "Peer & team").single().id)
+        val search = take(); assertEquals("Peer & team", search.requestUrl!!.queryParameter("query")); assertEquals("Bearer access-one", search.getHeader("Authorization"))
+        val before = server.requestCount
+        failure { repository.inviteParticipants(ID, emptyList(), listOf("bad-address")) }; assertEquals(before, server.requestCount)
+        server.enqueue(json("""{"status":"success","items":[]}""", 202))
+        repository.inviteParticipants(ID, listOf(OTHER_USER), listOf("external@example.test"))
+        val request = take(); assertEquals("POST", request.method); assertEquals("/api/v1/conferences/$ID/invitations", request.path)
+        assertTrue(request.body.readUtf8().contains("external@example.test"))
+    }
+
+    @Test fun `guest session is conference scoped and never persists credentials or identity`() = runBlocking {
+        server.enqueue(json("""{"version":"dev","commit":"unknown","buildTime":"unknown"}""")); repository.addServer(origin); take()
+        server.enqueue(json("""{"status":"success","accessToken":"guest-access","tokenType":"Bearer","expiresIn":3600,"user":{"id":"$OTHER_USER","email":"guest@guest.invalid","displayName":"Visitor","guestConferenceId":"$ID"}}"""))
+        server.enqueue(json("""{"status":"success","item":${meeting("active")}}"""))
+        server.enqueue(json(participantBody(userId = OTHER_USER).replace("\"role\":\"participant\"", "\"role\":\"guest\"")))
+        repository.joinGuest(CODE, "Visitor")
+        val joined = take(); assertEquals("/api/v1/conference-invites/$CODE/guest", joined.path); assertNull(joined.getHeader("Authorization")); assertNull(joined.getHeader("Cookie"))
+        repeat(2) { assertEquals("Bearer guest-access", take().getHeader("Authorization")) }
+        assertEquals(ID, repository.state.value.session!!.guestMeeting!!.id); assertFalse(repository.state.value.session!!.supportsPersistentSession)
+        assertTrue(credentials.values.isEmpty()); assertNull(profiles.value.profiles.single().accountId)
+        server.enqueue(json("""{"status":"success"}""")); repository.logout(); take()
+        assertNull(repository.state.value.session); assertTrue(credentials.values.isEmpty())
+    }
+    @Test fun `guest join cannot replace a signed in account or send credentials to foreign origin`() = runBlocking {
+        signIn(); val before = server.requestCount
+        assertEquals(FailureKind.CONFLICT, failure { repository.joinGuest(CODE, "Visitor") }.kind)
+        assertEquals(before, server.requestCount)
+        server.enqueue(json("""{"status":"success"}""")); repository.logout(); take()
+        val after = server.requestCount
+        failure { repository.joinGuest("https://foreign.example/i/$CODE", "Visitor") }; assertEquals(after, server.requestCount)
+    }
+
     private suspend fun signIn() {
         server.enqueue(json("""{"version":"dev","commit":"unknown","buildTime":"unknown"}"""))
         repository.addServer(origin)

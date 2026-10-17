@@ -1,0 +1,9 @@
+{
+  "core/media/src/main/kotlin/com/meetspace/core/media/CallEngine.kt": "77137bee2f8c27797f27cf14ed88bb6ed0e946d6307c36992847ad7d1ea2d996",
+  "core/media/src/main/kotlin/com/meetspace/core/media/MicrophoneGainProcessor.kt": "0e6ead142f4f10ab350072ea1ca2d90693afabd5ed111d7d0168e245d4199494",
+  "core/media/src/test/kotlin/com/meetspace/core/media/MicrophoneGainProcessorTest.kt": "6e4ba7962eb316b1f418630ed41e6f3b65d0303b18cd748e92cb423499cac6ce",
+  "app/src/androidTest/java/com/meetspace/app/MicrophoneProcessingNativeTest.kt": "8b3912eb8b63bd71a76b842f0625521fd053a295cb249baf559f1769114fe107",
+  "app/build.gradle.kts": "5e9c8137473ff029db2ec84cf58bd88ea3c19c142a6247119be71d497e8d0059",
+  "frontend/src/media.ts": "5e076c87d95c28068acadca4103fbef9fab5cf9a7b76f6c594a2e5d0adb8262b",
+  "frontend/src/microphoneGain.ts": "ad7d916a19d3cad74709b83980cb321bf2fc91cd37b68858d2ebe2968e06f807"
+}

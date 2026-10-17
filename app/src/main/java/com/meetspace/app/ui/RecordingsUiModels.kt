@@ -27,6 +27,8 @@ data class RecordingLibrary(
 )
 
 data class RecordingsUiState(
+    val selfId: String = "",
+    val deleting: Boolean = false,
     val visible: Boolean = false,
     val library: RecordingLibrary = RecordingLibrary(),
     val meetingPicker: Boolean = false,
@@ -66,6 +68,8 @@ data class RecordingsActions(
     val open: (String) -> Unit = {},
     val closeDetail: () -> Unit = {},
     val refreshDetail: () -> Unit = {},
+    val delete: (Recording) -> Unit = {},
+    val seek: (Long) -> Unit = {},
     val play: (Recording, RecordingFile) -> Unit = { _, _ -> },
     val download: (Recording, RecordingFile) -> Unit = { _, _ -> },
     val cancelDownload: () -> Unit = {},

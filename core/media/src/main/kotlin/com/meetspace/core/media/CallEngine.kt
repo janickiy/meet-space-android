@@ -484,6 +484,7 @@ class CallEngine(
         val adm = JavaAudioDeviceModule.builder(context).setUseHardwareAcousticEchoCanceler(true).setUseHardwareNoiseSuppressor(true).createAudioDeviceModule()
         audioModule = adm; adm.setAudioRecordEnabled(false)
         factory = PeerConnectionFactory.builder().setAudioDeviceModule(adm)
+            .setAudioProcessingFactory(MicrophoneAudioProcessing.factory)
             .setVideoEncoderFactory(DefaultVideoEncoderFactory(base.eglBaseContext, false, false))
             .setVideoDecoderFactory(DefaultVideoDecoderFactory(base.eglBaseContext)).createPeerConnectionFactory()
     }

@@ -40,7 +40,7 @@ class RecordingsViewModel(
         openLibrary = ::openLibraryRecording, chooseMeeting = ::chooseMeeting, allRecordings = ::showLibrary,
         filterMeetings = ::filterMeetings, openMeeting = ::openMeeting, refreshRecordings = ::refreshMeeting,
         moreRecordings = { loadRecordings(true) }, open = ::openRecording, closeDetail = ::closeDetail,
-        refreshDetail = ::loadDetail, play = ::play, cancelDownload = ::cancelDownload,
+        refreshDetail = ::loadDetail, play = ::play, seek = ::seek, delete = ::deleteRecording, cancelDownload = ::cancelDownload,
         loadTranscript = ::loadTranscript, moreSegments = { loadSegments(true) }, loadSummary = ::loadSummary,
         clearMessage = { mutableState.update { it.copy(error = null, notice = null) } },
     )
@@ -48,7 +48,7 @@ class RecordingsViewModel(
     fun show(meetingId: String? = null) {
         if (scope() == null) return
         close()
-        mutableState.value = RecordingsUiState(visible = true)
+        mutableState.value = RecordingsUiState(visible = true, selfId = foundation.state.value.session?.user?.id.orEmpty())
         if (meetingId == null) loadLibrary() else openMeeting(meetingId)
     }
     fun close() {
@@ -284,20 +284,44 @@ class RecordingsViewModel(
             val result = repository.recordingSummary(cid, rid); checkCurrent(); mutableState.update { it.copy(summary = RecordingsLoad(result)) }
         }
     }
-    fun play(recording: Recording, file: RecordingFile) {
+    fun play(recording: Recording, file: RecordingFile) = playAt(recording, file, 0)
+    private fun playAt(recording: Recording, file: RecordingFile, atMs: Long) {
         if (!recording.playable || recording.conferenceId != state.value.meetingId || state.value.mediaBusy) return
         closePlayback()
         mutableState.update { it.copy(mediaBusy = true, error = null) }
         request("media", { failure -> mutableState.update { it.copy(mediaBusy = false, error = failure.message) } }) {
             val access = repository.recordingAccess(recording.conferenceId, recording.id, file.id)
-            try { checkCurrent(); mutablePlayback.value = RecordingPlayback(access, state.value.meeting.data?.title ?: "Запись встречи") }
+            try { checkCurrent(); mutablePlayback.value = RecordingPlayback(access, state.value.meeting.data?.title ?: "Запись встречи").apply { positionMs = atMs } }
             catch (e: Exception) { access.close(); throw e }
             mutableState.update { it.copy(mediaBusy = false) }
         }
     }
     fun closePlayback() { mutablePlayback.value?.access?.close(); mutablePlayback.value = null }
+    fun seek(positionMs: Long) {
+        val record = state.value.detail.data ?: return
+        val file = record.media ?: return
+        val at = positionMs.coerceAtLeast(0).let { value -> (file.durationSec ?: record.durationSec)?.let { value.coerceAtMost(it * 1000) } ?: value }
+        val current = playback.value
+        if (current != null && current.access.file.id == file.id) current.seekRequest.value = (current.seekRequest.value?.first ?: 0) + 1 to at
+        else playAt(record, file, at)
+    }
+    fun deleteRecording(record: Recording) {
+        val s = state.value
+        val meeting = s.library.meetings.find { it.meeting.id == record.conferenceId }?.meeting ?: s.meeting.data
+        if (s.deleting || record.status !in setOf("ready", "partial_ready", "failed", "cancelled") ||
+            s.selfId.isBlank() || (meeting?.id != record.conferenceId || s.selfId != meeting.ownerId) && s.selfId != record.requestedBy) return
+        mutableState.update { it.copy(deleting = true, error = null) }
+        request("delete-recording", { failure -> mutableState.update { it.copy(deleting = false, error = failure.message) } }) {
+            repository.deleteRecording(record.conferenceId, record.id); checkCurrent()
+            closePlayback()
+            if (state.value.detailId == record.id) cancelDetail()
+            mutableState.update { current -> current.copy(deleting = false, notice = "Запись удалена.",
+                recordings = current.recordings.copy(data = current.recordings.data?.let { page -> page.copy(items = page.items.filterNot { it.id == record.id }, nextOffset = page.nextOffset?.let { (it - page.items.count { r -> r.id == record.id }).coerceAtLeast(0) }) }),
+                library = current.library.copy(meetings = current.library.meetings.map { row -> row.copy(recordings = row.recordings.copy(data = row.recordings.data?.let { page -> page.copy(items = page.items.filterNot { it.id == record.id }, nextOffset = page.nextOffset?.let { (it - page.items.count { r -> r.id == record.id }).coerceAtLeast(0) }) })) })) }
+        }
+    }
     fun queueExport(recording: Recording, file: RecordingFile): ExportRequest? {
-        if (scope() == null || state.value.download != null || !recording.playable || recording.conferenceId != state.value.meetingId) return null
+        if (scope() == null || state.value.download != null || recording.status !in setOf("ready", "partial_ready") || !file.available || recording.files.none { it == file } || recording.conferenceId != state.value.meetingId) return null
         return ExportRequest(recording.conferenceId, recording.id, file, scope()!!).also { export = it }
     }
     fun discardExport() { export = null }
@@ -400,6 +424,7 @@ class RecordingsViewModel(
 }
 
 class RecordingPlayback(val access: RecordingAccess, val title: String) {
+    val seekRequest = MutableStateFlow<Pair<Long, Long>?>(null)
     var positionMs: Long = 0
     var playWhenReady: Boolean = true
 }

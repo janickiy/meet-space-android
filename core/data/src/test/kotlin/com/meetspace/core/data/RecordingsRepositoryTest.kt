@@ -31,6 +31,15 @@ class RecordingsRepositoryTest {
     }
     @After fun stop() { server.shutdown() }
 
+    @Test fun `delete uses scoped endpoint and conflict remains visible`() = runBlocking {
+        login(); server.enqueue(json("""{"status":"success"}"""))
+        repository.deleteRecording(CONFERENCE, RECORD)
+        val request = take(); assertEquals("DELETE", request.method); assertEquals("/api/v1/conferences/$CONFERENCE/recordings/$RECORD", request.path)
+        assertEquals("Bearer access", request.getHeader("Authorization")); assertNull(request.getHeader("Cookie"))
+        server.enqueue(json("""{"error":"recording_active"}""").setResponseCode(409))
+        try { repository.deleteRecording(CONFERENCE, RECORD); fail("Conflict expected") } catch (error: AppFailure) { assertEquals(FailureKind.CONFLICT, error.kind) }
+    }
+
     @Test fun `list uses conference scoped offset and preserves next page before ready filtering`() = runBlocking {
         login(); server.enqueue(json("""{"status":"success","items":[${card(status = "processing") }]}"""))
         val page = repository.recordings(CONFERENCE, 20, 1)

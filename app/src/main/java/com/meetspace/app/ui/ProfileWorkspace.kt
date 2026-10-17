@@ -91,6 +91,7 @@ fun ProfileWorkspace(
     var logout by remember { mutableStateOf(false) }
     var privacy by remember { mutableStateOf(false) }
     var deleteAccountDialog by remember { mutableStateOf(false) }
+    var deleteAcknowledged by remember(deleteAccountDialog) { mutableStateOf(false) }
     var deletePassword by remember(repository.selectedProfileId) { mutableStateOf("") }
     val user = repository.session?.user
     val origin = repository.selectedProfile?.origin.orEmpty()
@@ -234,9 +235,10 @@ fun ProfileWorkspace(
                 label = { Text("Пароль") }, visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password), enabled = !busy,
                 modifier = Modifier.fillMaxWidth().testTag("account-delete-password"))
+            Row(verticalAlignment = Alignment.CenterVertically) { Checkbox(deleteAcknowledged, { deleteAcknowledged = it }, modifier = Modifier.testTag("account-delete-acknowledge")); Text("Понимаю, что аккаунт будет удалён без возможности восстановления.", style = MaterialTheme.typography.bodySmall) }
         } },
         confirmButton = { TextButton(onClick = { val password = deletePassword; deletePassword = ""; deleteAccountDialog = false; onDeleteAccount(password) },
-            enabled = !busy && deletePassword.isNotEmpty(), modifier = Modifier.testTag("account-delete-confirm")) { Text("Удалить") } },
+            enabled = !busy && deleteAcknowledged && deletePassword.isNotEmpty(), modifier = Modifier.testTag("account-delete-confirm")) { Text("Удалить") } },
         dismissButton = { TextButton({ deleteAccountDialog = false; deletePassword = "" }, enabled = !busy) { Text("Отмена") } })
     if (privacy) AlertDialog(onDismissRequest = { privacy = false }, title = { Text("MeetSpace ${settings.versionName}") }, text = { Column(Modifier.verticalScroll(rememberScrollState())) { PrivacyContents() } }, confirmButton = { TextButton({ privacy = false }) { Text("Готово") } })
 }

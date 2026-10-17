@@ -102,7 +102,7 @@ fun SshWizardUi(
                 HorizontalDivider()
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Outlined.Lock, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("Пароль и приватный ключ используются в памяти одной проверки. Они не сохраняются в приложении.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Пароль и приватный ключ хранятся только в памяти мастера проверки и установки. Они не записываются на устройство.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
         }
     }

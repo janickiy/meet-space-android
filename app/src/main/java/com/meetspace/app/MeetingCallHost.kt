@@ -19,7 +19,7 @@ import kotlinx.coroutines.withContext
 /** Native document pickers belong to the current account and conference; no persisted URI grants. */
 @Composable
 fun MeetingCallHost(engine: CallEngine, state: CallState, model: CallDiscussionViewModel, details: CallUiDetails,
-    authScope: String, profileLabel: String, onWorkspaceTab: (WorkspaceTab) -> Unit) {
+    authScope: String, profileLabel: String, onWorkspaceTab: ((WorkspaceTab) -> Unit)?) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val effects = rememberCoroutineScope()

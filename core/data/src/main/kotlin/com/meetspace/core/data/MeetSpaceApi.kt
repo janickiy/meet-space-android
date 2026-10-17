@@ -29,6 +29,8 @@ internal val wireJson = Json { ignoreUnknownKeys = true }
 internal class HttpFailure(val statusCode: Int) : Exception()
 internal class InvalidContract : Exception()
 
+internal data class GuestCredentials(val token: String, val user: User, val conferenceId: String)
+
 internal data class LoginCredentials(val token: String, val user: User)
 
 /** No redirects, credential logging or TLS overrides. The injectable client is internal for HTTPS tests. */
@@ -159,7 +161,7 @@ internal class MeetSpaceApi(
         if (!ServerOrigin.matches(origin, url)) throw InvalidContract()
         val body = payload?.toRequestBody("application/json; charset=utf-8".toMediaType())
         val request = Request.Builder().url(url).header("Accept", "application/json")
-            .header("User-Agent", "MeetSpace-Android/0.5")
+            .header("User-Agent", "MeetSpace-Android/0.3.0-beta")
             .header("Authorization", "Bearer $token")
             .method(method, if (method == "GET") null else body ?: "{}".toRequestBody("application/json".toMediaType()))
             .build()
@@ -172,6 +174,17 @@ internal class MeetSpaceApi(
                 segments.firstOrNull() == "conversations" || "recordings" in segments -> 2L * 1024 * 1024
                 else -> MAX_MEETING_RESPONSE_BYTES
             })
+    }
+
+    internal suspend fun joinGuest(origin: String, code: String, displayName: String): GuestCredentials {
+        // code has already been validated by MeetingInvites; no cookies or account bearer are sent.
+        val response = decode<LoginDto>(post(origin, "/api/v1/conference-invites/$code/guest",
+            wireJson.encodeToString(ProfileRequest(displayName)), null, CookieJar.NO_COOKIES))
+        val conferenceId = response.user.guestConferenceId ?: throw InvalidContract()
+        if (!MessagingApi.validId(conferenceId)) throw InvalidContract()
+        if (response.status != "success" || !response.tokenType.equals("Bearer", true) || response.expiresIn !in 1..86400 ||
+            response.accessToken.isBlank() || response.accessToken.length > 16384 || response.accessToken.any { it.isWhitespace() || it.isISOControl() } || response.user.isAdmin) throw InvalidContract()
+        return GuestCredentials(response.accessToken, response.user.copy(guestConferenceId = null).asAccount(), conferenceId)
     }
 
     private fun loginResponse(body: String): LoginCredentials {
@@ -192,7 +205,7 @@ internal class MeetSpaceApi(
         withContext(Dispatchers.IO) {
             val request = Request.Builder().url(ServerOrigin.url(origin, path))
                 .header("Accept", "application/json")
-                .header("User-Agent", "MeetSpace-Android/0.2")
+                .header("User-Agent", "MeetSpace-Android/0.3.0-beta")
             token?.let { request.header("Authorization", "Bearer $it") }
             payload?.let { request.post(it.toRequestBody("application/json; charset=utf-8".toMediaType())) }
             client(jar).newCall(request.build()).awaitJsonBody(expectedStatus = expectedStatus)

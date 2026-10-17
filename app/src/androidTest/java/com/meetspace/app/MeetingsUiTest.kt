@@ -25,6 +25,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -285,12 +286,68 @@ class MeetingsUiTest {
         var changed: Pair<String, MeetingTransition>? = null
         compose.setContent { Screen(WorkspaceTab.CALLS, detailState(meeting.copy(status = "scheduled", scheduledAt = at.plusSeconds(3600))), MeetingsActions(transition = { id, transition -> changed = id to transition })) }
         compose.onNodeWithTag("meeting-detail-start").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("meeting-detail-start-icon", useUnmergedTree = true).assertIsDisplayed()
         compose.onNodeWithTag("meeting-detail-edit").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("meeting-detail-edit-icon", useUnmergedTree = true).assertIsDisplayed()
         compose.onNodeWithTag("meeting-detail-join").assertDoesNotExist()
         compose.onNodeWithTag("meeting-detail-cancel").performScrollTo().performClick()
         compose.runOnIdle { assertNull(changed) }
         compose.onNodeWithTag("meeting-confirm-transition").performClick()
         compose.runOnIdle { assertEquals(meeting.id to MeetingTransition.CANCEL, changed) }
+    }
+
+    @Test fun meetingDetailIconsKeepAccessibleLabelsAndWorkingActionsAtLargeText() {
+        var state by mutableStateOf(detailState(meeting.copy(status = "active", inviteCode = "fixture-invite"))
+            .copy(self = MeetingsLoad(member.copy(status = "joined"))))
+        var left: String? = null
+        var called: String? = null
+        var recordings: String? = null
+        var transition: MeetingTransition? = null
+        compose.setContent {
+            DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(390.dp, 844.dp))) {
+                val density = LocalDensity.current
+                CompositionLocalProvider(LocalDensity provides Density(density.density, 1.5f)) {
+                    Screen(WorkspaceTab.CALLS, state, MeetingsActions(
+                        leave = { left = it }, call = { called = it.id }, recordings = { recordings = it },
+                        transition = { _, value -> transition = value },
+                    ), width = 390)
+                }
+            }
+        }
+        compose.onNodeWithTag("meeting-detail-recordings").performScrollTo()
+        screenshot("meeting-actions.png", File(InstrumentationRegistry.getInstrumentation().targetContext.filesDir, "ssh-access-icons"))
+        listOf(
+            "meeting-detail-leave" to "Выйти из встречи",
+            "meeting-call" to "Подключиться к звонку",
+            "meeting-copy-invite" to "Скопировать приглашение",
+            "meeting-invite-users" to "Пригласить участников",
+            "meeting-detail-finish" to "Завершить для всех",
+            "meeting-detail-recordings" to "Записи и материалы",
+        ).forEach { (tag, label) ->
+            compose.onNodeWithTag(tag).performScrollTo().assertIsDisplayed().assertTextEquals(label)
+            compose.onNodeWithTag("$tag-icon", useUnmergedTree = true)
+                .assertIsDisplayed().assertWidthIsEqualTo(20.dp).assertHeightIsEqualTo(20.dp)
+                .assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.ContentDescription))
+            assertReadableTextAtActualBounds(compose.onNode(hasText(label) and hasAnyAncestor(hasTestTag(tag)), useUnmergedTree = true), label)
+        }
+        compose.onNodeWithTag("meeting-detail-leave").performScrollTo().performClick()
+        compose.onNodeWithTag("meeting-call").performScrollTo().performClick()
+        compose.onNodeWithTag("meeting-detail-recordings").performScrollTo().performClick()
+        compose.runOnIdle {
+            assertEquals(meeting.id, left)
+            assertEquals(meeting.id, called)
+            assertEquals(meeting.id, recordings)
+            state = state.copy(actionBusy = true)
+        }
+        listOf("meeting-detail-leave", "meeting-call", "meeting-detail-finish").forEach { tag ->
+            compose.onNodeWithTag(tag).performScrollTo().assertIsNotEnabled()
+        }
+        compose.runOnIdle { state = state.copy(actionBusy = false) }
+        compose.onNodeWithTag("meeting-detail-finish").performScrollTo().performClick()
+        compose.runOnIdle { assertNull(transition) }
+        compose.onNodeWithTag("meeting-confirm-transition-icon", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithTag("meeting-confirm-transition").performClick()
+        compose.runOnIdle { assertEquals(MeetingTransition.FINISH, transition) }
     }
 
     @Test fun cohostAndUnknownStatusesDoNotGrantOwnerActions() {
@@ -506,12 +563,14 @@ class MeetingsUiTest {
         file.outputStream().use { assertTrue(image.compress(Bitmap.CompressFormat.PNG, 100, it)) }
     }
 
-    private fun screenshot(name: String) {
+    private fun screenshot(name: String, directory: File? = null) {
         val instrumentation = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
         val device = androidx.test.uiautomator.UiDevice.getInstance(instrumentation)
         compose.waitForIdle()
         android.os.SystemClock.sleep(450)
-        assertTrue(device.takeScreenshot(java.io.File(instrumentation.targetContext.cacheDir, name)))
+        val target = directory ?: instrumentation.targetContext.cacheDir
+        assertTrue(target.isDirectory || target.mkdirs())
+        assertTrue(device.takeScreenshot(File(target, name)))
     }
 
     private fun replace(tag: String, value: String) {

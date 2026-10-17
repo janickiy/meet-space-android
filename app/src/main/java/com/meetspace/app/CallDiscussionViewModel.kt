@@ -56,13 +56,14 @@ class CallDiscussionViewModel(
     private var recordingBusy = false
     private var recordingError: String? = null
     private var meetingOwner: String? = null
+    private var recordingMode = "composite"
 
     init { viewModelScope.launch { foundation.state.collect {
         if (identity != account()) { clear(); identity = account() }
     } } }
 
     val actions get() = CallPanelActions(
-        open = ::open,
+        open = ::open, room = MeetingRoomActions(refresh = ::loadParticipants, admit = ::admit, moderate = ::moderate, searchUsers = ::searchInviteUsers, invite = ::invite),
         chatDraft = { draft(CallPanel.CHAT, it) }, sendChat = { send(CallPanel.CHAT) },
         retryChat = { retry(CallPanel.CHAT) }, moreChat = { loadMessages(older = true) },
         commentDraft = { draft(CallPanel.COMMENTS, it) }, sendComment = { send(CallPanel.COMMENTS) },
@@ -71,7 +72,7 @@ class CallDiscussionViewModel(
         removeChatAttachment = ::removeAttachment,
     )
 
-    val recordingActions get() = CallRecordingActions(start = { controlRecording(false) }, stop = { controlRecording(true) }, retry = ::loadRecording)
+    val recordingActions get() = CallRecordingActions(start = { controlRecording(false) }, stop = { controlRecording(true) }, retry = ::loadRecording, selectMode = { mode -> if (mode in state.value.recordingState.modes) { recordingMode = mode; updateRecording() } })
 
     fun bind(value: CallState) {
         if (identity != account()) { clear(); identity = account() }
@@ -101,6 +102,7 @@ class CallDiscussionViewModel(
 
     private fun open(value: CallPanel?) {
         panel = value
+        if (value == CallPanel.PARTICIPANTS) loadParticipants()
         if (value == CallPanel.CHAT || value == CallPanel.COMMENTS) {
             latest()
         }
@@ -153,7 +155,7 @@ class CallDiscussionViewModel(
         target?.let { editPanel(it) { p -> p.copy(draft = "") } }
     }
 
-    private fun refresh() { loadMessages(); loadMeeting(); loadRecording() }
+    private fun refresh() { loadMessages(); loadMeeting(); loadRecording(); loadParticipants() }
 
     private fun loadMessages(older: Boolean = false) {
         if (!connected() || !access || jobs["messages"]?.isActive == true) return
@@ -229,10 +231,46 @@ class CallDiscussionViewModel(
         }, { startedAt = null; tick() })
     }
 
+    private fun updateRoom(edit: (MeetingRoomUiState) -> MeetingRoomUiState) { mutable.value = state.value.copy(room = edit(state.value.room)) }
+    private fun loadParticipants() {
+        if (!connected() || jobs["participants"]?.isActive == true || state.value.room.busy) return
+        updateRoom { it.copy(loading = true, error = null) }
+        request("participants", { meetings.participants(call.conferenceId) }, { people -> updateRoom { it.copy(participants = people, selfId = call.participantId, loading = false) } },
+            { e -> updateRoom { it.copy(loading = false, error = e.message, participants = if (e.kind in setOf(FailureKind.FORBIDDEN, FailureKind.NOT_FOUND)) emptyList() else it.participants) } })
+    }
+    private fun admit(id: String, allow: Boolean) {
+        val room = state.value.room
+        if (room.busy || room.self?.role != "owner") return
+        roomMutation { meetings.admitParticipant(call.conferenceId, id, allow) }
+    }
+    private fun moderate(id: String, action: MeetingModeration) {
+        val room = state.value.room; val person = room.participants.find { it.id == id } ?: return
+        if (room.busy || !canModerateMeeting(room.self, person, action.action)) return
+        roomMutation { meetings.moderateParticipant(call.conferenceId, id, action) }
+    }
+    private fun roomMutation(block: suspend () -> MeetingParticipant) {
+        if (!connected()) return
+        cancel("participants"); updateRoom { it.copy(busy = true, loading = false, error = null, notice = null) }
+        request("room-mutation", block, { person -> updateRoom { it.copy(busy = false, participants = it.participants.map { p -> if (p.id == person.id) person else p }) }; loadParticipants() },
+            { e -> updateRoom { it.copy(busy = false, error = e.message) } })
+    }
+    private fun searchInviteUsers(query: String) {
+        cancel("invite-search"); updateRoom { it.copy(query = query.take(100), users = emptyList(), error = null) }
+        if (query.trim().length < 2) return
+        request("invite-search", { delay(300); meetings.invitationUsers(call.conferenceId, query.trim()) }, { users -> updateRoom { it.copy(users = users) } }, { e -> updateRoom { it.copy(error = e.message) } })
+    }
+    private fun invite(userIds: List<String>, emails: List<String>) {
+        if (!connected() || state.value.room.busy || state.value.room.self?.role !in setOf("owner", "co_host")) return
+        updateRoom { it.copy(busy = true, error = null, notice = null) }
+        request("invite", { meetings.inviteParticipants(call.conferenceId, userIds, emails) },
+            { updateRoom { it.copy(busy = false, notice = "Приглашения поставлены в очередь отправки.", users = emptyList(), query = "") } },
+            { e -> updateRoom { it.copy(busy = false, error = e.message) } })
+    }
+
     private fun loadRecording() {
         if (!connected() || jobs["recording"]?.isActive == true || recordingBusy) return
         request("recording", { recordings.recordings(call.conferenceId) }, { page ->
-            currentRecording = page.items.firstOrNull { it.status in setOf("starting", "recording", "stopping", "finalizing", "uploading", "degraded") }
+            currentRecording = page.items.firstOrNull { it.status in setOf("starting", "recording", "stopping", "processing", "finalizing", "uploading", "degraded") }
             recordingKnown = true; recordingError = null; updateRecording()
         }, { recordingKnown = false; recordingError = it.message; updateRecording() })
     }
@@ -241,23 +279,25 @@ class CallDiscussionViewModel(
         val status = if (!recordingKnown) CallRecordingStatus.UNKNOWN else when (currentRecording?.status) {
             "recording", "degraded" -> CallRecordingStatus.RECORDING
             "starting" -> CallRecordingStatus.STARTING
-            "stopping", "finalizing", "uploading" -> CallRecordingStatus.STOPPING
+            "stopping", "processing", "finalizing", "uploading" -> CallRecordingStatus.STOPPING
             else -> CallRecordingStatus.STOPPED
         }
         val mode = foundation.state.value.session?.capabilities?.recordingModes.orEmpty()
+        if (recordingMode !in mode) recordingMode = mode.firstOrNull().orEmpty()
         val enabled = connected() && activeMeeting && recordingKnown && !recordingBusy
         val owner = selfId() != null && (selfId() == meetingOwner || selfId() == currentRecording?.requestedBy)
         mutable.value = state.value.copy(recording = status == CallRecordingStatus.RECORDING,
-            recordingState = CallRecordingUiState(status = status, busy = recordingBusy,
-                canStart = enabled && currentRecording == null && mode.isNotEmpty(),
+            recordingState = CallRecordingUiState(status = status, busy = recordingBusy, modes = mode, selectedMode = recordingMode,
+                canStart = foundation.state.value.session?.guestMeeting == null && enabled && currentRecording == null && mode.isNotEmpty(),
                 canStop = enabled && owner && currentRecording?.status in setOf("starting", "recording", "degraded"),
                 error = recordingError, description = if (currentRecording?.mode == "composite") "Видео, звук и демонстрация экрана в одной записи." else null, unavailableReason = when {
+                    foundation.state.value.session?.guestMeeting != null -> "Гость не может управлять записью встречи."
                     !connected() -> "Управление станет доступно после подключения к встрече."
                     !activeMeeting -> "Встреча завершена."
                     !recordingKnown -> "Не удалось подтвердить состояние записи. Обновите данные."
                     mode.isEmpty() -> "Запись недоступна на этом сервере."
                     currentRecording != null && !owner -> "Остановить запись может организатор или участник, который её начал."
-                    else -> "Пауза записи пока не поддерживается сервером."
+                    else -> "Остановить запись может её инициатор или организатор встречи."
                 }))
     }
 
@@ -267,7 +307,7 @@ class CallDiscussionViewModel(
         val cid = call.conferenceId
         val rid = currentRecording?.id
         val modes = foundation.state.value.session?.capabilities?.recordingModes.orEmpty()
-        val mode = modes.firstOrNull { it == "composite" } ?: modes.firstOrNull()
+        val mode = recordingMode.takeIf { it in modes }
         if (!stop && mode == null) return
         cancel("recording"); recordingBusy = true; recordingError = null; updateRecording()
         request("recording-control", {
@@ -355,6 +395,7 @@ class CallDiscussionViewModel(
                 delay(1000); tick(); seconds++
                 if (seconds % 5 == 0) loadMessages()
                 if (seconds % 15 == 0) { loadMeeting(); loadRecording() }
+                if (seconds % 5 == 0 && panel == CallPanel.PARTICIPANTS) loadParticipants()
             }
         }
     }
@@ -421,7 +462,7 @@ class CallDiscussionViewModel(
         recordingBusy = false; recordingKnown = false; downloading = null
         upload?.let { it.status = CallAttachmentStatus.UNKNOWN; it.error = if (it.bytes == null) "Чтение файла прервано. Уберите файл и выберите его заново." else "Загрузка прервана. Повторите её или уберите файл." }
         if (upload != null) { publishAttachments(); editBoth { it.copy(error = upload?.error) } }
-        mutable.value = state.value.copy(recording = false)
+        mutable.value = state.value.copy(recording = false, room = MeetingRoomUiState())
         updateRecording()
     }
     fun clear() {

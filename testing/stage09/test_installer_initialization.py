@@ -29,8 +29,10 @@ class InstallerInitializationTests(unittest.TestCase):
         self.bundle = {name:(WORKSPACE/'installer/v1'/name).read_bytes() for name in ('runner.py','release.json','release.sig','trust-root.pem','docker.asc')}
         self.manifest = json.loads(self.bundle['release.json'])
         self.job = str(uuid.uuid4())
+        self.platform = {'os':'ubuntu','osVersion':'24.04','arch':'amd64','cpus':4,'memoryKiB':7*1024**2}
         self.plan = {'issuedAt':int(time.time()),'expiresAt':int(time.time())+900,
             'options':{'domain':'fixture.example.com','publicIpv4':'8.8.8.8','acmeEmail':'fixture@example.com'},'docker':{'installed':True},
+            'platform':self.platform,'dockerPackages':r.docker_packages(self.manifest,self.platform),
             'commit':self.manifest['commit'],'releaseVersion':self.manifest['version'],
             'releaseSha256':r.digest(r.canonical(self.manifest))}
         self.plan['hash'] = r.digest(r.canonical(self.plan))
@@ -45,6 +47,7 @@ class InstallerInitializationTests(unittest.TestCase):
             patch.object(r,'start_unit',side_effect=lambda job:self.starts.append(job)),
             patch.object(r,'unit_active',return_value=True),
             patch.object(r,'dns_check',return_value=['192.0.2.1']),
+            patch.object(r,'platform_facts',return_value=self.platform),
             patch.object(r,'disk_free',return_value=40*1024**3),
         ): self.stack.enter_context(replacement)
 

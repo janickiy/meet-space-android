@@ -58,15 +58,57 @@ internal class InstallerBundle(private val files: Map<String, ByteArray>, allowT
             val hash = value.string("hash")
             require(hash.matches(Regex("[a-f0-9]{64}")))
             require(sha256(canonicalJson(JsonObject(value.filterKeys { it != "hash" })).toByteArray()) == hash)
-            require(value.string("releaseSha256") == sha256(canonicalJson(manifest).toByteArray()))
-            require(value.string("commit") == manifest.string("commit"))
-            require(value.string("releaseVersion") == manifest.string("version"))
+            val release = effectiveManifest(value)
+            require(value.string("releaseSha256") == sha256(canonicalJson(release).toByteArray()))
+            require(value.string("commit") == release.string("commit"))
+            require(value.string("releaseVersion") == release.string("version"))
             val options = value.getValue("options").jsonObject
+            val resourceProfile = value.optional("resourceProfile")
+            require(resourceProfile == null || resourceProfile in setOf("standard", "compact-test"))
+            val docker = value.getValue("docker").jsonObject
+            val installCompose = docker["installCompose"]?.jsonPrimitive?.boolean ?: false
+            val installBuildx = docker["installBuildx"]?.jsonPrimitive?.boolean ?: false
+            val dockerInstalled = docker.getValue("installed").jsonPrimitive.boolean
+            val missingDockerPlugins = buildList {
+                if (installCompose) add("Compose")
+                if (installBuildx) add("Buildx")
+            }
             return InstallPlan(value.toString(), hash, value.string("releaseVersion"), value.string("commit"),
                 InstallOptions(options.string("domain"), options.string("publicIpv4"), options.string("acmeEmail")),
-                value.getValue("platform").jsonObject.string("arch"), !value.getValue("docker").jsonObject.getValue("installed").jsonPrimitive.boolean,
-                value.getValue("expiresAt").jsonPrimitive.long, value.optional("existingJobId"), value.optional("existingPlanHash"))
+                value.getValue("platform").jsonObject.string("arch"), !dockerInstalled || missingDockerPlugins.isNotEmpty(),
+                value.getValue("expiresAt").jsonPrimitive.long, value.optional("existingJobId"), value.optional("existingPlanHash"),
+                value["sourceLock"]?.jsonObject?.let { "${it.string("channel")}: ${it.string("ref")}" }, release.string("sourceSha256"), resourceProfile,
+                dockerInstalled && missingDockerPlugins.isNotEmpty(), missingDockerPlugins)
         } catch (_: Exception) { throw InstallFailure("PLAN_INVALID") }
+    }
+    /** Only the selected upstream snapshot varies; executable policy and infrastructure stay signed. */
+    private fun effectiveManifest(plan: JsonObject): JsonObject {
+        val lock = plan["sourceLock"]?.jsonObject ?: return manifest
+        require(manifest.optional("sourcePolicy") == "github-latest-stable-v1")
+        require(plan.string("recipeSha256") == sha256(canonicalJson(manifest).toByteArray()))
+        require(lock.keys == setOf("repository", "channel", "ref", "version", "commit", "builtAt", "sourceUrl", "sourceSha256", "sourceFiles"))
+        require(lock.string("repository") == "janickiy/meet-space")
+        val commit = lock.string("commit"); val version = lock.string("version"); val ref = lock.string("ref")
+        require(commit.matches(Regex("[a-f0-9]{40}")))
+        require(lock.string("sourceSha256").matches(Regex("[a-f0-9]{64}")))
+        require(lock.string("sourceUrl") == "https://codeload.github.com/janickiy/meet-space/tar.gz/$commit")
+        require(version.length <= 64 && version.matches(Regex("v?[0-9]+\\.[0-9]+\\.[0-9]+(?:[+-][A-Za-z0-9.-]+)?")))
+        require(ref.matches(Regex("[A-Za-z0-9][A-Za-z0-9._/+-]{0,199}")))
+        require(lock.string("builtAt").matches(Regex("[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z")))
+        val tag = when (lock.string("channel")) {
+            "release" -> { require(version == ref); JsonPrimitive(ref) }
+            "default-branch" -> { require(version == "0.0.0-source.${commit.take(12)}"); JsonNull }
+            else -> error("Invalid selection")
+        }
+        val hashes = lock.getValue("sourceFiles").jsonObject
+        require(hashes.keys == manifest.getValue("sourceFiles").jsonObject.keys)
+        require(hashes.values.all { it.jsonPrimitive.content.matches(Regex("[a-f0-9]{64}")) })
+        return JsonObject(manifest + lock.filterKeys { it in setOf("version", "commit", "builtAt", "sourceUrl", "sourceSha256", "sourceFiles") } + mapOf(
+            "backendTag" to tag,
+            "dockerfiles" to JsonObject(manifest.getValue("dockerfiles").jsonObject.mapValues { (_, entry) ->
+                val file = entry.jsonObject
+                JsonObject(file + ("sha256" to hashes.getValue(file.string("path"))))
+            })))
     }
     companion object { val names = listOf("runner.py", "trust-root.pem", "release.json", "release.sig", "docker.asc") }
 }

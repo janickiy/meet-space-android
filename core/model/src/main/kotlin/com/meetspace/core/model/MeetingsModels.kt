@@ -56,6 +56,7 @@ data class MeetingParticipant(
     val admissionState: String? = null,
     val joinedAt: Instant? = null,
     val leftAt: Instant? = null,
+    val microphoneBlocked: Boolean = false, val cameraBlocked: Boolean = false, val screenBlocked: Boolean = false,
 ) {
     val isAdmitted: Boolean get() = (admissionState.isNullOrEmpty() || admissionState == "admitted") &&
         status in setOf("joined", "left")
@@ -76,3 +77,10 @@ data class MeetingHistory(
     val chatAvailable: Boolean,
     val chatReadOnly: Boolean,
 )
+
+
+data class MeetingModeration(val action: String, val blocked: Boolean? = null, val role: String? = null)
+data class MeetingInviteUser(val id: String, val displayName: String, val email: String)
+fun canModerateMeeting(actor: MeetingParticipant?, target: MeetingParticipant, action: String): Boolean =
+    action in setOf("mute", "camera", "screen", "kick", "role") && actor?.canParticipate == true && actor.conferenceId == target.conferenceId && actor.id != target.id && target.role != "owner" &&
+        target.isAdmitted && (actor.role == "owner" || actor.role == "co_host" && target.role == "participant" && action in setOf("mute", "screen", "kick"))

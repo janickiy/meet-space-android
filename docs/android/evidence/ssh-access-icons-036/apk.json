@@ -1,0 +1,9 @@
+{
+  "apk": "dist/MeetSpace-0.3.6-beta.apk",
+  "sha256": "250682f7de583e34f86e639175f27c733561fb829b226e940ba3f68dbcda1f17",
+  "bytes": 79781605,
+  "versionName": "0.3.6-beta",
+  "versionCode": 24,
+  "signatureValid": true,
+  "sameSignerAsPublished020": true
+}

@@ -25,6 +25,8 @@ internal class RecordingsApi(private val api: MeetSpaceApi) {
         return card(body["item"]?.obj() ?: invalid(), origin, cid).recording.also { if (it.id != rid) invalid() }
     }
 
+    suspend fun delete(origin: String, token: String, cid: String, rid: String) { request(origin, token, path(cid, rid), method = "DELETE") }
+
     suspend fun list(origin: String, token: String, cid: String, offset: Int, limit: Int): RecordingPage {
         if (offset < 0 || offset > Int.MAX_VALUE - 100 || limit !in 1..100) input()
         val body = request(origin, token, path(cid), mapOf("offset" to "$offset", "limit" to "$limit"))
