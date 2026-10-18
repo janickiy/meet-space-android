@@ -194,10 +194,11 @@ class MeetingsUiTest {
     }
 
     @Test fun compactScopePickerDoesNotCollapseInsideScrollingFiltersAt390Dp() {
+        var width by mutableStateOf(390.dp)
         var fontScale by mutableStateOf(1f)
         var chosen: MeetingsScope? = null
         compose.setContent {
-            DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(390.dp, 844.dp))) {
+            DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(width, 1000.dp))) {
                 val density = LocalDensity.current
                 CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale)) {
                     MeetSpaceTheme { MeetingsWorkspace(WorkspaceTab.CALLS, ready, account,
@@ -205,8 +206,8 @@ class MeetingsUiTest {
                 }
             }
         }
-        for (scale in listOf(1f, 1.5f)) {
-            compose.runOnIdle { fontScale = scale }
+        for (viewport in listOf(390.dp, 720.dp)) for (scale in listOf(1f, 1.5f)) {
+            compose.runOnIdle { width = viewport; fontScale = scale }
             compose.onNodeWithTag("meeting-schedule").performScrollTo()
             assertReadableTextAtActualBounds(compose.onNodeWithText("Запланировать", useUnmergedTree = true), "Запланировать", singleLine = true)
             compose.onNodeWithTag("meeting-scope-picker").performScrollTo().assertIsDisplayed()
@@ -215,7 +216,11 @@ class MeetingsUiTest {
                 .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
             assertEquals("The compact filter label must stay on one line at fontScale=$scale", 1, layouts.single().lineCount)
             val bounds = compose.onNodeWithTag("meeting-scope-picker").getUnclippedBoundsInRoot()
-            assertTrue("The compact filter must not push the list away at fontScale=$scale: $bounds", bounds.bottom - bounds.top <= 56.dp)
+            assertTrue("The compact filter must not push the list away at width=$viewport, fontScale=$scale: $bounds", bounds.bottom - bounds.top <= 56.dp)
+            val periodBounds = compose.onNodeWithTag("meeting-period").getUnclippedBoundsInRoot()
+            assertEquals("Filters must share a top edge at width=$viewport, fontScale=$scale", bounds.top.value, periodBounds.top.value, 0.5f)
+            assertEquals("Filters must have equal heights at width=$viewport, fontScale=$scale", (bounds.bottom - bounds.top).value, (periodBounds.bottom - periodBounds.top).value, 0.5f)
+            assertTrue("Both filters need a 48 dp touch target", (bounds.bottom - bounds.top) >= 48.dp && (periodBounds.bottom - periodBounds.top) >= 48.dp)
         }
         compose.onNodeWithTag("meeting-scope-picker").performClick()
         compose.onNodeWithTag("meeting-scope-owned").performClick()
@@ -483,6 +488,78 @@ class MeetingsUiTest {
         compose.onNodeWithTag("meeting-title-${meeting.id}").performScrollTo().performClick()
         compose.runOnIdle { assertEquals(meeting.id, opened) }
         compose.onNodeWithTag("calls").assertIsDisplayed()
+    }
+
+    @Test fun longMeetingTitleStaysReadableAndSeparateFromOptionsWithLargeText() {
+        val title = "Обсуждение новой версии приложения и планирование работы команды"
+        var fontScale by mutableStateOf(1.5f)
+        var opened: String? = null
+        val state = ready.copy(list = MeetingsLoad(MeetingPage(listOf(meeting.copy(title = title, status = "active", startedAt = at, participantCount = 8)), null)))
+        compose.setContent {
+            DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(390.dp, 844.dp))) {
+                val density = LocalDensity.current
+                CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale)) {
+                    MeetSpaceTheme { CallsDashboard(state, account, MeetingsActions(open = { opened = it }), {}, {}, {}, {}) }
+                }
+            }
+        }
+        for (scale in listOf(1.5f, 2f)) {
+            compose.runOnIdle { fontScale = scale; opened = null }
+            val titleNode = compose.onNodeWithTag("meeting-title-${meeting.id}", useUnmergedTree = true)
+            titleNode.performScrollTo()
+            assertReadableTextAtActualBounds(titleNode, title)
+            val titleBounds = titleNode.getUnclippedBoundsInRoot()
+            val options = compose.onNodeWithTag("meeting-options-${meeting.id}")
+            val optionsBounds = options.getUnclippedBoundsInRoot()
+            assertTrue("Options must retain a 48 dp touch target", (optionsBounds.right - optionsBounds.left) >= 48.dp && (optionsBounds.bottom - optionsBounds.top) >= 48.dp)
+            assertTrue("The long title must not overlap options at fontScale=$scale",
+                titleBounds.left >= optionsBounds.right || titleBounds.right <= optionsBounds.left ||
+                    titleBounds.top >= optionsBounds.bottom || titleBounds.bottom <= optionsBounds.top)
+            titleNode.performClick()
+            compose.runOnIdle { assertEquals(meeting.id, opened); opened = null }
+            options.performScrollTo().performClick()
+            compose.runOnIdle { assertEquals(meeting.id, opened) }
+        }
+    }
+
+    /** Opt-in images contain only deterministic fixtures and never access a server. */
+    @Test fun captureMeetingListLayoutFixtures() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        org.junit.Assume.assumeTrue("Opt-in meeting list screenshots", InstrumentationRegistry.getArguments().getString("meetingLayoutScreenshots") == "true")
+        compose.runOnUiThread {
+            compose.activity.enableEdgeToEdge()
+            compose.activity.window.isNavigationBarContrastEnforced = false
+        }
+        var size by mutableStateOf(DpSize(390.dp, 844.dp))
+        var theme by mutableStateOf(ThemeMode.LIGHT)
+        val fixture = ready.copy(listView = MeetingsView.ACTIVE, list = MeetingsLoad(MeetingPage(listOf(
+            meeting.copy(id = "layout-active", title = "Обсуждение новой версии приложения и планирование работы команды", status = "active", startedAt = at, participantCount = 8),
+            meeting.copy(id = "layout-closed", title = "Итоги встречи команды", status = "finished", startedAt = at, finishedAt = at.plusSeconds(2700), participantCount = 5),
+            meeting.copy(id = "layout-undated", title = "Открытая комната для коллег", status = "created", participantCount = 4),
+        ), null)))
+        compose.setContent {
+            DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(size)) {
+                MeetSpaceTheme(theme) {
+                    androidx.compose.material3.Surface(color = MaterialTheme.colorScheme.background) {
+                        CallsDashboard(fixture, account, MeetingsActions(), {}, {}, {}, {})
+                    }
+                }
+            }
+        }
+        val directory = File(instrumentation.targetContext.filesDir, "meetings-layout")
+        assertTrue(directory.isDirectory || directory.mkdirs())
+        for (viewport in listOf(DpSize(390.dp, 844.dp), DpSize(720.dp, 1000.dp), DpSize(1194.dp, 834.dp))) {
+            for (mode in listOf(ThemeMode.LIGHT, ThemeMode.DARK)) {
+                compose.runOnIdle { size = viewport; theme = mode }
+                for ((part, tag) in listOf("top" to "meeting-create", "list" to "meeting-row-layout-active", "materials" to "meeting-row-layout-closed")) {
+                    compose.onNodeWithTag(tag).performScrollTo()
+                    compose.waitForIdle()
+                    val bitmap = compose.onNodeWithTag("calls").captureToImage().asAndroidBitmap()
+                    val file = File(directory, "${viewport.width.value.toInt()}x${viewport.height.value.toInt()}-${mode.name.lowercase()}-$part.png")
+                    file.outputStream().use { assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) }
+                }
+            }
+        }
     }
 
     @Test fun meetingsStageUses780DpButCalendarSidebarRequires840Dp() {

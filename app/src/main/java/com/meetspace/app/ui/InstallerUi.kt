@@ -56,7 +56,6 @@ fun InstallerUi(
     var detailsExpanded by remember(state.ticket?.jobId) { mutableStateOf(false) }
     Scaffold(contentWindowInsets = WindowInsets.safeDrawing, containerColor = MaterialTheme.colorScheme.surface) { padding ->
         IntroFrame(message = listOf(state.screen.name, state.error).joinToString(), modifier = Modifier.padding(padding).imePadding().testTag("installer"), install = true) {
-                TextButton(onClick = onDetach, modifier = Modifier.heightIn(min = 48.dp).testTag("install-detach")) { Text("Закрыть наблюдение") }
                 Text(when (state.status?.state) { "completed" -> "Пространство готово."; "failed", "needs_recovery" -> "Продолжим с этого места."; else -> "Установка MeetSpace" }, style = MaterialTheme.typography.headlineLarge, modifier = Modifier.semantics { heading() })
                 OnboardingProgress(if (state.status?.state == "completed") 5 else 4)
                 Text("${state.endpoint?.user}@${state.endpoint?.host}:${state.endpoint?.port}", style = if (state.screen == InstallScreen.PROGRESS) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyLarge,

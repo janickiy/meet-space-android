@@ -19,8 +19,8 @@ android {
         targetSdk = 36
         buildConfigField("boolean", "FCM_CONFIGURED", firebaseConfigured.toString())
         manifestPlaceholders["fcmConfigured"] = firebaseConfigured.toString()
-        versionCode = 24
-        versionName = "0.3.6-beta"
+        versionCode = 25
+        versionName = "0.3.7-beta"
         testInstrumentationRunner = "com.meetspace.app.MeetSpaceTestRunner"
     }
     sourceSets["main"].assets.apply { srcDir(rootProject.file("installer/v1")); exclude("**/__pycache__/**") }

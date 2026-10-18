@@ -113,7 +113,10 @@ class InstallerUiTest {
         var detached=0;var action=""
         render(InstallerUiState(active=true,screen=InstallScreen.PROGRESS,endpoint=endpoint,plan=plan,ticket=ticket,needsAccess=false,
             status=InstallStatus(ticket.jobId,"running","images",listOf("docker","source"),emptyList(),null)),detach={detached++},control={action=it})
-        compose.onNodeWithTag("install-detach").performScrollTo().performClick();assertEquals(1,detached);assertEquals("",action)
+        compose.onNodeWithTag("install-detach").assertDoesNotExist()
+        compose.onNodeWithText("Закрыть наблюдение").assertDoesNotExist()
+        androidx.test.uiautomator.UiDevice.getInstance(androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()).pressBack()
+        compose.runOnIdle { assertEquals(1,detached);assertEquals("",action) }
         compose.onNodeWithTag("install-cancel").performScrollTo().performClick();assertEquals("cancel",action)
     }
     @Test fun unknownStateNeverShowsSuccessOrConnect() {
