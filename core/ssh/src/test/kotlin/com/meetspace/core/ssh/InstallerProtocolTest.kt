@@ -2,6 +2,8 @@ package com.meetspace.core.ssh
 
 import com.meetspace.core.model.*
 import java.io.File
+import java.security.KeyPairGenerator
+import java.security.Signature
 import java.util.Base64
 import kotlinx.serialization.json.*
 import kotlinx.coroutines.*
@@ -13,6 +15,20 @@ class InstallerProtocolTest {
     // External files are declared as signedInstallerBundle inputs in core/ssh/build.gradle.kts.
     private fun files() = InstallerBundle.names.associateWith { File("../../installer/v1/$it").readBytes() }
     private fun bundle() = InstallerBundle(files())
+    /** Exercise the legacy policy without changing or weakening the shipped signed recipe. */
+    private fun legacySourcePolicyBundle(): InstallerBundle {
+        val files = files().toMutableMap()
+        val key = KeyPairGenerator.getInstance("RSA").apply { initialize(2048) }.generateKeyPair()
+        val manifest = JsonObject(jsonObject(files.getValue("release.json").toString(Charsets.UTF_8)) +
+            ("sourcePolicy" to JsonPrimitive("github-latest-stable-v1")))
+        files["release.json"] = manifest.toString().toByteArray()
+        files["trust-root.pem"] = ("-----BEGIN PUBLIC KEY-----\n" + Base64.getEncoder().encodeToString(key.public.encoded) +
+            "\n-----END PUBLIC KEY-----\n").toByteArray()
+        files["release.sig"] = Signature.getInstance("SHA256withRSA").apply {
+            initSign(key.private); update(files.getValue("release.json"))
+        }.sign()
+        return InstallerBundle(files)
+    }
     private fun failed(code: String, action: () -> Unit) {
         try { action(); fail("Expected rejection") } catch (failure: InstallFailure) { assertEquals(code, failure.code) }
     }
@@ -60,6 +76,27 @@ class InstallerProtocolTest {
         }
         assertEquals("", InstallOptions("example.com", "8.8.8.8").acmeEmail)
     }
+    @Test fun smtpMetadataRejectsMalformedAddressesAndInsecureTransport() {
+        val smtp=InstallSmtpOptions("smtp.example.com",465,"meet@example.com","smtp-user","tls")
+        assertTrue(smtp.isValid());assertTrue(smtp.copy(port=587,tlsMode="starttls").isValid())
+        for (invalid in listOf(smtp.copy(host="https://smtp.example.com"),smtp.copy(port=0),smtp.copy(tlsMode="none"),
+            smtp.copy(from=".meet@example.com"),smtp.copy(from="meet@-example.com"),smtp.copy(username="user\r\n"))) assertFalse(invalid.isValid())
+        assertTrue(isValidInstallSmtpPassword("test-only"));assertFalse(isValidInstallSmtpPassword(""))
+        assertFalse(isValidInstallSmtpPassword("test\nonly"));assertFalse(isValidInstallSmtpPassword("я".repeat(2049)))
+    }
+    @Test fun smtpPlanPreservesPublicMetadataAndRejectsEmbeddedPasswords() {
+        val bundle=bundle()
+        val smtp=buildJsonObject { put("host","smtp.example.com");put("port",465);put("from","meet@example.com");put("username","smtp-user");put("tlsMode","tls") }
+        fun withSmtp(value:JsonObject):JsonObject {
+            val plan=validPlan(bundle)
+            val options=JsonObject(plan.getValue("options").jsonObject+("smtp" to value))
+            val data=JsonObject(plan.filterKeys { it!="hash" }+("options" to options))
+            return JsonObject(data+("hash" to JsonPrimitive(sha256(canonicalJson(data).toByteArray()))))
+        }
+        val plan=bundle.parsePlan(withSmtp(smtp));assertEquals("smtp-user",plan.options.smtp?.username)
+        assertEquals(plan,bundle.parsePlan(jsonObject(plan.json)))
+        failed("PLAN_INVALID") { bundle.parsePlan(withSmtp(JsonObject(smtp+("password" to JsonPrimitive("never-save-this"))))) }
+    }
     @Test fun resourceProfileIsValidatedAndPreservedInSavedPlan() {
         val bundle = bundle()
         fun profile(value: String): JsonObject {
@@ -98,7 +135,7 @@ class InstallerProtocolTest {
         assertTrue(fresh.missingDockerPlugins.isEmpty())
     }
     @Test fun latestSourcePlanBindsRecipeArchiveVersionAndCommit() {
-        val bundle = bundle()
+        val bundle = legacySourcePolicyBundle()
         val commit = "a".repeat(40)
         val lock = buildJsonObject {
             put("repository", "janickiy/meet-space"); put("channel", "release"); put("ref", "0.3.2"); put("version", "0.3.2")
@@ -122,6 +159,13 @@ class InstallerProtocolTest {
             failed("PLAN_INVALID") { bundle.parsePlan(changed) }
         }
         failed("PLAN_INVALID") { bundle.parsePlan(hash(JsonObject(plan + ("recipeSha256" to JsonPrimitive("d".repeat(64)))))) }
+    }
+    @Test fun pinnedProductionRecipeRejectsSourceSelectionOverrides() {
+        val bundle = bundle()
+        assertNull(bundle.manifest.optional("sourcePolicy"))
+        val data = JsonObject(validPlan(bundle).filterKeys { it != "hash" } + ("sourceLock" to buildJsonObject {}))
+        val plan = JsonObject(data + ("hash" to JsonPrimitive(sha256(canonicalJson(data).toByteArray()))))
+        failed("PLAN_INVALID") { bundle.parsePlan(plan) }
     }
     @Test fun completedRequiresAllCheckpointsAndCorrectJobIdentity() {
         val plan = bundle().parsePlan(validPlan(bundle())); val ticket = InstallTicket(SshEndpoint("example.com",22,"root"), plan, "6f0f7f66-ea40-406e-a582-98bb9df557ca")

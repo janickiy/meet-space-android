@@ -58,10 +58,9 @@ class InstallerViewModel(private val repository: SshInstallerRepository) : ViewM
             pending = state.value.pending, credentialReset = state.value.credentialReset)
         if (verified != null) {
             acceptVerifiedAccess(verified)
-            // Host names do not prove a public IPv4. Ask only for that installation
-            // option while retaining the already verified SSH access in memory.
-            if (state.value.options.publicIpv4.isNotEmpty()) prepare(state.value.options)
-            else mutableState.update { it.copy(screen = InstallScreen.ACCESS) }
+            // Review deployment and SMTP options before preparing the immutable plan.
+            // Keep the verified SSH access in memory so credentials are not requested twice.
+            mutableState.update { it.copy(screen = InstallScreen.ACCESS) }
         }
     }
 
@@ -180,10 +179,14 @@ class InstallerViewModel(private val repository: SshInstallerRepository) : ViewM
         }
     }
     /** The same saved job ID is reused after an ambiguous SSH response. Never auto-apply. */
-    fun apply(confirmed: Boolean, dockerConsent: Boolean, acmeConsent: Boolean) {
+    fun apply(confirmed: Boolean, dockerConsent: Boolean, acmeConsent: Boolean, smtpPassword: String = "") {
         if (state.value.busy || state.value.needsAccess || !confirmed || !acmeConsent) return
         val plan = state.value.plan ?: return
         if (plan.installDocker && !dockerConsent) return
+        if (plan.options.smtp != null && !isValidInstallSmtpPassword(smtpPassword)) {
+            mutableState.update { it.copy(error = "Введите пароль SMTP (до 4096 байт, без переноса строки).") }
+            return
+        }
         if (System.currentTimeMillis() / 1000 > plan.expiresAt) {
             clearAccess(); mutableState.update { it.copy(error = "План истёк. Закройте его и получите новый план.", needsAccess = true) }; return
         }
@@ -192,7 +195,9 @@ class InstallerViewModel(private val repository: SshInstallerRepository) : ViewM
             repository.remember(ticket) // Must precede any remote mutation, including a lost apply response.
             currentCoroutineContext().ensureActive()
             mutableState.update { it.copy(ticket = ticket, pending = ticket, screen = InstallScreen.PROGRESS) }
-            val status = withAccess { repository.apply(ticket, it, dockerConsent, acmeConsent, expectedHostKey) }
+            val secret = smtpPassword.takeIf { plan.options.smtp != null }?.toByteArray()
+            val status = try { withAccess { repository.apply(ticket, it, dockerConsent, acmeConsent, expectedHostKey, secret) } }
+                finally { secret?.fill(0) }
             currentCoroutineContext().ensureActive()
             updateStatus(status)
             observe()
@@ -330,6 +335,9 @@ class InstallerViewModel(private val repository: SshInstallerRepository) : ViewM
 }
 
 fun installErrorMessage(code: String): String = when (code) {
+    "INVALID_SMTP", "SMTP_OPTIONS_INVALID", "SMTP_PASSWORD_REQUIRED", "SMTP_PASSWORD_INVALID" -> "Проверьте адрес, порт, отправителя и учётные данные SMTP. Пароль вводится только при запуске установки."
+    "SMTP_CONFIG_INVALID" -> "Не удалось проверить сохранённые настройки почты на сервере. Проверьте закрытый файл SMTP перед продолжением установки."
+    "SMTP_CONNECTION_FAILED", "SMTP_AUTH_FAILED", "SMTP_TLS_FAILED" -> "Не удалось подключиться к почтовому серверу. Проверьте SMTP, пароль и защищённое соединение TLS."
     "INVALID_REQUEST" -> "Сервер не смог обработать запрос установщика. Обновите Android-приложение и повторите получение плана; если ошибка сохраняется, сообщите код INVALID_REQUEST."
     "DISK_SPACE" -> "Недостаточно места: для компактной установки нужно минимум 18 ГиБ свободного диска (около 20 ГБ); рекомендуется 30 ГиБ. Освободите место или увеличьте диск VPS."
     "DNS_FAILED", "DNS_MISMATCH", "PUBLIC_DOMAIN_REQUIRED" -> "Проверьте DNS: домен должен указывать только на публичный IPv4 этого VPS, без CDN и AAAA-записи."

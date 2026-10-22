@@ -18,15 +18,16 @@ class InstallerUiTest {
     private val ticket=InstallTicket(endpoint,plan,"6f0f7f66-ea40-406e-a582-98bb9df557ca")
     private fun render(state:InstallerUiState,apply:(Boolean,Boolean,Boolean)->Unit={_,_,_->},detach:()->Unit={},control:(String)->Unit={},
         onConnect:(String)->Unit={},onCreateAccount:((String)->Unit)?=null,onAuthenticate:(InstallOptions,String,Boolean)->Unit={_,_,_->}) {
-        compose.setContent { MeetSpaceTheme { InstallerUi(state,{}, onAuthenticate,apply,control,detach,{}, onConnect,
+        compose.setContent { MeetSpaceTheme { InstallerUi(state,{}, onAuthenticate,{ a,b,c,_ -> apply(a,b,c) },control,detach,{}, onConnect,
             onCreateAccount=onCreateAccount) } }
     }
-    @Test fun planRequiresNoCertificateEmailAndIgnoresLegacyContact() {
+    @Test fun planAllowsAnOptionalCertificateEmail() {
         var submitted:InstallOptions?=null;var password="";var useKey=true
         render(InstallerUiState(active=true,screen=InstallScreen.ACCESS,endpoint=endpoint,
-            options=plan.options.copy(domain="",publicIpv4="")),onAuthenticate={options,secret,key -> submitted=options;password=secret;useKey=key})
+            options=plan.options.copy(domain="",publicIpv4="",acmeEmail="")),onAuthenticate={options,secret,key -> submitted=options;password=secret;useKey=key})
         compose.onNodeWithTag("install-email").assertDoesNotExist()
         compose.onNodeWithText("Email для сертификата",ignoreCase=true).assertDoesNotExist()
+        compose.onNodeWithTag("install-acme-email").performScrollTo().assertExists()
         compose.onNodeWithTag("install-domain").performScrollTo().performTextInput("meet.example.com")
         compose.onNodeWithTag("install-ip").performScrollTo().performTextInput("8.8.8.8")
         compose.onNodeWithTag("install-password").performScrollTo().performTextInput("test-only")
@@ -44,7 +45,34 @@ class InstallerUiTest {
             .assertTextContains("Рекомендуется: 4 CPU, 8 ГБ RAM и 30 ГиБ свободно",substring=true)
         compose.onNodeWithText("Для параллельных встреч и записи выбирайте рекомендуемую конфигурацию",substring=true).assertExists()
     }
-    @Test fun verifiedHostnameAccessAsksOnlyForAddressWithoutRepeatingSshCredentials() {
+    @Test fun smtpAccessCollectsOnlyPublicOptions() {
+        var submitted:InstallOptions?=null
+        render(InstallerUiState(active=true,screen=InstallScreen.ACCESS,endpoint=endpoint,options=plan.options,needsAccess=false),
+            onAuthenticate={options,_,_->submitted=options})
+        compose.onNodeWithTag("install-smtp-enabled").performScrollTo().performClick()
+        compose.onNodeWithTag("install-plan").performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithTag("install-smtp-host").performScrollTo().performTextInput("smtp.example.com")
+        compose.onNodeWithTag("install-smtp-from").performScrollTo().performTextInput("meet@example.com")
+        compose.onNodeWithTag("install-smtp-username").performScrollTo().performTextInput("smtp-user")
+        compose.onNodeWithTag("install-smtp-password").assertDoesNotExist()
+        compose.onNodeWithTag("install-plan").performScrollTo().assertIsEnabled().performClick()
+        compose.runOnIdle { assertEquals(InstallSmtpOptions("smtp.example.com",465,"meet@example.com","smtp-user","tls"),submitted?.smtp) }
+    }
+    @Test fun smtpPasswordIsRequiredAtApplyAndClearedAfterSubmission() {
+        val smtpPlan=plan.copy(installDocker=false,options=plan.options.copy(smtp=InstallSmtpOptions("smtp.example.com",465,"meet@example.com","smtp-user","tls")))
+        var submitted:String?=null
+        compose.setContent { MeetSpaceTheme { InstallerUi(
+            InstallerUiState(active=true,screen=InstallScreen.PLAN,endpoint=endpoint,plan=smtpPlan,needsAccess=false),
+            {},{_,_,_->},{_,_,_,password->submitted=password},{},{},{},{}) } }
+        compose.onNodeWithTag("install-confirm").performScrollTo().performClick()
+        compose.onNodeWithTag("install-acme-consent").performScrollTo().performClick()
+        compose.onNodeWithTag("install-apply").performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithTag("install-smtp-password").performScrollTo().performTextInput("smtp-test-only")
+        compose.onNodeWithTag("install-apply").performScrollTo().assertIsEnabled().performClick()
+        compose.runOnIdle { assertEquals("smtp-test-only",submitted) }
+        compose.onNodeWithTag("install-apply").assertIsNotEnabled()
+    }
+    @Test fun verifiedHostnameAccessReviewsOptionsWithoutRepeatingSshCredentials() {
         var submitted:InstallOptions?=null; var secret:String?=null; var useKey=true
         render(InstallerUiState(active=true,screen=InstallScreen.ACCESS,endpoint=endpoint,
             options=plan.options.copy(publicIpv4=""),needsAccess=false),onAuthenticate={options,password,key ->
@@ -56,7 +84,7 @@ class InstallerUiTest {
         compose.onNodeWithTag("install-ip").performScrollTo().performTextInput("8.8.8.8")
         compose.onNodeWithTag("install-plan").performScrollTo().assertIsEnabled().performClick()
         compose.runOnIdle {
-            assertEquals(InstallOptions("meet.example.com","8.8.8.8",""),submitted)
+            assertEquals(plan.options,submitted)
             assertEquals("",secret);assertFalse(useKey)
         }
     }

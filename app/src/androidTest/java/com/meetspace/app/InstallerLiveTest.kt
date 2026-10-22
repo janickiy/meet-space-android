@@ -45,7 +45,7 @@ class InstallerLiveTest {
             assertEquals(status.completedPhases,retry.completedPhases);assertEquals("completed",retry.state)
             compose.setContent { MeetSpaceTheme { InstallerUi(
                 InstallerUiState(active=true,screen=InstallScreen.PROGRESS,endpoint=endpoint,options=plan.options,plan=plan,ticket=ticket,status=status),
-                {}, {_,_,_->}, {_,_,_->}, {}, {}, {}, {},
+                {}, {_,_,_->}, {_,_,_,_->}, {}, {}, {}, {},
             ) } }
             compose.onNodeWithTag("install-connect").performScrollTo().assertIsDisplayed()
             val screenshot=File(context.getExternalFilesDir(null),"stage04-live.png")

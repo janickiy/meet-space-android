@@ -48,7 +48,7 @@ import com.meetspace.core.ssh.installPhases
 fun InstallerUi(
     state: InstallerUiState, onImportKey: (Uri) -> Unit,
     onAuthenticate: (InstallOptions, String, Boolean) -> Unit,
-    onApply: (Boolean, Boolean, Boolean) -> Unit, onControl: (String) -> Unit,
+    onApply: (Boolean, Boolean, Boolean, String) -> Unit, onControl: (String) -> Unit,
     onDetach: () -> Unit, onReconnect: () -> Unit, onConnect: (String) -> Unit, onForgetCompleted: () -> Unit = {}, onRefreshPlan: () -> Unit = {},
     onCreateAccount: ((String) -> Unit)? = null,
 ) {
@@ -257,6 +257,14 @@ private fun InstallationPhaseChecklist(status: InstallStatus, stale: Boolean) {
 private fun InstallAccess(state: InstallerUiState, onImport: (Uri) -> Unit, onAuthenticate: (InstallOptions, String, Boolean) -> Unit) {
     var domain by rememberSaveable(state.endpoint) { mutableStateOf(state.options.domain) }
     var ip by rememberSaveable(state.endpoint) { mutableStateOf(state.options.publicIpv4) }
+    var acmeEmail by rememberSaveable(state.endpoint) { mutableStateOf(state.options.acmeEmail) }
+    var smtpEnabled by rememberSaveable(state.endpoint) { mutableStateOf(state.options.smtp != null) }
+    var smtpHost by rememberSaveable(state.endpoint) { mutableStateOf(state.options.smtp?.host.orEmpty()) }
+    var smtpPort by rememberSaveable(state.endpoint) { mutableStateOf(state.options.smtp?.port?.toString() ?: "465") }
+    var smtpFrom by rememberSaveable(state.endpoint) { mutableStateOf(state.options.smtp?.from.orEmpty()) }
+    var smtpUsername by rememberSaveable(state.endpoint) { mutableStateOf(state.options.smtp?.username.orEmpty()) }
+    var smtpStartTls by rememberSaveable(state.endpoint) { mutableStateOf(state.options.smtp?.tlsMode == "starttls") }
+    val smtp = if (smtpEnabled) InstallSmtpOptions(smtpHost.trim(), smtpPort.toIntOrNull() ?: 0, smtpFrom.trim(), smtpUsername.trim(), if (smtpStartTls) "starttls" else "tls") else null
     var useKey by rememberSaveable { mutableStateOf(false) }
     // Deliberately not rememberSaveable: no secret in SavedState, disk, UI logs or navigation args.
     var password by remember(state.credentialReset, useKey) { mutableStateOf("") }
@@ -268,17 +276,43 @@ private fun InstallAccess(state: InstallerUiState, onImport: (Uri) -> Unit, onAu
             Text("Нужен root или sudo без пароля. DNS A должен указывать на этот IPv4; IPv6 и CDN пока не поддерживаются.")
             OutlinedTextField(domain, { domain = it }, shape = RoundedCornerShape(10.dp), colors = onboardingFieldColors(), textStyle = onboardingInputStyle(), label = { Text("Домен MeetSpace", fontSize = 11.sp) }, singleLine = true, enabled = !state.busy && state.needsAccess, modifier = Modifier.fillMaxWidth().testTag("install-domain"))
             OutlinedTextField(ip, { ip = it }, shape = RoundedCornerShape(10.dp), colors = onboardingFieldColors(), textStyle = onboardingInputStyle(), label = { Text("Публичный IPv4 VPS", fontSize = 11.sp) }, singleLine = true, enabled = !state.busy, modifier = Modifier.fillMaxWidth().testTag("install-ip"))
+            InstallOptionField(acmeEmail, { acmeEmail = it }, "Email для HTTPS-сертификата", "install-acme-email", !state.busy, KeyboardType.Email)
+            HorizontalDivider()
+            Text("Уведомления по почте", style = MaterialTheme.typography.titleMedium)
+            Text("Приглашение отправляется сразу, напоминание — за 3 часа до встречи. Укажите SMTP вашего почтового сервиса.", style = MaterialTheme.typography.bodySmall)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Switch(smtpEnabled, { smtpEnabled = it }, enabled = !state.busy, modifier = Modifier.testTag("install-smtp-enabled"))
+                Spacer(Modifier.width(12.dp)); Text("Настроить отправку email")
+            }
+            if (smtpEnabled) {
+                InstallOptionField(smtpHost, { smtpHost = it }, "Сервер SMTP", "install-smtp-host", !state.busy)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Switch(smtpStartTls, { smtpStartTls = it; smtpPort = if (it) "587" else "465" }, enabled = !state.busy, modifier = Modifier.testTag("install-smtp-starttls"))
+                    Spacer(Modifier.width(12.dp)); Text(if (smtpStartTls) "STARTTLS · обычно порт 587" else "TLS · обычно порт 465")
+                }
+                InstallOptionField(smtpPort, { smtpPort = it }, "Порт SMTP", "install-smtp-port", !state.busy, KeyboardType.Number)
+                InstallOptionField(smtpFrom, { smtpFrom = it }, "Email отправителя", "install-smtp-from", !state.busy, KeyboardType.Email)
+                InstallOptionField(smtpUsername, { smtpUsername = it }, "Логин SMTP", "install-smtp-username", !state.busy)
+                Text("Пароль приложения или SMTP будет запрошен перед установкой. На устройстве он не сохраняется.", style = MaterialTheme.typography.bodySmall)
+            } else Text("Без SMTP письма не отправляются. Подключить почту можно позже на сервере.", style = MaterialTheme.typography.bodySmall)
         } else Text("Восстановление задания ${state.ticket.jobId}. Сначала запросим его состояние; продолжение требует отдельного подтверждения.")
         if (state.needsAccess) {
             Row(verticalAlignment = Alignment.CenterVertically) { Switch(useKey, { useKey = it }, enabled = !state.busy); Spacer(Modifier.width(12.dp)); Text("Войти по приватному ключу") }
             if (useKey) OutlinedButton(shape = RoundedCornerShape(10.dp), onClick = { picker.launch(arrayOf("*/*")) }, enabled = !state.busy, modifier = Modifier.heightIn(min = 48.dp)) { Text(if (state.keyLoaded) "Ключ выбран · заменить" else "Выбрать приватный ключ") }
             OutlinedTextField(password, { password = it }, shape = RoundedCornerShape(10.dp), colors = onboardingFieldColors(), textStyle = onboardingInputStyle(), label = { Text(if (useKey) "Парольная фраза ключа" else "Пароль SSH", fontSize = 11.sp) }, visualTransformation = PasswordVisualTransformation(), singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password), enabled = !state.busy, modifier = Modifier.fillMaxWidth().testTag("install-password"))
-        } else Text("Доступ SSH уже проверен. Укажите публичный IPv4 этого VPS, чтобы подготовить план установки.", modifier = Modifier.testTag("install-access-verified"))
-        Button(shape = RoundedCornerShape(10.dp), onClick = { onAuthenticate(InstallOptions(domain, ip, ""), password, useKey); password = "" }, enabled = !state.busy && (!state.needsAccess || !useKey || state.keyLoaded), modifier = Modifier.heightIn(min = 49.dp).testTag("install-plan")) {
+        } else Text("Доступ SSH уже проверен. Проверьте параметры установки и настройки почты.", modifier = Modifier.testTag("install-access-verified"))
+        Button(shape = RoundedCornerShape(10.dp), onClick = { onAuthenticate(InstallOptions(domain, ip, acmeEmail.trim(), smtp), password, useKey); password = "" }, enabled = !state.busy && (!state.needsAccess || !useKey || state.keyLoaded) && (state.ticket != null || smtp == null || smtp.isValid()), modifier = Modifier.heightIn(min = 49.dp).testTag("install-plan")) {
             Text(if (state.ticket == null) "Получить план без установки" else "Проверить состояние задания")
         }
     }
+}
+
+@Composable
+private fun InstallOptionField(value: String, onChange: (String) -> Unit, label: String, tag: String, enabled: Boolean, keyboardType: KeyboardType = KeyboardType.Text) {
+    OutlinedTextField(value, onChange, shape = RoundedCornerShape(10.dp), colors = onboardingFieldColors(), textStyle = onboardingInputStyle(),
+        label = { Text(label, fontSize = 11.sp) }, singleLine = true, enabled = enabled,
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType), modifier = Modifier.fillMaxWidth().testTag(tag))
 }
 
 @Composable
@@ -290,6 +324,7 @@ private fun InstallPlanCard(plan: InstallPlan) {
         if (compact) Text("Для небольшой нагрузки: 2 CPU, 4 ГБ RAM и около 20 ГБ свободного диска (18 ГиБ). Параллельные встречи и запись требуют больше ресурсов: рекомендуются 4 CPU, 8 ГБ RAM и 30 ГиБ свободного диска. Доступная нагрузка зависит от участников и качества видео.",
             style = MaterialTheme.typography.bodySmall, modifier = Modifier.testTag("install-resource-guidance"))
         Text("https://${plan.options.domain}\nIPv4: ${plan.options.publicIpv4}\nАрхитектура: ${plan.architecture}\nВерсия: ${plan.version}")
+        plan.options.smtp?.let { smtp -> Text("Почта: ${smtp.host}:${smtp.port} · ${smtp.tlsMode.uppercase()}\nОтправитель: ${smtp.from}\nНапоминание о встрече: за 3 часа") }
         SelectionContainer { Text("Commit: ${plan.commit}\nSHA-256 плана: ${plan.hash}", style = MaterialTheme.typography.bodySmall) }
         plan.sourceSelection?.let { Text("Источник GitHub: $it", style = MaterialTheme.typography.bodySmall) }
         plan.sourceSha256?.let { SelectionContainer { Text("SHA-256 исходников: $it", style = MaterialTheme.typography.bodySmall) } }
@@ -305,17 +340,27 @@ private fun InstallPlanCard(plan: InstallPlan) {
 }
 
 @Composable
-private fun InstallConsent(plan: InstallPlan, disabled: Boolean, onApply: (Boolean, Boolean, Boolean) -> Unit) {
+private fun InstallConsent(plan: InstallPlan, disabled: Boolean, onApply: (Boolean, Boolean, Boolean, String) -> Unit) {
     var confirmed by remember(plan.hash) { mutableStateOf(false) }
     var docker by remember(plan.hash) { mutableStateOf(!plan.installDocker) }
     var terms by remember(plan.hash) { mutableStateOf(false) }
+    // This secret never enters saved state, the public plan, or the persisted ticket.
+    var smtpPassword by remember(plan.hash) { mutableStateOf("") }
+    val smtpPasswordValid = plan.options.smtp == null || isValidInstallSmtpPassword(smtpPassword)
     val uri = LocalUriHandler.current
+    if (plan.options.smtp != null) {
+        OutlinedTextField(smtpPassword, { smtpPassword = it }, shape = RoundedCornerShape(10.dp), colors = onboardingFieldColors(), textStyle = onboardingInputStyle(),
+            label = { Text("Пароль SMTP / пароль приложения", fontSize = 11.sp) }, singleLine = true, enabled = !disabled,
+            visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            modifier = Modifier.fillMaxWidth().testTag("install-smtp-password"))
+        Text("Пароль передаётся серверу по SSH только при запуске установки и хранится там в закрытом файле настроек.", style = MaterialTheme.typography.bodySmall)
+    }
     if (plan.installDocker) Consent(if (plan.installDockerPluginsOnly) "Разрешаю установить недостающие компоненты Docker (${plan.dockerPluginNames}) из официального репозитория" else "Разрешаю установить Docker, Compose и Buildx из официального репозитория", docker, !disabled, "install-docker-consent") { docker = it }
     Consent("Принимаю условия Let's Encrypt", terms, !disabled, "install-acme-consent") { terms = it }
     Text("Для выпуска HTTPS-сертификата домен передаётся Let's Encrypt.", style = MaterialTheme.typography.bodySmall)
     TextButton(onClick = { uri.openUri("https://letsencrypt.org/repository/") }) { Text("Условия Let's Encrypt") }
     Consent("Проверил план и разрешаю изменения на этом VPS", confirmed, !disabled, "install-confirm") { confirmed = it }
-    Button(shape = RoundedCornerShape(10.dp), onClick = { onApply(confirmed, docker, terms) }, enabled = !disabled && confirmed && docker && terms,
+    Button(shape = RoundedCornerShape(10.dp), onClick = { onApply(confirmed, docker, terms, smtpPassword); smtpPassword = "" }, enabled = !disabled && confirmed && docker && terms && smtpPasswordValid,
         modifier = Modifier.fillMaxWidth().heightIn(min = 49.dp).testTag("install-apply")) { Text("Установить MeetSpace") }
 }
 private val InstallPlan.dockerPluginNames: String get() = missingDockerPlugins.joinToString("/").ifEmpty { "Compose/Buildx" }

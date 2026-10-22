@@ -17,7 +17,7 @@ import kotlinx.serialization.json.*
 
 interface SshInstallerRepository {
     suspend fun plan(endpoint: SshEndpoint, credentials: SshCredentials, options: InstallOptions, expectedHostKey: SshHostKey? = null): InstallPlan
-    suspend fun apply(ticket: InstallTicket, credentials: SshCredentials, dockerConsent: Boolean, acmeConsent: Boolean, expectedHostKey: SshHostKey? = null): InstallStatus
+    suspend fun apply(ticket: InstallTicket, credentials: SshCredentials, dockerConsent: Boolean, acmeConsent: Boolean, expectedHostKey: SshHostKey? = null, smtpPassword: ByteArray? = null): InstallStatus
     suspend fun control(action: String, ticket: InstallTicket, credentials: SshCredentials, expectedHostKey: SshHostKey? = null): InstallStatus
     suspend fun pending(): InstallTicket?
     suspend fun remember(ticket: InstallTicket)
@@ -42,21 +42,32 @@ internal class AndroidSshInstallerRepository(private val context: Context, priva
             val pin = pins.read(endpoint) ?: throw SshFailure(SshFailureKind.UNTRUSTED_HOST, "Сначала подтвердите ключ SSH-сервера.")
             requireInstallerHostKey(pin, expectedHostKey)
             val payload = withContext(Dispatchers.IO) { bundle.payload(action, data) }
-            parseInstallerReply(transport.executeInstaller(endpoint, credentials, pin, payload))
+            try { parseInstallerReply(transport.executeInstaller(endpoint, credentials, pin, payload)) }
+            finally { payload.fill(0) }
         }
     } finally { credentials.destroy() }
 
-    override suspend fun plan(endpoint: SshEndpoint, credentials: SshCredentials, options: InstallOptions, expectedHostKey: SshHostKey?): InstallPlan {
+    override suspend fun plan(endpoint: SshEndpoint, credentials: SshCredentials, options: InstallOptions, expectedHostKey: SshHostKey?): InstallPlan = try {
         val result = request(endpoint, credentials, "plan", buildJsonObject { put("options", buildJsonObject {
             put("domain", options.domain.trim().lowercase()); put("publicIpv4", options.publicIpv4.trim()); put("acmeEmail", options.acmeEmail.trim())
+            options.smtp?.let { smtp ->
+                require(smtp.isValid())
+                put("smtp", buildJsonObject {
+                    put("host", smtp.host); put("port", smtp.port); put("from", smtp.from)
+                    put("username", smtp.username); put("tlsMode", smtp.tlsMode)
+                })
+            }
         }) }, expectedHostKey)
-        return bundle.parsePlan(result)
-    }
-    override suspend fun apply(ticket: InstallTicket, credentials: SshCredentials, dockerConsent: Boolean, acmeConsent: Boolean, expectedHostKey: SshHostKey?): InstallStatus =
+        bundle.parsePlan(result)
+    } finally { credentials.destroy() }
+    override suspend fun apply(ticket: InstallTicket, credentials: SshCredentials, dockerConsent: Boolean, acmeConsent: Boolean, expectedHostKey: SshHostKey?, smtpPassword: ByteArray?): InstallStatus = try {
+        if (ticket.plan.options.smtp != null) require(smtpPassword != null && smtpPassword.isNotEmpty() && smtpPassword.size <= 4096 && smtpPassword.none { it == 0.toByte() || it == 10.toByte() || it == 13.toByte() })
         parseInstallStatus(request(ticket.endpoint, credentials, "apply", buildJsonObject {
             put("plan", jsonObject(ticket.plan.json)); put("jobId", ticket.jobId); put("confirmedPlanHash", ticket.plan.hash)
             put("confirmDockerInstall", dockerConsent); put("acceptAcmeTerms", acmeConsent)
+            if (ticket.plan.options.smtp != null) put("smtpPassword", requireNotNull(smtpPassword).toString(Charsets.UTF_8))
         }, expectedHostKey), ticket)
+    } finally { smtpPassword?.fill(0); credentials.destroy() }
     override suspend fun control(action: String, ticket: InstallTicket, credentials: SshCredentials, expectedHostKey: SshHostKey?): InstallStatus {
         require(action in setOf("status", "cancel", "resume"))
         return parseInstallStatus(request(ticket.endpoint, credentials, action, buildJsonObject {

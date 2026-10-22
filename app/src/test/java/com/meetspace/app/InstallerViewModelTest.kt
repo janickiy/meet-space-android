@@ -31,12 +31,30 @@ class InstallerViewModelTest {
         model.apply(false,true,true);model.apply(true,false,true);model.apply(true,true,false);runCurrent()
         assertEquals(0,repo.applyCount); assertEquals(InstallScreen.PLAN,model.state.value.screen);model.detach()
     }
-    @Test fun verifiedIpAccessPreparesPlanWithoutSecondPasswordAndStillRequiresConsent() = runTest(dispatcher) {
+    @Test fun smtpSecretIsApplyOnlyAndErasedAfterSuccessOrLostResponse() = runTest(dispatcher) {
+        val smtp = InstallSmtpOptions("smtp.example.com",465,"meet@example.com","smtp-user","tls")
+        for (lostResponse in listOf(false,true)) {
+            val repo=Fake().apply { loseApply=lostResponse };val model=InstallerViewModel(repo)
+            model.start(endpoint,options.domain);model.authenticate(options.copy(smtp=smtp),"ssh-test-only",false);runCurrent()
+            assertEquals(smtp,model.state.value.plan?.options?.smtp)
+            assertNull(repo.smtpBuffer)
+            model.apply(true,true,true);runCurrent();assertEquals(0,repo.applyCount)
+            model.apply(true,true,true,"smtp-test-only");runCurrent()
+            assertEquals(1,repo.applyCount);assertEquals("smtp-test-only",repo.smtpReceived)
+            assertTrue(repo.smtpBuffer!!.all { it==0.toByte() })
+            assertFalse(repo.saved.toString().contains("smtp-test-only"))
+            model.detach()
+        }
+    }
+    @Test fun verifiedIpAccessReviewsSmtpWithoutSecondPasswordAndStillRequiresConsent() = runTest(dispatcher) {
         val target = endpoint.copy(host = "8.8.8.8")
         val original = "test-only".toByteArray()
         val repo = Fake(); val model = InstallerViewModel(repo)
         val transfer = verified(target, bytes = original)
         model.start(target, options.domain, transfer); runCurrent()
+        assertEquals(InstallScreen.ACCESS, model.state.value.screen)
+        assertEquals(0, repo.planCalls)
+        model.authenticate(options, "", false); runCurrent()
         model.start(target, options.domain) // A duplicate wizard tap must not reopen access.
         runCurrent()
         assertEquals(InstallScreen.PLAN, model.state.value.screen)
@@ -69,6 +87,7 @@ class InstallerViewModelTest {
             SshCredentials.PrivateKey(bytes, phrase), 0) { 0 }
         val repo = Fake(); val model = InstallerViewModel(repo)
         model.start(target, options.domain, transfer); runCurrent()
+        model.authenticate(options, "", false); runCurrent()
         assertEquals(1, repo.planCalls); assertFalse(model.state.value.needsAccess)
         val copy = repo.allCaptured.single() as SshCredentials.PrivateKey
         assertTrue(copy.key.all { it == 0.toByte() }); assertTrue(copy.passphrase.all { it == 0.toByte() })
@@ -116,6 +135,7 @@ class InstallerViewModelTest {
         val original = "test-only".toByteArray(); val target = endpoint.copy(host = "8.8.8.8")
         val model = InstallerViewModel(repo)
         model.start(target, options.domain, verified(target, bytes = original)); runCurrent()
+        model.authenticate(options, "", false); runCurrent()
         assertTrue(model.state.value.busy)
         gate.complete(Unit); runCurrent()
         assertEquals(0, repo.planCalls); assertTrue(repo.controls.isEmpty())
@@ -138,6 +158,7 @@ class InstallerViewModelTest {
         val repo = Fake().apply { planGate = gate; ignorePlanCancellation = true }
         val model = InstallerViewModel(repo); val oldBytes = "old-test-only".toByteArray()
         model.start(target, options.domain, verified(target, bytes = oldBytes)); runCurrent()
+        model.authenticate(options, "", false); runCurrent()
         model.detach(); assertTrue(oldBytes.all { it == 0.toByte() })
         repo.planGate = null; repo.ignorePlanCancellation = false
         model.start(endpoint, options.domain); runCurrent()
@@ -154,6 +175,7 @@ class InstallerViewModelTest {
             val repo = Fake(); val model = InstallerViewModel(repo)
             if (outcome == "error") repo.planFailure = "SOURCE_INVALID"
             model.start(target, options.domain, verified(target, bytes = bytes)); runCurrent()
+            model.authenticate(options, "", false); runCurrent()
             if (outcome != "error") {
                 repo.remoteState = if (outcome == "cancel") "running" else outcome
                 model.apply(true, true, true); runCurrent()
@@ -311,6 +333,7 @@ class InstallerViewModelTest {
     private inner class Fake : SshInstallerRepository {
         var saved:InstallTicket?=null;var applyCount=0;var statusCalls=0;var loseApply=false;var missing=false;var expired=false;var lastControl:String?=null;var remoteState="running"
         var statusGate:CompletableDeferred<Unit>?=null;var applyGate:CompletableDeferred<Unit>?=null;var ignoreStatusCancellation=false;var planFailure:String?=null
+        var smtpBuffer:ByteArray?=null;var smtpReceived:String?=null
         var planGate:CompletableDeferred<Unit>?=null;var pendingGate:CompletableDeferred<Unit>?=null;var ignorePlanCancellation=false;var planCalls=0
         val mutations=mutableListOf<String>();val captured=mutableListOf<SshCredentials.Password>();val controls=mutableListOf<String>()
         val allCaptured=mutableListOf<SshCredentials>()
@@ -321,10 +344,11 @@ class InstallerViewModelTest {
             planCalls++;hostKeys+=expectedHostKey
             try {
                 planGate?.let { gate -> if(ignorePlanCancellation)withContext(NonCancellable) { gate.await() } else gate.await() }
-                planFailure?.let { throw InstallFailure(it) };return if(expired)plan.copy(expiresAt=0) else plan
+                planFailure?.let { throw InstallFailure(it) };return if(expired)plan.copy(expiresAt=0,options=options) else plan.copy(options=options)
             } finally { destroy(credentials) }
         }
-        override suspend fun apply(ticket:InstallTicket,credentials:SshCredentials,dockerConsent:Boolean,acmeConsent:Boolean,expectedHostKey:SshHostKey?):InstallStatus {
+        override suspend fun apply(ticket:InstallTicket,credentials:SshCredentials,dockerConsent:Boolean,acmeConsent:Boolean,expectedHostKey:SshHostKey?,smtpPassword:ByteArray?):InstallStatus {
+            smtpBuffer=smtpPassword;smtpReceived=smtpPassword?.toString(Charsets.UTF_8)
             hostKeys+=expectedHostKey;destroy(credentials);applyCount++;mutations+="apply";check(saved==ticket);if(loseApply)throw java.io.IOException();applyGate?.await();return status(ticket)
         }
         override suspend fun control(action:String,ticket:InstallTicket,credentials:SshCredentials,expectedHostKey:SshHostKey?):InstallStatus {

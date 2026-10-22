@@ -39,6 +39,12 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+          cache: gradle
+          cache-dependency-path: |
+            **/*.gradle.kts
+            gradle/libs.versions.toml
+            gradle/wrapper/gradle-wrapper.properties
+            gradle.properties
 
       - name: Install Android tools and isolated emulator image
         run: |

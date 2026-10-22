@@ -63,6 +63,11 @@ internal class InstallerBundle(private val files: Map<String, ByteArray>, allowT
             require(value.string("commit") == release.string("commit"))
             require(value.string("releaseVersion") == release.string("version"))
             val options = value.getValue("options").jsonObject
+            val smtp = options["smtp"]?.takeUnless { it is JsonNull }?.jsonObject?.let {
+                require(it.keys == setOf("host", "port", "from", "username", "tlsMode"))
+                InstallSmtpOptions(it.string("host"), it.getValue("port").jsonPrimitive.int,
+                    it.string("from"), it.string("username"), it.string("tlsMode")).also { smtp -> require(smtp.isValid()) }
+            }
             val resourceProfile = value.optional("resourceProfile")
             require(resourceProfile == null || resourceProfile in setOf("standard", "compact-test"))
             val docker = value.getValue("docker").jsonObject
@@ -74,7 +79,7 @@ internal class InstallerBundle(private val files: Map<String, ByteArray>, allowT
                 if (installBuildx) add("Buildx")
             }
             return InstallPlan(value.toString(), hash, value.string("releaseVersion"), value.string("commit"),
-                InstallOptions(options.string("domain"), options.string("publicIpv4"), options.string("acmeEmail")),
+                InstallOptions(options.string("domain"), options.string("publicIpv4"), options.string("acmeEmail"), smtp),
                 value.getValue("platform").jsonObject.string("arch"), !dockerInstalled || missingDockerPlugins.isNotEmpty(),
                 value.getValue("expiresAt").jsonPrimitive.long, value.optional("existingJobId"), value.optional("existingPlanHash"),
                 value["sourceLock"]?.jsonObject?.let { "${it.string("channel")}: ${it.string("ref")}" }, release.string("sourceSha256"), resourceProfile,
