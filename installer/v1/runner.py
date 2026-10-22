@@ -368,7 +368,8 @@ def plan_resource_profile(plan):
 
 
 def validate_options(options, manifest):
-    if not isinstance(options, dict) or set(options) not in ({"domain", "publicIpv4"}, {"domain", "publicIpv4", "acmeEmail"}):
+    if (not isinstance(options, dict) or not {"domain", "publicIpv4"}.issubset(options)
+            or set(options) - {"domain", "publicIpv4", "acmeEmail", "smtp"}):
         fail("INVALID_REQUEST")
     domain = options["domain"]
     if not isinstance(domain, str) or len(domain) > 253 or domain != domain.lower() or not re.fullmatch(r"[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?", domain):
@@ -390,7 +391,76 @@ def validate_options(options, manifest):
     email = options.get("acmeEmail", "")
     if not isinstance(email, str) or (email and (len(email) > 254 or not re.fullmatch(r"[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,63}", email))):
         fail("INVALID_EMAIL")
-    return {"domain": domain, "publicIpv4": str(ip), "acmeEmail": email}
+    normalized = {"domain": domain, "publicIpv4": str(ip), "acmeEmail": email}
+    if "smtp" in options:
+        normalized["smtp"] = validate_smtp(options["smtp"])
+    return normalized
+
+
+def validate_smtp(options):
+    """Validate public SMTP metadata without accepting credentials in the plan."""
+    if not isinstance(options, dict) or set(options) != {"host", "port", "from", "username", "tlsMode"}:
+        fail("INVALID_SMTP")
+    host = options["host"]
+    if not isinstance(host, str) or not host or len(host) > 253 or any(char in host for char in "/\\\r\n\t @?#%"):
+        fail("INVALID_SMTP")
+    try:
+        ipaddress.ip_address(host)
+    except ValueError:
+        if not all(re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?", label) for label in host.split(".")):
+            fail("INVALID_SMTP")
+    port, sender, username = options["port"], options["from"], options["username"]
+    if (not isinstance(port, int) or isinstance(port, bool) or not 1 <= port <= 65535
+            or options["tlsMode"] not in ("tls", "starttls")
+            or not isinstance(sender, str) or len(sender) > 254
+            or not re.fullmatch(r"[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,63}", sender)
+            or not isinstance(username, str) or not username or len(username.encode("utf-8", errors="replace")) > 512
+            or any(0xD800 <= ord(char) <= 0xDFFF for char in username)
+            or any(ord(char) < 32 or ord(char) == 127 for char in username)):
+        fail("INVALID_SMTP")
+    local, domain = sender.rsplit("@", 1)
+    if (len(local) > 64 or local.startswith(".") or local.endswith(".") or ".." in local
+            or not all(re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?", label) for label in domain.split("."))):
+        fail("INVALID_SMTP")
+    return dict(options)
+
+
+def validate_smtp_password(password):
+    """Accept a bounded apply-only secret; callers must never serialize it into plans."""
+    if (not isinstance(password, str) or not password or len(password.encode("utf-8", errors="replace")) > 4096
+            or any(0xD800 <= ord(char) <= 0xDFFF for char in password)
+            or any(char in password for char in "\r\n\x00")):
+        fail("SMTP_PASSWORD_REQUIRED")
+    return password
+
+
+def smtp_environment(options, password):
+    """Render private Compose env content with literal dollars, quotes and backslashes."""
+    options = validate_smtp(options)
+    password = validate_smtp_password(password)
+    values = {"SMTP_HOST": options["host"], "SMTP_PORT": str(options["port"]),
+              "SMTP_TLS_MODE": options["tlsMode"], "SMTP_FROM": "MeetSpace <" + options["from"] + ">",
+              "SMTP_USERNAME": options["username"], "SMTP_PASSWORD": password, "SMTP_TIMEOUT": "15s"}
+    return ("".join(key + "=" + json.dumps(value, ensure_ascii=False).replace("$", "$$") + "\n"
+                    for key, value in sorted(values.items()))).encode("utf-8")
+
+
+def verify_smtp_environment(path, options):
+    """Check root-private SMTP state before every resumed configuration without logging it."""
+    no_symlink(path)
+    try:
+        info = path.stat()
+        if not stat.S_ISREG(info.st_mode) or info.st_uid != 0 or info.st_mode & 0o077 or info.st_size > 32 * 1024:
+            fail("SMTP_CONFIG_INVALID")
+        raw = path.read_bytes()
+        pairs = [line.split("=", 1) for line in raw.decode("utf-8").splitlines()]
+        if any(len(pair) != 2 for pair in pairs) or len({pair[0] for pair in pairs}) != len(pairs):
+            fail("SMTP_CONFIG_INVALID")
+        values = {key: json.loads(value.replace("$$", "$")) for key, value in pairs}
+        if raw != smtp_environment(options, values.get("SMTP_PASSWORD")):
+            fail("SMTP_CONFIG_INVALID")
+    except (OSError, ValueError, UnicodeError, TypeError):
+        fail("SMTP_CONFIG_INVALID")
 
 
 def ubuntu_suite(platform, *, legacy=False, code="UNSUPPORTED_PLATFORM"):
@@ -699,7 +769,7 @@ def start_unit(value):
          "/usr/bin/python3", str(ROOT / "installer" / "v1" / "runner.py"), "worker", value], code="WORKER_START")
 
 
-def initialize_layout(value, plan, manifest, bundle):
+def initialize_layout(value, plan, manifest, bundle, smtp_password=None):
     # Publish the complete journal and bundle together. An interrupted preparation must
     # not turn the final root into an unknown installation that status/resume cannot read.
     no_symlink(ROOT.parent)
@@ -710,6 +780,8 @@ def initialize_layout(value, plan, manifest, bundle):
         directory.mkdir(mode=0o700, parents=True)
         for name, data in bundle.items():
             write_atomic(prepared / "installer" / "v1" / name, data)
+        if "smtp" in plan["options"]:
+            write_atomic(prepared / "config" / "smtp.env", smtp_environment(plan["options"]["smtp"], smtp_password))
         write_atomic(directory / "plan.json", canonical(plan))
         if "sourceLock" in plan:
             write_atomic(directory / "source-lock.json", canonical(plan["sourceLock"]))
@@ -719,7 +791,10 @@ def initialize_layout(value, plan, manifest, bundle):
                      "sourceSha256": manifest["sourceSha256"], "releaseSha256": digest(canonical(manifest))}))
         # File writes fsync their direct parent. Persist every newly created directory
         # entry as well before making the complete tree visible at its final location.
-        for folder in (directory, prepared / "jobs", prepared / "installer" / "v1", prepared / "installer", prepared):
+        folders = [directory, prepared / "jobs", prepared / "installer" / "v1", prepared / "installer", prepared]
+        if "smtp" in plan["options"]:
+            folders.insert(0, prepared / "config")
+        for folder in folders:
             descriptor = os.open(folder, os.O_DIRECTORY)
             try:
                 os.fsync(descriptor)
@@ -768,7 +843,12 @@ def apply(request, manifest, bundle):
             fail("ACME_TERMS_REQUIRED")
         if docker_install_required(fresh["docker"]) and request.get("confirmDockerInstall") is not True:
             fail("DOCKER_CONFIRMATION_REQUIRED")
-        initialize_layout(value, plan, manifest, bundle)
+        smtp_password = request.get("smtpPassword")
+        if "smtp" in fresh["options"]:
+            validate_smtp_password(smtp_password)
+        elif smtp_password not in (None, ""):
+            fail("INVALID_SMTP")
+        initialize_layout(value, plan, manifest, bundle, smtp_password)
         directory = job_directory(value)
         try:
             start_unit(value)
@@ -872,9 +952,12 @@ def extract_source(archive, destination, commit):
 
 
 def pinned_dockerfile(content, bases, resource_profile="standard"):
+    """Pin build stages and retain architecture-scoped Go/npm caches across retries."""
     resource_profile = plan_resource_profile({"resourceProfile": resource_profile})
     lines, stages = [], {}
-    for line in content.splitlines():
+    source_lines = iter(content.splitlines())
+    kind, cache_key = None, None
+    for line in source_lines:
         if re.match(r"^\s*FROM\s+", line, re.I):
             fields = line.split()
             fields[0] = "FROM"
@@ -882,19 +965,22 @@ def pinned_dockerfile(content, bases, resource_profile="standard"):
             if len(fields) <= index or len(fields) not in (index + 1, index + 3):
                 fail("SOURCE_INCOMPATIBLE")
             image = fields[index]
-            kind = stages.get(image.lower())
+            kind, cache_key = stages.get(image.lower(), (None, None))
             if image.lower() not in stages and image != "scratch":
                 if image not in bases:
                     fail("UNPINNED_BASE_IMAGE")
                 fields[index] = bases[image]
                 kind = "go" if re.match(r"(?:docker\.io/library/)?golang:", image) else "node" if re.match(r"(?:docker\.io/library/)?node:", image) else None
+                cache_key = digest(bases[image].encode())[:16]
             if len(fields) == index + 3:
                 if fields[index + 1].lower() != "as" or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", fields[index + 2]):
                     fail("SOURCE_INCOMPATIBLE")
                 fields[index + 1] = "AS"
-                stages[fields[index + 2].lower()] = kind
+                stages[fields[index + 2].lower()] = (kind, cache_key)
             line = " ".join(fields)
             lines.append(line)
+            if kind in ("go", "node"):
+                lines.append("ARG TARGETARCH")
             if resource_profile == "compact-test":
                 # These ENV instructions precede RUN and take effect in the actual
                 # compiler/npm processes; unused build args alone would not do so.
@@ -902,6 +988,38 @@ def pinned_dockerfile(content, bases, resource_profile="standard"):
                     lines.append("ENV GOMAXPROCS=2 GOFLAGS=-p=1 GOMEMLIMIT=1536MiB")
                 elif kind == "node":
                     lines.append("ENV NODE_OPTIONS=--max-old-space-size=1536 UV_THREADPOOL_SIZE=2 npm_config_jobs=1 GOMAXPROCS=2")
+            continue
+        if kind in ("go", "node") and line.strip() == "ARG TARGETARCH":
+            continue
+        if re.match(r"^\s*RUN\s+", line, re.I):
+            instruction = [line]
+            while instruction[-1].rstrip().endswith("\\"):
+                continuation = next(source_lines, None)
+                if continuation is None:
+                    fail("SOURCE_INCOMPATIBLE")
+                instruction.append(continuation)
+            joined = "\n".join(instruction)
+            targets = []
+            if kind == "go" and re.search(r"\bgo\s+(mod|get|build|install|test|run|generate|list)\b", joined):
+                targets.append(("modules", "/go/pkg/mod"))
+                if re.search(r"\bgo\s+(get|build|install|test|run|generate|list)\b", joined):
+                    targets.append(("build", "/root/.cache/go-build"))
+            elif kind == "node" and re.search(r"\bnpm\s+(ci|install)\b", joined):
+                targets.append(("npm", "/root/.npm"))
+            mounts = ["--mount=type=cache,id=meetspace-installer-" + kind + "-" + cache_key + "-" + name
+                      + "-${TARGETARCH},target=" + target + ",sharing=locked"
+                      for name, target in targets if not re.search(r"(?:target|dst|destination)=" + re.escape(target) + r"(?:,|\s|$)", joined)]
+            if mounts:
+                instruction[0] = re.sub(r"^(\s*RUN\s+)", lambda match: match[1] + " ".join(mounts) + " ", instruction[0], count=1, flags=re.I)
+            # A later ARG with a default can override an earlier ENV in RUN.
+            # Reassert the budget after all upstream declarations, immediately
+            # before each command that executes in a language build stage.
+            if resource_profile == "compact-test":
+                if kind == "go":
+                    lines.append("ENV GOMAXPROCS=2 GOFLAGS=-p=1 GOMEMLIMIT=1536MiB")
+                elif kind == "node":
+                    lines.append("ENV NODE_OPTIONS=--max-old-space-size=1536 UV_THREADPOOL_SIZE=2 npm_config_jobs=1 GOMAXPROCS=2")
+            lines.extend(instruction)
             continue
         lines.append(line)
     return "\n".join(lines) + "\n"
@@ -918,6 +1036,8 @@ class Worker:
         self.compose_file = self.config / "compose.json"
         self.images_file = self.directory / "images.json"
         self.env_file = self.config / "server.env"
+        if "smtp" in self.options:
+            verify_smtp_environment(self.config / "smtp.env", self.options["smtp"])
 
     @property
     def compact(self):
@@ -992,10 +1112,30 @@ class Worker:
         if (self.directory / "cancel").exists():
             fail("CANCELLED")
 
+    def image_timing(self, service, operation, started):
+        """Checkpoint public image timings independently from secret-free phase events."""
+        path = self.directory / "image-timings.json"
+        timings = read_json(path) if path.exists() else {}
+        elapsed = round(max(0, time.monotonic() - started), 3)
+        if operation == "cached" and service in timings:
+            timings[service]["reuseCount"] = timings[service].get("reuseCount", 0) + 1
+            timings[service]["lastReuseSeconds"] = elapsed
+        else:
+            timings[service] = {"operation": operation, "elapsedSeconds": elapsed, "completedAt": int(time.time())}
+        write_atomic(path, canonical(timings))
+        state_write(self.directory, "running", "images:" + service)
+
     def phase_images(self):
         images = read_json(self.images_file) if self.images_file.exists() else {}
         for service, reference in self.manifest["images"].items():
             self.check_cancel()
+            started = time.monotonic()
+            if service in images:
+                details = self.image_details(reference)
+                if details["Id"] != images[service]:
+                    fail("IMAGE_CHANGED")
+                self.image_timing(service, "cached", started)
+                continue
             self.check_build_space()
             run(["docker", "pull", "--platform", "linux/" + self.plan["platform"]["arch"], reference], timeout=900, code="IMAGE_PULL_FAILED")
             details = self.image_details(reference)
@@ -1003,9 +1143,10 @@ class Worker:
                 fail("IMAGE_CHANGED")
             images[service] = details["Id"]
             write_atomic(self.images_file, canonical(images))
+            self.image_timing(service, "pull", started)
         for service in APP_SERVICES:
             self.check_cancel()
-            self.check_build_space()
+            started = time.monotonic()
             recipe = self.manifest["dockerfiles"][service]
             dockerfile = self.release / recipe["path"]
             if digest(dockerfile.read_bytes()) != recipe["sha256"]:
@@ -1017,7 +1158,11 @@ class Worker:
                     fail("IMAGE_CHANGED")
                 if labels.get("io.meetspace.resource-profile", "standard") != plan_resource_profile(self.plan):
                     fail("IMAGE_CHANGED")
+                if details["Id"] != images[service]:
+                    fail("IMAGE_CHANGED")
+                self.image_timing(service, "cached", started)
                 continue
+            self.check_build_space()
             prepared = self.directory / (service + ".Dockerfile")
             write_atomic(prepared, pinned_dockerfile(dockerfile.read_text(), self.manifest["baseImages"], plan_resource_profile(self.plan)).encode())
             context = self.release / recipe["context"]
@@ -1030,11 +1175,12 @@ class Worker:
                  "--build-arg", "BUILD_TIME=" + self.manifest["builtAt"], "--build-arg", "TARGETARCH=" + self.plan["platform"]["arch"],
                  "--build-arg", "CLIENT_TELEMETRY_ENABLED=false", "--label", "org.opencontainers.image.revision=" + self.manifest["commit"],
                  "--label", "io.meetspace.recipe=" + self.plan["releaseSha256"],
-                 "--label", "io.meetspace.resource-profile=" + plan_resource_profile(self.plan), str(context)], timeout=7200 if self.compact else 3600, code="IMAGE_BUILD_FAILED")
+                 "--label", "io.meetspace.resource-profile=" + plan_resource_profile(self.plan), str(context)],
+                timeout=7200 if self.compact else 3600, code="IMAGE_BUILD_FAILED", env=dict(SAFE_ENV, DOCKER_BUILDKIT="1"))
             details = self.image_details(tag)
             images[service] = details["Id"]
             write_atomic(self.images_file, canonical(images))
-            state_write(self.directory, "running", "images:" + service)
+            self.image_timing(service, "build", started)
 
     def environment(self):
         out = {}
@@ -1057,6 +1203,8 @@ class Worker:
 
     def phase_configuration(self):
         self.config.mkdir(mode=0o700, parents=True, exist_ok=True)
+        if "smtp" in self.options:
+            verify_smtp_environment(self.config / "smtp.env", self.options["smtp"])
         for folder in ("recordings", "tls", "acme", "challenge", "backups", *(("product-tmp",) if self.compact else ())):
             path = ROOT / folder
             path.mkdir(mode=0o755 if folder in ("tls", "challenge") else 0o700, exist_ok=True)
@@ -1093,7 +1241,8 @@ class Worker:
                 "HTTP_TRUSTED_PROXIES": subnet, "MEDIA_NAT_IPS": public_ip, "TURN_PUBLIC_IP": public_ip, "TURN_REALM": domain,
                 "TURN_URLS": "turn:" + domain + ":3478?transport=udp,turn:" + domain + ":3478?transport=tcp,turns:" + domain + ":5349?transport=tcp",
                 "RECORDER_STORAGE_DIR": str(ROOT / "recordings"), "TLS_CERT_DIR": str(ROOT / "tls"), "TURN_TLS_CERT_DIR": str(ROOT / "tls"),
-                "DB_MAX_OPEN": "10", "DB_MAX_IDLE": "5", "MEDIA_MAX_ROOMS": "10", "MEDIA_MAX_PEERS": "10"})
+                "DB_MAX_OPEN": "10", "DB_MAX_IDLE": "5", "MEDIA_MAX_ROOMS": "10", "MEDIA_MAX_PEERS": "10",
+                "REMINDER_OFFSETS": "3h"})
             values.update(self.compact_environment())
             write_atomic(self.env_file, ("\n".join(key + "=" + value for key, value in sorted(values.items())) + "\n").encode())
         values = self.environment()
@@ -1145,6 +1294,10 @@ server {
         for name, port in ports.items():
             services[name] = dict(common, image=images[name], read_only=True, mem_limit=memory[name], cpus=2,
                 healthcheck={"test": ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:" + str(port) + "/health/ready"], "interval": "5s", "timeout": "3s", "retries": 18, "start_period": "30s"})
+        if "smtp" in getattr(self, "options", {}):
+            for name in ("api", "product-worker"):
+                services[name].update(env_file=[str(self.env_file), str(self.config / "smtp.env")],
+                                      environment={"EMAIL_PROVIDER_MODE": "smtp"})
         services["media-worker"]["ports"] = ["50010:50010/udp", "50010:50010/tcp"]
         services["worker"].update(user="1000:1000", entrypoint="/app/go-recorder-worker", read_only=False,
             volumes=[str(ROOT / "recordings") + ":/storage"], environment={"WEBRTC_UDP_PORT": "0", "WEBRTC_TCP_PORT": "0"})
@@ -1477,6 +1630,8 @@ def main(action, request):
     if os.geteuid() != 0:
         fail("ROOT_REQUIRED")
     os.umask(0o077)
+    if action != "apply" and isinstance(request, dict) and "smtpPassword" in request:
+        fail("INVALID_REQUEST")
     manifest, bundle = load_bundle()
     if action == "plan":
         return plan_latest(request.get("options"), manifest)

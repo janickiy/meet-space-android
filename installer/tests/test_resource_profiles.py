@@ -184,7 +184,9 @@ class BuildResourceTests(unittest.TestCase):
         self.assertEqual({"GOMAXPROCS": "2", "GOFLAGS": "-p=1", "GOMEMLIMIT": "1536MiB"}, self.stage_environment(build))
         self.assertNotIn("GOMAXPROCS", runtime)
         self.assertNotIn("NODE_OPTIONS", prepared)
-        self.assertIn("RUN go mod download\nRUN go build ./cmd/api", prepared)
+        self.assertIn(" go mod download\n", prepared)
+        self.assertIn(" go build ./cmd/api", prepared)
+        self.assertIn("target=/go/pkg/mod,sharing=locked", prepared)
         self.assertNotIn("golang:1.26-alpine", prepared)
 
     def test_node_budget_is_effective_for_install_and_frontend_build(self):
@@ -196,11 +198,16 @@ class BuildResourceTests(unittest.TestCase):
         self.assertEqual("2", environment["UV_THREADPOOL_SIZE"])
         self.assertNotIn("NODE_OPTIONS", runtime)
         self.assertNotIn("GOFLAGS", prepared)
-        self.assertIn("RUN npm ci\nRUN npm run build", prepared)
+        self.assertIn("target=/root/.npm,sharing=locked npm ci\n", prepared)
+        self.assertIn("RUN npm run build", prepared)
 
     def test_standard_and_legacy_default_do_not_change_build_budget(self):
         source = "FROM golang:1.26-alpine AS build\nRUN go build ./cmd/api\nFROM build AS runtime\n"
-        expected = "FROM " + self.bases["golang:1.26-alpine"] + " AS build\nRUN go build ./cmd/api\nFROM build AS runtime\n"
+        expected = r.pinned_dockerfile(source, self.bases)
+        self.assertIn("FROM " + self.bases["golang:1.26-alpine"], expected)
+        self.assertIn(" go build ./cmd/api\nFROM build AS runtime\n", expected)
+        self.assertNotIn("GOMAXPROCS", expected)
+        self.assertNotIn("GOFLAGS", expected)
         self.assertEqual(expected, r.pinned_dockerfile(source, self.bases))
         self.assertEqual(expected, r.pinned_dockerfile(source, self.bases, resource_profile="standard"))
 

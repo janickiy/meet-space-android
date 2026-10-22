@@ -6,6 +6,8 @@ from test_runner import r, ROOT
 class LatestSourceTests(unittest.TestCase):
     def setUp(self):
         self.recipe = json.loads((ROOT/'installer/v1/release.json').read_bytes())
+        # Exercise compatibility independently of the active release's pinned policy.
+        self.recipe['sourcePolicy'] = r.SOURCE_POLICY
         self.commit = 'a'*40
         self.files = {name:'b'*64 for name in self.recipe['sourceFiles']}
         self.lock = dict(repository='janickiy/meet-space',channel='release',ref='0.3.2',version='0.3.2',commit=self.commit,
@@ -172,5 +174,45 @@ class LatestSourceTests(unittest.TestCase):
                 else:
                     checksum,files=r.source_snapshot(self.commit,self.recipe)
                     self.assertEqual(r.digest(data),checksum);self.assertEqual(set(self.files),set(files))
+
+class PinnedSourceTests(unittest.TestCase):
+    def setUp(self):
+        self.recipe = json.loads((ROOT/'installer/v1/release.json').read_bytes())
+        self.commit = 'a7d037ea9c228590bcd482d5eba410318029c4dd'
+        self.options = {'domain':'meet.example.com','publicIpv4':'8.8.8.8','acmeEmail':''}
+
+    def plan(self):
+        facts={'os':'ubuntu','osVersion':'24.04','arch':'amd64','cpus':4,'memoryKiB':8*1024*1024}
+        with patch.object(r,'platform_facts',return_value=facts),patch.object(r,'managed_marker',return_value=None),patch.object(r,'disk_free',return_value=40*1024**3),patch.object(r,'docker_facts',return_value={'installed':False,'version':None,'composeVersion':None}),patch.object(r,'check_ports'),patch.object(r,'dns_check',return_value=['8.8.8.8']),patch.object(r.pathlib.Path,'exists',return_value=False),patch.object(r,'resolve_source',side_effect=AssertionError('pinned recipes must not resolve latest')),patch.object(r,'github_json',side_effect=AssertionError('pinned plans need no GitHub metadata')),patch.object(r,'source_snapshot',side_effect=AssertionError('pinned plans need no archive lookup')):
+            return r.plan_latest(self.options,self.recipe)
+
+    def test_current_bundle_pins_reviewed_backend_without_dynamic_source_lookup(self):
+        self.assertNotIn('sourcePolicy',self.recipe)
+        self.assertEqual(self.commit,self.recipe['commit'])
+        self.assertEqual(r.source_url(self.commit),self.recipe['sourceUrl'])
+        self.assertIsNone(self.recipe['backendTag'])
+        plan=self.plan()
+        self.assertEqual(self.commit,plan['commit'])
+        self.assertEqual(self.recipe['version'],plan['releaseVersion'])
+        self.assertNotIn('sourceLock',plan)
+        self.assertEqual(r.digest(r.canonical(self.recipe)),plan['releaseSha256'])
+        self.assertEqual(self.recipe,r.manifest_for_plan(self.recipe,plan))
+
+    def test_pinned_plan_rejects_source_lock_even_with_recomputed_hash(self):
+        plan=self.plan()
+        plan.update(sourceLock={'commit':'b'*40},recipeSha256=r.digest(r.canonical(self.recipe)))
+        plan['hash']=r.digest(r.canonical({key:value for key,value in plan.items() if key!='hash'}))
+        with self.assertRaises(r.InstallError) as caught:
+            r.manifest_for_plan(self.recipe,plan)
+        self.assertEqual('PLAN_CHANGED',caught.exception.code)
+
+    def test_pinned_worker_status_and_existing_plan_do_not_resolve_latest(self):
+        plan=self.plan();job=str(uuid.uuid4())
+        with tempfile.TemporaryDirectory() as directory,patch.object(r,'no_symlink'),patch.object(r,'job_directory',return_value=pathlib.Path(directory)),patch.object(r,'read_json',return_value=plan),patch.object(r,'resolve_source',side_effect=AssertionError('must retain pinned commit')),patch.object(r,'github_json',side_effect=AssertionError('must not query GitHub')),patch.object(r,'status',return_value={'state':'running'}):
+            self.assertEqual(self.commit,r.Worker(job,self.recipe).manifest['commit'])
+            self.assertEqual({'state':'running'},r.control('status',{'jobId':job,'planHash':plan['hash']},self.recipe))
+            with patch.object(r,'managed_marker',return_value={'jobId':job}),patch.object(r,'create_plan',return_value=plan) as create:
+                self.assertEqual(plan,r.plan_latest(self.options,self.recipe))
+                self.assertIsNone(create.call_args.kwargs['source_lock'])
 
 if __name__=='__main__':unittest.main(verbosity=2)
