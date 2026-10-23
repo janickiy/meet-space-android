@@ -7,6 +7,7 @@ After apply the same files live in a root-owned directory. Never executes config
 import base64
 import copy
 import contextlib
+import datetime
 import fcntl
 import hashlib
 import http.client
@@ -61,6 +62,19 @@ class InstallError(Exception):
 
 def fail(code):
     raise InstallError(code)
+
+
+def build_timestamp_utc(value):
+    """Keep the signed instant intact; Docker build metadata requires UTC seconds."""
+    if not isinstance(value, str) or not re.fullmatch(
+        r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:Z|[+-](?:[01][0-9]|2[0-3]):[0-5][0-9])", value
+    ):
+        fail("RELEASE_INVALID")
+    try:
+        stamp = datetime.datetime.fromisoformat(value.replace("Z", "+00:00"))
+        return stamp.astimezone(datetime.timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    except (ValueError, OverflowError):
+        fail("RELEASE_INVALID")
 
 
 def canonical(value):
@@ -1126,6 +1140,8 @@ class Worker:
         state_write(self.directory, "running", "images:" + service)
 
     def phase_images(self):
+        # Derive an argument, never rewrite the frozen release or its plan hash on resume.
+        build_time = build_timestamp_utc(self.manifest.get("builtAt"))
         images = read_json(self.images_file) if self.images_file.exists() else {}
         for service, reference in self.manifest["images"].items():
             self.check_cancel()
@@ -1172,7 +1188,7 @@ class Worker:
             # Docker output may contain build/dependency data: discard, expose fixed phase events only.
             run(["docker", "build", "--platform", "linux/" + self.plan["platform"]["arch"], "--target", "runtime", "--file", str(prepared),
                  "--tag", tag, "--build-arg", "BUILD_VERSION=" + self.manifest["version"], "--build-arg", "BUILD_COMMIT=" + self.manifest["commit"],
-                 "--build-arg", "BUILD_TIME=" + self.manifest["builtAt"], "--build-arg", "TARGETARCH=" + self.plan["platform"]["arch"],
+                 "--build-arg", "BUILD_TIME=" + build_time, "--build-arg", "TARGETARCH=" + self.plan["platform"]["arch"],
                  "--build-arg", "CLIENT_TELEMETRY_ENABLED=false", "--label", "org.opencontainers.image.revision=" + self.manifest["commit"],
                  "--label", "io.meetspace.recipe=" + self.plan["releaseSha256"],
                  "--label", "io.meetspace.resource-profile=" + plan_resource_profile(self.plan), str(context)],

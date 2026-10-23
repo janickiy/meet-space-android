@@ -333,6 +333,29 @@ class ImagePhaseResourceTests(unittest.TestCase):
                         worker.check_build_space()
                 self.assertEqual("DISK_SPACE", caught.exception.code)
 
+    def test_build_time_is_utc_without_changing_frozen_manifest(self):
+        for profile in ("standard", "compact-test"):
+            with self.subTest(profile=profile), self.fixture(profile) as (worker, _):
+                worker.manifest["builtAt"] = "2026-10-22T20:41:14+03:00"
+                original = r.canonical(worker.manifest)
+                with patch.object(r, "disk_free", return_value=40 * GIB), \
+                     patch.object(r, "run", return_value=b"") as execute, \
+                     patch.object(worker, "image_details", side_effect=self.details):
+                    worker.phase_images()
+                builds = [call.args[0] for call in execute.call_args_list if call.args[0][:2] == ["docker", "build"]]
+                self.assertEqual(len(r.APP_SERVICES), len(builds))
+                for argv in builds:
+                    self.assertIn("BUILD_TIME=2026-10-22T17:41:14Z", argv)
+                self.assertEqual(original, r.canonical(worker.manifest))
+
+    def test_invalid_build_time_stops_before_pulling_or_building(self):
+        with self.fixture("compact-test") as (worker, _), patch.object(r, "run") as execute:
+            worker.manifest["builtAt"] = "2026-10-22T20:41:14"
+            with self.assertRaises(r.InstallError) as caught:
+                worker.phase_images()
+            self.assertEqual("RELEASE_INVALID", caught.exception.code)
+            execute.assert_not_called()
+
     def test_low_disk_stops_before_next_pull_or_build_without_pruning(self):
         for operation in ("pull", "build"):
             with self.subTest(operation=operation), self.fixture("compact-test") as (worker, _):

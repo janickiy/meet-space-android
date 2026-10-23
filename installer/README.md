@@ -10,6 +10,8 @@ Apply, worker, status, cancel, resume and certificate renewal reconstruct the sa
 
 The infrastructure/base image digests and Docker package versions remain pinned by the signed recipe. A new unsupported base image or missing required input requires an installer update. Apt/apk dependencies within builds are not fully hermetic; built image IDs are recorded and checked.
 
+Docker `BUILD_TIME` is derived from the signed `builtAt` instant in UTC (`YYYY-MM-DDTHH:MM:SSZ`), including when an older recipe contains an explicit timezone offset. Conversion does not modify the frozen recipe or plan hash during resume. Invalid dates, missing timezones and fractional seconds fail before image operations. The signing tool also normalizes new recipe timestamps before signing.
+
 ## Supported host
 
 Ubuntu **22.04 LTS (Jammy) or 24.04 LTS (Noble)** with systemd, Python 3, OpenSSL, root or passwordless sudo; amd64/arm64. Ubuntu must already be installed; the installer does not install or upgrade the OS. A new MeetSpace installation requires free service ports and no existing unknown MeetSpace installation. The baseline is **2 CPUs, 4 GB RAM and about 20 GB free disk**. Two resource profiles are selected automatically:
