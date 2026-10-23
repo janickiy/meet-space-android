@@ -40,8 +40,9 @@ internal fun <T> RefreshSelect(label: String, value: T, choices: List<Pair<T, St
     Box(modifier) {
         OutlinedButton({ expanded = true }, shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurface, containerColor = MaterialTheme.colorScheme.surface),
-            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-            Text(choices.find { it.first == value }?.second ?: label, Modifier.weight(1f), fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp), modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
+            Text(choices.find { it.first == value }?.second ?: label, Modifier.weight(1f), fontSize = 13.sp, lineHeight = 20.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Spacer(Modifier.width(8.dp))
             Icon(Icons.Outlined.ExpandMore, label, Modifier.size(18.dp))
         }
         DropdownMenu(expanded, { expanded = false }) { choices.forEach { (id, title) -> DropdownMenuItem(text = { Text(title) }, onClick = { select(id); expanded = false }) } }
@@ -65,7 +66,9 @@ internal fun RecordingLibraryContent(state: RecordingsUiState, actions: Recordin
             (query.isBlank() || "${m.title} ${recordingKind(r)}".contains(query.trim(), true))
     }.sortedWith(compareBy<Pair<Meeting, Recording>> { it.second.startedAt ?: it.second.createdAt }.let { if (oldest) it else it.reversed() })
     BoxWithConstraints(modifier.fillMaxHeight()) {
-        val columns = if (grid && tablet && maxWidth / LocalDensity.current.fontScale >= 700.dp) 3 else if (grid && tablet) 2 else 1
+        val readableWidth = maxWidth / LocalDensity.current.fontScale.coerceAtLeast(1f)
+        val roomy = tablet && readableWidth >= 660.dp
+        val columns = if (grid && readableWidth >= 900.dp) 3 else if (grid && readableWidth >= 560.dp) 2 else 1
         LazyColumn(Modifier.fillMaxSize().testTag("recordings-library"), contentPadding = PaddingValues(vertical = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             if (state.error != null || state.notice != null || state.download != null) item { RecordingMessages(state, actions) }
             item { Text("БИБЛИОТЕКА ВСТРЕЧ", color = MaterialTheme.colorScheme.primary, fontSize = 10.sp, letterSpacing = 1.5.sp)
@@ -81,25 +84,46 @@ internal fun RecordingLibraryContent(state: RecordingsUiState, actions: Recordin
                 Spacer(Modifier.weight(1f)); IconButton(actions.refreshLibrary, enabled = !library.loading, modifier = Modifier.testTag("recordings-library-refresh")) { Icon(Icons.Outlined.Refresh, "Обновить библиотеку записей") }
             } }
             item {
-                val search: @Composable (Modifier) -> Unit = { mod -> OutlinedTextField(query, { query = it.take(200) }, singleLine = true, placeholder = { Text("Найти запись встречи", fontSize = 13.sp) },
-                    leadingIcon = { Icon(Icons.Outlined.Search, null) }, shape = RoundedCornerShape(12.dp), modifier = mod.testTag("recordings-library-search")) }
+                val search: @Composable (Modifier) -> Unit = { mod -> WorkspaceSearchField(query, { query = it.take(200) }, "Найти запись встречи", "recordings-library-search", mod) }
                 val choice: @Composable (Modifier) -> Unit = { mod -> RefreshSelect("Встреча", meeting, listOf("" to "Все встречи") + library.meetings.map { it.meeting.id to it.meeting.title }, { meeting = it }, mod) }
-                if (tablet) Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) { search(Modifier.weight(1f)); choice(Modifier.weight(.65f)) }
+                if (roomy) Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) { search(Modifier.weight(1f)); choice(Modifier.weight(.65f)) }
                 else Column(verticalArrangement = Arrangement.spacedBy(10.dp)) { search(Modifier.fillMaxWidth()); choice(Modifier.fillMaxWidth()) }
             }
-            item { Row(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalAlignment = Alignment.CenterVertically) {
-                RefreshSelect("Период записей", period, listOf(0 to "Всё время", 7 to "За 7 дней", 30 to "За 30 дней", 90 to "За 90 дней"), { period = it }, if (tablet) Modifier.width(144.dp) else Modifier.weight(1f))
-                RefreshSelect("Сортировка записей", oldest, listOf(false to "Сначала новые", true to "Сначала старые"), { oldest = it }, if (tablet) Modifier.width(165.dp) else Modifier.weight(1f))
-                if (tablet) Spacer(Modifier.weight(1f))
-                IconToggleButton(!grid, { grid = false }, Modifier.testTag("recordings-view-list")) { Icon(Icons.Outlined.ViewList, "Список") }
-                IconToggleButton(grid, { grid = true }, Modifier.testTag("recordings-view-grid")) { Icon(Icons.Outlined.GridView, "Плитка") }
+            item { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                val periodPicker: @Composable (Modifier) -> Unit = { mod ->
+                    RefreshSelect("Период записей", period, listOf(0 to "Всё время", 7 to "За 7 дней", 30 to "За 30 дней", 90 to "За 90 дней"), { period = it }, mod)
+                }
+                val sortPicker: @Composable (Modifier) -> Unit = { mod ->
+                    RefreshSelect("Сортировка записей", oldest, listOf(false to "Сначала новые", true to "Сначала старые"), { oldest = it }, mod)
+                }
+                val views: @Composable () -> Unit = {
+                    Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+                        Row(Modifier.padding(2.dp)) {
+                            IconToggleButton(!grid, { grid = false }, Modifier.size(48.dp).testTag("recordings-view-list"),
+                                colors = IconButtonDefaults.iconToggleButtonColors(checkedContainerColor = MaterialTheme.colorScheme.primaryContainer)) { Icon(Icons.Outlined.ViewList, "Список") }
+                            IconToggleButton(grid, { grid = true }, Modifier.size(48.dp).testTag("recordings-view-grid"),
+                                colors = IconButtonDefaults.iconToggleButtonColors(checkedContainerColor = MaterialTheme.colorScheme.primaryContainer)) { Icon(Icons.Outlined.GridView, "Плитка") }
+                        }
+                    }
+                }
+                if (roomy) Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    periodPicker(Modifier.weight(1f)); sortPicker(Modifier.weight(1.2f)); views()
+                } else {
+                    if (readableWidth >= 360.dp) Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        periodPicker(Modifier.weight(1f)); sortPicker(Modifier.weight(1.2f))
+                    } else {
+                        periodPicker(Modifier.fillMaxWidth()); sortPicker(Modifier.fillMaxWidth())
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) { views() }
+                }
             } }
             item { Text("Найдено: ${matching.size} · в загруженных записях", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             if (library.loading) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
             if (library.error != null) item { RecordingLoad(RecordingsLoad<Unit>(error = library.error), actions.refreshLibrary) }
             items(matching.chunked(columns), key = { row -> row.joinToString { it.second.id } }) { row ->
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    row.forEach { (m, r) -> RecordingLibraryCard(m, r, grid, tablet && !grid, Modifier.weight(1f), { actions.openLibrary(m.id, r.id) },
+                    row.forEach { (m, r) -> RecordingLibraryCard(m, r, grid, roomy && !grid, Modifier.weight(1f), { actions.openLibrary(m.id, r.id) },
                         canDeleteRecording(r, m, state.selfId), { deleting = r }) }
                     repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
                 }
@@ -127,25 +151,39 @@ internal fun RecordingLibraryContent(state: RecordingsUiState, actions: Recordin
 
 @Composable
 private fun RecordingLibraryCard(meeting: Meeting, record: Recording, grid: Boolean, wide: Boolean, modifier: Modifier, open: () -> Unit, deletable: Boolean, delete: () -> Unit) {
-    Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), modifier = modifier.clickable(onClick = open).testTag("recording-row-${record.id}")) {
-        val cover: @Composable (Modifier) -> Unit = { mod -> RecordingModeCover(record, mod.clickable(onClick = open)) }
-        val small = !wide && !grid
-        val body: @Composable (Modifier) -> Unit = { mod -> Column(mod.padding(if (small) 8.dp else 16.dp), verticalArrangement = Arrangement.spacedBy(if (small) 4.dp else 8.dp)) {
-            Text(recordingKind(record), fontSize = 10.sp, color = MaterialTheme.colorScheme.primary)
-            Text(meeting.title, Modifier.clickable(onClick = open), fontSize = if (small) 12.sp else 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            Text(recordingTime(record.startedAt ?: record.createdAt), fontSize = if (small) 9.sp else 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(listOfNotNull(recordingStatus(record), meeting.participantCount?.let { "Участников: $it" }).joinToString(" · "), fontSize = if (small) 9.sp else 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        } }
-        val buttons: @Composable () -> Unit = { Row(verticalAlignment = Alignment.CenterVertically) {
-            TextButton(open) { Icon(if (record.mode == "individual_tracks") Icons.Outlined.FolderOpen else Icons.Outlined.PlayArrow, null, Modifier.size(18.dp)); Text(if (record.mode == "individual_tracks") "Материалы" else if (record.mode == "audio_only") "Слушать" else "Смотреть", fontSize = 12.sp) }
-            if (deletable) RecordingMenu(delete)
-        } }
-        if (!grid) Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            cover(Modifier.width(if (wide) 150.dp else 84.dp).height(if (wide) 94.dp else 84.dp))
-            body(Modifier.weight(1f))
-            if (wide) buttons() else if (deletable) RecordingMenu(delete)
+    Surface(onClick = open, shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), modifier = modifier.testTag("recording-row-${record.id}")) {
+        BoxWithConstraints {
+            val stacked = grid || maxWidth / LocalDensity.current.fontScale.coerceAtLeast(1f) < 300.dp
+            val body: @Composable (Modifier) -> Unit = { mod ->
+                Column(mod, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(recordingKind(record), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                    Text(meeting.title, fontSize = 15.sp, lineHeight = 22.sp, fontWeight = FontWeight.SemiBold, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                    Text(recordingTime(record.startedAt ?: record.createdAt), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(listOfNotNull(recordingStatus(record), meeting.participantCount?.let { "Участников: $it" }).joinToString(" · "),
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            val buttons: @Composable () -> Unit = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(open, modifier = Modifier.heightIn(min = 48.dp), shape = RoundedCornerShape(12.dp)) {
+                        Icon(if (record.mode == "individual_tracks") Icons.Outlined.FolderOpen else Icons.Outlined.PlayArrow, null, Modifier.size(20.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(if (record.mode == "individual_tracks") "Материалы" else if (record.mode == "audio_only") "Слушать" else "Смотреть")
+                    }
+                    if (deletable) RecordingMenu(delete)
+                }
+            }
+            if (stacked) Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                RecordingModeCover(record, Modifier.fillMaxWidth().height(160.dp))
+                body(Modifier.fillMaxWidth())
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) { buttons() }
+            } else Row(Modifier.padding(14.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                RecordingModeCover(record, Modifier.width(if (wide) 140.dp else 80.dp).height(if (wide) 100.dp else 88.dp))
+                body(Modifier.weight(1f))
+                if (wide) buttons() else if (deletable) RecordingMenu(delete)
+            }
         }
-        else Column { cover(Modifier.fillMaxWidth().height(if (grid) 160.dp else 140.dp)); body(Modifier.fillMaxWidth()); Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp), horizontalArrangement = Arrangement.End) { buttons() } }
     }
 }
 

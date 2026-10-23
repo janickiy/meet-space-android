@@ -277,21 +277,21 @@ private fun InstallAccess(state: InstallerUiState, onImport: (Uri) -> Unit, onAu
     // Deliberately not rememberSaveable: no secret in SavedState, disk, UI logs or navigation args.
     var password by remember(state.credentialReset, useKey) { mutableStateOf("") }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { it?.let(onImport) }
-    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(20.dp)) {
         if (state.ticket == null) {
             Text("Способ установки", style = MaterialTheme.typography.titleMedium)
             InstallImageMode.entries.forEach { mode ->
                 val selected = imageMode == mode
-                Surface(shape = RoundedCornerShape(12.dp), color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+                Surface(shape = RoundedCornerShape(16.dp), color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
                     border = BorderStroke(1.dp, if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
                     modifier = Modifier.fillMaxWidth().selectable(selected, enabled = !state.busy, role = Role.RadioButton, onClick = { imageMode = mode })
                         .testTag("install-mode-${mode.wire}")) {
-                    Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Icon(if (mode == InstallImageMode.IMAGES) Icons.Outlined.CloudDownload else Icons.Outlined.Build, null, Modifier.size(24.dp))
+                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Icon(if (mode == InstallImageMode.IMAGES) Icons.Outlined.CloudDownload else Icons.Outlined.Build, null, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(if (mode == InstallImageMode.IMAGES) "Готовые образы" else "Сборка на сервере", fontWeight = FontWeight.SemiBold)
                             Text(if (mode == InstallImageMode.IMAGES) "Скачать проверенный выпуск из GitHub. Быстрее и без компиляции на VPS."
-                                else "Скачать закреплённые исходники и собрать образы на вашем VPS. Требует больше времени и ресурсов.", style = MaterialTheme.typography.bodySmall)
+                                else "Скачать закреплённые исходники и собрать образы на вашем VPS. Требует больше времени и ресурсов.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         RadioButton(selected, onClick = null, enabled = !state.busy)
                     }
@@ -301,48 +301,60 @@ private fun InstallAccess(state: InstallerUiState, onImport: (Uri) -> Unit, onAu
                 InstallOptionField(imageRelease, { imageRelease = it.trim() }, "Версия образов: latest или тег выпуска", "install-image-release", !state.busy)
                 Text("latest — последний опубликованный пакет для архитектуры VPS, включая beta. Версию, коммит и размер покажем перед установкой.", style = MaterialTheme.typography.bodySmall)
             }
-            Text("Новый выделенный VPS: Ubuntu 22.04 или 24.04 LTS, amd64 или arm64. Минимум: 2 CPU, 4 ГБ RAM и около 20 ГБ свободного диска (18 ГиБ). Рекомендуется: 4 CPU, 8 ГБ RAM и 30 ГиБ свободно.", modifier = Modifier.testTag("install-requirements"))
-            Text("Минимальная конфигурация рассчитана на небольшую нагрузку. Для параллельных встреч и записи выбирайте рекомендуемую конфигурацию; доступная нагрузка зависит от участников и качества видео.", style = MaterialTheme.typography.bodySmall)
-            Text("Нужен root или sudo без пароля. DNS A должен указывать на этот IPv4; IPv6 и CDN пока не поддерживаются.")
-            OutlinedTextField(domain, { domain = it }, shape = RoundedCornerShape(10.dp), colors = onboardingFieldColors(), textStyle = onboardingInputStyle(), label = { Text("Домен MeetSpace", fontSize = 11.sp) }, singleLine = true, enabled = !state.busy && state.needsAccess, modifier = Modifier.fillMaxWidth().testTag("install-domain"))
-            OutlinedTextField(ip, { ip = it }, shape = RoundedCornerShape(10.dp), colors = onboardingFieldColors(), textStyle = onboardingInputStyle(), label = { Text("Публичный IPv4 VPS", fontSize = 11.sp) }, singleLine = true, enabled = !state.busy, modifier = Modifier.fillMaxWidth().testTag("install-ip"))
-            InstallOptionField(acmeEmail, { acmeEmail = it }, "Email для HTTPS-сертификата", "install-acme-email", !state.busy, KeyboardType.Email)
-            HorizontalDivider()
-            Text("Уведомления по почте", style = MaterialTheme.typography.titleMedium)
-            Text("Приглашение отправляется сразу, напоминание — за 3 часа до встречи. Укажите SMTP вашего почтового сервиса.", style = MaterialTheme.typography.bodySmall)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Switch(smtpEnabled, { smtpEnabled = it }, enabled = !state.busy, modifier = Modifier.testTag("install-smtp-enabled"))
-                Spacer(Modifier.width(12.dp)); Text("Настроить отправку email")
+            InstallFormSection("Требования к VPS") {
+                Text("Новый выделенный VPS: Ubuntu 22.04 или 24.04 LTS, amd64 или arm64. Минимум: 2 CPU, 4 ГБ RAM и около 20 ГБ свободного диска (18 ГиБ). Рекомендуется: 4 CPU, 8 ГБ RAM и 30 ГиБ свободно.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.testTag("install-requirements"))
+                Text("Минимальная конфигурация рассчитана на небольшую нагрузку. Для параллельных встреч и записи выбирайте рекомендуемую конфигурацию; доступная нагрузка зависит от участников и качества видео.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Нужен root или sudo без пароля. DNS A должен указывать на этот IPv4; IPv6 и CDN пока не поддерживаются.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            if (smtpEnabled) {
-                InstallOptionField(smtpHost, { smtpHost = it }, "Сервер SMTP", "install-smtp-host", !state.busy)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Switch(smtpStartTls, { smtpStartTls = it; smtpPort = if (it) "587" else "465" }, enabled = !state.busy, modifier = Modifier.testTag("install-smtp-starttls"))
-                    Spacer(Modifier.width(12.dp)); Text(if (smtpStartTls) "STARTTLS · обычно порт 587" else "TLS · обычно порт 465")
+            InstallFormSection("Адрес сервера") {
+                InstallOptionField(domain, { domain = it }, "Домен MeetSpace", "install-domain", !state.busy && state.needsAccess, KeyboardType.Uri)
+                InstallOptionField(ip, { ip = it }, "Публичный IPv4 VPS", "install-ip", !state.busy)
+                InstallOptionField(acmeEmail, { acmeEmail = it }, "Email для HTTPS-сертификата", "install-acme-email", !state.busy, KeyboardType.Email)
+            }
+            InstallFormSection {
+                AccountToggle("Настроить отправку email", smtpEnabled, { smtpEnabled = it }, enabled = !state.busy, tag = "install-smtp-enabled")
+                if (smtpEnabled) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    InstallOptionField(smtpHost, { smtpHost = it }, "Сервер SMTP", "install-smtp-host", !state.busy)
+                    AccountToggle(if (smtpStartTls) "STARTTLS · обычно порт 587" else "TLS · обычно порт 465", smtpStartTls,
+                        { smtpStartTls = it; smtpPort = if (it) "587" else "465" }, enabled = !state.busy, tag = "install-smtp-starttls")
+                    InstallOptionField(smtpPort, { smtpPort = it }, "Порт SMTP", "install-smtp-port", !state.busy, KeyboardType.Number)
+                    InstallOptionField(smtpFrom, { smtpFrom = it }, "Email отправителя", "install-smtp-from", !state.busy, KeyboardType.Email)
+                    InstallOptionField(smtpUsername, { smtpUsername = it }, "Логин SMTP", "install-smtp-username", !state.busy)
+                    Text("Пароль приложения или SMTP будет запрошен перед установкой. На устройстве он не сохраняется.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                } else {
+                    Text("Без SMTP письма не отправляются. Подключить почту можно позже на сервере.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                InstallOptionField(smtpPort, { smtpPort = it }, "Порт SMTP", "install-smtp-port", !state.busy, KeyboardType.Number)
-                InstallOptionField(smtpFrom, { smtpFrom = it }, "Email отправителя", "install-smtp-from", !state.busy, KeyboardType.Email)
-                InstallOptionField(smtpUsername, { smtpUsername = it }, "Логин SMTP", "install-smtp-username", !state.busy)
-                Text("Пароль приложения или SMTP будет запрошен перед установкой. На устройстве он не сохраняется.", style = MaterialTheme.typography.bodySmall)
-            } else Text("Без SMTP письма не отправляются. Подключить почту можно позже на сервере.", style = MaterialTheme.typography.bodySmall)
+            }
         } else Text("Восстановление задания ${state.ticket.jobId}. Сначала запросим его состояние; продолжение требует отдельного подтверждения.")
-        if (state.needsAccess) {
-            Row(verticalAlignment = Alignment.CenterVertically) { Switch(useKey, { useKey = it }, enabled = !state.busy); Spacer(Modifier.width(12.dp)); Text("Войти по приватному ключу") }
-            if (useKey) OutlinedButton(shape = RoundedCornerShape(10.dp), onClick = { picker.launch(arrayOf("*/*")) }, enabled = !state.busy, modifier = Modifier.heightIn(min = 48.dp)) { Text(if (state.keyLoaded) "Ключ выбран · заменить" else "Выбрать приватный ключ") }
-            OutlinedTextField(password, { password = it }, shape = RoundedCornerShape(10.dp), colors = onboardingFieldColors(), textStyle = onboardingInputStyle(), label = { Text(if (useKey) "Парольная фраза ключа" else "Пароль SSH", fontSize = 11.sp) }, visualTransformation = PasswordVisualTransformation(), singleLine = true,
+        if (state.needsAccess) InstallFormSection("Доступ к серверу") {
+            AccountToggle("Войти по приватному ключу", useKey, { useKey = it }, enabled = !state.busy, tag = "install-use-key")
+            if (useKey) OutlinedButton(shape = RoundedCornerShape(12.dp), onClick = { picker.launch(arrayOf("*/*")) }, enabled = !state.busy, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text(if (state.keyLoaded) "Ключ выбран · заменить" else "Выбрать приватный ключ") }
+            OutlinedTextField(password, { password = it }, shape = RoundedCornerShape(12.dp), colors = onboardingFieldColors(), textStyle = onboardingInputStyle(), label = { Text(if (useKey) "Парольная фраза ключа" else "Пароль SSH", fontSize = 13.sp) }, visualTransformation = PasswordVisualTransformation(), singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password), enabled = !state.busy, modifier = Modifier.fillMaxWidth().testTag("install-password"))
         } else Text("Доступ SSH уже проверен. Проверьте параметры установки и настройки почты.", modifier = Modifier.testTag("install-access-verified"))
-        Button(shape = RoundedCornerShape(10.dp), onClick = { onAuthenticate(InstallOptions(domain, ip, acmeEmail.trim(), smtp, imageMode, imageRelease), password, useKey); password = "" }, enabled = !state.busy && (!state.needsAccess || !useKey || state.keyLoaded) && (state.ticket != null ||
-            (smtp == null || smtp.isValid()) && (imageMode != InstallImageMode.IMAGES || validImageRelease(imageRelease))), modifier = Modifier.heightIn(min = 49.dp).testTag("install-plan")) {
+        Button(shape = RoundedCornerShape(12.dp), onClick = { onAuthenticate(InstallOptions(domain, ip, acmeEmail.trim(), smtp, imageMode, imageRelease), password, useKey); password = "" }, enabled = !state.busy && (!state.needsAccess || !useKey || state.keyLoaded) && (state.ticket != null ||
+            (smtp == null || smtp.isValid()) && (imageMode != InstallImageMode.IMAGES || validImageRelease(imageRelease))), modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("install-plan")) {
             Text(if (state.ticket == null) "Получить план без установки" else "Проверить состояние задания")
         }
     }
 }
 
 @Composable
+private fun InstallFormSection(title: String? = null, content: @Composable ColumnScope.() -> Unit) {
+    Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.background,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            title?.let { Text(it, style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() }) }
+            content()
+        }
+    }
+}
+
+@Composable
 private fun InstallOptionField(value: String, onChange: (String) -> Unit, label: String, tag: String, enabled: Boolean, keyboardType: KeyboardType = KeyboardType.Text) {
-    OutlinedTextField(value, onChange, shape = RoundedCornerShape(10.dp), colors = onboardingFieldColors(), textStyle = onboardingInputStyle(),
-        label = { Text(label, fontSize = 11.sp) }, singleLine = true, enabled = enabled,
+    OutlinedTextField(value, onChange, shape = RoundedCornerShape(12.dp), colors = onboardingFieldColors(), textStyle = onboardingInputStyle(),
+        label = { Text(label, fontSize = 13.sp) }, singleLine = true, enabled = enabled,
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType), modifier = Modifier.fillMaxWidth().testTag(tag))
 }
 

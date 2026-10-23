@@ -226,14 +226,14 @@ private val LocalOnboardingWidth = staticCompositionLocalOf { 390.dp }
 internal fun onboardingTone(light: Long, dark: Long): Color = Color(if (MaterialTheme.colorScheme.background.luminance() < .5f) dark else light)
 
 @Composable
-internal fun onboardingInputStyle() = MaterialTheme.typography.bodyMedium.copy(fontSize = if (LocalOnboardingWide.current) 12.sp else 16.sp, lineHeight = if (LocalOnboardingWide.current) 18.sp else 24.sp)
+internal fun onboardingInputStyle() = MaterialTheme.typography.bodyMedium.copy(fontSize = if (LocalOnboardingWide.current) 14.sp else 16.sp, lineHeight = if (LocalOnboardingWide.current) 22.sp else 24.sp)
 
 @Composable
 internal fun IntroFrame(modifier: Modifier = Modifier, message: String? = null, install: Boolean = false, content: @Composable ColumnScope.() -> Unit) {
     val formScroll = rememberScrollState()
     LaunchedEffect(message) { if (message != null) formScroll.animateScrollTo(0) }
     BoxWithConstraints(modifier.fillMaxSize()) {
-        val wide = maxWidth >= 760.dp
+        val wide = maxWidth / LocalDensity.current.fontScale.coerceAtLeast(1f) >= 760.dp
         val generous = maxWidth >= 1100.dp
         val darkIntro = MaterialTheme.colorScheme.background.luminance() < .5f
         val sideTitleSize = if (generous) (maxWidth.value * .038f).coerceIn(34f, 52f) else 37f
@@ -244,10 +244,10 @@ internal fun IntroFrame(modifier: Modifier = Modifier, message: String? = null, 
             titleLarge = baseTypography.titleLarge.copy(fontSize = 17.sp, lineHeight = 24.sp),
             titleMedium = baseTypography.titleMedium.copy(fontSize = 14.sp, lineHeight = 20.sp),
             titleSmall = baseTypography.titleSmall.copy(fontSize = 12.sp, lineHeight = 18.sp),
-            bodyLarge = baseTypography.bodyLarge.copy(fontSize = if (wide) 13.sp else 12.sp, lineHeight = 22.sp),
-            bodyMedium = baseTypography.bodyMedium.copy(fontSize = 12.sp, lineHeight = 20.sp),
-            bodySmall = baseTypography.bodySmall.copy(fontSize = 10.sp, lineHeight = 16.sp),
-            labelLarge = baseTypography.labelLarge.copy(fontSize = 12.sp, lineHeight = 18.sp),
+            bodyLarge = baseTypography.bodyLarge.copy(fontSize = 14.sp, lineHeight = 22.sp),
+            bodyMedium = baseTypography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 22.sp),
+            bodySmall = baseTypography.bodySmall.copy(fontSize = 12.sp, lineHeight = 18.sp),
+            labelLarge = baseTypography.labelLarge.copy(fontSize = 14.sp, lineHeight = 20.sp),
             labelMedium = baseTypography.labelMedium.copy(fontSize = 11.sp, lineHeight = 16.sp),
             labelSmall = baseTypography.labelSmall.copy(fontSize = if (wide) 10.sp else 8.sp, lineHeight = 15.sp),
         )) {
@@ -273,9 +273,9 @@ internal fun IntroFrame(modifier: Modifier = Modifier, message: String? = null, 
             BoxWithConstraints(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.TopCenter) {
                 val availableHeight = maxHeight
                 Column(Modifier.fillMaxWidth().verticalScroll(formScroll).heightIn(min = availableHeight)
-                    .padding(horizontal = if (generous) 62.dp else if (wide) 30.dp else 25.dp, vertical = if (wide) 34.dp else 21.dp),
+                    .padding(horizontal = if (generous && wide) 48.dp else if (wide) 30.dp else if (maxWidth < 360.dp) 16.dp else 24.dp, vertical = if (wide) 32.dp else 24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = if (wide) Arrangement.Center else Arrangement.Top) {
-                    Column(Modifier.widthIn(max = if (wide) 418.dp else 470.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                    Column(Modifier.widthIn(max = 460.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(20.dp)) {
                         if (!wide) Brand(phone = true)
                         content()
                     }

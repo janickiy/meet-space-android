@@ -108,8 +108,7 @@ fun ProfileWorkspace(
     CompositionLocalProvider(LocalDensity provides Density(density.density, density.fontScale * device.textScale.coerceIn(.75f, 2f)),
         LocalTextStyle provides MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 21.sp)) {
         BoxWithConstraints(Modifier.fillMaxSize().testTag("profile")) {
-            val wide = maxWidth >= 780.dp
-            val twoColumnForm = maxWidth >= 1000.dp
+            val wide = maxWidth / LocalDensity.current.fontScale.coerceAtLeast(1f) >= 780.dp
             val panelPadding = (maxWidth * .04f).coerceIn(26.dp, 54.dp)
             val sidebarWidth = if (maxWidth >= 1100.dp) 270.dp else 240.dp
             val back = { if (section == AccountSection.ADD_ACCOUNT) section = AccountSection.ACCOUNTS else detailOpen = false }
@@ -130,7 +129,7 @@ fun ProfileWorkspace(
                             .padding(horizontal = if (wide) panelPadding else 20.dp, vertical = if (wide) 36.dp else 18.dp)
                             .testTag("account-panel-${section.name.lowercase()}"), verticalArrangement = Arrangement.spacedBy(0.dp)) {
                             if (!wide) {
-                                TextButton({ back() }, enabled = !busy, contentPadding = PaddingValues(0.dp), modifier = Modifier.heightIn(min = 44.dp).testTag("account-back")) {
+                                TextButton({ back() }, enabled = !busy, contentPadding = PaddingValues(0.dp), modifier = Modifier.heightIn(min = 48.dp).testTag("account-back")) {
                                     Icon(Icons.AutoMirrored.Outlined.ArrowBack, null, Modifier.size(19.dp)); Spacer(Modifier.width(8.dp)); Text(if (section == AccountSection.ADD_ACCOUNT) "Аккаунты" else "Все настройки", fontSize = 12.6.sp)
                                 }
                                 Spacer(Modifier.height(22.dp))
@@ -159,7 +158,7 @@ fun ProfileWorkspace(
                                 }
                                 AccountSection.ACCOUNTS -> AccountListPanel(repository, wide, busy, onSelectAccount,
                                     { section = AccountSection.ADD_ACCOUNT }, { deleteAccountDialog = true })
-                                AccountSection.ADD_ACCOUNT -> AccountAddPanel(origin, wide, twoColumnForm, busy, registeredAccountEmail, onAddAccount,
+                                AccountSection.ADD_ACCOUNT -> AccountAddPanel(origin, wide, busy, registeredAccountEmail, onAddAccount,
                                     { section = AccountSection.ACCOUNTS })
                                 AccountSection.AUDIO -> AccountAudioPanel(settings, settingsActions)
                                 AccountSection.VIDEO -> AccountVideoPanel(name, settings, settingsActions)
@@ -248,7 +247,6 @@ fun ProfileWorkspace(
     val accounts = repository.profiles.filter { it.accountId != null }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         Column(Modifier.weight(1f)) {
-            AccountEyebrow("ВАШИ ПРОСТРАНСТВА")
             AccountHeading("Аккаунты", "Выберите аккаунт для встреч и общения.", wide)
         }
         Box(Modifier.size(42.dp).background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
@@ -269,19 +267,18 @@ fun ProfileWorkspace(
                 Row(Modifier.padding(horizontal = if (wide) 18.dp else 12.dp, vertical = if (wide) 18.dp else 14.dp),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (wide) 14.dp else 10.dp)) {
                     AccountAvatar(name, if (wide) 54 else 42)
-                    Column(Modifier.weight(1f)) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                        Text(account.accountEmail.orEmpty(), fontSize = 12.2.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 3.dp))
+                        Text(account.accountEmail.orEmpty(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Outlined.Dns, null, Modifier.size(13.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(host, fontSize = 10.6.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Icon(Icons.Outlined.Dns, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(host, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
+                        Text(if (current) "Текущий аккаунт" else "Нажмите, чтобы переключиться", style = MaterialTheme.typography.bodySmall,
+                            color = if (current) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        val tint = if (current) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                        Icon(if (current) Icons.Outlined.CheckCircleOutline else Icons.AutoMirrored.Outlined.ArrowForward, null, Modifier.size(21.dp), tint = tint)
-                        Text(if (current) "Текущий" else "Выбрать", fontSize = 9.4.sp, color = tint)
-                    }
+                    Icon(if (current) Icons.Outlined.CheckCircleOutline else Icons.AutoMirrored.Outlined.ArrowForward, null, Modifier.size(24.dp),
+                        tint = if (current) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -314,7 +311,7 @@ fun ProfileWorkspace(
         color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 10.dp))
 }
 
-@Composable private fun AccountAddPanel(origin: String, wide: Boolean, twoColumns: Boolean, busy: Boolean, registeredEmail: String?,
+@Composable private fun AccountAddPanel(origin: String, wide: Boolean, busy: Boolean, registeredEmail: String?,
     submit: (String, String, String, String?, String) -> Unit, cancel: () -> Unit) {
     var register by rememberSaveable { mutableStateOf(false) }
     var server by rememberSaveable { mutableStateOf(origin) }
@@ -332,7 +329,7 @@ fun ProfileWorkspace(
         listOf(false to "Войти", true to "Создать аккаунт").forEach { (mode, label) ->
             Box(Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).background(if (mode == register) MaterialTheme.colorScheme.surface else Color.Transparent)
                 .selectable(mode == register, enabled = !busy, role = Role.Tab, onClick = { register = mode; password = ""; confirmation = "" })
-                .heightIn(min = 44.dp).testTag(if (mode) "account-add-register-tab" else "account-add-login-tab"), contentAlignment = Alignment.Center) {
+                .heightIn(min = 48.dp).padding(horizontal = 8.dp, vertical = 10.dp).testTag(if (mode) "account-add-register-tab" else "account-add-login-tab"), contentAlignment = Alignment.Center) {
                 Text(label, fontSize = 12.6.sp, fontWeight = FontWeight.SemiBold, color = if (mode == register) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
@@ -344,23 +341,25 @@ fun ProfileWorkspace(
         add { AccountField("Пароль", password, { password = it.take(1024) }, "account-add-password", !busy,
             hint = if (register) "От 8 до 128 символов." else null, keyboardType = KeyboardType.Password, password = true) }
         if (register) add { AccountField("Повторите пароль", confirmation, { confirmation = it.take(1024) }, "account-add-confirm", !busy, keyboardType = KeyboardType.Password, password = true) }
-        add {
+    }
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val twoColumns = maxWidth / LocalDensity.current.fontScale.coerceAtLeast(1f) >= 560.dp
+        Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+            AccountField("Адрес сервера", server, { server = it.take(2048) }, "account-add-server", !busy, keyboardType = KeyboardType.Uri)
+            fields.chunked(if (twoColumns) 2 else 1).forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+                    row.forEach { field -> Box(Modifier.weight(1f)) { field() } }
+                    if (twoColumns && row.size == 1) Spacer(Modifier.weight(1f))
+                }
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Button({ submit(server, email, password, name.takeIf { register }, confirmation) },
                 enabled = !busy && server.isNotBlank() && email.isNotBlank() && password.isNotEmpty() && (!register || name.isNotBlank() && confirmation.isNotEmpty()),
                 shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp).testTag("account-add-submit")) {
                 Text(if (busy) "Подключаемся…" else if (register) "Создать и добавить" else "Войти и добавить", fontSize = 13.2.sp)
                 Spacer(Modifier.width(9.dp)); Icon(Icons.AutoMirrored.Outlined.ArrowForward, null, Modifier.size(18.dp))
             }
-        }
-        add { OutlinedButton(cancel, enabled = !busy, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp).testTag("account-add-cancel")) { Text("Отмена") } }
-    }
-    Column(verticalArrangement = Arrangement.spacedBy(if (wide) 20.dp else 17.dp)) {
-        AccountField("Адрес сервера", server, { server = it.take(2048) }, "account-add-server", !busy, keyboardType = KeyboardType.Uri)
-        fields.chunked(if (twoColumns) 2 else 1).forEach { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                row.forEach { field -> Box(Modifier.weight(1f)) { field() } }
-                if (twoColumns && row.size == 1) Spacer(Modifier.weight(1f))
-            }
+            OutlinedButton(cancel, enabled = !busy, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp).testTag("account-add-cancel")) { Text("Отмена") }
         }
     }
 }
@@ -446,15 +445,15 @@ fun ProfileWorkspace(
 @Composable private fun AccountField(label: String, value: String, change: (String) -> Unit, tag: String, enabled: Boolean = true, readOnly: Boolean = false, hint: String? = null, error: Boolean = false, keyboardType: KeyboardType = KeyboardType.Text, password: Boolean = false) {
     var focused by remember { mutableStateOf(false) }
     var reveal by remember { mutableStateOf(false) }
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(label, fontSize = 14.sp, lineHeight = 21.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.heightIn(min = 21.dp * LocalDensity.current.fontScale))
         BasicTextField(value, change, singleLine = true, enabled = enabled, readOnly = readOnly, keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
             visualTransformation = if (password && !reveal) PasswordVisualTransformation() else VisualTransformation.None,
             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
             textStyle = MaterialTheme.typography.bodyMedium.copy(lineHeight = 20.sp, color = if (readOnly) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface),
-            modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp).clip(RoundedCornerShape(12.dp))
+            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).clip(RoundedCornerShape(12.dp))
                 .background(if (readOnly) MaterialTheme.colorScheme.background else MaterialTheme.colorScheme.surface)
-                .border(if (focused) 2.dp else 1.dp, if (error) MaterialTheme.colorScheme.error else if (focused) MaterialTheme.colorScheme.primary else lerp(MaterialTheme.colorScheme.outlineVariant, MaterialTheme.colorScheme.onSurfaceVariant, .65f), RoundedCornerShape(12.dp))
+                .border(if (focused) 2.dp else 1.dp, if (error) MaterialTheme.colorScheme.error else if (focused) MaterialTheme.colorScheme.primary else lerp(MaterialTheme.colorScheme.outlineVariant, MaterialTheme.colorScheme.onSurfaceVariant, .25f), RoundedCornerShape(12.dp))
                 .onFocusChanged { focused = it.isFocused }
                 .testTag(tag).semantics { contentDescription = label },
             decorationBox = { field -> Row(Modifier.padding(start = 14.dp, end = if (password) 2.dp else 14.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -464,21 +463,30 @@ fun ProfileWorkspace(
                         if (reveal) "Скрыть $label" else "Показать $label", Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             } })
-        hint?.let { Text(it, fontSize = 11.6.sp, lineHeight = 19.sp, color = if (error) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.heightIn(min = 19.dp * LocalDensity.current.fontScale)) }
+        hint?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = if (error) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant) }
     }
 }
 @Composable private fun AccountSave(label: String, tag: String, enabled: Boolean, save: () -> Unit) {
     Button(save, enabled = enabled, shape = RoundedCornerShape(12.dp), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
-        colors = ButtonDefaults.buttonColors(disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = .45f), disabledContentColor = MaterialTheme.colorScheme.onPrimary), modifier = Modifier.heightIn(min = 46.dp).testTag(tag)) { Text(label, fontSize = 13.2.sp) }
+        modifier = Modifier.heightIn(min = 48.dp).testTag(tag)) { Text(label, style = MaterialTheme.typography.labelLarge) }
 }
 @Composable private fun AccountSectionLabel(label: String) { Text(label, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 16.dp)) }
 @Composable private fun AccountDivider() { HorizontalDivider(Modifier.padding(vertical = 24.dp), color = MaterialTheme.colorScheme.outlineVariant) }
-@Composable private fun AccountNote(text: String) { Row(Modifier.padding(top = 20.dp), horizontalArrangement = Arrangement.spacedBy(9.dp)) { Icon(Icons.Outlined.Info, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant); Text(text, fontSize = 11.2.sp, lineHeight = 18.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) } }
+@Composable private fun AccountNote(text: String) {
+    Surface(Modifier.padding(top = 20.dp).fillMaxWidth(), shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.background) {
+        Row(Modifier.padding(14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Icon(Icons.Outlined.Info, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(text, Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
 @Composable internal fun AccountToggle(label: String, value: Boolean, change: (Boolean) -> Unit, hint: String? = null, enabled: Boolean = true, tag: String) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-        Column(Modifier.weight(1f)) { Text(label, fontSize = 13.4.sp, lineHeight = 21.sp); hint?.let { Text(it, fontSize = 11.5.sp, lineHeight = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp)) } }
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+        .toggleable(value = value, enabled = enabled, role = Role.Switch, onValueChange = change).testTag(tag)
+        .padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(Modifier.weight(1f)) { Text(label, style = MaterialTheme.typography.bodyMedium); hint?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp)) } }
         val track = (if (value) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant).copy(alpha = if (enabled) 1f else .45f)
-        Box(Modifier.size(48.dp).toggleable(value = value, enabled = enabled, role = Role.Switch, onValueChange = change).testTag(tag).semantics { contentDescription = label }
+        Box(Modifier.size(48.dp)
             .drawBehind {
                 val top = (size.height - 26.dp.toPx()) / 2f
                 drawRoundRect(track, Offset(2.dp.toPx(), top), Size(44.dp.toPx(), 26.dp.toPx()), CornerRadius(13.dp.toPx()))
@@ -489,7 +497,7 @@ fun ProfileWorkspace(
 @Composable private fun AccountChoice(label: String, value: String, options: List<String>, change: (String) -> Unit, tag: String) {
     var open by remember { mutableStateOf(false) }
     Text(label, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 10.dp))
-    Box { OutlinedButton({ open = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp).testTag(tag), shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, lerp(MaterialTheme.colorScheme.outlineVariant, MaterialTheme.colorScheme.onSurfaceVariant, .65f)), contentPadding = PaddingValues(horizontal = 14.dp)) {
+    Box { OutlinedButton({ open = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag(tag), shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, lerp(MaterialTheme.colorScheme.outlineVariant, MaterialTheme.colorScheme.onSurfaceVariant, .25f)), contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp)) {
         Text(value, Modifier.weight(1f), fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface); Icon(Icons.Outlined.KeyboardArrowDown, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant) }
         DropdownMenu(open, { open = false }) { options.forEach { item -> DropdownMenuItem(text = { Text(item) }, onClick = { open = false; change(item) }) } }
     }

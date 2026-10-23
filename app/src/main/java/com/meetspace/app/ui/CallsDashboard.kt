@@ -5,7 +5,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
@@ -61,61 +60,66 @@ internal fun CallsDashboard(state: MeetingsUiState, repository: RepositoryState,
     var filters by remember { mutableStateOf(false) }
     val reset = { query = ""; actions.listPeriod(null, null); actions.listFilter(state.listView, MeetingsScope.ALL) }
     BoxWithConstraints(modifier.fillMaxSize().testTag("calls")) {
-        val wide = maxWidth >= 780.dp && LocalDensity.current.fontScale <= 1.5f
-        val expanded = maxWidth >= 1080.dp
+        val readableWidth = maxWidth / LocalDensity.current.fontScale.coerceAtLeast(1f)
+        val wide = readableWidth >= 780.dp
+        val expanded = readableWidth >= 1080.dp
         Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState()).padding(horizontal = if (wide) 54.dp else 16.dp, vertical = if (wide) 28.dp else 20.dp)
-            .testTag(if (wide) "calls-wide" else "calls-compact")) {
-            MeetingQuickActions(wide, expanded, state, onCreate, onSchedule, onJoin)
-            if (wide) HorizontalDivider(Modifier.padding(top = 24.dp, bottom = 8.dp), color = MaterialTheme.colorScheme.outlineVariant)
-            else Spacer(Modifier.height(0.dp))
-            Row(Modifier.widthIn(max = 650.dp).fillMaxWidth().height(IntrinsicSize.Min).padding(bottom = 24.dp), horizontalArrangement = Arrangement.spacedBy(if (wide) 10.dp else 8.dp)) {
-                WorkspaceShortcut("Записи и материалы", Icons.Outlined.PlayCircleOutline, { actions.recordings(null) }, Modifier.weight(1f).testTag("meetings-library-shortcut"))
-                WorkspaceShortcut("Мои папки", Icons.Outlined.FolderOpen, onFolders, Modifier.weight(1f).testTag("meetings-folders-shortcut"))
-            }
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("Мои встречи", Modifier.weight(1f).semantics { heading() }, fontSize = if (wide) 22.sp else 17.sp, lineHeight = if (wide) 33.sp else 26.sp, fontWeight = FontWeight.SemiBold)
-                Text(meetingZoneLabel(state), Modifier.clip(RoundedCornerShape(6.dp)).clickable(role = Role.Button, onClick = onZone).padding(start = 6.dp, top = 7.dp, bottom = 7.dp).testTag("meeting-zone"),
-                    fontSize = if (wide) 11.sp else 10.sp, lineHeight = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            if (wide) Row(Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 20.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(25.dp)) {
-                Box(Modifier.weight(1f)) { Box(if (expanded) Modifier.widthIn(max = 430.dp) else Modifier) { MeetingViewTabs(state, actions, expanded) } }
-                Box(Modifier.width(if (expanded) 320.dp else 260.dp)) { MeetingSearch(query, { query = it }, !state.list.loading, actions.refreshList) }
-            } else {
-                Row(Modifier.fillMaxWidth().padding(top = 14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Box(Modifier.weight(1f)) { MeetingSearch(query, { query = it }, !state.list.loading, actions.refreshList) }
-                    OutlinedIconButton(onClick = { filters = true }, shape = RoundedCornerShape(13.dp), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), modifier = Modifier.size(48.dp).testTag("calls-filters")) { Icon(Icons.Outlined.Tune, "Фильтры встреч", Modifier.size(20.dp)) }
+            .testTag(if (wide) "calls-wide" else "calls-compact"), horizontalAlignment = Alignment.CenterHorizontally) {
+            Column(Modifier.widthIn(max = 1160.dp).fillMaxWidth()) {
+                MeetingQuickActions(wide, expanded, state, onCreate, onSchedule, onJoin)
+                if (wide) HorizontalDivider(Modifier.padding(top = 24.dp, bottom = 8.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                else Spacer(Modifier.height(0.dp))
+                Row(Modifier.widthIn(max = 650.dp).fillMaxWidth().height(IntrinsicSize.Min).padding(bottom = 24.dp), horizontalArrangement = Arrangement.spacedBy(if (wide) 10.dp else 8.dp)) {
+                    WorkspaceShortcut("Записи и материалы", Icons.Outlined.PlayCircleOutline, { actions.recordings(null) }, Modifier.weight(1f).testTag("meetings-library-shortcut"))
+                    WorkspaceShortcut("Мои папки", Icons.Outlined.FolderOpen, onFolders, Modifier.weight(1f).testTag("meetings-folders-shortcut"))
                 }
-                Spacer(Modifier.height(12.dp))
-                MeetingViewTabs(state, actions, false)
-            }
-            if (wide) MeetingDesktopFilters(state, actions, reset)
-            else Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                ScopeDropdown(state.listScope, { actions.listFilter(state.listView, it) }, Modifier, compact = true)
-                MeetingFilterButton(if (state.listFrom != null || state.listTo != null) "Период выбран" else "Период",
-                    { filters = true }, Modifier.testTag("meeting-period"), compact = true, leadingIcon = Icons.Outlined.CalendarMonth)
-                if (state.listScope != MeetingsScope.ALL || state.listFrom != null || state.listTo != null) IconButton(reset, Modifier.testTag("meeting-reset")) { Icon(Icons.Outlined.Close, "Сбросить фильтры") }
-            }
-            val rows = state.list.data?.items.orEmpty().filter { it.title.contains(query.trim(), ignoreCase = true) }
-            Row(Modifier.fillMaxWidth().padding(top = if (wide) 21.dp else 16.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                val caption = when (state.listView) { MeetingsView.UPCOMING -> "Предстоящие и без даты"; MeetingsView.ACTIVE -> "Встречи в эфире"; MeetingsView.PAST -> "Завершённые и отменённые" }
-                Text(caption + (state.list.data?.let { " · ${rows.size}${if (it.nextCursor != null) "+" else ""}" } ?: ""),
-                    Modifier.weight(1f).testTag("calls-loaded-count").semantics { contentDescription = "$caption. Загружено: ${rows.size}." }, fontSize = 12.sp, lineHeight = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            MeetingLoadStatus(state.list, actions.refreshList)
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                rows.forEach { MeetingListEntry(it, state, repository.session?.user?.id, actions.open, wide) }
-            }
-            if (rows.isEmpty() && state.list.data != null && !state.list.loading && state.list.error == null) {
-                Column(Modifier.fillMaxWidth().padding(vertical = 28.dp).testTag("calls-empty"), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Icon(Icons.Outlined.CalendarMonth, null, Modifier.size(42.dp), tint = MaterialTheme.colorScheme.primary)
-                    Text(if (query.isNotBlank() || state.listFrom != null || state.listTo != null) "Встречи не найдены" else when (state.listView) { MeetingsView.ACTIVE -> "Сейчас нет активных встреч"; MeetingsView.PAST -> "Здесь будет история встреч"; MeetingsView.UPCOMING -> "Самое время для первой встречи" }, style = MaterialTheme.typography.titleMedium)
-                    Text(if (query.isNotBlank()) "Поиск по загруженным страницам. Можно загрузить следующие." else "Создайте встречу и пригласите коллег по ссылке.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    OutlinedButton(if (query.isNotBlank() || state.listFrom != null || state.listTo != null) reset else onCreate, enabled = !state.actionBusy && !state.creationUncertain) { Text(if (query.isNotBlank() || state.listFrom != null || state.listTo != null) "Сбросить фильтры" else "Создать встречу") }
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Мои встречи", Modifier.weight(1f).semantics { heading() }, fontSize = if (wide) 22.sp else 17.sp, lineHeight = if (wide) 33.sp else 26.sp, fontWeight = FontWeight.SemiBold)
+                    Text(meetingZoneLabel(state), Modifier.clip(RoundedCornerShape(6.dp)).clickable(role = Role.Button, onClick = onZone).padding(start = 6.dp, top = 7.dp, bottom = 7.dp).testTag("meeting-zone"),
+                        fontSize = if (wide) 11.sp else 10.sp, lineHeight = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+                if (wide && expanded) Row(Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 20.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                    Box(Modifier.weight(1f)) { Box(Modifier.widthIn(max = 430.dp)) { MeetingViewTabs(state, actions, true) } }
+                    Box(Modifier.width(320.dp)) { MeetingSearch(query, { query = it }, !state.list.loading, actions.refreshList) }
+                } else {
+                    Row(Modifier.fillMaxWidth().padding(top = 14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Box(Modifier.weight(1f)) { MeetingSearch(query, { query = it }, !state.list.loading, actions.refreshList) }
+                        if (!wide) OutlinedIconButton(onClick = { filters = true }, shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                            colors = IconButtonDefaults.outlinedIconButtonColors(containerColor = MaterialTheme.colorScheme.surface), modifier = Modifier.size(52.dp).testTag("calls-filters")) { Icon(Icons.Outlined.Tune, "Фильтры встреч", Modifier.size(20.dp)) }
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    MeetingViewTabs(state, actions, false)
+                    if (wide) Spacer(Modifier.height(16.dp))
+                }
+                if (wide) MeetingDesktopFilters(state, actions, reset)
+                else FlowRow(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ScopeDropdown(state.listScope, { actions.listFilter(state.listView, it) }, Modifier, compact = true)
+                    MeetingFilterButton(if (state.listFrom != null || state.listTo != null) "Период выбран" else "Период",
+                        { filters = true }, Modifier.testTag("meeting-period"), compact = true, leadingIcon = Icons.Outlined.CalendarMonth)
+                    if (state.listScope != MeetingsScope.ALL || state.listFrom != null || state.listTo != null) IconButton(reset, Modifier.testTag("meeting-reset")) { Icon(Icons.Outlined.Close, "Сбросить фильтры") }
+                }
+                val rows = state.list.data?.items.orEmpty().filter { it.title.contains(query.trim(), ignoreCase = true) }
+                Row(Modifier.fillMaxWidth().padding(top = if (wide) 21.dp else 16.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    val caption = when (state.listView) { MeetingsView.UPCOMING -> "Предстоящие и без даты"; MeetingsView.ACTIVE -> "Встречи в эфире"; MeetingsView.PAST -> "Завершённые и отменённые" }
+                    Text(caption + (state.list.data?.let { " · ${rows.size}${if (it.nextCursor != null) "+" else ""}" } ?: ""),
+                        Modifier.weight(1f).testTag("calls-loaded-count").semantics { contentDescription = "$caption. Загружено: ${rows.size}." }, fontSize = 12.sp, lineHeight = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                MeetingLoadStatus(state.list, actions.refreshList)
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    rows.forEach { MeetingListEntry(it, state, repository.session?.user?.id, actions.open, wide) }
+                }
+                if (rows.isEmpty() && state.list.data != null && !state.list.loading && state.list.error == null) {
+                    Column(Modifier.fillMaxWidth().padding(vertical = 28.dp).testTag("calls-empty"), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Icon(Icons.Outlined.CalendarMonth, null, Modifier.size(42.dp), tint = MaterialTheme.colorScheme.primary)
+                        Text(if (query.isNotBlank() || state.listFrom != null || state.listTo != null) "Встречи не найдены" else when (state.listView) { MeetingsView.ACTIVE -> "Сейчас нет активных встреч"; MeetingsView.PAST -> "Здесь будет история встреч"; MeetingsView.UPCOMING -> "Самое время для первой встречи" }, style = MaterialTheme.typography.titleMedium)
+                        Text(if (query.isNotBlank()) "Поиск по загруженным страницам. Можно загрузить следующие." else "Создайте встречу и пригласите коллег по ссылке.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        OutlinedButton(if (query.isNotBlank() || state.listFrom != null || state.listTo != null) reset else onCreate, enabled = !state.actionBusy && !state.creationUncertain) { Text(if (query.isNotBlank() || state.listFrom != null || state.listTo != null) "Сбросить фильтры" else "Создать встречу") }
+                    }
+                }
+                if (state.list.data?.nextCursor != null) TextButton(actions.moreList, enabled = !state.list.loading, modifier = Modifier.fillMaxWidth().testTag("meeting-more")) { Text("Загрузить ещё") }
+                Spacer(Modifier.height(14.dp))
             }
-            if (state.list.data?.nextCursor != null) TextButton(actions.moreList, enabled = !state.list.loading, modifier = Modifier.fillMaxWidth().testTag("meeting-more")) { Text("Загрузить ещё") }
-            Spacer(Modifier.height(14.dp))
         }
     }
     if (filters) MeetingFilterDialog(state, actions, reset) { filters = false }
@@ -173,13 +177,10 @@ private fun MeetingViewTabs(state: MeetingsUiState, actions: MeetingsActions, ex
 
 @Composable
 private fun MeetingSearch(query: String, change: (String) -> Unit, refreshEnabled: Boolean, refresh: () -> Unit) {
-    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(13.dp)).background(MaterialTheme.colorScheme.background, RoundedCornerShape(13.dp))
-        .then(Modifier.clip(RoundedCornerShape(13.dp))).padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        Icon(Icons.Outlined.Search, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-        BasicTextField(query, { change(it.take(200)) }, singleLine = true, textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface), cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-            modifier = Modifier.weight(1f).testTag("calls-search").semantics { contentDescription = "Найти встречу" }, decorationBox = { input -> Box { if (query.isEmpty()) Text("Найти встречу", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant); input() } })
-        if (query.isNotEmpty()) IconButton({ change("") }, Modifier.size(40.dp).testTag("meeting-search-clear")) { Icon(Icons.Outlined.Close, "Очистить поиск", Modifier.size(18.dp)) }
-        IconButton(refresh, enabled = refreshEnabled, modifier = Modifier.size(40.dp).testTag("calls-refresh")) { Icon(Icons.Outlined.Refresh, "Обновить встречи", Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+    WorkspaceSearchField(query, { change(it.take(200)) }, "Найти встречу", "calls-search", clearTag = "meeting-search-clear") {
+        IconButton(refresh, enabled = refreshEnabled, modifier = Modifier.size(48.dp).testTag("calls-refresh")) {
+            Icon(Icons.Outlined.Refresh, "Обновить встречи", Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }
 
@@ -198,12 +199,12 @@ private fun ScopeDropdown(scope: MeetingsScope, choose: (MeetingsScope) -> Unit,
 @Composable
 private fun MeetingFilterButton(label: String, click: () -> Unit, modifier: Modifier, compact: Boolean,
     leadingIcon: ImageVector? = null, trailingIcon: ImageVector? = null) {
-    OutlinedButton(click, modifier.heightIn(min = if (compact) 48.dp else 50.dp),
+    OutlinedButton(click, modifier.heightIn(min = 52.dp),
         shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         colors = ButtonDefaults.outlinedButtonColors(containerColor = MaterialTheme.colorScheme.surface, contentColor = MaterialTheme.colorScheme.onSurfaceVariant),
         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)) {
         leadingIcon?.let { Icon(it, null, Modifier.size(16.dp)); Spacer(Modifier.width(8.dp)) }
-        Text(label, if (compact) Modifier else Modifier.weight(1f), fontSize = 12.sp, lineHeight = 18.sp,
+        Text(label, if (compact) Modifier else Modifier.weight(1f), fontSize = 13.sp, lineHeight = 20.sp,
             maxLines = if (compact) 1 else Int.MAX_VALUE, softWrap = !compact)
         trailingIcon?.let { Spacer(Modifier.width(8.dp)); Icon(it, null, Modifier.size(16.dp)) }
     }
@@ -233,7 +234,7 @@ private fun PeriodField(label: String, value: String, change: (String) -> Unit, 
     val displayed = date?.format(periodDisplayFormat) ?: value
     Column(modifier, verticalArrangement = Arrangement.spacedBy(7.dp)) {
         Text(label, fontSize = 11.sp, lineHeight = 16.sp)
-        Row(Modifier.fillMaxWidth().heightIn(min = 50.dp).border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
+        Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
             .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp)).padding(start = 10.dp, end = 3.dp), verticalAlignment = Alignment.CenterVertically) {
             BasicTextField(displayed, { input ->
                 val trimmed = input.take(10)
@@ -242,7 +243,7 @@ private fun PeriodField(label: String, value: String, change: (String) -> Unit, 
             }, singleLine = true, textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface), cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                 modifier = Modifier.weight(1f).padding(vertical = 10.dp).testTag(tag).semantics { contentDescription = "$label, ДД.ММ.ГГГГ" },
                 decorationBox = { input -> Box { if (displayed.isEmpty()) Text("ДД.ММ.ГГГГ", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant); input() } })
-            IconButton({ calendar = true }, Modifier.size(40.dp).testTag("$tag-calendar")) { Icon(Icons.Outlined.CalendarToday, "Выбрать дату: $label", Modifier.size(16.dp)) }
+            IconButton({ calendar = true }, Modifier.size(48.dp).testTag("$tag-calendar")) { Icon(Icons.Outlined.CalendarToday, "Выбрать дату: $label", Modifier.size(18.dp)) }
         }
     }
     if (calendar) {
@@ -333,16 +334,13 @@ private fun MeetingListEntry(meeting: Meeting, state: MeetingsUiState, selfId: S
                 }
                 title()
                 metadata()
-                if (meeting.isClosed) MeetingMaterialsButton(false, showDetails)
             } else Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
                 date()
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                     MeetingStatusBadge(meeting)
                     title()
                     metadata()
-                    if (!wide && meeting.isClosed) MeetingMaterialsButton(false, showDetails)
                 }
-                if (wide && meeting.isClosed) MeetingMaterialsButton(true, showDetails)
                 options()
             }
         }
@@ -377,24 +375,12 @@ private fun MeetingStatusBadge(meeting: Meeting) {
 }
 
 @Composable
-@OptIn(ExperimentalMaterial3Api::class)
-private fun MeetingMaterialsButton(wide: Boolean, open: () -> Unit) {
-    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
-        OutlinedButton(open, shape = RoundedCornerShape(9.dp), colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurface),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), contentPadding = PaddingValues(horizontal = if (wide) 13.dp else 11.dp, vertical = if (wide) 8.dp else 6.dp),
-            modifier = Modifier.defaultMinSize(minHeight = if (wide) 37.dp else 33.dp)) {
-            Icon(Icons.Outlined.FolderOpen, null, Modifier.size(14.dp)); Spacer(Modifier.width(6.dp)); Text("Материалы", fontSize = if (wide) 12.sp else 11.sp, lineHeight = 16.sp)
-        }
-    }
-}
-
-@Composable
 private fun WorkspaceShortcut(title: String, icon: ImageVector, click: () -> Unit, modifier: Modifier) {
     Surface(onClick = click, shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), modifier = modifier.heightIn(min = 48.dp).fillMaxHeight()) {
         Row(Modifier.padding(horizontal = 9.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Icon(icon, null, Modifier.size(19.dp), tint = MaterialTheme.colorScheme.primary)
-            Text(title, Modifier.weight(1f), fontSize = 11.sp, lineHeight = 17.sp)
+            Text(title, Modifier.weight(1f), fontSize = 12.sp, lineHeight = 18.sp)
             Icon(Icons.Outlined.ChevronRight, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }

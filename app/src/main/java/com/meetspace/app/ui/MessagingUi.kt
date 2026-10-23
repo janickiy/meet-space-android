@@ -206,14 +206,8 @@ private fun ConversationList(state: MessagingUiState, actions: MessagingActions,
         LazyColumn(Modifier.weight(1f).fillMaxWidth().testTag("conversation-list"), state = listScroll,
             contentPadding = PaddingValues(start = if (smallPhone) 12.dp else 15.dp, end = if (smallPhone) 12.dp else 15.dp, top = 15.dp, bottom = 80.dp)) {
             if (searchOpen) item("search") {
-                BasicTextField(value = state.query, onValueChange = actions.query, singleLine = true,
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface), cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(bottom = 12.dp).background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
-                        .testTag("conversation-search").semantics { contentDescription = if (selectedFolder != null) "Найти в папке" else "Найти чат" },
-                    decorationBox = { input -> Row(Modifier.padding(horizontal = 13.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Icon(Icons.Outlined.Search, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Box(Modifier.weight(1f)) { if (state.query.isBlank()) Text("Найти человека или чат", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant); input() }
-                    } })
+                WorkspaceSearchField(state.query, actions.query, if (selectedFolder != null) "Найти в папке" else "Найти чат",
+                    "conversation-search", Modifier.padding(bottom = 12.dp), placeholder = "Найти человека или чат")
             }
             if (!inviteDismissed && !serverOrigin.isNullOrBlank()) item("invite") { ChatInviteBanner(serverOrigin, dismissInvite) }
             if (selectedFolder != null) item("folder-heading") {
@@ -621,20 +615,22 @@ private fun NewChatDialog(state: MessagingUiState, actions: MessagingActions, di
     var description by remember { mutableStateOf("") }
     var selected by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     AlertDialog(onDismissRequest = { if (!state.busy) dismiss() }, title = { Text(if (group) "Новая группа" else "Новый личный чат") },
-        text = { Column(Modifier.heightIn(max = 520.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        shape = RoundedCornerShape(24.dp), containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp,
+        properties = DialogProperties(usePlatformDefaultWidth = false), modifier = Modifier.imePadding().padding(horizontal = 16.dp).widthIn(max = 560.dp).fillMaxWidth(),
+        text = { Column(Modifier.heightIn(max = 520.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(selected = !group, onClick = { group = false; selected = emptyMap() }, label = { Text("Личный") }, enabled = !state.busy, modifier = Modifier.testTag("create-chat-direct"))
                 FilterChip(selected = group, onClick = { group = true; selected = emptyMap() }, label = { Text("Группа") }, enabled = !state.busy, modifier = Modifier.testTag("create-chat-group"))
             }
             if (group) {
-                OutlinedTextField(value = name, onValueChange = { name = it.take(200) }, label = { Text("Название группы") }, enabled = !state.busy, modifier = Modifier.fillMaxWidth().testTag("create-group-name"))
-                OutlinedTextField(value = description, onValueChange = { description = it.take(2000) }, label = { Text("Описание · необязательно") }, enabled = !state.busy, modifier = Modifier.fillMaxWidth().testTag("create-group-description"))
+                OutlinedTextField(value = name, onValueChange = { name = it.take(200) }, label = { Text("Название группы") }, shape = RoundedCornerShape(12.dp), enabled = !state.busy, modifier = Modifier.fillMaxWidth().testTag("create-group-name"))
+                OutlinedTextField(value = description, onValueChange = { description = it.take(2000) }, label = { Text("Описание · необязательно") }, shape = RoundedCornerShape(12.dp), minLines = 2, maxLines = 4, enabled = !state.busy, modifier = Modifier.fillMaxWidth().testTag("create-group-description"))
                 if (selected.isNotEmpty()) Text("Выбраны: ${selected.values.joinToString()}", style = MaterialTheme.typography.bodySmall)
             }
-            OutlinedTextField(value = state.userQuery, onValueChange = actions.searchUsers, label = { Text("Найти человека") }, supportingText = { Text("Имя или точный email") }, singleLine = true, enabled = !state.busy, modifier = Modifier.fillMaxWidth().testTag("chat-user-search"))
-            LoadingStatus(state.users.loading, state.users.error, { actions.searchUsers(state.userQuery) })
+            OutlinedTextField(value = state.userQuery, onValueChange = actions.searchUsers, label = { Text("Найти человека") }, supportingText = { Text("Имя или точный email") }, shape = RoundedCornerShape(12.dp), singleLine = true, enabled = !state.busy, modifier = Modifier.fillMaxWidth().testTag("chat-user-search"))
+            if (state.users.loading || state.users.error != null) LoadingStatus(state.users.loading, state.users.error, { actions.searchUsers(state.userQuery) })
             state.users.data.orEmpty().filter { it.id != state.selfId }.forEach { peer ->
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background, RoundedCornerShape(12.dp)).padding(8.dp).heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
                     if (group) Checkbox(checked = peer.id in selected, onCheckedChange = { checked -> selected = if (checked) selected + (peer.id to peer.displayName) else selected - peer.id }, enabled = !state.busy, modifier = Modifier.testTag("group-select-${peer.id}"))
                     Text(peer.displayName, Modifier.weight(1f))
                     if (!group) TextButton(onClick = { actions.createDirect(peer.id) }, enabled = !state.busy, modifier = Modifier.testTag("direct-create-${peer.id}")) { Text("Написать") }
@@ -643,7 +639,8 @@ private fun NewChatDialog(state: MessagingUiState, actions: MessagingActions, di
             if (state.users.data?.isEmpty() == true && !state.users.loading && state.users.error == null) Text(if (state.userQuery.isBlank()) "Введите имя собеседника" else "Пользователи не найдены")
             state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         } },
-        confirmButton = { if (group) Button(onClick = { actions.createGroup(name.trim(), description.trim(), selected.keys.toList()) }, enabled = !state.busy && name.isNotBlank() && selected.isNotEmpty(), modifier = Modifier.testTag("create-group-submit")) { Text(if (state.busy) "Создаём…" else "Создать группу") } },
+        confirmButton = { if (group) Button(onClick = { actions.createGroup(name.trim(), description.trim(), selected.keys.toList()) }, enabled = !state.busy && name.isNotBlank() && selected.isNotEmpty(),
+            shape = RoundedCornerShape(12.dp), modifier = Modifier.heightIn(min = 48.dp).testTag("create-group-submit")) { Text(if (state.busy) "Создаём…" else "Создать группу") } },
         dismissButton = { TextButton(onClick = dismiss, enabled = !state.busy) { Text("Закрыть") } })
 }
 
@@ -654,34 +651,126 @@ internal fun FoldersDialog(state: MessagingUiState, actions: MessagingActions, d
     var deleting by remember { mutableStateOf<ChatFolder?>(null) }
     LaunchedEffect(state.mutationRevision) { if (state.mutationRevision > 0) { editing = null; name = ""; deleting = null } }
     val folders = state.folders.data.orEmpty()
-    AlertDialog(onDismissRequest = { if (!state.busy) dismiss() }, title = { Text("Папки") },
-        text = { Column(Modifier.heightIn(max = 520.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Собирайте чаты и встречи по темам. Папки видны только вам.")
-            LoadingStatus(state.folders.loading, state.folders.error, actions.refresh)
-            folders.forEachIndexed { index, folder ->
-                Surface(color = MaterialTheme.colorScheme.surfaceContainerLow, shape = RoundedCornerShape(12.dp)) {
-                    Column(Modifier.fillMaxWidth().padding(10.dp)) {
-                        Text(folder.name, style = MaterialTheme.typography.titleSmall)
-                        Text("Чаты: ${folder.conversationCount} · встречи: ${folder.conferenceCount}", style = MaterialTheme.typography.bodySmall)
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                            IconButton(onClick = { editing = folder; name = folder.name }, enabled = !state.busy, modifier = Modifier.testTag("folder-rename-${folder.id}")) { Icon(Icons.Outlined.Edit, "Переименовать ${folder.name}") }
-                            IconButton(onClick = { deleting = folder }, enabled = !state.busy, modifier = Modifier.testTag("folder-delete-${folder.id}")) { Icon(Icons.Outlined.DeleteOutline, "Удалить папку ${folder.name}") }
-                            IconButton(onClick = { actions.reorderFolders(folders.map { it.id }.toMutableList().apply { add(index - 1, removeAt(index)) }) }, enabled = index > 0 && !state.busy, modifier = Modifier.testTag("folder-up-${folder.id}")) { Icon(Icons.Outlined.KeyboardArrowUp, "Поднять папку ${folder.name}") }
-                            IconButton(onClick = { actions.reorderFolders(folders.map { it.id }.toMutableList().apply { add(index + 1, removeAt(index)) }) }, enabled = index < folders.lastIndex && !state.busy) { Icon(Icons.Outlined.KeyboardArrowDown, "Опустить папку ${folder.name}") }
+    Dialog(onDismissRequest = { if (!state.busy) dismiss() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        BoxWithConstraints(Modifier.fillMaxWidth().imePadding().padding(horizontal = 16.dp, vertical = 24.dp), contentAlignment = Alignment.Center) {
+            Surface(
+                modifier = Modifier.widthIn(max = 600.dp).fillMaxWidth().heightIn(max = maxHeight.coerceAtMost(640.dp)).testTag("folders-dialog"),
+                shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            ) {
+                Column(Modifier.padding(20.dp)) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Icon(Icons.Outlined.FolderOpen, null, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
+                        Text("Папки", Modifier.weight(1f).semantics { heading() }, style = MaterialTheme.typography.headlineSmall)
+                        IconButton(onClick = dismiss, enabled = !state.busy, modifier = Modifier.testTag("folders-close")) {
+                            Icon(Icons.Outlined.Close, "Закрыть управление папками", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
+                    Spacer(Modifier.height(8.dp))
+                    Column(
+                        Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).testTag("folders-dialog-content"),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        Text("Собирайте чаты и встречи по темам. Папки видны только вам.",
+                            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        if (state.folders.loading || state.folders.error != null) LoadingStatus(state.folders.loading, state.folders.error, actions.refresh)
+                        if (folders.isNotEmpty()) {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                folders.forEachIndexed { index, folder ->
+                                    FolderManagementRow(folder, index, folders, state.busy, editing?.id == folder.id,
+                                        rename = { editing = folder; name = folder.name }, delete = { deleting = folder },
+                                        reorder = actions.reorderFolders)
+                                }
+                            }
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        }
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(if (editing != null) "Переименовать папку" else "Новая папка", style = MaterialTheme.typography.titleSmall)
+                            OutlinedTextField(
+                                value = name, onValueChange = { name = it.take(100) }, singleLine = true,
+                                label = { Text(if (editing != null) "Новое название" else "Название папки") },
+                                supportingText = { Text("До 50 символов") }, enabled = !state.busy,
+                                shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().testTag("folder-name"),
+                            )
+                            Button(
+                                onClick = { val folder = editing; if (folder == null) actions.createFolder(name.trim()) else actions.renameFolder(folder.id, name.trim()) },
+                                enabled = !state.busy && name.trim().codePointCount(0, name.trim().length) in 1..50,
+                                shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("folder-save"),
+                            ) {
+                                Icon(if (editing != null) Icons.Outlined.Check else Icons.Outlined.Add, null, Modifier.size(20.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text(if (editing != null) "Сохранить название" else "Создать папку")
+                            }
+                            if (editing != null) TextButton(onClick = { editing = null; name = "" }, enabled = !state.busy,
+                                modifier = Modifier.align(Alignment.CenterHorizontally)) { Text("Отменить переименование") }
+                        }
+                        state.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
+                    }
+                    TextButton(onClick = dismiss, enabled = !state.busy, modifier = Modifier.align(Alignment.End).padding(top = 8.dp)) { Text("Готово") }
                 }
             }
-            HorizontalDivider()
-            OutlinedTextField(value = name, onValueChange = { name = it.take(100) }, label = { Text(if (editing != null) "Новое название" else "Название новой папки") }, supportingText = { Text("До 50 символов") }, enabled = !state.busy, modifier = Modifier.fillMaxWidth().testTag("folder-name"))
-            Button(onClick = { val folder = editing; if (folder == null) actions.createFolder(name.trim()) else actions.renameFolder(folder.id, name.trim()) }, enabled = !state.busy && name.trim().codePointCount(0, name.trim().length) in 1..50, modifier = Modifier.testTag("folder-save")) { Text(if (editing != null) "Переименовать" else "Создать папку") }
-            if (editing != null) TextButton(onClick = { editing = null; name = "" }, enabled = !state.busy) { Text("Отменить переименование") }
-            state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        } }, confirmButton = { TextButton(onClick = dismiss, enabled = !state.busy) { Text("Готово") } })
+        }
+    }
     deleting?.let { folder -> AlertDialog(onDismissRequest = { if (!state.busy) deleting = null }, title = { Text("Удалить папку «${folder.name}»?") },
         text = { Text("Чаты и встречи сохранятся. Удалится только папка.") },
         confirmButton = { Button(onClick = { actions.deleteFolder(folder.id) }, enabled = !state.busy, modifier = Modifier.testTag("folder-confirm-delete")) { Text("Удалить папку") } },
         dismissButton = { TextButton(onClick = { deleting = null }, enabled = !state.busy) { Text("Отмена") } }) }
+}
+
+@Composable
+private fun FolderManagementRow(
+    folder: ChatFolder, index: Int, folders: List<ChatFolder>, busy: Boolean, editing: Boolean,
+    rename: () -> Unit, delete: () -> Unit, reorder: (List<String>) -> Unit,
+) {
+    val colors = MaterialTheme.colorScheme
+    val fontScale = LocalDensity.current.fontScale.coerceAtLeast(1f)
+    Surface(
+        modifier = Modifier.fillMaxWidth().testTag("folder-management-${folder.id}"),
+        color = if (editing) colors.primaryContainer else colors.surfaceContainerLow,
+        shape = RoundedCornerShape(14.dp),
+        border = BorderStroke(1.dp, if (editing) colors.primary else colors.outlineVariant),
+    ) {
+        BoxWithConstraints(Modifier.padding(12.dp)) {
+            val details: @Composable RowScope.() -> Unit = {
+                Icon(Icons.Outlined.FolderOpen, null, Modifier.size(32.dp), tint = colors.primary)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(folder.name, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text("Чаты: ${folder.conversationCount} · встречи: ${folder.conferenceCount}",
+                        style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                }
+            }
+            val controls: @Composable () -> Unit = {
+                FlowRow(modifier = Modifier.widthIn(max = 198.dp), horizontalArrangement = Arrangement.spacedBy(2.dp, Alignment.End)) {
+                    IconButton(onClick = rename, enabled = !busy, modifier = Modifier.size(48.dp).testTag("folder-rename-${folder.id}")) {
+                        Icon(Icons.Outlined.Edit, "Переименовать ${folder.name}", Modifier.size(20.dp))
+                    }
+                    IconButton(onClick = delete, enabled = !busy, modifier = Modifier.size(48.dp).testTag("folder-delete-${folder.id}"),
+                        colors = IconButtonDefaults.iconButtonColors(contentColor = colors.error)) {
+                        Icon(Icons.Outlined.DeleteOutline, "Удалить папку ${folder.name}", Modifier.size(20.dp))
+                    }
+                    IconButton(onClick = { reorder(folders.map { it.id }.toMutableList().apply { add(index - 1, removeAt(index)) }) },
+                        enabled = index > 0 && !busy, modifier = Modifier.size(48.dp).testTag("folder-up-${folder.id}")) {
+                        Icon(Icons.Outlined.KeyboardArrowUp, "Поднять папку ${folder.name}", Modifier.size(22.dp))
+                    }
+                    IconButton(onClick = { reorder(folders.map { it.id }.toMutableList().apply { add(index + 1, removeAt(index)) }) },
+                        enabled = index < folders.lastIndex && !busy, modifier = Modifier.size(48.dp).testTag("folder-down-${folder.id}")) {
+                        Icon(Icons.Outlined.KeyboardArrowDown, "Опустить папку ${folder.name}", Modifier.size(22.dp))
+                    }
+                }
+            }
+            if (maxWidth >= 420.dp * fontScale) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp), content = details)
+                    controls()
+                }
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp), content = details)
+                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) { controls() }
+                }
+            }
+        }
+    }
 }
 
 @Composable

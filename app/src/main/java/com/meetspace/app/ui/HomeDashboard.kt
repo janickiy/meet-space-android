@@ -24,7 +24,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
@@ -36,7 +35,6 @@ import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.PersonOutline
-import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Videocam
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -113,7 +111,7 @@ fun HomeDashboard(
 ) {
     BoxWithConstraints(modifier.fillMaxSize().testTag("home-dashboard")) {
         val viewportWidth = maxWidth
-        val wide = viewportWidth >= 780.dp
+        val wide = viewportWidth / LocalDensity.current.fontScale.coerceAtLeast(1f) >= 780.dp
         val stage = Modifier.fillMaxSize().padding(horizontal = if (wide) 24.dp else 0.dp)
             .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)).background(MaterialTheme.colorScheme.surface)
         val chats: @Composable (Modifier) -> Unit = { paneModifier ->
@@ -173,7 +171,7 @@ private fun HomeWelcome(wide: Boolean) {
     )
     Spacer(Modifier.height(8.dp))
     Text("Будьте рядом, где бы вы ни находились.", Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurfaceVariant,
-        fontSize = 12.sp, lineHeight = 18.sp, textAlign = TextAlign.Center)
+        fontSize = 14.sp, lineHeight = 22.sp, textAlign = TextAlign.Center)
     Spacer(Modifier.height(24.dp))
 }
 
@@ -278,7 +276,7 @@ private fun HomeInvite(origin: String?, showArt: Boolean) {
                     Spacer(Modifier.height(15.dp))
                     Button(
                         onClick = { origin?.let { scope.launch { clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("MeetSpace", it))); copied = true } } },
-                        enabled = !origin.isNullOrBlank(), modifier = Modifier.heightIn(min = 48.dp).testTag("home-invite-copy"), shape = RoundedCornerShape(10.dp),
+                        enabled = !origin.isNullOrBlank(), modifier = Modifier.heightIn(min = 48.dp).testTag("home-invite-copy"), shape = RoundedCornerShape(12.dp),
                     ) {
                         Icon(Icons.Outlined.ContentCopy, null, Modifier.size(17.dp))
                         Spacer(Modifier.width(8.dp))
@@ -380,21 +378,7 @@ private fun HomeConversations(
 
 @Composable
 private fun HomeChatSearch(query: String, onQuery: (String) -> Unit) {
-    val textStyle = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 18.sp, color = MaterialTheme.colorScheme.onSurface)
-    BasicTextField(
-        value = query, onValueChange = onQuery, singleLine = true, textStyle = textStyle, cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp)).testTag("home-chat-search")
-            .semantics { contentDescription = "Найти человека или чат" },
-        decorationBox = { field ->
-            Row(Modifier.padding(horizontal = 12.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Icon(Icons.Outlined.Search, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                Box(Modifier.weight(1f)) {
-                    if (query.isEmpty()) Text("Найти человека или чат", style = textStyle, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    field()
-                }
-            }
-        },
-    )
+    WorkspaceSearchField(query, onQuery, "Найти человека или чат", "home-chat-search")
 }
 
 @Composable

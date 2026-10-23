@@ -197,12 +197,15 @@ class MeetingsUiTest {
         var width by mutableStateOf(390.dp)
         var fontScale by mutableStateOf(1f)
         var chosen: MeetingsScope? = null
+        var appliedPeriods = 0
+        var observedSameRow = false
+        var observedWrappedRow = false
         compose.setContent {
             DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(width, 1000.dp))) {
                 val density = LocalDensity.current
                 CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale)) {
                     MeetSpaceTheme { MeetingsWorkspace(WorkspaceTab.CALLS, ready, account,
-                        MeetingsActions(listFilter = { _, scope -> chosen = scope }), {}) }
+                        MeetingsActions(listFilter = { _, scope -> chosen = scope }, listPeriod = { _, _ -> appliedPeriods++ }), {}) }
                 }
             }
         }
@@ -211,18 +214,36 @@ class MeetingsUiTest {
             compose.onNodeWithTag("meeting-schedule").performScrollTo()
             assertReadableTextAtActualBounds(compose.onNodeWithText("Запланировать", useUnmergedTree = true), "Запланировать", singleLine = true)
             compose.onNodeWithTag("meeting-scope-picker").performScrollTo().assertIsDisplayed()
-            val layouts = mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
-            compose.onNodeWithText("Все мои встречи", useUnmergedTree = true)
-                .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
-            assertEquals("The compact filter label must stay on one line at fontScale=$scale", 1, layouts.single().lineCount)
+            assertReadableTextAtActualBounds(compose.onNodeWithText("Все мои встречи", useUnmergedTree = true), "Все мои встречи", singleLine = true)
+            assertReadableTextAtActualBounds(compose.onNodeWithText("Период", useUnmergedTree = true), "Период", singleLine = true)
             val bounds = compose.onNodeWithTag("meeting-scope-picker").getUnclippedBoundsInRoot()
             assertTrue("The compact filter must not push the list away at width=$viewport, fontScale=$scale: $bounds", bounds.bottom - bounds.top <= 56.dp)
             val periodBounds = compose.onNodeWithTag("meeting-period").getUnclippedBoundsInRoot()
-            assertEquals("Filters must share a top edge at width=$viewport, fontScale=$scale", bounds.top.value, periodBounds.top.value, 0.5f)
+            // A phone with enlarged text wraps the two full labels; the other fixtures
+            // have enough room to keep both controls on one row.
+            val expectsWrappedRow = viewport == 390.dp && scale == 1.5f
+            if (!expectsWrappedRow) {
+                observedSameRow = true
+                assertEquals("Filters that fit must share a top edge at width=$viewport, fontScale=$scale", bounds.top.value, periodBounds.top.value, 0.5f)
+                assertTrue("Adjacent filters must not overlap", periodBounds.left >= bounds.right + 8.dp - 0.5.dp)
+            } else {
+                observedWrappedRow = true
+                assertTrue("A filter that does not fit must wrap below without overlap at width=$viewport, fontScale=$scale",
+                    periodBounds.top >= bounds.bottom + 8.dp - 0.5.dp)
+                assertEquals("Wrapped filters must align to the same leading edge", bounds.left.value, periodBounds.left.value, 0.5f)
+            }
             assertEquals("Filters must have equal heights at width=$viewport, fontScale=$scale", (bounds.bottom - bounds.top).value, (periodBounds.bottom - periodBounds.top).value, 0.5f)
             assertTrue("Both filters need a 48 dp touch target", (bounds.bottom - bounds.top) >= 48.dp && (periodBounds.bottom - periodBounds.top) >= 48.dp)
+            compose.onNodeWithTag("meeting-period").performScrollTo().performClick()
+            compose.onNodeWithTag("meeting-filter-from").assertExists()
+            compose.onNodeWithTag("meeting-filter-apply").assertExists()
+            androidx.test.uiautomator.UiDevice.getInstance(InstrumentationRegistry.getInstrumentation()).pressBack()
+            compose.onNodeWithTag("meeting-filter-apply").assertDoesNotExist()
         }
-        compose.onNodeWithTag("meeting-scope-picker").performClick()
+        assertTrue("The fixtures must cover filters on the same row", observedSameRow)
+        assertTrue("The fixtures must cover filters wrapping onto another row", observedWrappedRow)
+        compose.runOnIdle { assertNull(chosen); assertEquals("Dismissing the period dialog must not apply a filter", 0, appliedPeriods) }
+        compose.onNodeWithTag("meeting-scope-picker").performScrollTo().performClick()
         compose.onNodeWithTag("meeting-scope-owned").performClick()
         compose.runOnIdle { assertEquals(MeetingsScope.OWNED, chosen) }
     }
