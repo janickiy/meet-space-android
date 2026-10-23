@@ -2,7 +2,13 @@
 
 Android and Desktop deliver the same five public files in `v1/` over an exactly pinned SSH connection. `release.json` is RSA/SHA-256 signed; it binds the runner, backend source snapshot or GitHub selection policy, Docker repository key, supported source layout, base images and infrastructure images. The application verifies it before sending executable code. The remote runner verifies the same bundle before performing an action.
 
-The current signed bundle pins a reviewed backend commit, archive checksum and required source files. New installations fetch that immutable GitHub snapshot, which includes the matching SMTP and build optimizations. Publishing a newer installer requires review and signing of the new snapshot; an unrelated newer GitHub Release cannot select incompatible backend code.
+New Android installations offer two explicit image modes. **Ready images** is the UI default: `github-prebuilt-v1` discovers the newest published GitHub Release containing both `prebuilt.json` and the native amd64/arm64 package, including prereleases, just like backend `install.sh --mode images`. Operators can select `latest` or an exact release tag. Source-only releases and incomplete uploads are ineligible. A missing package or a network/integrity failure never starts a source build automatically.
+
+**Build on server** retains the reviewed backend commit, source archive checksum, required files, pinned base images and sequential compact build settings in the signed recipe. The selected version and full commit are displayed before installation. Updating this reviewed source snapshot requires signing a new recipe.
+
+Ready-image plans freeze `imageLock` (repository, version, full commit, platform, exact archive URL, byte size, archive SHA-256 and index SHA-256) and `sourceLock` for configuration files at the same commit. Apply/resume never resolve `latest` again. The worker verifies compressed bytes, safe extraction, inner archive checksum, OCI manifests/configuration digests, architecture, application source labels and every upstream offline scan/SBOM before `docker load`. HIGH/CRITICAL findings block installation. Downloaded installer scripts are never executed. These are GitHub HTTPS/checksum and upstream report checks, not a claim of an upstream cryptographic publisher signature. Certbot remains separately pinned by the signed Android recipe.
+
+Existing Docker needs Compose for ready images; Buildx is checked only for source builds. Archive download, verification and Docker import have separate progress labels. Checked image IDs are checkpointed for resume; completed imports are reused. The source/default behavior of legacy plans without `imageMode` is preserved. A running job cannot switch modes.
 
 The runner also retains compatibility with signed recipes using `github-latest-stable-v1`: those resolve the latest stable GitHub Release when the plan is requested, resolve its tag to the exact commit and allow default-branch fallback only on HTTP 404. Such plans contain `sourceLock` (repository, release/branch ref, version, full commit, timestamp, immutable URL and checksums), `recipeSha256` and `releaseSha256`. Source bytes and Dockerfile inputs are checked before execution in either mode. GitHub is accessed anonymously over HTTPS; no upstream release signature is inferred.
 
@@ -77,6 +83,7 @@ Only public endpoint/domain/plan/job metadata are stored in Android DataStore (l
 - `config/smtp.env`: optional SMTP credentials, mode 0600, never included in public plans, status or tickets.
 - `config/compose.json`, `config/proxy`, `config/turnserver.conf`: generated service configuration. The proxy directory is mounted as a directory so atomic replacement is visible during reload.
 - `jobs/<UUID>/state.json`, `plan.json`, `source-lock.json`, `images.json`, `image-timings.json`, `evidence.json`: job checkpoints, image timings and readiness evidence.
+- Ready-image jobs additionally retain `prebuilt.tar.gz`, verified `prebuilt/` data and `prebuilt-receipt.json` for reproducible recovery. They contain public release data, not credentials. No global cache pruning is performed.
 - `backups/<UUID>-before-migrations.dump` and `.json`: PostgreSQL dump/checksum before migrations. Local, not offsite.
 - Docker volumes `meetspace_postgres`, `meetspace_rabbitmq`, `meetspace_objects`; recordings directory; ACME account and TLS directory.
 

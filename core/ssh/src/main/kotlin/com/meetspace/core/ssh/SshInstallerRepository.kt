@@ -50,6 +50,11 @@ internal class AndroidSshInstallerRepository(private val context: Context, priva
     override suspend fun plan(endpoint: SshEndpoint, credentials: SshCredentials, options: InstallOptions, expectedHostKey: SshHostKey?): InstallPlan = try {
         val result = request(endpoint, credentials, "plan", buildJsonObject { put("options", buildJsonObject {
             put("domain", options.domain.trim().lowercase()); put("publicIpv4", options.publicIpv4.trim()); put("acmeEmail", options.acmeEmail.trim())
+            put("imageMode", options.imageMode.wire)
+            if (options.imageMode == InstallImageMode.IMAGES) {
+                require(validImageRelease(options.imageRelease))
+                put("imageRelease", options.imageRelease)
+            }
             options.smtp?.let { smtp ->
                 require(smtp.isValid())
                 put("smtp", buildJsonObject {

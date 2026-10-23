@@ -297,6 +297,7 @@ class MainActivity : ComponentActivity() {
                             onControl = installerModel::control, onDetach = installerModel::detach,
                             onReconnect = installerModel::reconnect, onForgetCompleted = installerModel::forgetCompleted,
                             onRefreshPlan = installerModel::refreshMissingPlan,
+                            onEditOptions = installerModel::editOptions,
                             onConnect = { origin -> installerModel.detach(); sshModel.reset(); model.navigate(FoundationScreen.CONNECT); model.connect(origin) },
                             onCreateAccount = { origin -> installerModel.detach(); sshModel.reset(); model.navigate(FoundationScreen.CONNECT); model.connectForRegistration(origin) },
                         ) else SshWizardUi(

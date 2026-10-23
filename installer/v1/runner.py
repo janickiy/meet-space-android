@@ -40,6 +40,9 @@ PHASES = ("docker", "source", "images", "configuration", "dependencies", "backup
 APP_SERVICES = ("api", "media-worker", "worker", "product-worker", "live-worker", "frontend", "minio")
 PORTS = {"tcp": [80, 443, 3478, 5349, 50010], "udp": [3478, 50010] + list(range(49160, 49260))}
 SOURCE_POLICY = "github-latest-stable-v1"
+PREBUILT_POLICY = "github-prebuilt-v1"
+PREBUILT_SERVICES = (*APP_SERVICES, "postgres", "redis", "rabbitmq", "coturn", "proxy", "prometheus")
+MAX_IMAGE_ARCHIVE = 2 * 1024 ** 3
 UBUNTU_SUITES = {"22.04": "jammy", "24.04": "noble"}
 SUPPORTED_ARCHES = {"amd64", "arm64"}
 DOCKER_PACKAGES = {"containerd.io", "docker-ce", "docker-ce-cli", "docker-buildx-plugin", "docker-compose-plugin"}
@@ -238,7 +241,7 @@ def source_url(commit):
     return "https://codeload.github.com/" + REPOSITORY + "/tar.gz/" + commit
 
 
-def source_snapshot(commit, recipe):
+def source_snapshot(commit, recipe, *, building=True):
     """Hash the commit archive and required inputs without extracting or executing it."""
     with tempfile.TemporaryDirectory(prefix="meetspace-source-") as temporary:
         archive = pathlib.Path(temporary) / "source.tar.gz"
@@ -275,8 +278,9 @@ def source_snapshot(commit, recipe):
                             contents[relative] = stream.read()
             if set(contents) != set(recipe["sourceFiles"]):
                 fail("SOURCE_INCOMPATIBLE")
-            for dockerfile in recipe["dockerfiles"].values():
-                pinned_dockerfile(contents[dockerfile["path"]].decode("utf-8"), recipe["baseImages"])
+            if building:
+                for dockerfile in recipe["dockerfiles"].values():
+                    pinned_dockerfile(contents[dockerfile["path"]].decode("utf-8"), recipe["baseImages"])
             return checksum.hexdigest(), {path: digest(data) for path, data in contents.items()}
         except (OSError, urllib.error.URLError, tarfile.TarError, UnicodeError):
             fail("SOURCE_LOOKUP_FAILED")
@@ -318,15 +322,16 @@ def resolve_source(recipe):
 
 
 def locked_manifest(recipe, lock):
-    if recipe.get("sourcePolicy") != SOURCE_POLICY or not isinstance(lock, dict) or set(lock) != {"repository", "channel", "ref", "version", "commit", "builtAt", "sourceUrl", "sourceSha256", "sourceFiles"}:
+    prebuilt = isinstance(lock, dict) and lock.get("channel") == "prebuilt" and recipe.get("prebuiltPolicy") == PREBUILT_POLICY
+    if (not prebuilt and recipe.get("sourcePolicy") != SOURCE_POLICY) or not isinstance(lock, dict) or set(lock) != {"repository", "channel", "ref", "version", "commit", "builtAt", "sourceUrl", "sourceSha256", "sourceFiles"}:
         fail("PLAN_CHANGED")
     def matches(pattern, value):
         return isinstance(value, str) and re.fullmatch(pattern, value)
-    if lock["repository"] != REPOSITORY or lock["channel"] not in ("release", "default-branch") or not matches(r"[a-f0-9]{40}", lock["commit"]) or not matches(r"[a-f0-9]{64}", lock["sourceSha256"]) or lock["sourceUrl"] != source_url(lock["commit"]):
+    if lock["repository"] != REPOSITORY or lock["channel"] not in ("release", "default-branch", "prebuilt") or not matches(r"[a-f0-9]{40}", lock["commit"]) or not matches(r"[a-f0-9]{64}", lock["sourceSha256"]) or lock["sourceUrl"] != source_url(lock["commit"]):
         fail("PLAN_CHANGED")
     if not matches(r"[A-Za-z0-9][A-Za-z0-9._/+-]{0,199}", lock["ref"]) or not matches(r"v?[0-9]+\.[0-9]+\.[0-9]+(?:[+-][A-Za-z0-9.-]+)?", lock["version"]) or len(lock["version"]) > 64 or not matches(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z", lock["builtAt"]):
         fail("PLAN_CHANGED")
-    if (lock["channel"] == "release" and lock["version"] != lock["ref"]) or (lock["channel"] == "default-branch" and lock["version"] != "0.0.0-source." + lock["commit"][:12]):
+    if (lock["channel"] in ("release", "prebuilt") and lock["version"] != lock["ref"]) or (lock["channel"] == "default-branch" and lock["version"] != "0.0.0-source." + lock["commit"][:12]):
         fail("PLAN_CHANGED")
     files = lock["sourceFiles"]
     if not isinstance(files, dict) or set(files) != set(recipe["sourceFiles"]) or not all(matches(r"[a-f0-9]{64}", value) for value in files.values()):
@@ -334,7 +339,7 @@ def locked_manifest(recipe, lock):
     result = copy.deepcopy(recipe)
     for key in ("version", "commit", "builtAt", "sourceUrl", "sourceSha256", "sourceFiles"):
         result[key] = lock[key]
-    result["backendTag"] = lock["ref"] if lock["channel"] == "release" else None
+    result["backendTag"] = lock["ref"] if lock["channel"] in ("release", "prebuilt") else None
     for dockerfile in result["dockerfiles"].values():
         dockerfile["sha256"] = files[dockerfile["path"]]
     return result
@@ -353,6 +358,11 @@ def manifest_for_plan(recipe, plan):
         manifest = recipe  # Legacy pinned plans remain readable; never resolve latest here.
     if plan.get("releaseSha256") != digest(canonical(manifest)) or plan.get("commit") != manifest["commit"] or plan.get("releaseVersion") != manifest["version"]:
         fail("PLAN_CHANGED")
+    if image_mode(plan.get("options", {})) == "images":
+        validate_image_lock(plan.get("imageLock"), recipe, plan.get("sourceLock"), plan.get("platform", {}).get("arch"),
+                            requested=plan["options"].get("imageRelease", "latest"))
+    elif "imageLock" in plan or plan.get("sourceLock", {}).get("channel") == "prebuilt":
+        fail("PLAN_CHANGED")
     if "platform" in plan or "dockerPackages" in plan:
         expected = docker_packages(manifest, plan.get("platform"), legacy=True, code="PLAN_CHANGED")
         if plan.get("dockerPackages") != expected:
@@ -367,11 +377,328 @@ def plan_latest(options, recipe):
         previous = read_json(job_directory(marker["jobId"]) / "plan.json")
         manifest_for_plan(recipe, previous)
         lock = previous.get("sourceLock")
+        images = previous.get("imageLock")
+        if image_mode(options) != image_mode(previous["options"]):
+            fail("EXISTING_INSTALLATION")
         profile = plan_resource_profile(previous)
     else:
-        lock = resolve_source(recipe) if recipe.get("sourcePolicy") == SOURCE_POLICY else None
+        if image_mode(options) == "images":
+            lock, images = resolve_prebuilt(recipe, platform_facts()["arch"], options.get("imageRelease", "latest"))
+        else:
+            lock = resolve_source(recipe) if recipe.get("sourcePolicy") == SOURCE_POLICY else None
+            images = None
         profile = None
-    return create_plan(options, recipe, source_lock=lock, resource_profile=profile)
+    return create_plan(options, recipe, source_lock=lock, image_lock=images, resource_profile=profile)
+
+
+def image_mode(options):
+    mode = options.get("imageMode", "source")
+    if mode not in ("source", "images"):
+        fail("INVALID_IMAGE_MODE")
+    return mode
+
+
+def valid_prebuilt_version(value, *, latest=False):
+    return isinstance(value, str) and len(value) <= 64 and (latest and value == "latest" or
+        re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9.-]+)?", value))
+
+
+class AssetRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        check_asset_url(newurl)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+def check_asset_url(url):
+    parsed = urllib.parse.urlsplit(url)
+    if (parsed.scheme != "https" or parsed.hostname not in
+            {"github.com", "api.github.com", "release-assets.githubusercontent.com", "objects.githubusercontent.com"}
+            or parsed.username or parsed.password or parsed.port not in (None, 443)):
+        fail("PREBUILT_INVALID")
+
+
+def asset_response(url):
+    check_asset_url(url)
+    request = urllib.request.Request(url, headers={"User-Agent": "MeetSpace-Installer/1", "Accept": "application/vnd.github+json"})
+    return urllib.request.build_opener(AssetRedirect()).open(request, timeout=30)
+
+
+def asset_json(url):
+    try:
+        with asset_response(url) as response:
+            raw = response.read(4 * 1024 ** 2 + 1)
+        # Duplicate JSON members are rejected as in the SSH protocol.
+        value = strict_json(raw, 4 * 1024 ** 2, expected_type=(dict, list))
+        return value, digest(raw)
+    except InstallError as error:
+        if error.code == "INVALID_REQUEST":
+            fail("PREBUILT_INVALID")
+        raise
+
+
+def prebuilt_assets(release, arch):
+    if not isinstance(release, dict) or release.get("draft") is not False or not valid_prebuilt_version(release.get("tag_name")):
+        return None
+    published = release.get("published_at")
+    try:
+        if build_timestamp_utc(published) != published:
+            return None
+    except InstallError:
+        return None
+    tag = release["tag_name"]
+    names = ("prebuilt.json", "meetspace-" + tag + "-linux-" + arch + ".tar.gz")
+    assets = release.get("assets")
+    if not isinstance(assets, list):
+        return None
+    result = {}
+    for name in names:
+        matches = [a for a in assets if isinstance(a, dict) and a.get("name") == name]
+        if len(matches) != 1:
+            return None
+        asset = matches[0]
+        if (asset.get("state") != "uploaded" or type(asset.get("size")) is not int or
+                not 0 < asset["size"] <= (4 * 1024 ** 2 if name == "prebuilt.json" else MAX_IMAGE_ARCHIVE) or
+                asset.get("browser_download_url") != "https://github.com/" + REPOSITORY + "/releases/download/" + tag + "/" + name):
+            return None
+        result[name] = asset
+    return result
+
+
+def validate_image_lock(lock, recipe, source, arch, *, requested="latest"):
+    if (recipe.get("prebuiltPolicy") != PREBUILT_POLICY or not isinstance(lock, dict) or
+            set(lock) != {"repository", "version", "commit", "platform", "url", "sha256", "sizeBytes", "indexSha256"} or
+            not isinstance(source, dict) or source.get("channel") != "prebuilt" or arch not in SUPPORTED_ARCHES):
+        fail("PLAN_CHANGED")
+    version = lock["version"]
+    if (not valid_prebuilt_version(requested, latest=True) or requested not in ("latest", version) or
+            not valid_prebuilt_version(version) or lock["repository"] != REPOSITORY or
+            lock["version"] != source.get("version") or lock["commit"] != source.get("commit") or
+            not isinstance(lock["commit"], str) or not re.fullmatch(r"[a-f0-9]{40}", lock["commit"]) or
+            lock["platform"] != "linux/" + arch or type(lock["sizeBytes"]) is not int or not 0 < lock["sizeBytes"] <= MAX_IMAGE_ARCHIVE or
+            any(not isinstance(lock[key], str) or not re.fullmatch(r"[a-f0-9]{64}", lock[key]) for key in ("sha256", "indexSha256")) or
+            lock["url"] != "https://github.com/" + REPOSITORY + "/releases/download/" + version + "/meetspace-" + version + "-linux-" + arch + ".tar.gz"):
+        fail("PLAN_CHANGED")
+
+
+def resolve_prebuilt(recipe, arch, requested="latest"):
+    """Resolve once from published platform packages, including prereleases. No source fallback."""
+    if recipe.get("prebuiltPolicy") != PREBUILT_POLICY or arch not in SUPPORTED_ARCHES or not valid_prebuilt_version(requested, latest=True):
+        fail("PREBUILT_UNAVAILABLE")
+    try:
+        if requested == "latest":
+            releases = []
+            for page in range(1, 11):
+                batch, _ = asset_json(GITHUB_API + "/releases?per_page=100&page=" + str(page))
+                if not isinstance(batch, list) or len(batch) > 100:
+                    fail("PREBUILT_INVALID")
+                releases.extend(batch)
+                if len(batch) < 100:
+                    break
+            else:
+                fail("PREBUILT_UNAVAILABLE")
+        else:
+            release, _ = asset_json(GITHUB_API + "/releases/tags/" + urllib.parse.quote(requested, safe=""))
+            releases = [release]
+        candidates = [(release, assets) for release in releases if (assets := prebuilt_assets(release, arch)) is not None]
+        candidates.sort(key=lambda item: (item[0]["published_at"], item[0]["tag_name"]), reverse=True)
+        for release, assets in candidates:
+            tag = release["tag_name"]
+            try:
+                index, index_hash = asset_json(assets["prebuilt.json"]["browser_download_url"])
+            except urllib.error.HTTPError as error:
+                if error.code == 404 and requested == "latest":
+                    continue
+                raise
+            if (not isinstance(index, dict) or type(index.get("schemaVersion")) is not int or index["schemaVersion"] != 1 or
+                    index.get("installationMode") != "prebuilt" or index.get("repository") != REPOSITORY or index.get("version") != tag or
+                    not isinstance(index.get("platforms"), dict)):
+                fail("PREBUILT_INVALID")
+            artifact = index["platforms"].get("linux/" + arch)
+            if not isinstance(artifact, dict) or set(artifact) != {"url", "sha256", "sizeBytes"}:
+                fail("PREBUILT_INVALID")
+            lock = dict(artifact, repository=REPOSITORY, version=tag, commit=index.get("commit"), platform="linux/" + arch, indexSha256=index_hash)
+            source = {"channel": "prebuilt", "version": tag, "commit": index.get("commit")}
+            validate_image_lock(lock, recipe, source, arch, requested=requested)
+            metadata = assets["meetspace-" + tag + "-linux-" + arch + ".tar.gz"]
+            if metadata["size"] != lock["sizeBytes"] or metadata.get("digest") not in (None, "sha256:" + lock["sha256"]):
+                fail("PREBUILT_INVALID")
+            commits = github_json("/commits?sha=" + lock["commit"] + "&per_page=1", expected_type=list)
+            if len(commits) != 1 or commits[0].get("sha") != lock["commit"]:
+                fail("PREBUILT_INVALID")
+            built_at = build_timestamp_utc(commits[0].get("commit", {}).get("committer", {}).get("date"))
+            checksum, files = source_snapshot(lock["commit"], recipe, building=False)
+            source.update(repository=REPOSITORY, ref=tag, builtAt=built_at, sourceUrl=source_url(lock["commit"]), sourceSha256=checksum, sourceFiles=files)
+            locked_manifest(recipe, source)
+            return source, lock
+        fail("PREBUILT_UNAVAILABLE")
+    except urllib.error.HTTPError as error:
+        fail("PREBUILT_UNAVAILABLE" if error.code == 404 else "SOURCE_RATE_LIMIT" if error.code in (403, 429) else "PREBUILT_DOWNLOAD_FAILED")
+    except (OSError, urllib.error.URLError):
+        fail("PREBUILT_DOWNLOAD_FAILED")
+
+
+def file_digest(path):
+    checksum = hashlib.sha256()
+    with pathlib.Path(path).open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 ** 2), b""):
+            checksum.update(block)
+    return checksum.hexdigest()
+
+
+def download_prebuilt(lock, path, check_cancel=lambda: None):
+    temporary = path.with_suffix(".partial")
+    no_symlink(temporary)
+    total, checksum = 0, hashlib.sha256()
+    deadline = time.monotonic() + 3600
+    try:
+        with asset_response(lock["url"]) as stream, temporary.open("wb") as output:
+            for block in iter(lambda: stream.read(1024 ** 2), b""):
+                check_cancel()
+                total += len(block)
+                if total > lock["sizeBytes"] or time.monotonic() > deadline:
+                    fail("DOWNLOAD_LIMIT")
+                if disk_free() < len(block) + 2 * 1024 ** 3:
+                    fail("DISK_SPACE")
+                output.write(block)
+                checksum.update(block)
+            output.flush()
+            os.fsync(output.fileno())
+        if total != lock["sizeBytes"] or checksum.hexdigest() != lock["sha256"]:
+            fail("RELEASE_CHECKSUM")
+        os.replace(temporary, path)
+    except (OSError, urllib.error.URLError):
+        fail("PREBUILT_DOWNLOAD_FAILED")
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def extract_prebuilt(archive, destination, check_cancel=lambda: None):
+    """Unpack data only, never execute the downloaded wizard or preserve archive permissions."""
+    seen, total = set(), 0
+    try:
+        with tarfile.open(archive, "r|gz") as source:
+            for member in source:
+                check_cancel()
+                parts = pathlib.PurePosixPath(member.name).parts
+                if (not parts or parts[0] != "bundle" or member.name.startswith("/") or ".." in parts or
+                        "\\" in member.name or any(ord(c) < 32 for c in member.name) or member.mode & 0o7000 or
+                        not (member.isfile() or member.isdir()) or parts in seen):
+                    fail("PREBUILT_INVALID")
+                seen.add(parts)
+                total += member.size
+                if len(seen) > 50000 or total > 12 * 1024 ** 3:
+                    fail("DOWNLOAD_LIMIT")
+                target = destination.joinpath(*parts)
+                if member.isdir():
+                    target.mkdir(mode=0o700, parents=True, exist_ok=True)
+                else:
+                    if disk_free() < member.size + 2 * 1024 ** 3:
+                        fail("DISK_SPACE")
+                    target.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+                    with source.extractfile(member) as incoming, target.open("xb") as output:
+                        shutil.copyfileobj(incoming, output, 1024 ** 2)
+    except (OSError, tarfile.TarError):
+        fail("PREBUILT_INVALID")
+    return destination / "bundle"
+
+
+def package_json(path, maximum=32 * 1024 ** 2):
+    no_symlink(path)
+    with path.open("rb") as stream:
+        return strict_json(stream.read(maximum + 1), maximum)
+
+
+def verify_prebuilt_package(bundle, lock):
+    """Retain upstream archive, offline scan/SBOM and image provenance gates in Python."""
+    info = package_json(bundle / "bundle.json")
+    release = bundle / "release"
+    if file_digest(release / "release.json") != info.get("manifestSHA256"):
+        fail("RELEASE_CHECKSUM")
+    manifest = package_json(release / "release.json")
+    if (manifest.get("schemaVersion") != 1 or manifest.get("version") != lock["version"] or manifest.get("commit") != lock["commit"] or
+            manifest.get("platform") != lock["platform"] or manifest.get("artifactMode") != "archive" or
+            manifest.get("sourceDirty") is not False or manifest.get("sourceFingerprintVerified") is not True or manifest.get("securityScanned") is not True or
+            manifest.get("deploymentLayout") != "hardened-shared-host" or manifest.get("objectStorageProvider") != "seaweedfs" or
+            not isinstance(manifest.get("sourceSHA256"), str) or not re.fullmatch(r"[a-f0-9]{64}", manifest["sourceSHA256"]) or
+            set(manifest.get("images", {})) != set(PREBUILT_SERVICES)):
+        fail("PREBUILT_INVALID")
+    build_timestamp_utc(manifest.get("builtAt"))
+    if file_digest(release / "images.tar") != manifest.get("archiveSHA256"):
+        fail("RELEASE_CHECKSUM")
+    with tarfile.open(release / "images.tar", "r:") as archive:
+        members = {}
+        total = 0
+        for member in archive:
+            path = pathlib.PurePosixPath(member.name)
+            total += member.size
+            if (path.is_absolute() or ".." in path.parts or "\\" in member.name or not (member.isfile() or member.isdir()) or
+                    member.name in members or len(members) >= 50000 or total > 12 * 1024 ** 3):
+                fail("PREBUILT_INVALID")
+            members[member.name] = member
+        def json_member(name, expected=None, expected_type=dict):
+            member = members.get(name)
+            if member is None or not member.isfile() or member.size > 4 * 1024 ** 2:
+                fail("PREBUILT_INVALID")
+            raw = archive.extractfile(member).read()
+            if expected and "sha256:" + digest(raw) != expected:
+                fail("RELEASE_CHECKSUM")
+            return strict_json(raw, 4 * 1024 ** 2, expected_type=expected_type)
+        if "imageConfigIDs" in manifest:
+            index = json_member("index.json")
+            descriptors = index.get("manifests")
+            if (not isinstance(descriptors, list) or len(descriptors) != len(PREBUILT_SERVICES) or
+                    {item.get("digest") for item in descriptors} != set(manifest["images"].values())):
+                fail("PREBUILT_INVALID")
+        if "manifest.json" in members:
+            saved = json_member("manifest.json", expected_type=list)
+            configs = manifest.get("imageConfigIDs", manifest["images"])
+            expected_configs = {"blobs/sha256/" + value[7:] if "imageConfigIDs" in manifest else value[7:] + ".json" for value in configs.values()}
+            if len(saved) != len(PREBUILT_SERVICES) or {item.get("Config") for item in saved} != expected_configs:
+                fail("PREBUILT_INVALID")
+        elif "imageConfigIDs" not in manifest:
+            fail("PREBUILT_INVALID")
+        for service in PREBUILT_SERVICES:
+            image = manifest["images"][service]
+            config_id = manifest.get("imageConfigIDs", {}).get(service, image)
+            if any(not isinstance(value, str) or not re.fullmatch(r"sha256:[a-f0-9]{64}", value) for value in (image, config_id)):
+                fail("PREBUILT_INVALID")
+            if "imageConfigIDs" in manifest:
+                descriptor = json_member("blobs/sha256/" + image[7:], image)
+                if descriptor.get("config", {}).get("digest") != config_id:
+                    fail("PREBUILT_INVALID")
+                config = json_member("blobs/sha256/" + config_id[7:], config_id)
+            else:
+                config = json_member(config_id[7:] + ".json", config_id)
+            if config.get("architecture") != lock["platform"].split("/")[1] or config.get("os") != "linux":
+                fail("PREBUILT_INVALID")
+            verify_prebuilt_labels(service, config.get("config", {}).get("Labels", {}), manifest)
+            evidence = manifest.get("securityEvidence", {}).get(service, {})
+            scan, sbom = release / (service + ".scan.json"), release / (service + ".sbom.json")
+            if file_digest(scan) != evidence.get("scanSHA256") or file_digest(sbom) != evidence.get("sbomSHA256"):
+                fail("RELEASE_CHECKSUM")
+            scan_data = package_json(scan)
+            metadata = scan_data.get("Metadata", {})
+            if ("SchemaVersion" not in scan_data or not isinstance(scan_data.get("Results"), list) or metadata.get("ImageID") != config_id or
+                    metadata.get("ImageConfig", {}).get("architecture") != lock["platform"].split("/")[1] or
+                    any(v.get("Severity") in ("HIGH", "CRITICAL") for result in scan_data["Results"] for v in (result.get("Vulnerabilities") or [])) or
+                    package_json(sbom).get("bomFormat") != "CycloneDX"):
+                fail("PREBUILT_SECURITY")
+    return manifest
+
+
+def verify_prebuilt_labels(service, labels, manifest):
+    if service not in APP_SERVICES:
+        return
+    expected = manifest
+    if service == "minio" and manifest.get("infrastructureReused") is True:
+        expected = manifest.get("infrastructureSource", {})
+        if (expected.get("version") != manifest.get("infrastructureVersion") or not valid_prebuilt_version(expected.get("version")) or
+                not re.fullmatch(r"[a-f0-9]{40}", expected.get("commit", "")) or
+                not re.fullmatch(r"[a-f0-9]{64}", expected.get("sourceSHA256", ""))):
+            fail("PREBUILT_INVALID")
+    if any((labels or {}).get(label) != expected.get(key) for label, key in
+            (("org.opencontainers.image.version", "version"), ("org.opencontainers.image.revision", "commit"), ("io.go-recorder.source-sha256", "sourceSHA256"))):
+        fail("PREBUILT_INVALID")
 
 
 def plan_resource_profile(plan):
@@ -383,7 +710,7 @@ def plan_resource_profile(plan):
 
 def validate_options(options, manifest):
     if (not isinstance(options, dict) or not {"domain", "publicIpv4"}.issubset(options)
-            or set(options) - {"domain", "publicIpv4", "acmeEmail", "smtp"}):
+            or set(options) - {"domain", "publicIpv4", "acmeEmail", "smtp", "imageMode", "imageRelease"}):
         fail("INVALID_REQUEST")
     domain = options["domain"]
     if not isinstance(domain, str) or len(domain) > 253 or domain != domain.lower() or not re.fullmatch(r"[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?", domain):
@@ -406,6 +733,14 @@ def validate_options(options, manifest):
     if not isinstance(email, str) or (email and (len(email) > 254 or not re.fullmatch(r"[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,63}", email))):
         fail("INVALID_EMAIL")
     normalized = {"domain": domain, "publicIpv4": str(ip), "acmeEmail": email}
+    mode = image_mode(options)
+    if "imageMode" in options:
+        normalized["imageMode"] = mode
+    if "imageRelease" in options:
+        release = options["imageRelease"]
+        if mode != "images" or not valid_prebuilt_version(release, latest=True):
+            fail("INVALID_IMAGE_MODE")
+        normalized["imageRelease"] = release
     if "smtp" in options:
         normalized["smtp"] = validate_smtp(options["smtp"])
     return normalized
@@ -603,7 +938,7 @@ def check_ports():
                 fail("PORT_OCCUPIED")
 
 
-def docker_facts():
+def docker_facts(*, building=True):
     if not shutil.which("docker"):
         for package in ("docker.io", "docker-compose", "docker-compose-v2", "podman-docker", "containerd", "runc"):
             try:
@@ -630,6 +965,8 @@ def docker_facts():
         facts["composeVersion"] = compose_version
     # Check the daemon first: an unavailable Engine is never treated as a missing
     # client plugin. `buildx version` itself does not contact or create a builder.
+    if not building:
+        return facts
     try:
         buildx_version = run(["docker", "buildx", "version"], capture=True, code="BUILDX_REQUIRED").decode().strip()
     except InstallError as error:
@@ -652,12 +989,17 @@ def docker_actions(facts):
     return [action for flag, _, action, _ in DOCKER_PLUGINS if facts.get(flag)] or ["reuse-docker"]
 
 
-def create_plan(options, manifest, *, issued_at=None, source_lock=None, resource_profile=None, legacy_plan=False):
+def create_plan(options, manifest, *, issued_at=None, source_lock=None, image_lock=None, resource_profile=None, legacy_plan=False):
     recipe = manifest
     if source_lock is not None:
         manifest = locked_manifest(recipe, source_lock)
     options = validate_options(options, manifest)
     facts = platform_facts()
+    prebuilt = image_mode(options) == "images"
+    if prebuilt:
+        validate_image_lock(image_lock, recipe, source_lock, facts["arch"], requested=options.get("imageRelease", "latest"))
+    elif image_lock is not None or source_lock and source_lock.get("channel") == "prebuilt":
+        fail("PLAN_CHANGED")
     marker = managed_marker()
     free = disk_free()
     previous = read_json(job_directory(marker["jobId"]) / "plan.json") if marker else None
@@ -675,7 +1017,7 @@ def create_plan(options, manifest, *, issued_at=None, source_lock=None, resource
         fail("RESOURCES_INSUFFICIENT")
     if free < (2 * 1024 ** 3 if marker else limits["freshDiskBytes"]):
         fail("DISK_SPACE")
-    docker = docker_facts()
+    docker = docker_facts(building=False) if prebuilt else docker_facts()
     if marker:
         if marker.get("commit") != manifest["commit"] or marker.get("domain") != options["domain"] or marker.get("releaseSha256") != digest(canonical(manifest)):
             fail("EXISTING_INSTALLATION")
@@ -704,6 +1046,10 @@ def create_plan(options, manifest, *, issued_at=None, source_lock=None, resource
             "warnings": ["source-build-not-hermetic", "docker-firewall-bypass", "external-ports-must-be-open", "no-automatic-data-rollback", "local-backup-not-offsite", "no-upstream-release-tag", "turn-restarts-on-certificate-renewal"]}
     if source_lock is not None:
         plan.update(sourceLock=source_lock, recipeSha256=digest(canonical(recipe)))
+    if prebuilt:
+        plan["imageLock"] = image_lock
+        plan["actions"][plan["actions"].index("build-and-pin-images")] = "download-verify-load-images"
+        plan["warnings"].remove("source-build-not-hermetic")
     if not legacy_plan:
         plan["resourceProfile"] = resource_profile
     if resource_profile == "compact-test":
@@ -850,7 +1196,7 @@ def apply(request, manifest, bundle):
         if not isinstance(plan.get("issuedAt"), int) or now > plan.get("expiresAt", 0) or plan["issuedAt"] > now + 30:
             fail("PLAN_EXPIRED")
         fresh = create_plan(plan.get("options"), recipe, issued_at=plan["issuedAt"], source_lock=plan.get("sourceLock"),
-                            resource_profile=plan_resource_profile(plan), legacy_plan="resourceProfile" not in plan)
+                            image_lock=plan.get("imageLock"), resource_profile=plan_resource_profile(plan), legacy_plan="resourceProfile" not in plan)
         if fresh["hash"] != plan["hash"]:
             fail("PLAN_CHANGED")
         if request.get("acceptAcmeTerms") is not True:
@@ -1070,7 +1416,8 @@ class Worker:
         suite = ubuntu_suite(self.plan.get("platform"), legacy=True, code="PLAN_CHANGED")
         if self.plan.get("dockerPackages") != docker_packages(self.manifest, self.plan.get("platform"), legacy=True, code="PLAN_CHANGED"):
             fail("PLAN_CHANGED")
-        facts = docker_facts()
+        building = image_mode(self.plan.get("options", {})) == "source"
+        facts = docker_facts() if building else docker_facts(building=False)
         if not docker_install_required(facts):
             return
         key_target = pathlib.Path("/etc/apt/keyrings/meetspace-docker.asc")
@@ -1096,7 +1443,7 @@ class Worker:
             packages = [key + "=" + value for key, value in sorted(self.plan["dockerPackages"].items())]
             run(["apt-get", "-o", "DPkg::Lock::Timeout=120", "install", "-y", "--no-install-recommends", *packages], timeout=900, code="DOCKER_INSTALL_FAILED")
             run(["systemctl", "enable", "--now", "docker"], timeout=90, code="DOCKER_INSTALL_FAILED")
-        current = docker_facts()
+        current = docker_facts() if building else docker_facts(building=False)
         if not current["installed"]:
             fail("DOCKER_UNAVAILABLE")
         for flag, _, _, error_code in DOCKER_PLUGINS:
@@ -1140,6 +1487,8 @@ class Worker:
         state_write(self.directory, "running", "images:" + service)
 
     def phase_images(self):
+        if image_mode(getattr(self, "options", {})) == "images":
+            return self.phase_prebuilt_images()
         # Derive an argument, never rewrite the frozen release or its plan hash on resume.
         build_time = build_timestamp_utc(self.manifest.get("builtAt"))
         images = read_json(self.images_file) if self.images_file.exists() else {}
@@ -1197,6 +1546,56 @@ class Worker:
             images[service] = details["Id"]
             write_atomic(self.images_file, canonical(images))
             self.image_timing(service, "build", started)
+
+    def phase_prebuilt_images(self):
+        lock = self.plan["imageLock"]
+        self.check_cancel()
+        state_write(self.directory, "running", "images:download")
+        archive = self.directory / "prebuilt.tar.gz"
+        if not archive.exists() or archive.stat().st_size != lock["sizeBytes"] or file_digest(archive) != lock["sha256"]:
+            self.check_build_space()
+            download_prebuilt(lock, archive, self.check_cancel)
+        destination = self.directory / "prebuilt"
+        no_symlink(destination)
+        state_write(self.directory, "running", "images:verify")
+        if not destination.exists():
+            self.check_build_space()
+            with tempfile.TemporaryDirectory(prefix=".prebuilt-", dir=self.directory) as temporary:
+                bundle = extract_prebuilt(archive, pathlib.Path(temporary), self.check_cancel)
+                package = verify_prebuilt_package(bundle, lock)
+                os.replace(bundle, destination)
+        else:
+            package = verify_prebuilt_package(destination, lock)
+        self.check_cancel()
+        images = read_json(self.images_file) if self.images_file.exists() else {}
+        required = set(APP_SERVICES) | {"postgres", "redis", "rabbitmq", "coturn", "proxy"}
+        # Import only once after verification; restart validates every already recorded image ID.
+        if not required.issubset(images):
+            self.check_build_space()
+            state_write(self.directory, "running", "images:load")
+            run(["docker", "load", "--input", str(destination / "release" / "images.tar")], timeout=1800, code="IMAGE_LOAD_FAILED")
+        for service in sorted(required):
+            self.check_cancel()
+            started = time.monotonic()
+            details = self.image_details(package["images"][service])
+            verify_prebuilt_labels(service, details.get("Config", {}).get("Labels"), package)
+            if service in images and images[service] != details["Id"]:
+                fail("IMAGE_CHANGED")
+            images[service] = details["Id"]
+            write_atomic(self.images_file, canonical(images))
+            self.image_timing(service, "load", started)
+        # ACME tooling is pinned by the signed Android recipe, separate from server images.
+        reference = self.manifest["images"]["certbot"]
+        if "certbot" not in images:
+            self.check_build_space()
+            run(["docker", "pull", "--platform", lock["platform"], reference], timeout=900, code="IMAGE_PULL_FAILED")
+        details = self.image_details(reference)
+        if "certbot" in images and images["certbot"] != details["Id"]:
+            fail("IMAGE_CHANGED")
+        images["certbot"] = details["Id"]
+        write_atomic(self.images_file, canonical(images))
+        write_atomic(self.directory / "prebuilt-receipt.json", canonical({"imageLock": lock,
+            "manifestSha256": file_digest(destination / "release" / "release.json"), "images": images}))
 
     def environment(self):
         out = {}
@@ -1545,6 +1944,8 @@ server {
                     "checks": ["service-health", "image-ids", "private-ports", "https-system-trust", "api-version", "frontend-version", "wss-unauthenticated-denied", "turn-tls", "turn-auth", "turn-private-peer-denied"],
                     "externalCloudFirewallVerified": False, "mediaEndToEndVerified": False,
                     "publicCaIssuance": self.manifest["profile"] == "source-v1"}
+        if "imageLock" in self.plan:
+            evidence["imageLock"] = self.plan["imageLock"]
         write_atomic(self.directory / "evidence.json", canonical(evidence))
 
     def execute(self):

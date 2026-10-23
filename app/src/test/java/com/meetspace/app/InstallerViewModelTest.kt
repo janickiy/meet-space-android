@@ -31,6 +31,30 @@ class InstallerViewModelTest {
         model.apply(false,true,true);model.apply(true,false,true);model.apply(true,true,false);runCurrent()
         assertEquals(0,repo.applyCount); assertEquals(InstallScreen.PLAN,model.state.value.screen);model.detach()
     }
+    @Test fun newInstallDefaultsToImagesAndCanChangeModeBeforeApplyWithoutAnotherPassword() = runTest(dispatcher) {
+        val repo = Fake(); val model = InstallerViewModel(repo)
+        model.start(endpoint, options.domain, verified()); runCurrent()
+        assertEquals(InstallImageMode.IMAGES, model.state.value.options.imageMode)
+        val images = options.copy(imageMode = InstallImageMode.IMAGES)
+        model.authenticate(images, "", false); runCurrent()
+        assertEquals(InstallImageMode.IMAGES, model.state.value.plan?.options?.imageMode)
+        model.editOptions()
+        assertEquals(InstallScreen.ACCESS, model.state.value.screen)
+        assertFalse(model.state.value.needsAccess); assertNull(model.state.value.plan)
+        model.authenticate(options, "", false); runCurrent()
+        assertEquals(InstallImageMode.SOURCE, model.state.value.plan?.options?.imageMode)
+        assertEquals(2, repo.planCalls); assertEquals(0, repo.applyCount)
+        model.detach()
+    }
+    @Test fun runningJobCannotChangeItsImageMode() = runTest(dispatcher) {
+        val repo = Fake(); val model = setupModel(repo); runCurrent()
+        model.apply(true, true, true); runCurrent()
+        val before = model.state.value
+        model.editOptions()
+        assertEquals(before.ticket, model.state.value.ticket)
+        assertEquals(before.screen, model.state.value.screen)
+        model.detach()
+    }
     @Test fun smtpSecretIsApplyOnlyAndErasedAfterSuccessOrLostResponse() = runTest(dispatcher) {
         val smtp = InstallSmtpOptions("smtp.example.com",465,"meet@example.com","smtp-user","tls")
         for (lostResponse in listOf(false,true)) {

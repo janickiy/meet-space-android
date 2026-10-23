@@ -54,7 +54,7 @@ class InstallerViewModel(private val repository: SshInstallerRepository) : ViewM
         }
         detach()
         mutableState.value = InstallerUiState(active = true, endpoint = endpoint,
-            options = InstallOptions(domain, endpoint.host.takeIf { it.matches(Regex("[0-9.]+")) } ?: "", ""),
+            options = InstallOptions(domain, endpoint.host.takeIf { it.matches(Regex("[0-9.]+")) } ?: "", "", imageMode = InstallImageMode.IMAGES),
             pending = state.value.pending, credentialReset = state.value.credentialReset)
         if (verified != null) {
             acceptVerifiedAccess(verified)
@@ -138,6 +138,10 @@ class InstallerViewModel(private val repository: SshInstallerRepository) : ViewM
         mutableState.update { it.copy(options = if (it.ticket == null) options else it.options, keyLoaded = false,
             credentialReset = it.credentialReset + 1, needsAccess = false) }
         prepare(options)
+    }
+    fun editOptions() {
+        if (state.value.busy || state.value.ticket != null) return
+        mutableState.update { it.copy(screen = InstallScreen.ACCESS, plan = null, error = null, errorCode = null) }
     }
     private fun prepare(options: InstallOptions) {
         val endpoint = state.value.endpoint ?: return
@@ -351,6 +355,11 @@ fun installErrorMessage(code: String): String = when (code) {
     "RELEASE_INVALID", "RELEASE_SIGNATURE", "RELEASE_CHECKSUM" -> "Подпись или контрольная сумма установщика не совпала. Запуск заблокирован."
     "SOURCE_LOOKUP_FAILED", "SOURCE_RATE_LIMIT" -> "Не удалось получить актуальную версию из GitHub. Проверьте доступ сервера к GitHub и повторите получение плана."
     "SOURCE_INVALID" -> "GitHub вернул некорректные данные исходного кода. Повторите получение плана; если ошибка сохраняется, сообщите код SOURCE_INVALID."
+    "INVALID_IMAGE_MODE" -> "Выберите готовые образы или сборку на сервере. Для готовых образов укажите latest или точный тег выпуска."
+    "PREBUILT_UNAVAILABLE" -> "Для этой архитектуры нет опубликованного пакета готовых образов. Выберите другой выпуск или режим «Сборка на сервере»."
+    "PREBUILT_INVALID", "PREBUILT_SECURITY" -> "Пакет готовых образов не прошёл проверку происхождения, архитектуры или безопасности. Установка остановлена; выберите другой выпуск."
+    "PREBUILT_DOWNLOAD_FAILED" -> "Не удалось скачать готовые образы из GitHub. Проверьте подключение VPS и повторите попытку; режим сборки автоматически не меняется."
+    "IMAGE_LOAD_FAILED" -> "Docker не смог загрузить проверенные образы. Проверьте свободное место и состояние Docker, затем продолжите установку."
     "SOURCE_INCOMPATIBLE", "UNPINNED_BASE_IMAGE" -> "Новая версия бэкенда несовместима с этим установщиком. Обновите Android-приложение; старая версия автоматически не устанавливается."
     "ACME_FAILED", "HTTPS_READINESS" -> "Не удалось подтвердить HTTPS. Проверьте DNS и доступность портов 80/443, затем подключитесь и продолжите установку."
     else -> "Установка требует внимания ($code). Подключитесь снова и проверьте состояние. Данные автоматически не удаляются."

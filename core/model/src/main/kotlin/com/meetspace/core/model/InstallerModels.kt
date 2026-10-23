@@ -1,7 +1,11 @@
 package com.meetspace.core.model
 
 /** Public deployment metadata only. Never contains SSH or application secrets. */
-data class InstallOptions(val domain: String, val publicIpv4: String, val acmeEmail: String = "", val smtp: InstallSmtpOptions? = null)
+enum class InstallImageMode(val wire: String) { IMAGES("images"), SOURCE("source") }
+data class InstallOptions(val domain: String, val publicIpv4: String, val acmeEmail: String = "", val smtp: InstallSmtpOptions? = null,
+    val imageMode: InstallImageMode = InstallImageMode.SOURCE, val imageRelease: String = "latest")
+fun validImageRelease(value: String): Boolean = value == "latest" || value.length <= 64 &&
+    value.matches(Regex("v[0-9]+\\.[0-9]+\\.[0-9]+(?:-[A-Za-z0-9.-]+)?"))
 /** SMTP routing and identity only; the password is supplied separately when applying a plan. */
 data class InstallSmtpOptions(val host: String, val port: Int, val from: String, val username: String, val tlsMode: String) {
     fun isValid(): Boolean = host.length in 1..253 && host.matches(Regex("[A-Za-z0-9.-]+")) &&
@@ -25,6 +29,8 @@ data class InstallPlan(
     val resourceProfile: String? = null,
     val installDockerPluginsOnly: Boolean = false,
     val missingDockerPlugins: List<String> = emptyList(),
+    val imageArchiveSha256: String? = null,
+    val imageArchiveBytes: Long? = null,
 )
 data class InstallTicket(val endpoint: SshEndpoint, val plan: InstallPlan, val jobId: String) {
     val planHash: String get() = plan.existingPlanHash ?: plan.hash

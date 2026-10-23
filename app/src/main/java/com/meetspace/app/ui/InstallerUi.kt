@@ -8,12 +8,15 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.CheckCircleOutline
 import androidx.compose.material.icons.outlined.CloudOff
+import androidx.compose.material.icons.outlined.CloudDownload
+import androidx.compose.material.icons.outlined.Build
 import androidx.compose.material.icons.outlined.Dns
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.ErrorOutline
@@ -51,6 +54,7 @@ fun InstallerUi(
     onApply: (Boolean, Boolean, Boolean, String) -> Unit, onControl: (String) -> Unit,
     onDetach: () -> Unit, onReconnect: () -> Unit, onConnect: (String) -> Unit, onForgetCompleted: () -> Unit = {}, onRefreshPlan: () -> Unit = {},
     onCreateAccount: ((String) -> Unit)? = null,
+    onEditOptions: () -> Unit = {},
 ) {
     BackHandler(onBack = onDetach)
     var detailsExpanded by remember(state.ticket?.jobId) { mutableStateOf(false) }
@@ -70,6 +74,8 @@ fun InstallerUi(
                 }
                 if (state.screen == InstallScreen.PLAN) state.plan?.let { plan ->
                     InstallPlanCard(plan)
+                    if (state.ticket == null) TextButton(onClick = onEditOptions, enabled = !state.busy,
+                        modifier = Modifier.testTag("install-edit-options")) { Text("Изменить параметры") }
                     InstallConsent(plan, state.busy || state.needsAccess, onApply)
                 }
                 if (state.screen == InstallScreen.PROGRESS) {
@@ -258,6 +264,8 @@ private fun InstallAccess(state: InstallerUiState, onImport: (Uri) -> Unit, onAu
     var domain by rememberSaveable(state.endpoint) { mutableStateOf(state.options.domain) }
     var ip by rememberSaveable(state.endpoint) { mutableStateOf(state.options.publicIpv4) }
     var acmeEmail by rememberSaveable(state.endpoint) { mutableStateOf(state.options.acmeEmail) }
+    var imageMode by rememberSaveable(state.endpoint) { mutableStateOf(state.options.imageMode) }
+    var imageRelease by rememberSaveable(state.endpoint) { mutableStateOf(state.options.imageRelease) }
     var smtpEnabled by rememberSaveable(state.endpoint) { mutableStateOf(state.options.smtp != null) }
     var smtpHost by rememberSaveable(state.endpoint) { mutableStateOf(state.options.smtp?.host.orEmpty()) }
     var smtpPort by rememberSaveable(state.endpoint) { mutableStateOf(state.options.smtp?.port?.toString() ?: "465") }
@@ -271,6 +279,28 @@ private fun InstallAccess(state: InstallerUiState, onImport: (Uri) -> Unit, onAu
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { it?.let(onImport) }
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         if (state.ticket == null) {
+            Text("Способ установки", style = MaterialTheme.typography.titleMedium)
+            InstallImageMode.entries.forEach { mode ->
+                val selected = imageMode == mode
+                Surface(shape = RoundedCornerShape(12.dp), color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
+                    modifier = Modifier.fillMaxWidth().selectable(selected, enabled = !state.busy, role = Role.RadioButton, onClick = { imageMode = mode })
+                        .testTag("install-mode-${mode.wire}")) {
+                    Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Icon(if (mode == InstallImageMode.IMAGES) Icons.Outlined.CloudDownload else Icons.Outlined.Build, null, Modifier.size(24.dp))
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(if (mode == InstallImageMode.IMAGES) "Готовые образы" else "Сборка на сервере", fontWeight = FontWeight.SemiBold)
+                            Text(if (mode == InstallImageMode.IMAGES) "Скачать проверенный выпуск из GitHub. Быстрее и без компиляции на VPS."
+                                else "Скачать закреплённые исходники и собрать образы на вашем VPS. Требует больше времени и ресурсов.", style = MaterialTheme.typography.bodySmall)
+                        }
+                        RadioButton(selected, onClick = null, enabled = !state.busy)
+                    }
+                }
+            }
+            if (imageMode == InstallImageMode.IMAGES) {
+                InstallOptionField(imageRelease, { imageRelease = it.trim() }, "Версия образов: latest или тег выпуска", "install-image-release", !state.busy)
+                Text("latest — последний опубликованный пакет для архитектуры VPS, включая beta. Версию, коммит и размер покажем перед установкой.", style = MaterialTheme.typography.bodySmall)
+            }
             Text("Новый выделенный VPS: Ubuntu 22.04 или 24.04 LTS, amd64 или arm64. Минимум: 2 CPU, 4 ГБ RAM и около 20 ГБ свободного диска (18 ГиБ). Рекомендуется: 4 CPU, 8 ГБ RAM и 30 ГиБ свободно.", modifier = Modifier.testTag("install-requirements"))
             Text("Минимальная конфигурация рассчитана на небольшую нагрузку. Для параллельных встреч и записи выбирайте рекомендуемую конфигурацию; доступная нагрузка зависит от участников и качества видео.", style = MaterialTheme.typography.bodySmall)
             Text("Нужен root или sudo без пароля. DNS A должен указывать на этот IPv4; IPv6 и CDN пока не поддерживаются.")
@@ -302,7 +332,8 @@ private fun InstallAccess(state: InstallerUiState, onImport: (Uri) -> Unit, onAu
             OutlinedTextField(password, { password = it }, shape = RoundedCornerShape(10.dp), colors = onboardingFieldColors(), textStyle = onboardingInputStyle(), label = { Text(if (useKey) "Парольная фраза ключа" else "Пароль SSH", fontSize = 11.sp) }, visualTransformation = PasswordVisualTransformation(), singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password), enabled = !state.busy, modifier = Modifier.fillMaxWidth().testTag("install-password"))
         } else Text("Доступ SSH уже проверен. Проверьте параметры установки и настройки почты.", modifier = Modifier.testTag("install-access-verified"))
-        Button(shape = RoundedCornerShape(10.dp), onClick = { onAuthenticate(InstallOptions(domain, ip, acmeEmail.trim(), smtp), password, useKey); password = "" }, enabled = !state.busy && (!state.needsAccess || !useKey || state.keyLoaded) && (state.ticket != null || smtp == null || smtp.isValid()), modifier = Modifier.heightIn(min = 49.dp).testTag("install-plan")) {
+        Button(shape = RoundedCornerShape(10.dp), onClick = { onAuthenticate(InstallOptions(domain, ip, acmeEmail.trim(), smtp, imageMode, imageRelease), password, useKey); password = "" }, enabled = !state.busy && (!state.needsAccess || !useKey || state.keyLoaded) && (state.ticket != null ||
+            (smtp == null || smtp.isValid()) && (imageMode != InstallImageMode.IMAGES || validImageRelease(imageRelease))), modifier = Modifier.heightIn(min = 49.dp).testTag("install-plan")) {
             Text(if (state.ticket == null) "Получить план без установки" else "Проверить состояние задания")
         }
     }
@@ -319,6 +350,10 @@ private fun InstallOptionField(value: String, onChange: (String) -> Unit, label:
 private fun InstallPlanCard(plan: InstallPlan) {
     Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, onboardingTone(0xFFDFE6F4, 0xFF364359)), colors = CardDefaults.cardColors(containerColor = onboardingTone(0xFFF6F8FC, 0xFF252F40))) { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("План изменений", style = MaterialTheme.typography.titleLarge)
+        val images = plan.options.imageMode == InstallImageMode.IMAGES
+        Text(if (images) "Способ: готовые образы" else "Способ: сборка на сервере", modifier = Modifier.testTag("install-image-mode"))
+        plan.imageArchiveBytes?.let { Text("Пакет: ${it / (1024 * 1024)} МиБ", modifier = Modifier.testTag("install-image-size")) }
+        plan.imageArchiveSha256?.let { SelectionContainer { Text("SHA-256 пакета: $it", style = MaterialTheme.typography.bodySmall) } }
         val compact = plan.resourceProfile == "compact-test"
         Text(if (compact) "Режим: компактный" else "Режим: стандартный", modifier = Modifier.testTag("install-resource-profile"))
         if (compact) Text("Для небольшой нагрузки: 2 CPU, 4 ГБ RAM и около 20 ГБ свободного диска (18 ГиБ). Параллельные встречи и запись требуют больше ресурсов: рекомендуются 4 CPU, 8 ГБ RAM и 30 ГиБ свободного диска. Доступная нагрузка зависит от участников и качества видео.",
@@ -331,11 +366,15 @@ private fun InstallPlanCard(plan: InstallPlan) {
         val dockerAction = when {
             plan.installDockerPluginsOnly -> "Установить недостающие компоненты Docker (${plan.dockerPluginNames}); использовать установленный Docker"
             plan.installDocker -> "Установить закреплённые Docker, Compose и Buildx"
+            images -> "Использовать Docker и Compose на сервере"
             else -> "Использовать Docker, Compose и Buildx на сервере"
         }
-        Text("$dockerAction; скачать проверенный исходный код; собрать 7 образов; создать /opt/meetspace, секреты и закрытые тома; сохранить копию БД; выполнить миграции; настроить HTTPS/WSS и TURN; проверить готовность.")
+        val imageAction = if (images) "скачать пакет выпуска и файлы конфигурации; проверить контрольные суммы, архитектуру и отчёты безопасности; загрузить готовые образы в Docker"
+            else "скачать проверенный исходный код; собрать 7 образов"
+        Text("$dockerAction; $imageAction; создать /opt/meetspace, секреты и закрытые тома; сохранить копию БД; выполнить миграции; настроить HTTPS/WSS и TURN; проверить готовность.")
         Text("Публичные порты: TCP 80, 443, 3478, 5349, 50010; UDP 3478, 50010, 49160–49259. Откройте их в firewall провайдера. Docker может обходить правила UFW. БД, Redis, RabbitMQ и S3 наружу не публикуются.")
-        Text("Выбранные версия и commit сохраняются на сервере; повторный запуск продолжает этот же план. Откат данных автоматически не выполняется. Копия БД локальная; внешние резервные копии настраиваются отдельно. Продление сертификата перезапускает TURN. Исходники и базовые образы закреплены, пакеты внутри сборки могут меняться.", style = MaterialTheme.typography.bodySmall)
+        Text("Выбранные режим, версия и commit сохраняются на сервере; повторный запуск продолжает этот же план. Откат данных автоматически не выполняется. Копия БД локальная; внешние резервные копии настраиваются отдельно. Продление сертификата перезапускает TURN." +
+            if (images) " Архив закреплён по SHA-256; переход к сборке требует отдельного выбора." else " Исходники и базовые образы закреплены, пакеты внутри сборки могут меняться.", style = MaterialTheme.typography.bodySmall)
     } }
 }
 
@@ -370,7 +409,12 @@ private fun Consent(label: String, checked: Boolean, enabled: Boolean, tag: Stri
 }
 fun phaseLabel(phase: String): String = when (phase.substringBefore(':')) {
     "queued" -> "Запуск задания"; "resuming" -> "Продолжение"; "docker" -> "Docker, Compose и Buildx"; "source" -> "Проверка исходников"
-    "images" -> "Сборка образов${phase.substringAfter(':', "").takeIf { it.isNotEmpty() }?.let { " · $it" } ?: ""}"
+    "images" -> when (phase.substringAfter(':', "")) {
+        "download" -> "Загрузка пакета образов"
+        "verify" -> "Проверка пакета образов"
+        "load" -> "Импорт образов в Docker"
+        else -> "Подготовка образов${phase.substringAfter(':', "").takeIf { it.isNotEmpty() }?.let { " · $it" } ?: ""}"
+    }
     "configuration" -> "Конфигурация и секреты"; "dependencies" -> "База, очередь и хранилище"; "backup" -> "Резервная копия"
     "migrations" -> "Миграции БД"; "https" -> "HTTPS и сертификат"; "services" -> "Запуск MeetSpace"; "readiness" -> "Проверка готовности"; else -> phase
 }

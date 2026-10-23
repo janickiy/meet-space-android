@@ -167,6 +167,54 @@ class InstallerProtocolTest {
         val plan = JsonObject(data + ("hash" to JsonPrimitive(sha256(canonicalJson(data).toByteArray()))))
         failed("PLAN_INVALID") { bundle.parsePlan(plan) }
     }
+    @Test fun prebuiltPlanPreservesModeArtifactAndFrozenVersionAcrossReopen() {
+        val bundle = bundle()
+        val plan = prebuiltPlan(bundle)
+        val parsed = bundle.parsePlan(plan)
+        assertEquals(InstallImageMode.IMAGES, parsed.options.imageMode)
+        assertEquals("latest", parsed.options.imageRelease)
+        assertEquals("v0.4.0-prebuilt.test.1", parsed.version)
+        assertEquals("b".repeat(64), parsed.imageArchiveSha256)
+        assertEquals(1024L, parsed.imageArchiveBytes)
+        assertEquals(parsed, bundle.parsePlan(jsonObject(parsed.json)))
+        assertEquals(InstallImageMode.SOURCE, bundle.parsePlan(validPlan(bundle)).options.imageMode)
+    }
+    @Test fun prebuiltPlanRejectsModeArchiveUrlPlatformAndCommitChanges() {
+        val bundle = bundle(); val plan = prebuiltPlan(bundle)
+        fun rehash(value: JsonObject): JsonObject {
+            val data = JsonObject(value.filterKeys { it != "hash" })
+            return JsonObject(data + ("hash" to JsonPrimitive(sha256(canonicalJson(data).toByteArray()))))
+        }
+        val lock = plan.getValue("imageLock").jsonObject
+        for ((key, value) in mapOf("url" to "https://untrusted.invalid/images.tar.gz", "platform" to "linux/amd64",
+            "commit" to "c".repeat(40), "sha256" to "bad", "version" to "v9.0.0")) {
+            failed("PLAN_INVALID") { bundle.parsePlan(rehash(JsonObject(plan + ("imageLock" to JsonObject(lock + (key to JsonPrimitive(value))))))) }
+        }
+        failed("PLAN_INVALID") { bundle.parsePlan(rehash(JsonObject(plan.filterKeys { it != "imageLock" }))) }
+        val options = plan.getValue("options").jsonObject
+        failed("PLAN_INVALID") { bundle.parsePlan(rehash(JsonObject(plan + ("options" to JsonObject(options + ("imageMode" to JsonPrimitive("source"))))))) }
+    }
+    private fun prebuiltPlan(bundle: InstallerBundle): JsonObject {
+        val version = "v0.4.0-prebuilt.test.1"; val commit = "a".repeat(40)
+        val source = buildJsonObject {
+            put("repository", "janickiy/meet-space"); put("channel", "prebuilt"); put("ref", version); put("version", version)
+            put("commit", commit); put("builtAt", "2026-10-23T00:00:00Z")
+            put("sourceUrl", "https://codeload.github.com/janickiy/meet-space/tar.gz/$commit"); put("sourceSha256", "c".repeat(64))
+            put("sourceFiles", bundle.manifest.getValue("sourceFiles"))
+        }
+        val release = JsonObject(bundle.manifest + source.filterKeys { it in setOf("version", "commit", "builtAt", "sourceUrl", "sourceSha256", "sourceFiles") } + ("backendTag" to JsonPrimitive(version)))
+        val image = buildJsonObject {
+            put("repository", "janickiy/meet-space"); put("version", version); put("commit", commit); put("platform", "linux/arm64")
+            put("url", "https://github.com/janickiy/meet-space/releases/download/$version/meetspace-$version-linux-arm64.tar.gz")
+            put("sha256", "b".repeat(64)); put("indexSha256", "d".repeat(64)); put("sizeBytes", 1024)
+        }
+        val original = validPlan(bundle)
+        val options = JsonObject(original.getValue("options").jsonObject + mapOf("imageMode" to JsonPrimitive("images"), "imageRelease" to JsonPrimitive("latest")))
+        val data = JsonObject(original.filterKeys { it != "hash" } + mapOf("sourceLock" to source, "imageLock" to image, "options" to options,
+            "recipeSha256" to JsonPrimitive(sha256(canonicalJson(bundle.manifest).toByteArray())),
+            "releaseSha256" to JsonPrimitive(sha256(canonicalJson(release).toByteArray())), "commit" to JsonPrimitive(commit), "releaseVersion" to JsonPrimitive(version)))
+        return JsonObject(data + ("hash" to JsonPrimitive(sha256(canonicalJson(data).toByteArray()))))
+    }
     @Test fun completedRequiresAllCheckpointsAndCorrectJobIdentity() {
         val plan = bundle().parsePlan(validPlan(bundle())); val ticket = InstallTicket(SshEndpoint("example.com",22,"root"), plan, "6f0f7f66-ea40-406e-a582-98bb9df557ca")
         val status = buildJsonObject {

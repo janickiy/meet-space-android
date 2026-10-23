@@ -63,6 +63,13 @@ internal class InstallerBundle(private val files: Map<String, ByteArray>, allowT
             require(value.string("commit") == release.string("commit"))
             require(value.string("releaseVersion") == release.string("version"))
             val options = value.getValue("options").jsonObject
+            val mode = options.optional("imageMode")?.let { wire -> InstallImageMode.entries.single { it.wire == wire } } ?: InstallImageMode.SOURCE
+            val requestedRelease = options.optional("imageRelease") ?: "latest"
+            require(validImageRelease(requestedRelease))
+            require(mode == InstallImageMode.IMAGES || "imageRelease" !in options)
+            val imageLock = value["imageLock"]?.jsonObject
+            if (mode == InstallImageMode.IMAGES) validateImageLock(requireNotNull(imageLock), value, release)
+            else require(imageLock == null && value["sourceLock"]?.jsonObject?.optional("channel") != "prebuilt")
             val smtp = options["smtp"]?.takeUnless { it is JsonNull }?.jsonObject?.let {
                 require(it.keys == setOf("host", "port", "from", "username", "tlsMode"))
                 InstallSmtpOptions(it.string("host"), it.getValue("port").jsonPrimitive.int,
@@ -79,17 +86,19 @@ internal class InstallerBundle(private val files: Map<String, ByteArray>, allowT
                 if (installBuildx) add("Buildx")
             }
             return InstallPlan(value.toString(), hash, value.string("releaseVersion"), value.string("commit"),
-                InstallOptions(options.string("domain"), options.string("publicIpv4"), options.string("acmeEmail"), smtp),
+                InstallOptions(options.string("domain"), options.string("publicIpv4"), options.string("acmeEmail"), smtp, mode, requestedRelease),
                 value.getValue("platform").jsonObject.string("arch"), !dockerInstalled || missingDockerPlugins.isNotEmpty(),
                 value.getValue("expiresAt").jsonPrimitive.long, value.optional("existingJobId"), value.optional("existingPlanHash"),
                 value["sourceLock"]?.jsonObject?.let { "${it.string("channel")}: ${it.string("ref")}" }, release.string("sourceSha256"), resourceProfile,
-                dockerInstalled && missingDockerPlugins.isNotEmpty(), missingDockerPlugins)
+                dockerInstalled && missingDockerPlugins.isNotEmpty(), missingDockerPlugins,
+                imageLock?.string("sha256"), imageLock?.getValue("sizeBytes")?.jsonPrimitive?.long)
         } catch (_: Exception) { throw InstallFailure("PLAN_INVALID") }
     }
     /** Only the selected upstream snapshot varies; executable policy and infrastructure stay signed. */
     private fun effectiveManifest(plan: JsonObject): JsonObject {
         val lock = plan["sourceLock"]?.jsonObject ?: return manifest
-        require(manifest.optional("sourcePolicy") == "github-latest-stable-v1")
+        require(if (lock.optional("channel") == "prebuilt") manifest.optional("prebuiltPolicy") == "github-prebuilt-v1"
+            else manifest.optional("sourcePolicy") == "github-latest-stable-v1")
         require(plan.string("recipeSha256") == sha256(canonicalJson(manifest).toByteArray()))
         require(lock.keys == setOf("repository", "channel", "ref", "version", "commit", "builtAt", "sourceUrl", "sourceSha256", "sourceFiles"))
         require(lock.string("repository") == "janickiy/meet-space")
@@ -101,7 +110,7 @@ internal class InstallerBundle(private val files: Map<String, ByteArray>, allowT
         require(ref.matches(Regex("[A-Za-z0-9][A-Za-z0-9._/+-]{0,199}")))
         require(lock.string("builtAt").matches(Regex("[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z")))
         val tag = when (lock.string("channel")) {
-            "release" -> { require(version == ref); JsonPrimitive(ref) }
+            "release", "prebuilt" -> { require(version == ref); JsonPrimitive(ref) }
             "default-branch" -> { require(version == "0.0.0-source.${commit.take(12)}"); JsonNull }
             else -> error("Invalid selection")
         }
@@ -114,6 +123,21 @@ internal class InstallerBundle(private val files: Map<String, ByteArray>, allowT
                 val file = entry.jsonObject
                 JsonObject(file + ("sha256" to hashes.getValue(file.string("path"))))
             })))
+    }
+    private fun validateImageLock(lock: JsonObject, plan: JsonObject, release: JsonObject) {
+        require(manifest.optional("prebuiltPolicy") == "github-prebuilt-v1")
+        require(lock.keys == setOf("repository", "version", "commit", "platform", "url", "sha256", "sizeBytes", "indexSha256"))
+        require(plan.getValue("sourceLock").jsonObject.string("channel") == "prebuilt")
+        val arch = plan.getValue("platform").jsonObject.string("arch")
+        require(arch in setOf("amd64", "arm64"))
+        val version = release.string("version")
+        require(version != "latest" && validImageRelease(version))
+        require((plan.getValue("options").jsonObject.optional("imageRelease") ?: "latest") in setOf("latest", version))
+        require(lock.string("repository") == "janickiy/meet-space" && lock.string("version") == version && lock.string("commit") == release.string("commit"))
+        require(lock.string("platform") == "linux/$arch")
+        require(lock.string("url") == "https://github.com/janickiy/meet-space/releases/download/$version/meetspace-$version-linux-$arch.tar.gz")
+        require(listOf("sha256", "indexSha256").all { lock.string(it).matches(Regex("[a-f0-9]{64}")) })
+        require(lock.getValue("sizeBytes").jsonPrimitive.long in 1..2L * 1024 * 1024 * 1024)
     }
     companion object { val names = listOf("runner.py", "trust-root.pem", "release.json", "release.sig", "docker.asc") }
 }

@@ -37,6 +37,31 @@ class InstallerUiTest {
             assertEquals("test-only",password);assertFalse(useKey)
         }
     }
+    @Test fun imageModeChoicePassesSelectedModeAndReleaseToPlan() {
+        var submitted: InstallOptions? = null
+        render(InstallerUiState(active = true, screen = InstallScreen.ACCESS, endpoint = endpoint,
+            options = plan.options.copy(imageMode = InstallImageMode.IMAGES), needsAccess = false),
+            onAuthenticate = { options, _, _ -> submitted = options })
+        compose.onNodeWithTag("install-mode-images").performScrollTo().assertIsSelected()
+        compose.onNodeWithTag("install-image-release").performScrollTo().performTextReplacement("v0.4.0-prebuilt.test.1")
+        compose.onNodeWithTag("install-plan").performScrollTo().performClick()
+        compose.runOnIdle {
+            assertEquals(InstallImageMode.IMAGES, submitted?.imageMode)
+            assertEquals("v0.4.0-prebuilt.test.1", submitted?.imageRelease)
+        }
+        compose.onNodeWithTag("install-mode-source").performScrollTo().performClick().assertIsSelected()
+        compose.onNodeWithTag("install-image-release").assertDoesNotExist()
+        compose.onNodeWithTag("install-plan").performScrollTo().performClick()
+        compose.runOnIdle { assertEquals(InstallImageMode.SOURCE, submitted?.imageMode) }
+    }
+    @Test fun imagesPlanDisplaysArchiveAndDoesNotPromiseCompilation() {
+        val images = plan.copy(options = plan.options.copy(imageMode = InstallImageMode.IMAGES),
+            imageArchiveSha256 = "c".repeat(64), imageArchiveBytes = 750L * 1024 * 1024)
+        render(InstallerUiState(active = true, screen = InstallScreen.PLAN, endpoint = endpoint, plan = images, needsAccess = false))
+        compose.onNodeWithTag("install-image-mode").performScrollTo().assertTextEquals("Способ: готовые образы")
+        compose.onNodeWithTag("install-image-size").performScrollTo().assertTextEquals("Пакет: 750 МиБ")
+        compose.onNodeWithText("собрать 7 образов", substring = true).assertDoesNotExist()
+    }
     @Test fun accessShowsSupportedUbuntuAndMinimumAndRecommendedResources() {
         render(InstallerUiState(active=true,screen=InstallScreen.ACCESS,endpoint=endpoint,options=plan.options))
         compose.onNodeWithTag("install-requirements").performScrollTo()
