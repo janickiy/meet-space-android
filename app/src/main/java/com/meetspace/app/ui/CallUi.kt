@@ -63,6 +63,10 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.meetspace.app.CallPermissionRequest
 import com.meetspace.app.ScreenShareService
 import com.meetspace.app.CallJoinDevices
 import com.meetspace.app.preferredAudioRoute
@@ -73,8 +77,16 @@ import org.webrtc.RendererCommon
 import org.webrtc.SurfaceViewRenderer
 
 @Composable
-fun CallHost(engine: CallEngine, state: CallState, onWorkspaceTab: ((WorkspaceTab) -> Unit)? = null, profileLabel: String = "", details: CallUiDetails = CallUiDetails(), panelActions: CallPanelActions = CallPanelActions(), recordingActions: CallRecordingActions = CallRecordingActions()) {
+fun CallHost(engine: CallEngine, state: CallState, onWorkspaceTab: ((WorkspaceTab) -> Unit)? = null, profileLabel: String = "", details: CallUiDetails = CallUiDetails(), panelActions: CallPanelActions = CallPanelActions(), recordingActions: CallRecordingActions = CallRecordingActions(), authScope: String = "") {
     val context = LocalContext.current
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    val currentAuthScope by rememberUpdatedState(authScope)
+    val joinRequest = remember(engine) { CallPermissionRequest() }
+    val microphoneRequest = remember(engine) { CallPermissionRequest() }
+    val cameraRequest = remember(engine) { CallPermissionRequest() }
+    val notificationRequest = remember(engine) { CallPermissionRequest() }
+    val projectionRequest = remember(engine) { CallPermissionRequest() }
+    var hostActive by remember { mutableStateOf(true) }
     val (preferences, _) = rememberAccountDevicePreferences()
     var microphoneEdited by rememberSaveable(state.conferenceId) { mutableStateOf(false) }
     var cameraEdited by rememberSaveable(state.conferenceId) { mutableStateOf(false) }
@@ -82,7 +94,28 @@ fun CallHost(engine: CallEngine, state: CallState, onWorkspaceTab: ((WorkspaceTa
     var joinMicrophone by rememberSaveable(state.conferenceId) { mutableStateOf(false) }
     var joinCamera by rememberSaveable(state.conferenceId) { mutableStateOf(false) }
     var routeChosen by rememberSaveable(state.conferenceId) { mutableStateOf(false) }
+    var requestingProjection by remember { mutableStateOf(false) }
     var confirmExit by remember { mutableStateOf(false) }
+    fun foreground() = hostActive && lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
+    DisposableEffect(engine, lifecycle, authScope, state.conferenceId, state.directCallId, state.participantId, state.phase) {
+        hostActive = true
+        fun invalidateDevices() {
+            joinRequest.invalidate(); microphoneRequest.invalidate(); cameraRequest.invalidate(); notificationRequest.invalidate()
+            pendingJoin = false
+        }
+        val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_STOP) {
+            invalidateDevices()
+            // A full-screen Android projection picker may stop the caller. Keep its
+            // explicit request, but never accept a result while the caller is backgrounded.
+            if (!projectionRequest.awaitingResult) requestingProjection = false
+        } }
+        lifecycle.addObserver(observer)
+        onDispose {
+            hostActive = false
+            invalidateDevices(); projectionRequest.invalidate(); requestingProjection = false
+            lifecycle.removeObserver(observer)
+        }
+    }
     BackHandler { confirmExit = true }
     fun join(devices: CallJoinDevices) {
         if (state.microphone != devices.microphone) engine.microphone(devices.microphone)
@@ -90,13 +123,16 @@ fun CallHost(engine: CallEngine, state: CallState, onWorkspaceTab: ((WorkspaceTa
         engine.connect()
     }
     val joinPermissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
-        if (pendingJoin && state.phase == CallPhase.PREJOIN) {
-            pendingJoin = false
+        val wasPending = pendingJoin
+        pendingJoin = false
+        val current = engine.state.value
+        val accepted = joinRequest.consume(currentAuthScope, current, foreground())
+        if (wasPending && accepted && current.phase == CallPhase.PREJOIN) {
             join(CallJoinDevices(
                 joinMicrophone && ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED,
                 joinCamera && ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED,
             ))
-        } else pendingJoin = false
+        }
     }
     LaunchedEffect(state.phase, state.routes, preferences.speaker) {
         if (state.phase == CallPhase.CONNECTED && !routeChosen) {
@@ -107,48 +143,60 @@ fun CallHost(engine: CallEngine, state: CallState, onWorkspaceTab: ((WorkspaceTa
         }
     }
     val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        if (!microphoneRequest.consume(currentAuthScope, engine.state.value, foreground())) return@rememberLauncherForActivityResult
         if (it) engine.microphone(true) else engine.message("Микрофон выключен. Доступ можно разрешить в настройках Android.")
     }
     val cameraPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        if (!cameraRequest.consume(currentAuthScope, engine.state.value, foreground())) return@rememberLauncherForActivityResult
         if (it) engine.camera(true) else engine.message("Камера выключена. Доступ можно разрешить в настройках Android.")
     }
     val bluetooth = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { engine.refreshAudioRoutes() }
-    var requestingProjection by remember { mutableStateOf(false) }
-    var projectionConference by remember { mutableStateOf<String?>(null) }
     val projection = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         requestingProjection = false
-        val target = projectionConference; projectionConference = null
         val current = engine.state.value
-        if (target != current.conferenceId || current.directCallId != null || current.phase != CallPhase.CONNECTED) return@rememberLauncherForActivityResult
+        if (!projectionRequest.consume(currentAuthScope, current, foreground()) || current.directCallId != null || current.phase != CallPhase.CONNECTED) return@rememberLauncherForActivityResult
         if (it.resultCode == Activity.RESULT_OK && it.data != null) {
-            try { ContextCompat.startForegroundService(context, Intent(context, ScreenShareService::class.java).putExtra(ScreenShareService.CONSENT, it.data).putExtra(ScreenShareService.CONFERENCE, target)) }
+            try { ContextCompat.startForegroundService(context, Intent(context, ScreenShareService::class.java).putExtra(ScreenShareService.CONSENT, it.data).putExtra(ScreenShareService.CONFERENCE, current.conferenceId)) }
             catch (_: Exception) { engine.message("Не удалось запустить демонстрацию экрана. Повторите из приложения.") }
         } else engine.message("Демонстрация экрана отменена.")
     }
-    val startProjection = {
-        requestingProjection = true
-        projectionConference = engine.state.value.conferenceId
-        projection.launch(context.getSystemService(MediaProjectionManager::class.java).createScreenCaptureIntent())
+    val startProjection: (CallState) -> Unit = { target ->
+        if (foreground() && target.phase == CallPhase.CONNECTED && target.directCallId == null && projectionRequest.begin(currentAuthScope, target)) {
+            requestingProjection = true
+            try { projection.launch(context.getSystemService(MediaProjectionManager::class.java).createScreenCaptureIntent()) }
+            catch (_: Exception) {
+                projectionRequest.consume(currentAuthScope, engine.state.value, false); requestingProjection = false
+                engine.message("Не удалось запросить демонстрацию экрана. Повторите из приложения.")
+            }
+        } else requestingProjection = false
     }
-    val notifications = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { startProjection() }
+    val notifications = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        val current = engine.state.value
+        if (notificationRequest.consume(currentAuthScope, current, foreground())) startProjection(current)
+        else requestingProjection = false
+    }
     CallScreen(state, onWorkspaceTab = onWorkspaceTab, profileLabel = profileLabel, devicePreferences = preferences, joinPending = pendingJoin, details = details, panelActions = panelActions, recordingActions = recordingActions,
         microphone = {
             microphoneEdited = true
             if (state.microphone) engine.microphone(false)
             else if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) engine.microphone(true)
-            else micPermission.launch(Manifest.permission.RECORD_AUDIO)
+            else if (foreground() && microphoneRequest.begin(currentAuthScope, state)) micPermission.launch(Manifest.permission.RECORD_AUDIO)
         },
         camera = {
             cameraEdited = true
             if (state.camera) engine.camera(false)
             else if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) engine.camera(true)
-            else cameraPermission.launch(Manifest.permission.CAMERA)
+            else if (foreground() && cameraRequest.begin(currentAuthScope, state)) cameraPermission.launch(Manifest.permission.CAMERA)
         },
         share = {
-            if (state.sharing) engine.stopScreen()
+            if (state.sharing) engine.stopScreen(state.conferenceId, state.directCallId)
             else if (!requestingProjection) {
-                if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) notifications.launch(Manifest.permission.POST_NOTIFICATIONS)
-                else startProjection()
+                if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                    if (foreground() && notificationRequest.begin(currentAuthScope, state)) {
+                        requestingProjection = true
+                        notifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                } else startProjection(state)
             }
         }, connect = connect@{
             if (pendingJoin) return@connect
@@ -159,7 +207,7 @@ fun CallHost(engine: CallEngine, state: CallState, onWorkspaceTab: ((WorkspaceTa
                 if (devices.camera && ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) add(Manifest.permission.CAMERA)
             }
             if (permissions.isEmpty()) join(devices)
-            else {
+            else if (foreground() && joinRequest.begin(currentAuthScope, state)) {
                 pendingJoin = true; joinMicrophone = devices.microphone; joinCamera = devices.camera
                 joinPermissions.launch(permissions.toTypedArray())
             }

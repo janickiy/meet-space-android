@@ -62,6 +62,7 @@ class LiveMessagingTest {
             val vm = openWorkspace(scenario)
             onMain { vm.open(direct.id) }
             await("direct loaded") { vm.state.value.detail.data?.id == direct.id && vm.state.value.messages.data != null }
+            awaitComposer()
             val sentText = "Android UI ${UUID.randomUUID().toString().take(8)}"
             compose.onNodeWithTag("message-draft").performTextInput(sentText)
             compose.onNodeWithTag("message-send").performClick()
@@ -78,6 +79,7 @@ class LiveMessagingTest {
             // The first row may move outside a compact viewport after a reply; use actual VM action
             // to select its edit operation, then the visible composer submits through real UI.
             onMain { vm.edit(sent) }
+            await("edit composer is visible") { tagged("message-draft") && vm.state.value.editing?.id == sent.id }
             compose.onNodeWithTag("message-draft").performTextReplacement("UI edited")
             compose.onNodeWithTag("message-send").performClick()
             await("edit acknowledged") { vm.state.value.messages.data.orEmpty().any { it.id == sent.id && it.text == "UI edited" && it.version > sent.version } }
@@ -110,6 +112,7 @@ class LiveMessagingTest {
                 val name = "Android group ${UUID.randomUUID().toString().take(6)}"
                 onMain { vm.createGroup(name, "Disposable real integration", listOf(member.state.value.session!!.user.id)) }
                 await("real group created") { vm.state.value.detail.data?.name == name && !vm.state.value.busy && vm.state.value.messages.data != null }
+                awaitComposer()
                 groupId = vm.state.value.selectedId!!
                 val gid = groupId!!
                 onMain { vm.loadMembers() }
@@ -145,9 +148,12 @@ class LiveMessagingTest {
                 member.liveMessaging.sendMessage(direct.id, ChatMessageInput(UUID.randomUUID().toString(), "Live Android inbox proof"))
                 onMain { vm.loadNotifications() }
                 await("real inbox notification loaded") { vm.state.value.notifications.data.orEmpty().any { it.conversationId == direct.id } }
-                compose.onNodeWithTag("chat-folder-filter").performScrollTo().performClick()
-                compose.onNodeWithTag("messaging-notifications").performClick()
-                await("notification dialog") { compose.onAllNodesWithText("Уведомления").fetchSemanticsNodes().isNotEmpty() }
+                // A phone thread owns the whole viewport; return through its visible toolbar
+                // before opening the current, shared notification center from the list header.
+                if (tagged("conversation-back")) compose.onNodeWithTag("conversation-back").performClick()
+                await("chat list notification bell") { tagged("notification-bell") }
+                compose.onNodeWithTag("notification-bell").performClick()
+                await("notification center") { tagged("notification-center") && tagged("notification-events") }
                 screenshot("stage07-live-notifications.png")
                 device.pressBack()
                 val notification = vm.state.value.notifications.data!!.first { it.conversationId == direct.id }
@@ -173,6 +179,7 @@ class LiveMessagingTest {
             val vm = openWorkspace(scenario)
             onMain { vm.open(direct.id) }
             await("online history loaded") { vm.state.value.messages.data.orEmpty().any { it.id == marker.id } }
+            awaitComposer()
             try {
                 device.executeShellCommand("svc data disable"); device.executeShellCommand("svc wifi disable")
                 await("actual user WSS disconnected", 35_000) { vm.state.value.realtimeLabel.contains("Нет связи") || vm.state.value.realtimeLabel.contains("Восстанавливаем") }
@@ -245,8 +252,10 @@ class LiveMessagingTest {
                 assertNotNull(notification.contentIntent)
                 onMain { notification.contentIntent.send() }
                 await("notification intent opens real inbox") {
-                    compose.onAllNodesWithTag("messaging-workspace").fetchSemanticsNodes().isNotEmpty() &&
-                        compose.onAllNodesWithTag("notifications-list").fetchSemanticsNodes().isNotEmpty()
+                    // OPEN_INBOX now opens the shared panel over the current destination.
+                    // Its contents must contain the event received through the real WSS.
+                    tagged("notification-center") && tagged("notification-events") &&
+                        tagged("notification-event-${vm.state.value.notifications.data.orEmpty().firstOrNull { it.messageId == message.id }?.id}")
                 }
                 screenshot("stage07-live-system-notification-inbox.png")
                 // PendingIntent.send does not emulate a shade click: auto-cancel has not
@@ -294,8 +303,28 @@ class LiveMessagingTest {
     }
     private fun await(label: String, timeout: Long = 30_000, predicate: () -> Boolean) {
         File(context.cacheDir, "stage07-progress.txt").writeText("step=$label")
-        compose.waitUntil(timeoutMillis = timeout) { predicate() }
+        try { compose.waitUntil(timeoutMillis = timeout) { predicate() } }
+        catch (failure: ComposeTimeoutException) {
+            // Record only shape/lifecycle facts: never fixture IDs, credentials or message text.
+            val state = model?.state?.value
+            val facts = buildString {
+                append("step=$label;authenticated=${app.repository.state.value.session != null}")
+                state?.let {
+                    append(";selfPresent=${it.selfId.isNotEmpty()};selected=${it.selectedId != null};busy=${it.busy}")
+                    append(";detail=${it.detail.data != null};detailLoading=${it.detail.loading};detailError=${it.detail.error != null}")
+                    append(";messages=${it.messages.data != null};messagesLoading=${it.messages.loading};messagesError=${it.messages.error != null}")
+                    append(";error=${it.error != null};notificationError=${it.notifications.error != null}")
+                }
+                listOf("workspace", "messaging-workspace", "conversation-detail", "message-draft", "notification-center").forEach {
+                    append(";$it=${tagged(it)}")
+                }
+            }
+            File(context.cacheDir, "stage07-timeout-shape.txt").writeText(facts)
+            throw AssertionError("Live messaging wait failed: $facts", failure)
+        }
     }
+    private fun tagged(tag: String) = compose.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty()
+    private fun awaitComposer() = await("visible conversation composer") { tagged("conversation-detail") && tagged("message-draft") && tagged("message-send") }
     private fun onMain(block: () -> Unit) { instrumentation.runOnMainSync(block) }
     private fun screenshot(name: String) { compose.waitForIdle(); assertTrue(device.takeScreenshot(File(context.cacheDir, name))) }
     private fun evidence(case: String, facts: String) { File(context.cacheDir, "stage07-live-evidence.txt").appendText("$case:$facts\n") }

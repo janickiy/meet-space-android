@@ -1,0 +1,77 @@
+{
+  "label": "final-media-priority",
+  "serial": "emulator-5556",
+  "elapsedSeconds": 16.69,
+  "tests": [
+    {
+      "class": "com.meetspace.app.CallLifecyclePriorityTest",
+      "test": "pauseDuringSlowConferenceLookupReleasesCameraBeforeTheRequestCompletes",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.CallLifecyclePriorityTest",
+      "test": "leavePreemptsSlowPresenceAndRepeatedLifecycleRequestsKeepActorUsable",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.CallLifecyclePriorityTest",
+      "test": "screenStopPreemptsSlowPresenceAndReleasesProjectionOwner",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.CallLifecyclePriorityTest",
+      "test": "leavingQueuedDirectPreviewCannotOpenItOrCancelTheNextCall",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.CallLifecyclePriorityTest",
+      "test": "idleEstablishedScreenShareSurvivesDeviceOnlyPause",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.CallLifecyclePriorityTest",
+      "test": "oldProjectionCallbackCannotInterruptANewerSessionInTheSameCall",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.CallLifecyclePriorityTest",
+      "test": "leavingCurrentDirectCallPreservesANewerQueuedPreview",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.CallLifecyclePriorityTest",
+      "test": "stoppingQueuedScreenStartDoesNotConsumeItsOldConsent",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.ScreenShareLifecycleTest",
+      "test": "rejectedProjectionReleasesNativeResourcesAndAllowsAnotherAttempt",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.ScreenShareLifecycleTest",
+      "test": "staleDirectCallCleanupAndConsentCannotAffectTheNextCall",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.CallPermissionLifecycleTest",
+      "test": "permissionReturnAfterOnStopCannotEnableTheMicrophoneOnResume",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.CallPermissionLifecycleTest",
+      "test": "ordinaryPausedPermissionDialogReturnCanEnableTheRequestedMicrophone",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.CallPermissionLifecycleTest",
+      "test": "permissionForAnOldMeetingCannotOpenTheCameraInAnotherMeeting",
+      "code": 0
+    }
+  ],
+  "passed": 13,
+  "failed": 0,
+  "skipped": 0,
+  "total": 13,
+  "runnerSuccess": true
+}

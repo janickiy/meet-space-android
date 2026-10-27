@@ -77,7 +77,9 @@ class RecordingsUiTest {
 
     @Test fun librarySearchAndLargeTextKeepCardsReachableAndPrivateQueryIsNotRestored() {
         val restoration = StateRestorationTester(compose)
+        val editor = FormEditorWindow()
         restoration.setContent {
+            editor.Observe()
             val density = LocalDensity.current
             CompositionLocalProvider(LocalDensity provides Density(density.density, 1.5f)) { Screen(library, width = 430, dark = true) }
         }
@@ -86,8 +88,12 @@ class RecordingsUiTest {
         compose.onNodeWithTag("recording-row-${record.id}").assertIsDisplayed()
         compose.onNodeWithTag("recordings-library").performScrollToNode(hasTestTag("recordings-library-search"))
         compose.onNodeWithTag("recordings-library-search").performTextInput("private missing title")
+        // Dismiss the editor before scrolling to content below the filters: Compose
+        // idle alone does not wait for the platform IME to restore the viewport.
+        compose.runOnIdle { editor.dismiss() }
+        compose.waitUntil(timeoutMillis = 5_000) { editor.imeBottom.get() == 0 }
         compose.onNodeWithTag("recordings-library").performScrollToNode(hasTestTag("recordings-library-empty"))
-        compose.onNodeWithText("На загруженных страницах совпадений нет").assertIsDisplayed()
+        compose.settleFormEditorForClick(editor, compose.onNodeWithText("На загруженных страницах совпадений нет")).assertIsDisplayed()
         restoration.emulateSavedInstanceStateRestore()
         compose.onNodeWithTag("recordings-library").performScrollToNode(hasTestTag("recordings-library-search"))
         compose.onNodeWithTag("recordings-library-search").assert(SemanticsMatcher.expectValue(SemanticsProperties.EditableText, AnnotatedString("")))

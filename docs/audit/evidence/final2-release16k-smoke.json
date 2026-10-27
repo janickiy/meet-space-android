@@ -1,0 +1,10 @@
+{
+  "pageSize": 16384,
+  "pidExists": true,
+  "firstRunUiVisible": true,
+  "linkerCompatEnabled": "false",
+  "pmCompatDisabled": "true",
+  "smokeApkSha256": "cb1f0348a25d43830cca39ba4b47657499e81d61aa93dc1ab2ac8e89a7fc1d7c",
+  "testedFinalReleaseSha256": "a8dd5869453223d2396c45c30af6d4cc663f1a0cc1e94e7efe2b3556cf8f7f44",
+  "scope": "Minified final release temporarily test-signed; startup only, no capture/network call"
+}

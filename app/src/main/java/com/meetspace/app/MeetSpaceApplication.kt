@@ -21,6 +21,13 @@ open class MeetSpaceApplication : Application() {
     val messagingRepository: com.meetspace.core.data.MessagingRepository get() = repository as com.meetspace.core.data.MessagingRepository
     val directCallsRepository: com.meetspace.core.data.DirectCallsRepository get() = repository as com.meetspace.core.data.DirectCallsRepository
     val pushController by lazy { PushController(this, repository, messagingRepository, messagingNotifications) }
-    val messagingNotifications by lazy { MessagingNotifications(this) }
+    val messagingNotifications by lazy { MessagingNotifications(this, identity = {
+        val current = repository.state.value
+        if (current.session?.guestMeeting != null) null else {
+            val origin = current.selectedProfile?.origin
+            val user = current.session?.user?.id
+            if (origin != null && user != null) "$origin|$user" else null
+        }
+    }) }
     val sshRepository: SshPreflightRepository by lazy { SshPreflightRepositoryFactory.create(this) }
 }

@@ -21,6 +21,9 @@ data class RecordingFile(
     val durationSec: Long? = null, val available: Boolean = true,
 )
 data class RecordingPage(val items: List<Recording>, val nextOffset: Int?)
+/** The recording catalogue is independent of meeting lifecycle and chat-list visibility. */
+data class RecordingLibraryItem(val meeting: Meeting, val recording: Recording)
+data class RecordingLibraryPage(val items: List<RecordingLibraryItem>, val nextCursor: String?)
 data class RecordingTranscriptState(val enabled: Boolean, val item: RecordingTranscript?)
 data class RecordingTranscript(val id: String, val recordingId: String, val language: String, val status: String)
 data class RecordingSegment(

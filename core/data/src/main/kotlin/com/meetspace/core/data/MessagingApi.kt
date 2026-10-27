@@ -270,7 +270,8 @@ internal class MessagingApi(private val api: MeetSpaceApi) {
             val payload = o["payload"] as? JsonObject ?: throw InvalidContract()
             return InboxNotification(o.id(), o.text("type", 100), o.instant("createdAt"), o.optionalInstant("readAt"),
                 payload.optionalId("conferenceId"), payload.optionalId("conversationId"), payload.optionalId("messageId"),
-                payload.optionalInstant("scheduledAt"))
+                payload.optionalInstant("scheduledAt"), payload.optionalId("recordingId"),
+                payload.optionalId("transcriptId"), payload.optionalId("summaryId"))
         }
         fun sha256(bytes: ByteArray): String = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
     }

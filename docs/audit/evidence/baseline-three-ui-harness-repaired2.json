@@ -1,0 +1,27 @@
+{
+  "label": "baseline-three-ui-harness-repaired2",
+  "serial": "emulator-5558",
+  "elapsedSeconds": 10.47,
+  "tests": [
+    {
+      "class": "com.meetspace.app.MessagingUiTest",
+      "test": "createGroupNeedsTitleAndSelectedUserAndWaitsForAcknowledgment",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.MessagingUiTest",
+      "test": "composerRequiresContentAndBlocksDuplicateSendUntilServerReturns",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.RecordingsUiTest",
+      "test": "librarySearchAndLargeTextKeepCardsReachableAndPrivateQueryIsNotRestored",
+      "code": 0
+    }
+  ],
+  "passed": 3,
+  "failed": 0,
+  "skipped": 0,
+  "total": 3,
+  "runnerSuccess": true
+}

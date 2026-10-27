@@ -171,6 +171,8 @@ object MeetingInvites {
         "Введите код приглашения или HTTPS-ссылку этого сервера вида /i/код.")
 }
 
+internal fun decodeRecordingMeeting(body: String, origin: String): Meeting = decode<MeetingDto>(body).model(origin)
+
 private fun conferencePath(id: String): List<String> {
     if (!isId(id)) invalidInput()
     return listOf("conferences", id)

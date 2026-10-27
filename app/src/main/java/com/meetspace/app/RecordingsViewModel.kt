@@ -27,9 +27,13 @@ class RecordingsViewModel(
     private var export: ExportRequest? = null
     private var downloading: RecordingAccess? = null
     private val libraryViews = listOf(MeetingsView.PAST, MeetingsView.ACTIVE, MeetingsView.UPCOMING)
-    private var libraryViewIndex = 0
     private var libraryCursor: String? = null
     private var libraryCursors = emptySet<String>()
+    private var legacyLibrary = false
+    private var legacyCursors = emptyMap<MeetingsView, String?>()
+    private var legacyCompleted = emptySet<MeetingsView>()
+    private var legacySeen = emptyMap<MeetingsView, Set<String>>()
+    private val legacyWarning = "Сервер не поддерживает общий каталог записей. Показаны записи из доступного списка встреч; для полного каталога обновите MeetSpace на сервере."
 
     init { viewModelScope.launch { foundation.state.collect { if (identity != scope()) { close(); identity = scope() } } } }
 
@@ -51,18 +55,38 @@ class RecordingsViewModel(
         mutableState.value = RecordingsUiState(visible = true, selfId = foundation.state.value.session?.user?.id.orEmpty())
         if (meetingId == null) loadLibrary() else openMeeting(meetingId)
     }
+    /** Notification IDs identify a route; access and metadata still come from the current account's API. */
+    fun openNotification(meetingId: String, recordingId: String?, summary: Boolean = false) {
+        if (scope() == null || meetingId.isBlank()) return
+        if (recordingId.isNullOrBlank()) { show(meetingId); return }
+        close()
+        mutableState.value = RecordingsUiState(visible = true, selfId = foundation.state.value.session?.user?.id.orEmpty(),
+            meetingId = meetingId, meeting = RecordingsLoad(loading = true), detailId = recordingId,
+            detail = RecordingsLoad(loading = true), initialSummary = summary)
+        request("meeting", { failure -> mutableState.update {
+            it.copy(meeting = RecordingsLoad(error = failure.message), detail = RecordingsLoad(error = failure.message))
+        } }) {
+            val meeting = meetings.conference(meetingId)
+            checkCurrent()
+            if (meeting.id != meetingId) throw AppFailure(FailureKind.INVALID_RESPONSE, "Сервер вернул другую встречу. Повторите загрузку.")
+            mutableState.update { it.copy(meeting = RecordingsLoad(meeting)) }
+            // Fetch the indicated recording directly, including one outside the first list page.
+            loadDetail()
+        }
+    }
     fun close() {
         generation++
         jobs.values.toList().forEach(Job::cancel); jobs.clear(); tickets.clear()
         closePlayback(); downloading?.close(); downloading = null; export = null
         mutableState.value = RecordingsUiState()
-        libraryViewIndex = 0; libraryCursor = null; libraryCursors = emptySet()
+        libraryCursor = null; libraryCursors = emptySet()
+        legacyLibrary = false; legacyCursors = emptyMap(); legacyCompleted = emptySet(); legacySeen = emptyMap()
     }
     override fun onCleared() { close() }
     fun back() { when { playback.value != null -> closePlayback(); state.value.detailId != null -> closeDetail(); state.value.meetingId != null -> {
         cancelDetail(); cancel("recordings"); cancel("meeting")
         mutableState.update { it.copy(meetingId = null, meeting = RecordingsLoad(), recordings = RecordingsLoad()) }
-        if (!state.value.meetingPicker && !state.value.library.loaded) loadLibrary()
+        if (!state.value.meetingPicker) loadLibrary()
     }; state.value.meetingPicker -> {
         mutableState.update { it.copy(meetingPicker = false) }
         if (!state.value.library.loaded) loadLibrary()
@@ -72,19 +96,19 @@ class RecordingsViewModel(
         if (state.value.meetings.data == null) loadMeetings()
     }
     private fun showLibrary() {
+        val fromLibrary = state.value.detailFromLibrary
         cancelDetail(); cancel("meeting"); cancel("recordings"); cancel("meetings")
         mutableState.update { it.copy(meetingPicker = false, meetingId = null, meeting = RecordingsLoad(), recordings = RecordingsLoad()) }
-        if (!state.value.library.loaded && !state.value.library.loading) loadLibrary()
+        if (!state.value.library.loading && (!fromLibrary || !state.value.library.loaded)) loadLibrary()
     }
 
-    /** One explicit step costs at most one timeline page and four recording-list requests. */
+    /** The catalogue is paged by recording, independently of meeting timeline membership. */
     private fun loadLibrary(append: Boolean = false) {
         if (scope() == null || !state.value.visible) return
         val previous = state.value.library
         if (previous.loading || (append && !previous.hasMore)) return
         if (!append) jobs.keys.filter { it.startsWith("library-records-") }.toList().forEach(::cancel)
         val old = if (append) previous else previous.copy(meetings = previous.meetings.map { it.copy(recordings = it.recordings.copy(loading = false)) })
-        val viewIndex = if (append) libraryViewIndex else 0
         val cursor = if (append) libraryCursor else null
         val seenCursors = if (append) libraryCursors else emptySet()
         mutableState.update { it.copy(library = old.copy(loading = true, error = null)) }
@@ -92,36 +116,112 @@ class RecordingsViewModel(
             it.copy(library = it.library.copy(meetings = if (accessDenied(failure)) emptyList() else it.library.meetings,
                 loading = false, error = failure.message))
         } }) {
-            val page = meetings.timeline(MeetingsQuery(view = libraryViews[viewIndex], cursor = cursor, limit = 4))
-            checkCurrent()
-            if (page.items.size > 4 || page.nextCursor?.let { it == cursor || it in seenCursors } == true)
-                throw AppFailure(FailureKind.INVALID_RESPONSE, "Сервер вернул неверную страницу встреч. Обновите библиотеку.")
-            val pageMeetings = page.items.distinctBy { it.id }
-            val existingIds = if (append) old.meetings.map { it.meeting.id }.toSet() else emptySet()
-            if (!append) mutableState.update { it.copy(library = it.library.copy(meetings = old.meetings.filter { row -> pageMeetings.any { it.id == row.meeting.id } })) }
-            for (meeting in pageMeetings.filterNot { it.id in existingIds }) {
-                val previous = old.meetings.firstOrNull { it.meeting.id == meeting.id }?.recordings ?: RecordingsLoad()
-                updateLibraryMeeting(meeting, previous.copy(loading = true, error = null))
-                val result = try {
-                    val records = repository.recordings(meeting.id, 0, 12)
-                    checkCurrent(); validateLibraryPage(meeting.id, records, 0)
-                    RecordingsLoad(records)
+            if (!legacyLibrary || !append) {
+                try {
+                    val page = repository.recordingLibrary(cursor, 30)
+                    checkCurrent()
+                    if (page.items.size > 30 || page.items.any { it.recording.conferenceId != it.meeting.id } ||
+                        page.nextCursor?.let { it == cursor || it in seenCursors } == true)
+                        throw AppFailure(FailureKind.INVALID_RESPONSE, "Сервер вернул неверную страницу записей. Обновите библиотеку.")
+                    val rows = (if (append) old.meetings else emptyList()).associateByTo(linkedMapOf()) { it.meeting.id }
+                    for (item in page.items) {
+                        if (rows.values.any { row -> row.meeting.id != item.meeting.id && row.recordings.data?.items.orEmpty().any { it.id == item.recording.id } })
+                            throw AppFailure(FailureKind.INVALID_RESPONSE, "Сервер вернул запись другой встречи. Обновите библиотеку.")
+                        val records = rows[item.meeting.id]?.recordings?.data?.items.orEmpty()
+                            .filterNot { it.id == item.recording.id } + item.recording
+                        rows[item.meeting.id] = RecordingLibraryMeeting(item.meeting, RecordingsLoad(RecordingPage(records, null)))
+                    }
+                    legacyLibrary = false
+                    libraryCursor = page.nextCursor
+                    libraryCursors = if (append) seenCursors + listOfNotNull(page.nextCursor) else setOfNotNull(page.nextCursor)
+                    mutableState.update { it.copy(library = RecordingLibrary(rows.values.toList(), loaded = true,
+                        hasMore = page.nextCursor != null), notice = it.notice.takeUnless { message -> message == legacyWarning }) }
+                    return@request
                 } catch (cancelled: CancellationException) { throw cancelled }
                 catch (error: Exception) {
                     checkCurrent()
-                    val failure = recordingFailure(error)
-                    if (failure.kind == FailureKind.SESSION_EXPIRED) throw failure
-                    revokeVisibleRecordings(meeting.id, failure)
-                    failedLoad(previous, failure)
+                    if ((error as? AppFailure)?.kind != FailureKind.INCOMPATIBLE_SERVER) throw error
+                    legacyLibrary = true; legacyCursors = emptyMap(); legacyCompleted = emptySet(); legacySeen = emptyMap()
+                    mutableState.update { it.copy(notice = legacyWarning) }
+                    loadLegacyLibrary(old, append = false)
+                    return@request
                 }
-                updateLibraryMeeting(meeting, result)
             }
-            libraryViewIndex = if (page.nextCursor == null) viewIndex + 1 else viewIndex
-            libraryCursor = page.nextCursor
-            libraryCursors = if (page.nextCursor == null) emptySet() else seenCursors + listOfNotNull(page.nextCursor)
-            mutableState.update { it.copy(library = it.library.copy(loaded = true, loading = false,
-                hasMore = libraryViewIndex < libraryViews.size)) }
+            loadLegacyLibrary(old, append)
         }
+    }
+
+    /** Compatibility mode is explicit and checks all three views in each bounded batch.
+     * Active meetings must not wait behind every page of past meetings on older servers. */
+    private suspend fun loadLegacyLibrary(old: RecordingLibrary, append: Boolean) {
+        var initialized = append
+        var pageError: String? = null
+        for (view in libraryViews.filterNot { it in legacyCompleted }) {
+            val cursor = legacyCursors[view]
+            val seen = legacySeen[view].orEmpty()
+            try {
+                val page = meetings.timeline(MeetingsQuery(view = view, cursor = cursor, limit = 4))
+                checkCurrent()
+                if (page.items.size > 4 || page.nextCursor?.let { it == cursor || it in seen } == true)
+                    throw AppFailure(FailureKind.INVALID_RESPONSE, "Сервер вернул неверную страницу встреч. Обновите библиотеку.")
+                if (!initialized) {
+                    mutableState.update { it.copy(library = it.library.copy(meetings = emptyList())) }
+                    initialized = true
+                }
+                val existingIds = state.value.library.meetings.map { it.meeting.id }.toSet()
+                for (meeting in page.items.distinctBy { it.id }.filterNot { it.id in existingIds }) {
+                    val previous = old.meetings.firstOrNull { it.meeting.id == meeting.id }?.recordings ?: RecordingsLoad()
+                    updateLibraryMeeting(meeting, previous.copy(loading = true, error = null))
+                    val records = try {
+                        val result = repository.recordings(meeting.id, 0, 12)
+                        checkCurrent(); validateLibraryPage(meeting.id, result, 0)
+                        RecordingsLoad(result)
+                    } catch (cancelled: CancellationException) { throw cancelled }
+                    catch (error: Exception) {
+                        checkCurrent()
+                        val failure = recordingFailure(error)
+                        if (failure.kind == FailureKind.SESSION_EXPIRED) throw failure
+                        revokeVisibleRecordings(meeting.id, failure)
+                        failedLoad(previous, failure)
+                    }
+                    updateLibraryMeeting(meeting, records)
+                }
+                legacyCursors = legacyCursors + (view to page.nextCursor)
+                legacySeen = legacySeen + (view to (seen + listOfNotNull(page.nextCursor)))
+                if (page.nextCursor == null) legacyCompleted = legacyCompleted + view
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Exception) {
+                checkCurrent()
+                val failure = recordingFailure(error)
+                if (failure.kind == FailureKind.SESSION_EXPIRED) throw failure
+                pageError = pageError ?: failure.message
+            }
+        }
+        mutableState.update { it.copy(library = it.library.copy(loaded = true, loading = false, error = pageError,
+            hasMore = legacyCompleted.size < libraryViews.size)) }
+    }
+
+    internal val previewIdentity: String? get() = scope()
+
+    /** Acquire only an authorised preview from currently visible metadata; the loader owns the lease. */
+    internal suspend fun previewAccess(recording: Recording, file: RecordingFile): RecordingAccess {
+        val expectedScope = scope() ?: throw CancellationException("Account unavailable")
+        val epoch = generation
+        fun visiblePreview(): Boolean {
+            if (!state.value.visible || recording.status !in setOf("ready", "partial_ready") ||
+                file.type != "preview_jpg" || file.mimeType != "image/jpeg" || !file.available) return false
+            val records = state.value.library.meetings.flatMap { it.recordings.data?.items.orEmpty() } +
+                state.value.recordings.data?.items.orEmpty() + listOfNotNull(state.value.detail.data)
+            return records.any { it.id == recording.id && it.conferenceId == recording.conferenceId &&
+                it.status in setOf("ready", "partial_ready") && file in it.files }
+        }
+        if (expectedScope != identity || !visiblePreview()) throw CancellationException("Preview no longer visible")
+        val access = repository.recordingAccess(recording.conferenceId, recording.id, file.id)
+        try {
+            coroutineContext.ensureActive()
+            if (expectedScope != scope() || epoch != generation || !visiblePreview() || access.file != file) throw CancellationException("Preview scope changed")
+            return access
+        } catch (error: Exception) { access.close(); throw error }
     }
 
     private fun loadLibraryMeeting(id: String, append: Boolean = false) {
@@ -166,7 +266,10 @@ class RecordingsViewModel(
     }
     private fun openLibraryRecording(meetingId: String, recordingId: String) {
         val row = state.value.library.meetings.firstOrNull { it.meeting.id == meetingId } ?: return
-        if (row.recordings.data?.items?.none { it.id == recordingId && it.playable } != false) return
+        val record = row.recordings.data?.items?.firstOrNull { it.id == recordingId } ?: return
+        val readyMaterials = record.mode == "individual_tracks" && record.status in setOf("ready", "partial_ready") &&
+            record.files.any { it.available && it.type != "preview_jpg" }
+        if (!record.playable && !readyMaterials) return
         cancelDetail(); cancel("meeting"); cancel("recordings")
         mutableState.update { it.copy(meetingId = meetingId, meeting = RecordingsLoad(row.meeting), recordings = RecordingsLoad(),
             detailId = recordingId, detailFromLibrary = true, meetingPicker = false) }
@@ -226,11 +329,12 @@ class RecordingsViewModel(
         val fromLibrary = state.value.detailFromLibrary
         cancelDetail()
         if (fromLibrary) mutableState.update { it.copy(meetingId = null, meeting = RecordingsLoad(), recordings = RecordingsLoad()) }
+        else if (state.value.visible && state.value.meetingId != null && state.value.recordings.data == null && !state.value.recordings.loading) loadRecordings()
     }
     private fun cancelDetail() {
         listOf("detail", "transcript", "segments", "summary", "media").forEach(::cancel)
         closePlayback()
-        mutableState.update { it.copy(detailId = null, detailFromLibrary = false, detail = RecordingsLoad(), transcript = RecordingsLoad(), segments = RecordingsLoad(), summary = RecordingsLoad(), mediaBusy = false) }
+        mutableState.update { it.copy(detailId = null, detailFromLibrary = false, detail = RecordingsLoad(), transcript = RecordingsLoad(), segments = RecordingsLoad(), summary = RecordingsLoad(), mediaBusy = false, initialSummary = false) }
     }
     private fun loadDetail() {
         val cid = state.value.meetingId ?: return; val rid = state.value.detailId ?: return
@@ -244,7 +348,10 @@ class RecordingsViewModel(
                 mutableState.update { it.copy(detail = RecordingsLoad(error = failure.message), transcript = RecordingsLoad(), segments = RecordingsLoad(), summary = RecordingsLoad()) }
             } else mutableState.update { it.copy(detail = failedLoad(old, failure)) }
         }) {
-            val result = repository.recording(cid, rid); checkCurrent(); mutableState.update { it.copy(detail = RecordingsLoad(result)) }
+            val result = repository.recording(cid, rid); checkCurrent()
+            if (result.id != rid || result.conferenceId != cid) throw AppFailure(FailureKind.INVALID_RESPONSE, "Сервер вернул другую запись. Повторите загрузку.")
+            mutableState.update { it.copy(detail = RecordingsLoad(result)) }
+            if (state.value.initialSummary) loadSummary()
         }
     }
     private fun loadTranscript() {

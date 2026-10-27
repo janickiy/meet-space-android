@@ -63,7 +63,9 @@ fun MessagingWorkspace(state: MessagingUiState, actions: MessagingActions, modif
     inboxRequested: Boolean = false, consumeInbox: () -> Unit = {},
     newChatRequested: Boolean = false, foldersRequested: Boolean = false,
     consumeWorkspaceRequest: () -> Unit = {}, serverOrigin: String? = null, onStartCall: (() -> Unit)? = null,
-    personalCallLabel: String? = null, onResumeCall: () -> Unit = {}) {
+    personalCallLabel: String? = null, onResumeCall: () -> Unit = {},
+    notificationBell: (@Composable () -> Unit)? = null, onNotifications: (() -> Unit)? = null,
+    conversationNavigationRevision: Int = 0) {
     var newChat by remember { mutableStateOf(false) }
     var folders by remember { mutableStateOf(false) }
     var candidates by remember { mutableStateOf(false) }
@@ -80,6 +82,13 @@ fun MessagingWorkspace(state: MessagingUiState, actions: MessagingActions, modif
         if (newChatRequested) { actions.searchUsers(""); newChat = true; consumeWorkspaceRequest() }
         else if (foldersRequested) { folders = true; consumeWorkspaceRequest() }
     }
+    // A notification may target the already-selected chat behind folders or another local overlay.
+    LaunchedEffect(conversationNavigationRevision) {
+        if (conversationNavigationRevision > 0) {
+            folders = false; candidates = false; members = false; newChat = false
+            notifications = false; deleteMessage = null
+        }
+    }
     if (folders) { FoldersWorkspace(state, actions) { folders = false }; return }
     BackHandler(enabled = state.selectedId != null, onBack = actions.back)
     var searchOpen by remember { mutableStateOf(state.query.isNotBlank()) }
@@ -92,7 +101,7 @@ fun MessagingWorkspace(state: MessagingUiState, actions: MessagingActions, modif
         val listOnly = !wide && state.selectedId == null
         Column(Modifier.fillMaxSize()) {
             if (wide || listOnly) MessagingHeader(wide, searchOpen,
-                onSearch = { searchOpen = !searchOpen; if (!searchOpen) actions.query("") })
+                onSearch = { searchOpen = !searchOpen; if (!searchOpen) actions.query("") }, notificationBell = notificationBell)
             if ((state.error != null || state.notice != null) && state.selectedId == null) {
                 Box(Modifier.fillMaxWidth().heightIn(max = 120.dp).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 4.dp)) {
                     MessagingNotice(state.error, state.notice, actions.clearMessage)
@@ -103,7 +112,7 @@ fun MessagingWorkspace(state: MessagingUiState, actions: MessagingActions, modif
                 Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
                     ConversationList(state, actions, searchOpen, serverOrigin, inviteDismissed, { inviteDismissed = true }, smallPhone,
                         manageFolders = { folders = true }, addItems = { actions.searchFolderCandidates(""); candidates = true },
-                        onNotifications = { actions.loadNotifications(); notifications = true })
+                        onNotifications = onNotifications ?: { actions.loadNotifications(); notifications = true })
                     if (!wide) Surface(onClick = { actions.searchUsers(""); newChat = true }, enabled = !state.busy,
                         modifier = Modifier.align(Alignment.BottomEnd).padding(end = 18.dp, bottom = 17.dp).heightIn(min = 53.dp).testTag("messaging-new"),
                         shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary, shadowElevation = 6.dp) {
@@ -153,15 +162,19 @@ fun MessagingWorkspace(state: MessagingUiState, actions: MessagingActions, modif
 }
 
 @Composable
-private fun MessagingHeader(wide: Boolean, searchOpen: Boolean, onSearch: () -> Unit) {
+private fun MessagingHeader(wide: Boolean, searchOpen: Boolean, onSearch: () -> Unit,
+    notificationBell: (@Composable () -> Unit)? = null) {
     Row(Modifier.fillMaxWidth().heightIn(min = 75.dp).background(MaterialTheme.colorScheme.surface)
         .padding(start = if (wide) 30.dp else 20.dp, end = if (wide) 24.dp else 12.dp, bottom = 0.dp)
         .testTag("messaging-header"), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
         if (wide) Image(painterResource(R.drawable.ic_meetspace), null, Modifier.size(32.dp))
         Text("Чаты", Modifier.weight(1f).semantics { heading() }, fontSize = if (wide) 25.sp else 23.sp,
             lineHeight = 31.sp, letterSpacing = (-.5).sp, fontWeight = FontWeight.SemiBold)
-        IconButton(onClick = onSearch, modifier = Modifier.testTag("messaging-search-toggle").semantics { stateDescription = if (searchOpen) "Поиск открыт" else "Поиск скрыт" }) {
-            Icon(if (searchOpen) Icons.Outlined.Close else Icons.Outlined.Search, if (searchOpen) "Закрыть поиск чатов" else "Поиск чатов", Modifier.size(27.dp))
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (wide) 8.dp else 0.dp)) {
+            IconButton(onClick = onSearch, modifier = Modifier.testTag("messaging-search-toggle").semantics { stateDescription = if (searchOpen) "Поиск открыт" else "Поиск скрыт" }) {
+                Icon(if (searchOpen) Icons.Outlined.Close else Icons.Outlined.Search, if (searchOpen) "Закрыть поиск чатов" else "Поиск чатов", Modifier.size(27.dp))
+            }
+            notificationBell?.invoke()
         }
     }
 }
@@ -894,12 +907,12 @@ private fun NotificationsDialog(state: MessagingUiState, actions: MessagingActio
                             Text("Новых: ${state.notificationUnread}", Modifier.weight(1f), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             IconButton(onClick = actions.loadNotifications, enabled = !state.notifications.loading, modifier = Modifier.testTag("notifications-refresh")) { Icon(Icons.Outlined.Refresh, "Обновить уведомления", Modifier.size(21.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant) }
                         }
-                        if (state.notifications.data.orEmpty().any { it.readAt == null }) TextButton(onClick = actions.readAllNotifications, enabled = !state.busy,
-                            contentPadding = PaddingValues(horizontal = 0.dp), modifier = Modifier.testTag("notifications-read-loaded")) { Text("Прочитать загруженные", fontSize = 12.sp) }
+                        if (state.notificationUnread > 0) TextButton(onClick = actions.readAllNotifications, enabled = !state.notificationBusy,
+                            contentPadding = PaddingValues(horizontal = 0.dp), modifier = Modifier.testTag("notifications-read-loaded")) { Text("Прочитать все", fontSize = 12.sp) }
                         LoadingStatus(state.notifications.loading, state.notifications.error, actions.loadNotifications)
                         LazyColumn(Modifier.weight(1f, fill = false).testTag("notifications-list")) {
                             items(state.notifications.data.orEmpty(), key = { it.id }) { notification ->
-                                NotificationRow(notification, state.busy, actions, dismiss)
+                                NotificationRow(notification, state.notificationBusy, actions, dismiss)
                             }
                             if (state.notificationCursor != null) item { MoreButton("Ещё уведомления", "notifications-more", state.notifications.loading, actions.moreNotifications) }
                             if (state.notifications.data?.isEmpty() == true && !state.notifications.loading && state.notifications.error == null) item { EmptyChat("Уведомлений пока нет") }

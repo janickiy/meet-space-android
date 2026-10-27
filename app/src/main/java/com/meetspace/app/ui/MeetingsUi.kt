@@ -174,6 +174,7 @@ fun MeetingsWorkspace(
     homeContent: (@Composable (() -> Unit, () -> Unit, () -> Unit) -> Unit)? = null,
     callsSearchVisible: Boolean = false,
     onFolders: () -> Unit = {},
+    notificationBell: (@Composable () -> Unit)? = null,
 ) {
     var form by remember { mutableStateOf<MeetingForm?>(null) }
     var joinDialog by remember { mutableStateOf(false) }
@@ -226,7 +227,7 @@ fun MeetingsWorkspace(
     } else {
         Column(Modifier.fillMaxSize()) {
             if (tab == WorkspaceTab.CALLS) BoxWithConstraints(Modifier.fillMaxWidth()) {
-                MeetingsHeader(maxWidth >= 780.dp, { onTab(WorkspaceTab.CALENDAR) }, { actions.recordings(null) })
+                MeetingsHeader(maxWidth >= 780.dp, { onTab(WorkspaceTab.CALENDAR) }, { actions.recordings(null) }, notificationBell)
             }
             if (state.error != null || state.notice != null || state.actionBusy || state.creationUncertain) {
                 Column(Modifier.fillMaxWidth().heightIn(max = 220.dp).verticalScroll(rememberScrollState()).padding(16.dp)) { feedback() }

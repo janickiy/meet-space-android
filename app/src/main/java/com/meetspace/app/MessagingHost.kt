@@ -19,8 +19,12 @@ fun MessagingHost(model: MessagingViewModel, state: MessagingUiState, pushContro
     inboxRequested: Boolean = false, consumeInbox: () -> Unit = {},
     newChatRequested: Boolean = false, foldersRequested: Boolean = false,
     consumeWorkspaceRequest: () -> Unit = {}, serverOrigin: String? = null, onStartCall: (() -> Unit)? = null,
-    personalCall: DirectCallSession? = null, onResumeCall: () -> Unit = {}) {
+    personalCall: DirectCallSession? = null, onResumeCall: () -> Unit = {},
+    notificationBell: (@Composable () -> Unit)? = null, onNotifications: (() -> Unit)? = null,
+    openNotification: ((com.meetspace.core.model.InboxNotification) -> Unit)? = null,
+    conversationNavigationRevision: Int = 0) {
     val context = LocalContext.current
+    val resolver = context.applicationContext.contentResolver
     val effects = rememberCoroutineScope()
     val selected by rememberUpdatedState(state.selectedId)
     val identity by rememberUpdatedState(authScope)
@@ -31,9 +35,9 @@ fun MessagingHost(model: MessagingViewModel, state: MessagingUiState, pushContro
         if (uri != null && target != null && target.first == identity && target.second == selected) {
             effects.launch {
                 try {
-                    val metadata = MessagingFiles.metadata(context.contentResolver, uri)
+                    val metadata = MessagingFiles.metadata(resolver, uri)
                     if (target.first == identity && target.second == selected)
-                        model.upload(metadata.name, metadata.mimeType) { MessagingFiles.read(context.contentResolver, uri) }
+                        model.upload(metadata.name, metadata.mimeType) { MessagingFiles.read(resolver, uri) }
                 } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
                 catch (error: Exception) { model.message((error as? com.meetspace.core.model.AppFailure)?.message ?: "Не удалось открыть файл.") }
             }
@@ -43,8 +47,8 @@ fun MessagingHost(model: MessagingViewModel, state: MessagingUiState, pushContro
         val target = exportTarget; exportTarget = null
         if (uri != null) {
             val accepted = target != null && target.first == identity && target.second.conversationId == selected &&
-                model.export(target.second, onFailure = { kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { runCatching { context.contentResolver.delete(uri, null, null) }; Unit } }) { bytes -> MessagingFiles.write(context.contentResolver, uri, bytes) }
-            if (!accepted) effects.launch(kotlinx.coroutines.Dispatchers.IO) { runCatching { context.contentResolver.delete(uri, null, null) } }
+                model.export(target.second, onFailure = { kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { runCatching { resolver.delete(uri, null, null) }; Unit } }) { bytes -> MessagingFiles.write(resolver, uri, bytes) }
+            if (!accepted) effects.launch(kotlinx.coroutines.Dispatchers.IO) { runCatching { resolver.delete(uri, null, null) } }
         }
     }
     val notifications = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
@@ -58,11 +62,12 @@ fun MessagingHost(model: MessagingViewModel, state: MessagingUiState, pushContro
         pickAttachment = { selected?.let { importTarget = identity to it; picker.launch(arrayOf("*/*")) } },
         download = { attachment -> exportTarget = identity to attachment; save.launch(MessagingFiles.safeName(attachment.filename)) },
         openMeeting = openMeeting,
-        openNotification = { item ->
+        openNotification = openNotification ?: { item ->
             model.readNotification(item.id)
             val conversation = item.conversationId
             if (conversation != null) model.open(conversation)
             else item.conferenceId?.let(openMeeting)
+            Unit
         },
         requestSystemNotifications = {
             if (Build.VERSION.SDK_INT >= 33) notifications.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -70,5 +75,6 @@ fun MessagingHost(model: MessagingViewModel, state: MessagingUiState, pushContro
         },
     ), modifier, inboxRequested, consumeInbox, newChatRequested, foldersRequested, consumeWorkspaceRequest, serverOrigin, onStartCall,
         personalCallLabel = personalCall?.let { if (it.call?.status == "accepted") "${it.elapsedSeconds / 60}:${(it.elapsedSeconds % 60).toString().padStart(2, '0')}" else if (it.incoming) "Входящий вызов" else "Вы звоните…" },
-        onResumeCall = onResumeCall)
+        onResumeCall = onResumeCall, notificationBell = notificationBell, onNotifications = onNotifications,
+        conversationNavigationRevision = conversationNavigationRevision)
 }

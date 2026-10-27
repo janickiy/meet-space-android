@@ -64,9 +64,10 @@ class RegistrationUiTest {
 
     @Test fun savedStateKeepsNameAndEmailButNeverEitherPasswordOrVisibility() {
         val restoration = StateRestorationTester(compose)
-        restoration.setContent { Ui() }
+        val editor = FormEditorWindow()
+        restoration.setContent { editor.Observe(); Ui() }
         fill("Иван", "member@example.test", "synthetic-password", "synthetic-password")
-        compose.onNodeWithContentDescription("Показать пароль").performScrollTo().performClick()
+        compose.settleFormEditorForClick(editor, compose.onNodeWithContentDescription("Показать пароль")).performClick()
         assertRenderedPassword("synthetic-password")
         restoration.emulateSavedInstanceStateRestore()
         compose.onNodeWithTag("register-name").assertTextContains("Иван")

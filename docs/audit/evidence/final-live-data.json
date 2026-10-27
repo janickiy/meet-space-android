@@ -1,0 +1,23 @@
+[
+  {
+    "name": "com.meetspace.core.data.LiveRecordingsBackendTest",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "name": "com.meetspace.core.data.LiveMessagingRepositoryTest",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "name": "com.meetspace.core.data.LiveMeetingsRepositoryTest",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  }
+]

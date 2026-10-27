@@ -1,0 +1,22 @@
+{
+  "label": "final-offline-lifecycle",
+  "serial": "emulator-5556",
+  "elapsedSeconds": 65.52,
+  "tests": [
+    {
+      "class": "com.meetspace.app.AuditOfflineLifecycleTest",
+      "test": "activityRecreationAndBackgroundReleaseOwners",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.AuditOfflineLifecycleTest",
+      "test": "nativeFactoriesReleaseAcrossRepeatedLifetimes",
+      "code": 0
+    }
+  ],
+  "passed": 2,
+  "failed": 0,
+  "skipped": 0,
+  "total": 2,
+  "runnerSuccess": true
+}

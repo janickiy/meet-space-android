@@ -1,0 +1,62 @@
+[
+  {
+    "port": 18465,
+    "listening": false
+  },
+  {
+    "port": 18466,
+    "listening": false
+  },
+  {
+    "port": 18477,
+    "listening": false
+  },
+  {
+    "port": 18488,
+    "listening": false
+  },
+  {
+    "port": 15465,
+    "listening": false
+  },
+  {
+    "port": 15466,
+    "listening": false
+  },
+  {
+    "port": 15477,
+    "listening": false
+  },
+  {
+    "port": 15488,
+    "listening": false
+  },
+  {
+    "port": 16366,
+    "listening": false
+  },
+  {
+    "port": 16377,
+    "listening": false
+  },
+  {
+    "port": 16388,
+    "listening": false
+  },
+  {
+    "port": 19077,
+    "listening": false
+  },
+  {
+    "port": 19088,
+    "listening": false
+  },
+  {
+    "port": 19477,
+    "listening": false
+  },
+  {
+    "port": 19488,
+    "listening": false
+  }
+]

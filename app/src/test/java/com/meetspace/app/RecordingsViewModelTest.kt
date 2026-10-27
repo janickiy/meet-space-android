@@ -143,63 +143,196 @@ class RecordingsViewModelTest {
     @Test fun activeMeetingFilterAndRepeatedCursorAreHandled() = runTest {
         val meetings = Meetings(); val m = RecordingsViewModel(Foundation(), meetings, Records())
         m.show(); runCurrent(); m.actions.filterMeetings(MeetingsView.ACTIVE); runCurrent()
-        assertEquals(listOf(MeetingsView.PAST, MeetingsView.ACTIVE), meetings.queries.map { it.view })
+        assertEquals(listOf(MeetingsView.ACTIVE), meetings.queries.map { it.view })
         m.actions.moreMeetings(); runCurrent(); assertNotNull(m.state.value.meetings.error)
     }
 
     @Test fun globalLibraryLoadsOneBoundedBatchAndWaitsForExplicitContinuation() = runTest {
-        val meetings = Meetings().apply { page = { query ->
-            if (query.cursor == null) MeetingPage((1..4).map { meeting().copy(id = "room-$it", title = "Meeting $it") }, "next")
-            else MeetingPage(listOf(meeting().copy(id = "room-5")), null)
+        val meetings = Meetings().apply { page = { error("Global recordings must not depend on timeline membership") } }
+        val records = Records().apply { library = { cursor, _ ->
+            val range = if (cursor == null) 1..30 else 31..31
+            RecordingLibraryPage(range.map { index ->
+                val meeting = meeting().copy(id = "room-$index", title = "Meeting $index")
+                RecordingLibraryItem(meeting, record().copy(id = "record-$index", conferenceId = meeting.id))
+            }, "next".takeIf { cursor == null })
         } }
-        val records = Records().apply { page = { id, _, _ -> RecordingPage(listOf(record().copy(id = "record-$id", conferenceId = id)), null) } }
         val model = RecordingsViewModel(Foundation(), meetings, records)
         model.show(); runCurrent()
         assertNull(model.state.value.meetingId)
-        assertEquals(4, model.state.value.library.meetings.size)
-        assertEquals(1, meetings.queries.size)
-        assertTrue(meetings.queries.all { it.limit == 4 && it.scope == MeetingsScope.ALL })
-        assertEquals(4, records.pages.size)
-        assertTrue(records.pages.all { it.second == 0 && it.third == 12 })
+        assertEquals(30, model.state.value.library.meetings.size)
+        assertTrue(meetings.queries.isEmpty())
+        assertTrue(records.pages.isEmpty())
+        assertEquals(listOf(null to 30), records.libraryPages)
         assertTrue(model.state.value.library.hasMore)
         assertTrue(records.leases.isEmpty())
         model.actions.moreLibrary(); runCurrent()
-        assertEquals(5, model.state.value.library.meetings.size)
-        assertEquals("next", meetings.queries.last().cursor)
-        assertEquals(5, records.pages.size)
+        assertEquals(31, model.state.value.library.meetings.size)
+        assertEquals(listOf(null to 30, "next" to 30), records.libraryPages)
+        assertFalse(model.state.value.library.hasMore)
     }
 
-    @Test fun libraryContinuesAcrossAllTimelineViewsWithoutAutomaticFanout() = runTest {
+    @Test fun globalLibraryIncludesReadyRecordingsFromActiveAndNeverJoinedMeetings() = runTest {
+        val active = meeting().copy(id = "active", status = "active")
+        val neverJoined = meeting().copy(id = "never-joined", status = "finished")
         val meetings = Meetings().apply { page = { MeetingPage(emptyList(), null) } }
-        val model = RecordingsViewModel(Foundation(), meetings, Records())
+        val records = Records().apply { library = { _, _ -> RecordingLibraryPage(listOf(
+            RecordingLibraryItem(active, record().copy(id = "screenshot-record", conferenceId = active.id, durationSec = 28)),
+            RecordingLibraryItem(neverJoined, record().copy(id = "readable-record", conferenceId = neverJoined.id)),
+        ), null) } }
+        val model = RecordingsViewModel(Foundation(), meetings, records)
         model.show(); runCurrent()
-        assertEquals(listOf(MeetingsView.PAST), meetings.queries.map { it.view })
-        model.actions.moreLibrary(); runCurrent()
-        model.actions.moreLibrary(); runCurrent()
-        assertEquals(listOf(MeetingsView.PAST, MeetingsView.ACTIVE, MeetingsView.UPCOMING), meetings.queries.map { it.view })
+        assertEquals(listOf("active", "never-joined"), model.state.value.library.meetings.map { it.meeting.id })
+        assertEquals(28L, model.state.value.library.meetings.first().recordings.data!!.items.single().durationSec)
+        assertTrue(meetings.queries.isEmpty()); assertTrue(records.pages.isEmpty())
         assertFalse(model.state.value.library.hasMore)
         model.actions.moreLibrary(); runCurrent()
-        assertEquals(3, meetings.queries.size)
+        assertEquals(1, records.libraryPages.size)
+    }
+
+    @Test fun olderServerChecksActiveMeetingsBeforePastHistoryIsExhaustedAndWarnsAboutCoverage() = runTest {
+        val active = meeting().copy(id = "active", status = "active")
+        val meetings = Meetings().apply { page = { query -> when (query.view) {
+            MeetingsView.PAST -> MeetingPage(listOf(meeting()), "many-more-past-meetings")
+            MeetingsView.ACTIVE -> MeetingPage(listOf(active), null)
+            else -> MeetingPage(emptyList(), null)
+        } } }
+        val records = Records().apply {
+            library = { _, _ -> throw AppFailure(FailureKind.INCOMPATIBLE_SERVER, "Обновите сервер") }
+            page = { id, _, _ -> RecordingPage(listOf(record().copy(id = "record-$id", conferenceId = id)), null) }
+        }
+        val model = RecordingsViewModel(Foundation(), meetings, records)
+        model.show(); runCurrent()
+        assertEquals(listOf(MeetingsView.PAST, MeetingsView.ACTIVE, MeetingsView.UPCOMING), meetings.queries.map { it.view })
+        assertTrue(model.state.value.library.meetings.any { it.meeting.id == "active" })
+        assertTrue(model.state.value.library.hasMore)
+        assertTrue(model.state.value.notice!!.contains("для полного каталога"))
+        assertNull(model.state.value.library.error)
+        model.actions.moreLibrary(); runCurrent()
+        assertEquals("many-more-past-meetings", meetings.queries.last().cursor)
+        assertNotNull(model.state.value.library.error) // An unchanged cursor cannot loop forever.
+    }
+
+    @Test fun globalNetworkOrAccessFailureNeverFallsBackToMeetingDiscovery() = runTest {
+        val meetings = Meetings()
+        val records = Records()
+        val model = RecordingsViewModel(Foundation(), meetings, records)
+        model.show(); runCurrent()
+        records.library = { _, _ -> throw AppFailure(FailureKind.NETWORK, "Нет сети") }
+        model.actions.refreshLibrary(); runCurrent()
+        assertEquals("Нет сети", model.state.value.library.error)
+        assertEquals(1, model.state.value.library.meetings.size)
+        records.library = { _, _ -> throw AppFailure(FailureKind.FORBIDDEN, "Доступ отозван") }
+        model.actions.refreshLibrary(); runCurrent()
+        assertTrue(model.state.value.library.meetings.isEmpty())
+        assertTrue(meetings.queries.isEmpty())
+        assertTrue(records.pages.isEmpty())
+    }
+
+    @Test fun globalCursorLoopPreservesRowsAndCannotSkipIntoAnotherMeeting() = runTest {
+        val records = Records().apply { library = { cursor, _ ->
+            RecordingLibraryPage(listOf(RecordingLibraryItem(meeting(), record().copy(id = if (cursor == null) "first" else "second"))), "same")
+        } }
+        val model = RecordingsViewModel(Foundation(), Meetings(), records)
+        model.show(); runCurrent(); model.actions.moreLibrary(); runCurrent()
+        assertEquals(listOf("first"), model.state.value.library.meetings.single().recordings.data!!.items.map { it.id })
+        assertNotNull(model.state.value.library.error)
+        records.library = { _, _ -> RecordingLibraryPage(listOf(RecordingLibraryItem(meeting(), record().copy(conferenceId = "other"))), null) }
+        model.actions.refreshLibrary(); runCurrent()
+        assertEquals(listOf("first"), model.state.value.library.meetings.single().recordings.data!!.items.map { it.id })
+        assertNotNull(model.state.value.library.error)
+    }
+
+    @Test fun returningFromMeetingMaterialsRefreshesThePreviouslyLoadedCatalogue() = runTest {
+        val records = Records()
+        val model = RecordingsViewModel(Foundation(), Meetings(), records)
+        model.show(); runCurrent(); model.openMeeting("room"); runCurrent()
+        records.library = { _, _ -> RecordingLibraryPage(listOf(
+            RecordingLibraryItem(meeting(), record()),
+            RecordingLibraryItem(meeting(), record().copy(id = "new-record")),
+        ), null) }
+        model.actions.allRecordings(); runCurrent()
+        assertEquals(2, records.libraryPages.size)
+        assertEquals(listOf("record", "new-record"), model.state.value.library.meetings.single().recordings.data!!.items.map { it.id })
+        assertNull(model.state.value.meetingId)
+    }
+
+    @Test fun lateGlobalCatalogueResponseCannotRepopulateAnotherAccount() = runTest {
+        val foundation = Foundation()
+        val gate = CompletableDeferred<RecordingLibraryPage>()
+        val records = Records().apply { library = { _, _ -> withContext(NonCancellable) { gate.await() } } }
+        val model = RecordingsViewModel(foundation, Meetings(), records)
+        model.show(); runCurrent()
+        foundation.state.value = foundation.state.value.copy(session = null); runCurrent()
+        gate.complete(RecordingLibraryPage(listOf(RecordingLibraryItem(meeting(), record())), null)); runCurrent()
+        assertFalse(model.state.value.visible)
+        assertTrue(model.state.value.library.meetings.isEmpty())
+    }
+
+    @Test fun previewOnlyAcquiresTheVisibleReadyJpegAndReturnsItsOwnedLease() = runTest {
+        val preview = media.copy(id = "preview", type = "preview_jpg", filename = "preview.jpg", mimeType = "image/jpeg")
+        val recording = record().copy(files = listOf(media, preview))
+        var accesses = 0
+        val lease = Access(preview)
+        val records = Records().apply { list = { RecordingPage(listOf(recording), null) }; access = { accesses++; lease } }
+        val model = RecordingsViewModel(Foundation(), Meetings(), records)
+        model.show("room"); runCurrent()
+        suspend fun rejected(record: Recording, file: RecordingFile) {
+            try { model.previewAccess(record, file); fail("Preview must not be authorised") } catch (_: CancellationException) { }
+        }
+        rejected(recording, media)
+        rejected(recording.copy(id = "other"), preview)
+        rejected(recording.copy(status = "processing"), preview)
+        rejected(recording, preview.copy(available = false))
+        assertEquals(0, accesses)
+        assertSame(lease, model.previewAccess(recording, preview))
+        assertFalse(lease.closed)
+        lease.close(); assertTrue(lease.closed)
+        model.close(); rejected(recording, preview)
+        assertEquals(1, accesses)
+    }
+
+    @Test fun latePreviewLeaseIsClosedAfterRouteCloseOrAccountChange() = runTest {
+        for (logout in listOf(false, true)) {
+            val preview = media.copy(id = "preview", type = "preview_jpg", filename = "preview.jpg", mimeType = "image/jpeg")
+            val recording = record().copy(files = listOf(preview))
+            val gate = CompletableDeferred<RecordingAccess>()
+            val lease = Access(preview)
+            val foundation = Foundation()
+            val records = Records().apply { list = { RecordingPage(listOf(recording), null) }; access = { withContext(NonCancellable) { gate.await() } } }
+            val model = RecordingsViewModel(foundation, Meetings(), records)
+            model.show("room"); runCurrent()
+            val request = async { try { model.previewAccess(recording, preview); false } catch (_: CancellationException) { true } }
+            runCurrent()
+            if (logout) foundation.state.value = foundation.state.value.copy(session = null) else model.close()
+            runCurrent(); gate.complete(lease); runCurrent()
+            assertTrue(request.await()); assertTrue(lease.closed)
+        }
     }
 
     @Test fun libraryKeepsPartialFailureExplicitAndRetriesOnlyThatMeeting() = runTest {
-        val meetings = Meetings().apply { page = { MeetingPage(listOf(meeting(), meeting().copy(id = "second")), null) } }
+        val meetings = Meetings()
         var offline = true
-        val records = Records().apply { page = { id, _, _ ->
-            if (id == "second" && offline) throw AppFailure(FailureKind.NETWORK, "Нет сети для второй встречи")
-            RecordingPage(listOf(record().copy(id = "record-$id", conferenceId = id)), null)
-        } }
+        val records = Records().apply {
+            library = { _, _ -> RecordingLibraryPage(listOf("room", "second").map { id ->
+                RecordingLibraryItem(meeting().copy(id = id), record().copy(id = "record-$id", conferenceId = id))
+            }, null) }
+            page = { id, _, _ ->
+                if (id == "second" && offline) throw AppFailure(FailureKind.NETWORK, "Нет сети для второй встречи")
+                RecordingPage(listOf(record().copy(id = "record-$id", conferenceId = id)), null)
+            }
+        }
         val model = RecordingsViewModel(Foundation(), meetings, records)
         model.show(); runCurrent()
+        model.actions.retryLibraryMeeting("second"); runCurrent()
         assertEquals(1, model.state.value.library.meetings.first().recordings.data!!.items.size)
         assertEquals("Нет сети для второй встречи", model.state.value.library.meetings.last().recordings.error)
-        assertNull(model.state.value.library.meetings.last().recordings.data)
+        assertEquals(1, model.state.value.library.meetings.last().recordings.data!!.items.size)
         offline = false
         model.actions.retryLibraryMeeting("second"); runCurrent()
-        assertEquals(listOf("room", "second", "second"), records.pages.map { it.first })
-        assertEquals(1, meetings.queries.size)
+        assertEquals(listOf("second", "second"), records.pages.map { it.first })
+        assertTrue(meetings.queries.isEmpty())
         assertNull(model.state.value.library.meetings.last().recordings.error)
-        meetings.page = { throw AppFailure(FailureKind.NETWORK, "Обновление недоступно") }
+        records.library = { _, _ -> throw AppFailure(FailureKind.NETWORK, "Обновление недоступно") }
         model.actions.refreshLibrary(); runCurrent()
         assertEquals(2, model.state.value.library.meetings.size)
         assertEquals("Обновление недоступно", model.state.value.library.error)
@@ -213,7 +346,8 @@ class RecordingsViewModelTest {
             else RecordingPage(listOf(record(), record().copy(id = "second")), 12)
         } }
         val model = RecordingsViewModel(Foundation(), meetings, records)
-        model.show(); runCurrent(); model.actions.moreLibraryMeeting("room"); runCurrent()
+        model.show(); runCurrent(); model.actions.retryLibraryMeeting("room"); runCurrent()
+        model.actions.moreLibraryMeeting("room"); runCurrent()
         assertEquals(listOf(0, 12), records.pages.map { it.second })
         assertEquals(listOf("record"), model.state.value.library.meetings.single().recordings.data!!.items.map { it.id })
         assertNotNull(model.state.value.library.meetings.single().recordings.error)
@@ -257,11 +391,31 @@ class RecordingsViewModelTest {
         assertNull(model.state.value.detailId)
         assertNull(model.state.value.meetingId)
         assertEquals(1, model.state.value.library.meetings.size)
-        assertEquals(1, records.pages.size)
+        assertTrue(records.pages.isEmpty())
+        assertEquals(1, records.libraryPages.size)
         model.actions.openLibrary("room", "record"); runCurrent()
         model.closeDetail()
         assertNull(model.state.value.meetingId)
         assertFalse(model.state.value.detailFromLibrary)
+    }
+
+    @Test fun readyIndividualTracksWithoutPlayableMixOpenMaterialsWithoutAutoplay() = runTest {
+        val archive = media.copy(id = "archive", type = "tracks_archive", filename = "tracks.zip", mimeType = "application/zip")
+        val tracks = record().copy(mode = "individual_tracks", files = listOf(archive))
+        assertFalse(tracks.playable)
+        val records = Records().apply {
+            library = { _, _ -> RecordingLibraryPage(listOf(RecordingLibraryItem(meeting(), tracks)), null) }
+            detail = { tracks }
+        }
+        val model = RecordingsViewModel(Foundation(), Meetings(), records)
+        model.show(); runCurrent(); model.actions.openLibrary("room", "record"); runCurrent()
+        assertEquals("record", model.state.value.detailId)
+        assertEquals(tracks, model.state.value.detail.data)
+        assertTrue(model.state.value.detailFromLibrary)
+        assertNull(model.playback.value); assertTrue(records.leases.isEmpty())
+        model.play(tracks, archive); runCurrent()
+        assertNull(model.playback.value); assertTrue(records.leases.isEmpty())
+        assertNotNull(model.queueExport(tracks, archive)); model.discardExport(); model.close()
     }
 
     @Test fun refreshingLibraryCancelsMeetingRetryWithoutLeavingItsSpinnerOrAcceptingLateRows() = runTest {
@@ -273,7 +427,7 @@ class RecordingsViewModelTest {
         records.page = { _, _, _ -> withContext(NonCancellable) { gate.await() } }
         model.actions.retryLibraryMeeting("room"); runCurrent()
         assertTrue(model.state.value.library.meetings.single().recordings.loading)
-        meetings.page = { throw AppFailure(FailureKind.NETWORK, "Нет сети") }
+        records.library = { _, _ -> throw AppFailure(FailureKind.NETWORK, "Нет сети") }
         model.actions.refreshLibrary(); runCurrent()
         gate.complete(RecordingPage(listOf(record().copy(id = "late")), null)); runCurrent()
         assertFalse(model.state.value.library.loading)
@@ -311,6 +465,10 @@ class RecordingsViewModelTest {
             val playerLease = Access()
             var accessCalls = 0
             val records = Records().apply {
+                library = { _, _ -> RecordingLibraryPage(listOf(
+                    RecordingLibraryItem(meeting(), record()),
+                    RecordingLibraryItem(meeting().copy(id = "second"), second),
+                ), null) }
                 page = { id, _, _ -> RecordingPage(listOf(if (id == "room") record() else second), null) }
                 access = { if (accessCalls++ == 0) { if (failedWhileReading) downloadLease else accessGate.await() } else playerLease }
             }
@@ -353,8 +511,112 @@ class RecordingsViewModelTest {
         }
     }
 
-    private class Access : RecordingAccess {
-        override val file = media; var closed = false
+    @Test fun notificationOpensExactRecordingAfterMeetingAccessWithoutPagingOrAutoplay() = runTest {
+        val gate = CompletableDeferred<Meeting>()
+        val meetings = Meetings().apply { conference = { gate.await() } }
+        val target = record().copy(id = "older-record")
+        val records = Records().apply { detail = { target } }
+        val model = RecordingsViewModel(Foundation(), meetings, records)
+        model.openNotification("room", "older-record"); runCurrent()
+        assertTrue(model.state.value.visible)
+        assertEquals("older-record", model.state.value.detailId)
+        assertTrue(model.state.value.detail.loading)
+        assertTrue(records.details.isEmpty())
+        gate.complete(meeting()); runCurrent()
+        assertEquals(listOf("room" to "older-record"), records.details)
+        assertEquals(target, model.state.value.detail.data)
+        assertTrue(records.pages.isEmpty())
+        assertTrue(records.leases.isEmpty()); assertNull(model.playback.value)
+        model.back(); runCurrent()
+        assertNull(model.state.value.detailId)
+        assertEquals("room", model.state.value.meetingId)
+        assertEquals(1, records.pages.size)
+        assertNotNull(model.state.value.recordings.data)
+        model.close()
+    }
+
+    @Test fun summaryNotificationLoadsMaterialAndNormalNavigationResetsItsTab() = runTest {
+        val records = Records()
+        val model = RecordingsViewModel(Foundation(), Meetings(), records)
+        model.openNotification("room", "record", summary = true); runCurrent()
+        assertTrue(model.state.value.initialSummary)
+        assertNotNull(model.state.value.summary.data)
+        assertEquals(1, records.summaryCalls)
+        assertTrue(records.leases.isEmpty())
+        model.openRecording("record"); runCurrent()
+        assertFalse(model.state.value.initialSummary)
+        assertNull(model.state.value.summary.data)
+        assertEquals(1, records.summaryCalls)
+        model.close()
+    }
+
+    @Test fun legacyNotificationWithoutRecordingIdFallsBackToMeetingRecordings() = runTest {
+        val records = Records()
+        val model = RecordingsViewModel(Foundation(), Meetings(), records)
+        model.openNotification("room", null, summary = true); runCurrent()
+        assertTrue(model.state.value.visible)
+        assertEquals("room", model.state.value.meetingId)
+        assertNull(model.state.value.detailId)
+        assertFalse(model.state.value.initialSummary)
+        assertEquals(1, records.pages.size)
+        assertTrue(records.details.isEmpty())
+        model.close()
+    }
+
+    @Test fun deniedNotificationMeetingNeverLoadsRecordingOrMaterials() = runTest {
+        val meetings = Meetings().apply { conference = { throw AppFailure(FailureKind.FORBIDDEN, "Доступ к встрече закрыт") } }
+        val records = Records()
+        val model = RecordingsViewModel(Foundation(), meetings, records)
+        model.openNotification("room", "record", summary = true); runCurrent()
+        assertEquals("Доступ к встрече закрыт", model.state.value.detail.error)
+        assertFalse(model.state.value.detail.loading)
+        assertNull(model.state.value.meeting.data); assertNull(model.state.value.detail.data)
+        assertTrue(records.details.isEmpty()); assertEquals(0, records.summaryCalls)
+        model.close()
+    }
+
+    @Test fun notificationCannotAcceptLateMeetingAfterAccountChange() = runTest {
+        val foundation = Foundation(); val gate = CompletableDeferred<Meeting>()
+        val meetings = Meetings().apply { conference = { withContext(NonCancellable) { gate.await() } } }
+        val records = Records()
+        val model = RecordingsViewModel(foundation, meetings, records)
+        model.openNotification("room", "record", summary = true); runCurrent()
+        foundation.state.value = foundation.state.value.copy(session = null); runCurrent()
+        gate.complete(meeting()); runCurrent()
+        assertFalse(model.state.value.visible)
+        assertNull(model.state.value.detailId); assertNull(model.state.value.meeting.data)
+        assertTrue(records.details.isEmpty()); assertEquals(0, records.summaryCalls)
+    }
+
+    @Test fun newerNotificationDropsOldLateRecordingAndItsSummaryRequest() = runTest {
+        val gate = CompletableDeferred<Recording>()
+        val records = Records().apply { detail = { withContext(NonCancellable) { gate.await() } } }
+        val model = RecordingsViewModel(Foundation(), Meetings(), records)
+        model.openNotification("room", "record", summary = true); runCurrent()
+        val second = record().copy(id = "second-record", conferenceId = "second")
+        records.detail = { second }
+        model.openNotification("second", "second-record"); runCurrent()
+        gate.complete(record()); runCurrent()
+        assertEquals(second, model.state.value.detail.data)
+        assertEquals("second", model.state.value.meetingId)
+        assertFalse(model.state.value.initialSummary)
+        assertEquals(0, records.summaryCalls)
+        model.close()
+    }
+
+    @Test fun notificationRejectsUnrelatedRecordingResponse() = runTest {
+        val records = Records().apply { detail = { record().copy(conferenceId = "other-room") } }
+        val model = RecordingsViewModel(Foundation(), Meetings(), records)
+        model.openNotification("room", "record", summary = true); runCurrent()
+        assertNull(model.state.value.detail.data)
+        assertNotNull(model.state.value.detail.error)
+        assertFalse(model.state.value.detail.loading)
+        assertEquals(0, records.summaryCalls)
+        model.close()
+    }
+
+    private class Access(override val file: RecordingFile = media) : RecordingAccess {
+        var closed = false
         override fun open(position: Long, length: Long?) = RecordingStream(ByteArrayInputStream(byteArrayOf()), 0)
         override suspend fun copyTo(destination: OutputStream, onProgress: (Long) -> Unit) = 0L
         override fun close() { closed = true }
@@ -369,13 +631,20 @@ class RecordingsViewModelTest {
         var list: suspend (String) -> RecordingPage = { RecordingPage(listOf(record()), null) }
         var page: (suspend (String, Int, Int) -> RecordingPage)? = null
         val pages = mutableListOf<Triple<String, Int, Int>>()
+        val libraryPages = mutableListOf<Pair<String?, Int>>()
+        var library: suspend (String?, Int) -> RecordingLibraryPage = { _, _ -> RecordingLibraryPage(listOf(RecordingLibraryItem(meeting(), record())), null) }
         val details = mutableListOf<Pair<String, String>>()
         var detail: suspend () -> Recording = { record() }
         var access: suspend () -> RecordingAccess = { Access().also(leases::add) }
         var summary: suspend () -> RecordingSummaryState = { RecordingSummaryState(true, RecordingSummary("summary", "transcript", "ready", "Private", emptyList(), emptyList(), emptyList())) }
+        var summaryCalls = 0
         override suspend fun recordings(conferenceId: String, offset: Int, limit: Int): RecordingPage {
             pages += Triple(conferenceId, offset, limit)
             return page?.invoke(conferenceId, offset, limit) ?: list(conferenceId)
+        }
+        override suspend fun recordingLibrary(cursor: String?, limit: Int): RecordingLibraryPage {
+            libraryPages += cursor to limit
+            return library(cursor, limit)
         }
         override suspend fun recording(conferenceId: String, recordingId: String): Recording { details += conferenceId to recordingId; return detail() }
         override suspend fun recordingAccess(conferenceId: String, recordingId: String, fileId: String) = access()
@@ -385,7 +654,7 @@ class RecordingsViewModelTest {
             val ids = when (offset) { 0 -> listOf("0", "1"); 2 -> listOf("1", "2"); else -> listOf("4") }
             return RecordingSegmentPage(ids.map { RecordingSegment(it, "transcript", 0, 1, null, "text") }, 5, offset, 2)
         }
-        override suspend fun recordingSummary(conferenceId: String, recordingId: String) = summary()
+        override suspend fun recordingSummary(conferenceId: String, recordingId: String): RecordingSummaryState { summaryCalls++; return summary() }
     }
     private class Foundation : FoundationRepository {
         override val state = MutableStateFlow(RepositoryState(listOf(ServerProfile("p", "https://fixture.example.test")), "p", session = AccountSession(User("user", "member@example.test"), Capabilities(), true)))
@@ -400,8 +669,9 @@ class RecordingsViewModelTest {
     private class Meetings : MeetingsRepository {
         val queries = mutableListOf<MeetingsQuery>()
         var page: suspend (MeetingsQuery) -> MeetingPage = { MeetingPage(listOf(meeting()), "same-cursor") }
+        var conference: suspend (String) -> Meeting = { meeting().copy(id = it) }
         override suspend fun timeline(query: MeetingsQuery): MeetingPage { queries += query; return page(query) }
-        override suspend fun conference(id: String) = meeting().copy(id = id)
+        override suspend fun conference(id: String) = conference.invoke(id)
         override suspend fun createMeeting(input: MeetingInput): Meeting = error("unused")
         override suspend fun scheduleMeeting(id: String, scheduledAt: Instant, plannedDurationMin: Int?): Meeting = error("unused")
         override suspend fun transitionMeeting(id: String, transition: MeetingTransition): Meeting = error("unused")

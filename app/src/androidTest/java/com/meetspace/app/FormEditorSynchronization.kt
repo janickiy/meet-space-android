@@ -42,10 +42,11 @@ internal class FormEditorWindow {
 internal fun ComposeContentTestRule.settleFormEditorForClick(
     editor: FormEditorWindow,
     target: SemanticsNodeInteraction,
+    scroll: Boolean = true,
 ): SemanticsNodeInteraction {
     runOnIdle { editor.dismiss() }
     waitUntil(timeoutMillis = 5_000) { editor.imeBottom.get() == 0 }
-    target.performScrollTo()
+    if (scroll) target.performScrollTo()
     var bounds: DpRect? = null
     var stableSince = SystemClock.uptimeMillis()
     waitUntil(timeoutMillis = 5_000) {

@@ -23,12 +23,16 @@ internal fun IncomingCallRingtone(session: DirectCallSession) {
         var ringtone: Ringtone? = null
         val audio = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         val notifications = context.getSystemService(NotificationManager::class.java)
+        fun soundPolicyAllowsChange() = audio.ringerMode == AudioManager.RINGER_MODE_NORMAL && !audio.isVolumeFixed &&
+            notifications.currentInterruptionFilter == NotificationManager.INTERRUPTION_FILTER_ALL
         val volume = RingtoneVolume(
             current = { audio.getStreamVolume(AudioManager.STREAM_RING) },
             maximum = { audio.getStreamMaxVolume(AudioManager.STREAM_RING) },
-            allowed = { audio.ringerMode == AudioManager.RINGER_MODE_NORMAL && !audio.isVolumeFixed &&
-                notifications.currentInterruptionFilter == NotificationManager.INTERRUPTION_FILTER_ALL &&
+            allowed = { soundPolicyAllowsChange() &&
                 audio.getDevices(AudioManager.GET_DEVICES_OUTPUTS).none { it.type in externalRingtoneDevices } },
+            // Connecting a headset must not leave our speaker boost behind after ringing.
+            // Silent/vibrate/DND and a user's manual volume change still prevent restoration.
+            restoreAllowed = ::soundPolicyAllowsChange,
             set = { audio.setStreamVolume(AudioManager.STREAM_RING, it, 0) },
         )
         fun stop() { runCatching { ringtone?.stop() }; ringtone = null; volume.close() }

@@ -13,12 +13,13 @@ import org.junit.Test
 
 class InstallerUiTest {
     @get:Rule val compose = createComposeRule()
+    private val editor = FormEditorWindow()
     private val endpoint=SshEndpoint("vps.example.com",22,"root")
     private val plan=InstallPlan("{}","a".repeat(64),"v0.4.0-source.test","b".repeat(40),InstallOptions("meet.example.com","8.8.8.8","owner@example.com"),"arm64",true,2000000000)
     private val ticket=InstallTicket(endpoint,plan,"6f0f7f66-ea40-406e-a582-98bb9df557ca")
     private fun render(state:InstallerUiState,apply:(Boolean,Boolean,Boolean)->Unit={_,_,_->},detach:()->Unit={},control:(String)->Unit={},
         onConnect:(String)->Unit={},onCreateAccount:((String)->Unit)?=null,onAuthenticate:(InstallOptions,String,Boolean)->Unit={_,_,_->}) {
-        compose.setContent { MeetSpaceTheme { InstallerUi(state,{}, onAuthenticate,{ a,b,c,_ -> apply(a,b,c) },control,detach,{}, onConnect,
+        compose.setContent { editor.Observe(); MeetSpaceTheme { InstallerUi(state,{}, onAuthenticate,{ a,b,c,_ -> apply(a,b,c) },control,detach,{}, onConnect,
             onCreateAccount=onCreateAccount) } }
     }
     @Test fun planAllowsAnOptionalCertificateEmail() {
@@ -31,7 +32,7 @@ class InstallerUiTest {
         compose.onNodeWithTag("install-domain").performScrollTo().performTextInput("meet.example.com")
         compose.onNodeWithTag("install-ip").performScrollTo().performTextInput("8.8.8.8")
         compose.onNodeWithTag("install-password").performScrollTo().performTextInput("test-only")
-        compose.onNodeWithTag("install-plan").performScrollTo().assertIsEnabled().performClick()
+        compose.settleFormEditorForClick(editor, compose.onNodeWithTag("install-plan")).assertIsEnabled().performClick()
         compose.runOnIdle {
             assertEquals(InstallOptions("meet.example.com","8.8.8.8",""),submitted)
             assertEquals("test-only",password);assertFalse(useKey)
@@ -44,14 +45,14 @@ class InstallerUiTest {
             onAuthenticate = { options, _, _ -> submitted = options })
         compose.onNodeWithTag("install-mode-images").performScrollTo().assertIsSelected()
         compose.onNodeWithTag("install-image-release").performScrollTo().performTextReplacement("v0.4.0-prebuilt.test.1")
-        compose.onNodeWithTag("install-plan").performScrollTo().performClick()
+        compose.settleFormEditorForClick(editor, compose.onNodeWithTag("install-plan")).performClick()
         compose.runOnIdle {
             assertEquals(InstallImageMode.IMAGES, submitted?.imageMode)
             assertEquals("v0.4.0-prebuilt.test.1", submitted?.imageRelease)
         }
-        compose.onNodeWithTag("install-mode-source").performScrollTo().performClick().assertIsSelected()
+        compose.settleFormEditorForClick(editor, compose.onNodeWithTag("install-mode-source")).performClick().assertIsSelected()
         compose.onNodeWithTag("install-image-release").assertDoesNotExist()
-        compose.onNodeWithTag("install-plan").performScrollTo().performClick()
+        compose.settleFormEditorForClick(editor, compose.onNodeWithTag("install-plan")).performClick()
         compose.runOnIdle { assertEquals(InstallImageMode.SOURCE, submitted?.imageMode) }
     }
     @Test fun imagesPlanDisplaysArchiveAndDoesNotPromiseCompilation() {
@@ -80,20 +81,20 @@ class InstallerUiTest {
         compose.onNodeWithTag("install-smtp-from").performScrollTo().performTextInput("meet@example.com")
         compose.onNodeWithTag("install-smtp-username").performScrollTo().performTextInput("smtp-user")
         compose.onNodeWithTag("install-smtp-password").assertDoesNotExist()
-        compose.onNodeWithTag("install-plan").performScrollTo().assertIsEnabled().performClick()
+        compose.settleFormEditorForClick(editor, compose.onNodeWithTag("install-plan")).assertIsEnabled().performClick()
         compose.runOnIdle { assertEquals(InstallSmtpOptions("smtp.example.com",465,"meet@example.com","smtp-user","tls"),submitted?.smtp) }
     }
     @Test fun smtpPasswordIsRequiredAtApplyAndClearedAfterSubmission() {
         val smtpPlan=plan.copy(installDocker=false,options=plan.options.copy(smtp=InstallSmtpOptions("smtp.example.com",465,"meet@example.com","smtp-user","tls")))
         var submitted:String?=null
-        compose.setContent { MeetSpaceTheme { InstallerUi(
+        compose.setContent { editor.Observe(); MeetSpaceTheme { InstallerUi(
             InstallerUiState(active=true,screen=InstallScreen.PLAN,endpoint=endpoint,plan=smtpPlan,needsAccess=false),
             {},{_,_,_->},{_,_,_,password->submitted=password},{},{},{},{}) } }
         compose.onNodeWithTag("install-confirm").performScrollTo().performClick()
         compose.onNodeWithTag("install-acme-consent").performScrollTo().performClick()
         compose.onNodeWithTag("install-apply").performScrollTo().assertIsNotEnabled()
         compose.onNodeWithTag("install-smtp-password").performScrollTo().performTextInput("smtp-test-only")
-        compose.onNodeWithTag("install-apply").performScrollTo().assertIsEnabled().performClick()
+        compose.settleFormEditorForClick(editor, compose.onNodeWithTag("install-apply")).assertIsEnabled().performClick()
         compose.runOnIdle { assertEquals("smtp-test-only",submitted) }
         compose.onNodeWithTag("install-apply").assertIsNotEnabled()
     }
@@ -107,7 +108,7 @@ class InstallerUiTest {
         compose.onNodeWithText("Пароль SSH").assertDoesNotExist()
         compose.onNodeWithTag("install-domain").performScrollTo().assertIsNotEnabled()
         compose.onNodeWithTag("install-ip").performScrollTo().performTextInput("8.8.8.8")
-        compose.onNodeWithTag("install-plan").performScrollTo().assertIsEnabled().performClick()
+        compose.settleFormEditorForClick(editor, compose.onNodeWithTag("install-plan")).assertIsEnabled().performClick()
         compose.runOnIdle {
             assertEquals(plan.options,submitted)
             assertEquals("",secret);assertFalse(useKey)
@@ -143,7 +144,7 @@ class InstallerUiTest {
         compose.onNodeWithTag("install-acme-consent").performScrollTo().performClick()
         compose.onNodeWithTag("install-apply").performScrollTo().assertIsNotEnabled()
         compose.onNodeWithTag("install-docker-consent").performScrollTo().performClick()
-        compose.onNodeWithTag("install-apply").performScrollTo().assertIsEnabled().performClick()
+        compose.settleFormEditorForClick(editor, compose.onNodeWithTag("install-apply")).assertIsEnabled().performClick()
         org.junit.Assert.assertTrue(called)
     }
     @Test fun eachConsentIsRequiredBeforeMutation() {
@@ -159,7 +160,7 @@ class InstallerUiTest {
         compose.onNodeWithText("Принимаю условия Let's Encrypt").assertExists()
         compose.onNodeWithText("email будет передан",substring=true).assertDoesNotExist()
         compose.onNodeWithTag("install-acme-consent").performScrollTo().performClick()
-        compose.onNodeWithTag("install-apply").performScrollTo().assertIsEnabled().performClick()
+        compose.settleFormEditorForClick(editor, compose.onNodeWithTag("install-apply")).assertIsEnabled().performClick()
         org.junit.Assert.assertTrue(called)
     }
     @Test fun detachAndServerCancellationAreDifferentActions() {

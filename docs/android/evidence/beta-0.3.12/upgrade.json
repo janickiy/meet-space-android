@@ -1,0 +1,13 @@
+{
+  "androidApi": 36,
+  "abi": "arm64-v8a",
+  "physicalDevice": false,
+  "previousVersion": "0.3.11-beta",
+  "newVersion": "0.3.12-beta",
+  "versionCode": 30,
+  "installedWithReplace": true,
+  "privateAppDataMarkerPreserved": true,
+  "launchSucceeded": true,
+  "firstRunUiVisible": true,
+  "actualAccountMigrationTested": false
+}

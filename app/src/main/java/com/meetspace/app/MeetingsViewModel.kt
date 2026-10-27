@@ -236,7 +236,10 @@ class MeetingsViewModel(
         val id = state.value.detailId ?: return
         val previous = state.value.detail
         mutableState.update { it.copy(detail = previous.copy(loading = true, error = null)) }
-        request("detail", failure = { mutableState.update { state -> state.copy(detail = previous.copy(loading = false, error = it.message)) } }) {
+        request("detail", failure = { failure ->
+            if (accessDenied(failure)) clearDeniedMeeting(id, failure)
+            else mutableState.update { state -> state.copy(detail = previous.copy(loading = false, error = failure.message)) }
+        }) {
             val meeting = repository.conference(id)
             checkCurrent()
             mutableState.update { it.copy(detail = MeetingsLoad(meeting)) }
@@ -251,7 +254,8 @@ class MeetingsViewModel(
     private fun loadMembership(id: String) {
         val previous = state.value.self
         mutableState.update { it.copy(self = previous.copy(loading = true, error = null)) }
-        request("self", failure = { mutableState.update { state -> state.copy(self = previous.copy(loading = false, error = it.message)) } }) {
+        request("self", failure = { failure -> mutableState.update { state -> state.copy(self =
+            if (accessDenied(failure)) MeetingsLoad(error = failure.message) else previous.copy(loading = false, error = failure.message)) } }) {
             val participant = repository.membership(id)
             checkCurrent()
             mutableState.update { it.copy(self = MeetingsLoad(participant)) }
@@ -261,11 +265,22 @@ class MeetingsViewModel(
     private fun loadHistory(id: String) {
         val previous = state.value.history
         mutableState.update { it.copy(history = previous.copy(loading = true, error = null)) }
-        request("history", failure = { mutableState.update { state -> state.copy(history = previous.copy(loading = false, error = it.message)) } }) {
+        request("history", failure = { failure -> mutableState.update { state -> state.copy(history =
+            if (accessDenied(failure)) MeetingsLoad(error = failure.message) else previous.copy(loading = false, error = failure.message)) } }) {
             val history = repository.history(id)
             checkCurrent()
             mutableState.update { it.copy(history = MeetingsLoad(history)) }
         }
+    }
+
+    private fun accessDenied(failure: AppFailure) = failure.kind in setOf(FailureKind.FORBIDDEN, FailureKind.NOT_FOUND, FailureKind.SESSION_EXPIRED)
+
+    private fun clearDeniedMeeting(id: String, failure: AppFailure) {
+        listOf("self", "history", "invite-search", "invite").forEach(::cancel)
+        fun MeetingsLoad<MeetingPage>.withoutMeeting() = copy(data = data?.let { it.copy(items = it.items.filterNot { meeting -> meeting.id == id }) })
+        mutableState.update { state -> state.copy(detail = MeetingsLoad(error = failure.message), self = MeetingsLoad(), history = MeetingsLoad(),
+            invitation = MeetingRoomUiState(), upcoming = state.upcoming.withoutMeeting(), active = state.active.withoutMeeting(),
+            list = state.list.withoutMeeting(), calendarFeeds = state.calendarFeeds.mapValues { it.value.withoutMeeting() }) }
     }
 
     fun create(input: MeetingInput) {

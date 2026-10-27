@@ -1,0 +1,32 @@
+{
+  "label": "final-live-recordings",
+  "serial": "emulator-5556",
+  "elapsedSeconds": 66.07,
+  "tests": [
+    {
+      "class": "com.meetspace.app.LiveRecordingsTest",
+      "test": "realVideoPlaysSeeksRotatesAndReleases",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.LiveRecordingsTest",
+      "test": "realExistingServerAndUnavailableSshOnboarding",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.LiveRecordingsTest",
+      "test": "realHistoricalMaterialsPaginateAndSettingsReflectActualState",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.LiveRecordingsTest",
+      "test": "actualSystemCreateDocumentDownloadsVerifiedMp4AndCleansItsFile",
+      "code": 0
+    }
+  ],
+  "passed": 4,
+  "failed": 0,
+  "skipped": 0,
+  "total": 4,
+  "runnerSuccess": true
+}

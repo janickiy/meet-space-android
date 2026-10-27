@@ -1,0 +1,44 @@
+{
+  "app": {
+    "tests": 258,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "passed": 258
+  },
+  "core/ssh": {
+    "tests": 71,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "passed": 71
+  },
+  "core/data": {
+    "tests": 182,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 12,
+    "passed": 170
+  },
+  "core/media": {
+    "tests": 28,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "passed": 28
+  },
+  "lint": {
+    "debug": {
+      "Error": 0,
+      "Warning": 57,
+      "Information": 0,
+      "Hint": 1
+    },
+    "release": {
+      "Error": 0,
+      "Warning": 56,
+      "Information": 0,
+      "Hint": 1
+    }
+  }
+}

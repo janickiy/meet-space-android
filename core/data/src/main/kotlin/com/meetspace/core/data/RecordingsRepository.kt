@@ -12,6 +12,8 @@ interface RecordingsRepository {
     /** Server acknowledgement may still be stopping/finalizing; there is no pause/resume API. */
     suspend fun stopRecording(conferenceId: String, recordingId: String): Recording
     suspend fun recordings(conferenceId: String, offset: Int = 0, limit: Int = 20): RecordingPage
+    suspend fun recordingLibrary(cursor: String? = null, limit: Int = 30): RecordingLibraryPage =
+        throw AppFailure(FailureKind.INCOMPATIBLE_SERVER, "Сервер не поддерживает общий каталог записей. Обновите MeetSpace на сервере.")
     suspend fun recording(conferenceId: String, recordingId: String): Recording
     /** Rechecks backend access. This lease is closed on logout/server/account change. */
     suspend fun deleteRecording(conferenceId: String, recordingId: String): Unit = throw AppFailure(FailureKind.UNAVAILABLE, "Удаление записи недоступно.")

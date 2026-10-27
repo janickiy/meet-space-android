@@ -95,6 +95,9 @@ internal class DefaultFoundationRepository(
     override suspend fun recordings(conferenceId: String, offset: Int, limit: Int) = meetingOperation(true) {
         recordingsApi.list(it.scope.origin, it.token, conferenceId, offset, limit)
     }
+    override suspend fun recordingLibrary(cursor: String?, limit: Int) = meetingOperation(true) {
+        recordingsApi.library(it.scope.origin, it.token, cursor, limit)
+    }
     override suspend fun recording(conferenceId: String, recordingId: String) = meetingOperation(true) {
         recordingsApi.read(it.scope.origin, it.token, conferenceId, recordingId).recording
     }

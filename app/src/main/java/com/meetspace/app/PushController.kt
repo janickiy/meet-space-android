@@ -207,14 +207,16 @@ class PushController(private val context: Context, private val foundation: Found
         if (hint?.kind == "conversations") messaging.conversation(hint.id)
         if (hint?.kind == "conferences") (foundation as com.meetspace.core.data.MeetingsRepository).conference(hint.id)
         val page = messaging.notifications()
-        val item = page.items.firstOrNull { it.readAt == null && (hint == null ||
-            (hint.kind == "conversations" && it.conversationId == hint.id) || (hint.kind == "conferences" && it.conferenceId == hint.id)) } ?: return
+        val items = page.items.filter { it.readAt == null && (hint == null ||
+            (hint.kind == "conversations" && it.conversationId == hint.id) || (hint.kind == "conferences" && it.conferenceId == hint.id)) }
         synchronized(deliveryLock) {
             if (!authorized(expected) || !prefs.getBoolean("registered", false)) return
-            val delivered = prefs.getStringSet("delivered", emptySet()).orEmpty()
-            if (item.id in delivered) return
-            notifications.show(item)
-            prefs.edit().putStringSet("delivered", (delivered.toList().takeLast(99) + item.id).toSet()).commit()
+            // Coalesced push hints can cover several events. Realtime and push use the same
+            // account-scoped delivery journal, so neither source can alert twice for one ID.
+            for (item in items.asReversed()) {
+                if (!authorized(expected) || !prefs.getBoolean("registered", false)) return
+                notifications.show(item, expected)
+            }
         }
     }
     companion object { internal const val WORK_TAG = "meetspace-scoped-push" }

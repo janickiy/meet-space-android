@@ -2,11 +2,15 @@ package com.meetspace.app
 
 import android.content.pm.ActivityInfo
 import android.content.Intent
+import android.os.SystemClock
 import android.view.View
 import android.view.ViewGroup
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.lifecycle.ViewModelProvider
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
@@ -102,7 +106,7 @@ class LiveRecordingsTest {
                 activity.startActivity(Intent(activity, MainActivity::class.java).setAction(MessagingNotifications.OPEN_INBOX)
                     .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP))
             }
-            await("inbox intent replaces recording overlay") { !vm.state.value.visible && vm.playback.value == null && exists("messaging-workspace") && exists("notifications-list") }
+            await("inbox intent replaces recording overlay") { !vm.state.value.visible && vm.playback.value == null && exists("workspace") && exists("notification-center") }
             scenario.onActivity { assertNull("Handled inbox action must not survive in launch Intent", it.intent.action) }
             assertThrows(RecordingReadException::class.java) { activeAccess.open().close() }
             // Real rotation avoids ActivityScenario's intent-filter bookkeeping: it ignores
@@ -110,9 +114,9 @@ class LiveRecordingsTest {
             val inboxOrientation = context.resources.configuration.orientation
             device.setOrientationNatural()
             await("workspace restored after consumed inbox action") {
-                context.resources.configuration.orientation != inboxOrientation && exists("messaging-workspace")
+                context.resources.configuration.orientation != inboxOrientation && exists("workspace")
             }
-            assertFalse("Recreation must not replay an already consumed inbox event", exists("notifications-list"))
+            assertFalse("Recreation must not replay an already consumed inbox event", exists("notification-center"))
             evidence("video", "realMp4=true;nativeDecoderFrames=true;seek=true;rotation=true;pausedPositionRetained=true;closedCapability=true;inboxIntentClosesPlayer=true;consumedIntentNotReplayed=true")
         }
     }
@@ -136,26 +140,33 @@ class LiveRecordingsTest {
             assertNull(vm.state.value.segments.data!!.nextOffset)
             assertEquals(205, vm.state.value.segments.data!!.items.map { it.id }.toSet().size)
             detailClick("recording-tab-summary")
-            detailClick("recording-load-summary")
             await("actual historical summary ready") { vm.state.value.summary.data?.item?.status == "ready" }
             assertFalse(vm.state.value.summary.data!!.enabled)
             compose.onNodeWithTag("recording-detail").performScrollToNode(hasTestTag("recording-summary"))
             compose.onNodeWithTag("recording-summary").assertIsDisplayed()
             screenshot("stage08-live-summary.png")
             assertTrue(vm.state.value.detail.data!!.files.none { it.id == backend.resource("debugFileId") })
-            compose.onNodeWithTag("recordings-close").performClick()
+            compose.onNodeWithTag("recordings-back").performClick()
             await("back to actual workspace") { exists("tab-profile") }
             compose.onNodeWithTag("tab-profile").performClick()
+            profileSection("profile-appearance")
             compose.onNodeWithTag("theme-dark").performScrollTo().performClick()
             await("actual dark preference stored") { backend.primary.state.value.theme == ThemeMode.DARK }
-            compose.onNodeWithTag("settings-push-state").performScrollTo().assertTextContains("Фоновые push пока не подключены", substring = true)
+            profileSection("profile-notifications")
+            await("actual notification preferences loaded") { exists("account-notification-push") }
+            compose.onNodeWithTag("account-notification-push").performScrollTo().assertIsNotEnabled()
+            compose.onNodeWithText("Не настроены на этом сервере").assertExists()
             screenshot("stage08-live-settings-dark.png")
-            compose.onNodeWithTag("settings-privacy").performScrollTo().performClick()
-            compose.onNodeWithTag("settings-privacy-content").assertExists()
-            compose.onNodeWithTag("settings-privacy-close").performClick()
+            profileMenu()
+            compose.onNodeWithTag("profile-about").performScrollTo().performClick()
+            compose.onNodeWithText("MeetSpace ${BuildConfig.VERSION_NAME}").assertIsDisplayed()
+            compose.onNodeWithText("Профиль, встречи, сообщения и материалы находятся на выбранном сервере команды. Правила хранения и удаления определяет его администратор.").assertIsDisplayed()
+            compose.onNodeWithText("Готово").performClick()
+            profileSection("profile-appearance")
             compose.onNodeWithTag("theme-light").performScrollTo().performClick()
             await("actual light preference stored") { backend.primary.state.value.theme == ThemeMode.LIGHT }
-            compose.onNodeWithTag("settings-version").performScrollTo().assertTextContains(BuildConfig.VERSION_NAME, substring = true)
+            profileMenu()
+            compose.onNodeWithTag("profile-about").performScrollTo().assertTextContains(BuildConfig.VERSION_NAME, substring = true)
             screenshot("stage08-live-settings-light.png")
             evidence("materials", "historicalReadyWithProviderDisabled=true;segments=205;uniquePages=true;summary=true;debugArtifactHidden=true;actualThemePreferences=true;privacyDialog=true")
         }
@@ -196,7 +207,7 @@ class LiveRecordingsTest {
             await("welcome for actual existing-server path") { exists("welcome-connect") && !foundation.state.value.busy }
             compose.onNodeWithTag("welcome-connect").performScrollTo().performClick()
             compose.onNodeWithTag("server-url").performScrollTo().performTextInput(backend.connectOrigin())
-            compose.onNodeWithTag("connect-submit").performScrollTo().performClick()
+            clickAfterEditor(scenario, "connect-submit")
             await("actual HTTPS server capability check") { exists("login-submit") && !foundation.state.value.busy }
             // Compose action failures can dump TextField semantics. Suppress causes for this
             // small private-input block; do not capture login screenshots or enter raw diagnostics.
@@ -204,7 +215,7 @@ class LiveRecordingsTest {
                 backend.withPrimaryLoginInput { email, password ->
                     compose.onNodeWithTag("email").performScrollTo().performTextInput(email)
                     compose.onNodeWithTag("password").performScrollTo().performTextInput(password)
-                    compose.onNodeWithTag("login-submit").performScrollTo().performClick()
+                    clickAfterEditor(scenario, "login-submit")
                 }
                 await("actual UI login completed") { exists("tab-profile") && backend.primary.state.value.session != null && !foundation.state.value.busy }
             } catch (_: Throwable) {
@@ -212,6 +223,7 @@ class LiveRecordingsTest {
             }
             compose.onNodeWithTag("tab-profile").performClick()
             compose.onNodeWithTag("logout").performScrollTo().performClick()
+            compose.onNodeWithTag("logout-confirm").performClick()
             await("actual UI logout completed") { exists("login-submit") && backend.primary.state.value.session == null && !foundation.state.value.busy }
         }
         backend.resetPrimaryForOnboarding()
@@ -230,7 +242,7 @@ class LiveRecordingsTest {
             compose.onNodeWithTag("ssh-port").performScrollTo().performTextReplacement("1")
             compose.onNodeWithTag("ssh-user").performScrollTo().performTextReplacement("fixture")
             compose.onNodeWithTag("ssh-domain").performScrollTo().performTextInput("meetspace.example.invalid")
-            compose.onNodeWithTag("ssh-probe").performScrollTo().performClick()
+            clickAfterEditor(scenario, "ssh-probe")
             await("actual SSH connection failure is actionable", 45_000) { !ssh.state.value.busy && ssh.state.value.request != null && ssh.state.value.error != null }
             assertEquals(SshWizardStep.DETAILS, ssh.state.value.step)
             assertNull(ssh.state.value.identity)
@@ -250,20 +262,50 @@ class LiveRecordingsTest {
         compose.onNodeWithTag("tab-calls").performClick()
         compose.onNodeWithTag("meeting-recordings").performClick()
         await("real recordings library") { exists("recordings-library") }
-        compose.onNodeWithTag("recordings-library").performScrollToNode(hasTestTag("recordings-choose-meeting"))
-        compose.onNodeWithTag("recordings-choose-meeting").performClick()
-        await("real recording meeting picker") { exists("recordings-meetings") }
         var vm: RecordingsViewModel? = null
         scenario.onActivity { vm = ViewModelProvider(it)[RecordingsViewModel::class.java] }
         val active = checkNotNull(vm); model = active
-        await("fixture meeting loaded") { active.state.value.meetings.data?.items?.any { it.id == backend.resource("conferenceId") } == true }
-        val meeting = "recordings-meeting-${backend.resource("conferenceId")}";
-        compose.onNodeWithTag("recordings-meetings").performScrollToNode(hasTestTag(meeting)); compose.onNodeWithTag(meeting).performClick()
-        await("real ready records loaded") { active.state.value.recordings.data?.items?.any { it.id == backend.resource("recordingId") } == true }
+        fun containsRecord() = active.state.value.library.meetings.any { row ->
+            row.meeting.id == backend.resource("conferenceId") && row.recordings.data?.items.orEmpty().any { it.id == backend.resource("recordingId") }
+        }
+        await("real recording catalogue page loaded") { active.state.value.library.loaded && !active.state.value.library.loading }
+        var pages = 0
+        while (!containsRecord() && active.state.value.library.hasMore && pages++ < 20) {
+            compose.onNodeWithTag("recordings-library").performScrollToNode(hasTestTag("recordings-library-more"))
+            compose.onNodeWithTag("recordings-library-more").performClick()
+            await("next real recording catalogue page loaded") { !active.state.value.library.loading }
+            assertNull("Recording catalogue page must not silently fail", active.state.value.library.error)
+        }
+        assertTrue("The recording must be discoverable from the common catalogue", containsRecord())
         val row = "recording-row-${backend.resource("recordingId")}";
-        compose.onNodeWithTag("recordings-list").performScrollToNode(hasTestTag(row)); compose.onNodeWithTag(row).performClick()
+        compose.onNodeWithTag("recordings-library").performScrollToNode(hasTestTag(row)); compose.onNodeWithTag(row).performClick()
         await("real selected recording detail") { active.state.value.detail.data?.id == backend.resource("recordingId") }
         return active
+    }
+    private fun profileMenu() { if (exists("account-back")) compose.onNodeWithTag("account-back").performScrollTo().performClick() }
+    private fun profileSection(tag: String) { if (!exists(tag)) profileMenu(); compose.onNodeWithTag(tag).performScrollTo().performClick() }
+    /** Keep actual pointer clicks, after the real platform IME and layout animation settle. */
+    @OptIn(ExperimentalTestApi::class)
+    private fun clickAfterEditor(scenario: ActivityScenario<MainActivity>, tag: String) {
+        scenario.onActivity { activity ->
+            activity.currentFocus?.clearFocus()
+            WindowCompat.getInsetsController(activity.window, activity.window.decorView).hide(WindowInsetsCompat.Type.ime())
+        }
+        fun imeVisible(): Boolean {
+            var visible = false
+            scenario.onActivity { visible = ViewCompat.getRootWindowInsets(it.window.decorView)?.isVisible(WindowInsetsCompat.Type.ime()) == true }
+            return visible
+        }
+        compose.waitUntil(timeoutMillis = 5_000) { !imeVisible() }
+        val target = compose.onNodeWithTag(tag).performScrollTo()
+        var bounds: androidx.compose.ui.unit.DpRect? = null
+        var stableSince = SystemClock.uptimeMillis()
+        compose.waitUntil(timeoutMillis = 5_000) {
+            val current = target.getUnclippedBoundsInRoot()
+            if (current != bounds || imeVisible()) { bounds = current; stableSince = SystemClock.uptimeMillis() }
+            !imeVisible() && SystemClock.uptimeMillis() - stableSince >= 350
+        }
+        target.assertIsDisplayed().assertIsEnabled().performClick()
     }
     private fun detailClick(tag: String) { compose.onNodeWithTag("recording-detail").performScrollToNode(hasTestTag(tag)); compose.onNodeWithTag(tag).performClick() }
     private fun exists(tag: String) = compose.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty()

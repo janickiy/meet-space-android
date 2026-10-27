@@ -1,0 +1,257 @@
+{
+  "label": "final-ui-affected",
+  "serial": "emulator-5558",
+  "elapsedSeconds": 80.72,
+  "tests": [
+    {
+      "class": "com.meetspace.app.MessagingUiTest",
+      "test": "failedHistoryPreservesCachedMessagesAndNeverClaimsSuccessfulEmptyState",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.MessagingUiTest",
+      "test": "configuredPushWaitsForAcknowledgmentAndBlocksBothActionsWhileBusy",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.MessagingUiTest",
+      "test": "ownMessageActionsRequireConfirmationForDeleteAndOtherAuthorsCannotBeEdited",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.MessagingUiTest",
+      "test": "approvedNavigationSwitchesAt780EvenWithLargeFont",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.MessagingUiTest",
+      "test": "tombstoneDoesNotExposeTextFilesOrActions",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.MessagingUiTest",
+      "test": "resizingComposerBetweenTallAndCompactPreservesDraftAndInput",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.MessagingUiTest",
+      "test": "homeFoldersShortcutOpensExistingFolderManager",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.MessagingUiTest",
+      "test": "failedListNeverShowsEmptySuccessAndRefreshRemainsAvailable",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.MessagingUiTest",
+      "test": "paginationAndServerSearchAreExplicitCallbacks",
+      "code": -2
+    },
+    {
+      "class": "com.meetspace.app.MessagingUiTest",
+      "test": "listSearchAndInviteBannerCanBeDismissedWithoutLosingConversations",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.MessagingUiTest",
+      "test": "foldersIncludeMeetingsAndRemovingMembershipDoesNotDeleteResource",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.MessagingUiTest",
+      "test": "tabletKeepsListAndHistoryVisibleWhilePhoneShowsDetailAndBack",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.MessagingUiTest",
+      "test": "newChatMovesAboveTabletComposerAndRemainsAvailableWithoutSelection",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.MessagingUiTest",
+      "test": "notificationPreferencesPreserveTransportFlagsAndOpenResourceIsSeparateFromRead",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.MessagingUiTest",
+      "test": "createGroupNeedsTitleAndSelectedUserAndWaitsForAcknowledgment",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.MessagingUiTest",
+      "test": "composerRequiresContentAndBlocksDuplicateSendUntilServerReturns",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.MessagingUiTest",
+      "test": "shortTabletKeepsCreationReachableWhilePreservingMessageHistory",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.MessagingUiTest",
+      "test": "attachmentsUsePickerAndExplicitDownloadWithoutOpeningRemoteLinks",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.MessagingUiTest",
+      "test": "ambiguousSendLocksPayloadAndOffersRetryWithoutFakeDeliveredStatus",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.MessagingUiTest",
+      "test": "busyNewChatFabCannotStartAnotherMutation",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.MessagingUiTest",
+      "test": "largeFontUsesSinglePaneAndKeepsComposerUsable",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.MessagingUiTest",
+      "test": "folderNamesAreValidatedBeforeCreateAndDeletionRequiresExplicitConfirmation",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.MessagingUiTest",
+      "test": "homeNewChatShortcutOpensCreationEvenWithPreviousConversationSelected",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.MessagingUiTest",
+      "test": "directChatUsesSelectedPersonIdentity",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.MessagingUiTest",
+      "test": "compactNotificationRowsKeepActualDatesPagingAndChatsActionAtLargeText",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.MessagingUiTest",
+      "test": "threadMenuPreservesGroupManagementAndDirectNotificationActions",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.MessagingUiTest",
+      "test": "shortLandscapeWithLargeFontPreservesHistoryAndAllComposeActions",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.MessagingUiTest",
+      "test": "unconfiguredPushShowsUnavailableWithoutOfferingRegistration",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.MessagingUiTest",
+      "test": "captureApprovedMessagingScreenshot",
+      "code": -4
+    },
+    {
+      "class": "com.meetspace.app.MessagingUiTest",
+      "test": "tabletHeaderAndLargeTextKeepHistoryVisibleWithErrorsAndAttachments",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.RecordingsUiTest",
+      "test": "largeFontDarkLandscapeKeepsDownloadCancelReachableAndBackAccessible",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.RecordingsUiTest",
+      "test": "playAndDownloadRequestSelectedFileAndBlockDuplicateDownload",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.RecordingsUiTest",
+      "test": "meetingSelectorSearchesLoadedPagesAndRetainsPaginationAndActiveFilter",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.RecordingsUiTest",
+      "test": "globalEntryShowsRealRecordingsAcrossMeetingsWithoutRequiringSelection",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.RecordingsUiTest",
+      "test": "recordingsKeepCallsSelectedAndNavigationUsesTheRequestedDestination",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.RecordingsUiTest",
+      "test": "librarySearchAndLargeTextKeepCardsReachableAndPrivateQueryIsNotRestored",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.RecordingsUiTest",
+      "test": "unavailableMaterialsExplainServerSupportAndNeverExposePipelineStates",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.RecordingsUiTest",
+      "test": "failedRefreshRetainsReadyRowsAndDoesNotClaimEmpty",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.RecordingsUiTest",
+      "test": "searchIsExplicitlyPageScopedAndPrivateQueryIsNotRestored",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.RecordingsUiTest",
+      "test": "libraryLinkReturnsToAllRecordingsInOneClickWhileInlinePlayerIsOpen",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.RecordingsUiTest",
+      "test": "historicalReadyMaterialsRemainReadableWhenNewGenerationIsDisabled",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.RecordingsUiTest",
+      "test": "materialsAreReadOnlyAndShowSegmentsSummaryAndNextPage",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.RecordingsUiTest",
+      "test": "unavailableDetailOffersNoPlayOrDownloadEvenWhenOldFilesExist",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.RecordingsUiTest",
+      "test": "keyboardCanActivateARecordingWithoutTouch",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.RecordingsUiTest",
+      "test": "recordingCardsUseTwoColumnsOnTabletAndOneForLargePhoneText",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.RecordingsUiTest",
+      "test": "onlyReadyAvailableFinalMediaIsShownAndOffsetContinuationRemainsAccessible",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.RecordingsUiTest",
+      "test": "tabletCentersDetailAndResizeKeepsTheSameSelection",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.RecordingsUiTest",
+      "test": "libraryPartialFailureNeverClaimsEmptyAndExposesMeetingRetryAndContinuation",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.IncomingCallRingtoneTest",
+      "test": "incomingRingRaisesSystemRingStreamAndAnswerRestoresIt",
+      "code": 0
+    }
+  ],
+  "passed": 47,
+  "failed": 1,
+  "skipped": 1,
+  "total": 49,
+  "runnerSuccess": false
+}

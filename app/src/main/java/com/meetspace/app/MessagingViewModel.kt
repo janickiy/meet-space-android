@@ -26,6 +26,7 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
     private var eventJob: Job? = null
     private var eventSession: UserEvents? = null
     private var reconcileJob: Job? = null
+    private var notificationDeliveryJob: Job? = null
     private var pending: ChatMessageInput? = null
     private var groupAttempt: Pair<String, String>? = null
     private data class History(val detail: ChatConversation?, val items: List<ChatMessage>, val cursor: String?)
@@ -33,6 +34,7 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
     private val eventIds = linkedSetOf<String>()
     private val readThrough = mutableMapOf<String, String>()
     private val pendingNotifications = linkedSetOf<String>()
+    private val notificationPageCursors = linkedSetOf<String>()
     private var notificationListener: ((InboxNotification) -> Unit)? = null
     private var callEventListener: ((UserEvent) -> Unit)? = null
     init { viewModelScope.launch { foundation.state.collect {
@@ -55,19 +57,24 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
         reorderFolders = ::reorderFolders, moreFolderItems = { loadFolder(false, true) },
         searchFolderCandidates = ::searchFolderCandidates, moreFolderCandidates = { loadFolder(true, true) }, folderMembership = ::folderMembership,
         loadNotifications = ::loadNotifications, moreNotifications = { notifications(true) }, readNotification = ::readNotification,
+        notificationFilter = ::notificationFilter,
         readAllNotifications = ::readAllNotifications, saveNotificationPreferences = ::saveNotificationPreferences, clearMessage = ::clearMessage,
     )
     fun foreground(value: Boolean) {
         foreground = value
-        if (value && scope() != null) { mutable.update { it.copy(selfId = selfId()) }; startEvents() } else stopEvents()
+        if (value && scope() != null) { mutable.update { it.copy(selfId = selfId()) }; startEvents(); deliverPendingNotifications() } else stopEvents()
     }
     fun workspaceVisible(value: Boolean) { visible = value }
     fun notificationPermission(enabled: Boolean) { mutable.update { it.copy(notificationPermissionEnabled = enabled) } }
-    fun onNotification(listener: ((InboxNotification) -> Unit)?) { notificationListener = listener }
+    fun onNotification(listener: ((InboxNotification) -> Unit)?) {
+        notificationListener = listener
+        if (listener == null) { notificationDeliveryJob?.cancel(); notificationDeliveryJob = null }
+        else deliverPendingNotifications()
+    }
     fun onCallEvent(listener: ((UserEvent) -> Unit)?) { callEventListener = listener }
     fun suspendWork() {
         generation++; jobs.values.toList().forEach(Job::cancel); jobs.clear(); tickets.clear()
-        stopEvents(); history.clear(); eventIds.clear(); readThrough.clear(); pendingNotifications.clear(); pending = null; groupAttempt = null; mutable.value = MessagingUiState()
+        stopEvents(); history.clear(); eventIds.clear(); readThrough.clear(); pendingNotifications.clear(); notificationPageCursors.clear(); pending = null; groupAttempt = null; mutable.value = MessagingUiState()
     }
     override fun onCleared() { suspendWork(); notificationListener = null; callEventListener = null; super.onCleared() }
     fun activate() {
@@ -158,6 +165,13 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
         mutable.update { it.copy(error = "Доступ к чату больше не подтверждён. История очищена.",
             conversations = it.conversations.copy(data = it.conversations.data?.filterNot { c -> c.id == id })) }; return true
     }
+    private fun resourceDenied(error: AppFailure) = error.kind in setOf(FailureKind.FORBIDDEN, FailureKind.NOT_FOUND)
+    private fun revalidateResourceAccess(id: String, error: AppFailure) {
+        // An optional endpoint may be unavailable on an older backend; a missing message
+        // or attachment also says nothing about access to the conversation itself.
+        // Only the canonical detail/history handlers may invalidate that authorization.
+        if (resourceDenied(error) && state.value.selectedId == id) loadDetail()
+    }
     fun draft(value: String) { if (pending == null && !state.value.sending) mutable.update { it.copy(draft = value.take(8000), drafts = boundedDrafts(it.drafts, it.selectedId, value.take(8000))) } }
     fun reply(message: ChatMessage) { if (message.kind == "message" && pending == null && !state.value.sending && message.deletedAt == null) mutable.update { it.copy(replyTo = message, editing = null) } }
     fun edit(message: ChatMessage) {
@@ -224,7 +238,11 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
         request("searchMessages", { delay(300); repository.searchMessages(id, q.trim(), cursor) }, { page ->
             verifyCursor(cursor, page.nextCursor)
             mutable.update { it.copy(searchResults = MessagingLoad((if (append) merge(it.searchResults.data.orEmpty(), page.items) { it.id } else page.items).take(200)), searchCursor = page.nextCursor.takeIf { _ -> (it.searchResults.data?.size ?: 0) < 180 }) }
-        }, { e -> if (!accessDenied(id, e)) mutable.update { it.copy(searchResults = it.searchResults.copy(loading = false, error = e.message)) } })
+        }, { e ->
+            mutable.update { it.copy(searchResults = if (resourceDenied(e)) MessagingLoad(error = e.message) else it.searchResults.copy(loading = false, error = e.message),
+                searchCursor = it.searchCursor.takeUnless { resourceDenied(e) }) }
+            revalidateResourceAccess(id, e)
+        })
     }
     fun loadPins(append: Boolean = false) {
         val s = state.value; val id = s.selectedId ?: return; val cursor = s.pinsCursor.takeIf { append }
@@ -233,12 +251,16 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
         request("pins", { repository.messagePins(id, cursor) }, { page ->
             verifyCursor(cursor, page.nextCursor)
             mutable.update { it.copy(pins = MessagingLoad((if (append) merge(it.pins.data.orEmpty(), page.items) { it.id } else page.items).take(100)), pinsCursor = page.nextCursor) }
-        }, { e -> if (!accessDenied(id, e)) mutable.update { it.copy(pins = MessagingLoad(error = e.message), pinsCursor = null) } })
+        }, { e ->
+            mutable.update { it.copy(pins = if (resourceDenied(e)) MessagingLoad(error = e.message) else it.pins.copy(loading = false, error = e.message),
+                pinsCursor = it.pinsCursor.takeUnless { resourceDenied(e) }) }
+            revalidateResourceAccess(id, e)
+        })
     }
     fun pin(message: ChatMessage, pinned: Boolean) {
         val id = state.value.selectedId ?: return
         if (message.conversationId != id || message.kind != "message" || message.deletedAt != null) return
-        mutate({ repository.pinMessage(id, message.id, pinned) }, false) {
+        mutate({ repository.pinMessage(id, message.id, pinned) }, revise = false, optionalResource = true) {
             mutable.update { it.copy(messages = it.messages.copy(data = it.messages.data?.map { m -> if (m.id == message.id) m.copy(pinned = pinned) else m })) }
             loadPins()
         }
@@ -249,7 +271,13 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
         request("context", { repository.messageContext(id, messageId) }, { page ->
             if (page.items.none { it.id == messageId }) throw AppFailure(FailureKind.INVALID_RESPONSE, "Сообщение больше недоступно. Обновите историю.")
             mutable.update { it.copy(messages = MessagingLoad(page.items.sortedBy { m -> m.sequence }), focusedMessageId = messageId, messageCursor = null) }
-        }, { e -> if (!accessDenied(id, e)) mutable.update { it.copy(messages = it.messages.copy(loading = false, error = e.message)) } })
+        }, { e ->
+            val denied = resourceDenied(e)
+            mutable.update { it.copy(messages = if (denied) MessagingLoad(error = e.message) else it.messages.copy(loading = false, error = e.message),
+                viewingContext = it.viewingContext && !denied, focusedMessageId = it.focusedMessageId.takeUnless { denied }) }
+            revalidateResourceAccess(id, e)
+            if (denied && state.value.selectedId == id) loadMessages(false)
+        })
     }
     fun clearConversation(hide: Boolean) {
         val id = state.value.selectedId ?: return
@@ -284,19 +312,22 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
                 repository.uploadAttachment(id, filename, mimeType, bytes, UUID.randomUUID().toString())
             } finally { bytes.fill(0) }
         }, { item -> mutable.update { it.copy(attachments = it.attachments + item, attachmentBusy = false) } },
-            { e -> mutable.update { it.copy(attachmentBusy = false, error = e.message) }; accessDenied(id, e) })
+            { e -> mutable.update { it.copy(attachmentBusy = false, error = e.message) }; revalidateResourceAccess(id, e) })
     }
     fun removeAttachment(id: String) { if (pending == null && !state.value.sending) mutable.update { it.copy(attachments = it.attachments.filterNot { item -> item.id == id }) } }
     fun export(attachment: ChatAttachment, onFailure: suspend () -> Unit = {}, write: suspend (ByteArray) -> Unit): Boolean {
         val id = state.value.selectedId ?: return false
         if (scope() == null || state.value.attachmentBusy || attachment.conversationId != id) return false
         mutable.update { it.copy(attachmentBusy = true, error = null) }
-        request("export", {
-            try { val bytes = repository.downloadAttachment(id, attachment); try { checkCurrent(); write(bytes) } finally { bytes.fill(0) } }
-            catch (error: Exception) { withContext(NonCancellable) { onFailure() }; throw error }
+        var completed = false
+        val export = request("export", {
+            val bytes = repository.downloadAttachment(id, attachment)
+            try { checkCurrent(); write(bytes); completed = true } finally { bytes.fill(0) }
         },
             { mutable.update { it.copy(attachmentBusy = false, notice = "Файл сохранён в выбранном месте.") } },
-            { e -> mutable.update { it.copy(attachmentBusy = false, error = e.message) }; accessDenied(id, e) })
+            { e -> mutable.update { it.copy(attachmentBusy = false, error = e.message) }; revalidateResourceAccess(id, e) }) ?: return false
+        // Cancellation before the LAZY request body starts must also remove its new SAF document.
+        export.invokeOnCompletion { if (!completed) viewModelScope.launch(NonCancellable, start = CoroutineStart.UNDISPATCHED) { runCatching { onFailure() } } }
         return true
     }
     fun searchUsers(value: String) {
@@ -361,29 +392,147 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
     fun folderMembership(folder: String, kind: String, id: String, included: Boolean) =
         mutate({ repository.setFolderItem(folder, kind, id, included) }, false) { loadFolders(); loadFolder(false, false); loadFolder(true, false) }
     fun loadNotifications() { notifications(false); loadPreferences() }
-    private fun notifications(append: Boolean, eventNotification: String? = null) {
-        eventNotification?.let { pendingNotifications.add(it) }
-        while (pendingNotifications.size > 100) pendingNotifications.remove(pendingNotifications.first())
+    fun notificationFilter(value: NotificationFilter) {
+        if (value == state.value.notificationFilter) return
+        cancel("notifications"); notificationPageCursors.clear()
+        mutable.update { it.copy(notificationFilter = value, notifications = MessagingLoad(), notificationCursor = null) }
+        notifications(false)
+    }
+    private data class NotificationBatch(val page: NotificationPage, val cursors: Set<String>)
+    private fun notifications(append: Boolean, mutationError: String? = null) {
         val s = state.value; val cursor = s.notificationCursor.takeIf { append }; val old = s.notifications
-        if (append && (cursor == null || old.loading)) return
+        if (scope() == null || s.notificationBusy || append && (cursor == null || old.loading)) return
+        val seen = if (append) notificationPageCursors.toMutableSet() else linkedSetOf()
         mutable.update { it.copy(notifications = old.copy(loading = true, error = null)) }
-        request("notifications", { repository.notifications(cursor) }, { page ->
-            verifyCursor(cursor, page.nextCursor)
+        request("notifications", {
+            // The server has a single, stable createdAt/id cursor, without an unread filter.
+            // Scan past read-only pages, then publish the first matching page immediately.
+            // Keep its cursor instead of traversing old history merely to fill thirty rows.
+            var next = cursor; var pages = 0; var unread = 0L
+            val matches = linkedMapOf<String, InboxNotification>()
+            do {
+                checkCurrent()
+                if (++pages > 1000 || next != null && !seen.add(next!!)) throw invalidNotificationCursor()
+                val page = repository.notifications(next); checkCurrent()
+                if (page.nextCursor != null && page.nextCursor in seen) throw invalidNotificationCursor()
+                unread = page.unreadCount
+                page.items.forEach { item ->
+                    if (s.notificationFilter == NotificationFilter.ALL || item.readAt == null) matches[item.id] = item
+                }
+                next = page.nextCursor
+                if (s.notificationFilter == NotificationFilter.UNREAD && unread == 0L) next = null
+            } while (s.notificationFilter == NotificationFilter.UNREAD && matches.isEmpty() && next != null)
+            NotificationBatch(NotificationPage(matches.values.toList(), next, unread), seen)
+        }, { batch ->
+            val page = batch.page
             val items = if (append) merge(old.data.orEmpty(), page.items) { it.id } else page.items
-            mutable.update { it.copy(notifications = MessagingLoad(items.take(300)), notificationCursor = page.nextCursor.takeIf { items.size < 300 }, notificationUnread = page.unreadCount) }
-            page.items.filter { it.id in pendingNotifications }.forEach { item ->
-                pendingNotifications.remove(item.id)
-                if (item.readAt == null) notificationListener?.invoke(item)
-            }
+            notificationPageCursors.clear(); notificationPageCursors.addAll(batch.cursors.toList().takeLast(1000))
+            // Keep a bounded window while preserving the cursor for older notifications.
+            mutable.update { it.copy(notifications = MessagingLoad(items.takeLast(300), error = mutationError), notificationCursor = page.nextCursor, notificationUnread = page.unreadCount) }
+            deliverPendingNotifications()
         }, { e -> mutable.update { it.copy(notifications = old.copy(loading = false, error = e.message)) } })
     }
-    fun readNotification(id: String) = request("notification-read-" + id, { repository.readNotification(id) }, { item ->
-        mutable.update { it.copy(notifications = it.notifications.copy(data = it.notifications.data?.map { old -> if (old.id == id) item else old })) }; notifications(false)
-    })
-    fun readAllNotifications() {
-        val unread = state.value.notifications.data.orEmpty().filter { it.readAt == null }.map { it.id }
-        if (unread.isNotEmpty()) mutate({ unread.forEach { repository.readNotification(it) } }, false) { notifications(false) }
+    private fun queueNotification(id: String) {
+        pendingNotifications.add(id)
+        while (pendingNotifications.size > 1000) pendingNotifications.remove(pendingNotifications.first())
+        deliverPendingNotifications()
     }
+    /** Resolve only observed realtime IDs, independently of the visible filter and page.
+     * A burst can move an event beyond page one before REST completes. Loading older history
+     * must neither hide that event nor alert for unrelated, previously unread history. */
+    private fun deliverPendingNotifications() {
+        if (!foreground || scope() == null || notificationListener == null || pendingNotifications.isEmpty() || notificationDeliveryJob?.isActive == true) return
+        val delivery = viewModelScope.launch(start = CoroutineStart.LAZY) {
+            try {
+                do {
+                    val targets = pendingNotifications.toSet()
+                    val remaining = targets.toMutableSet()
+                    var cursor: String? = null; var pages = 0
+                    val seen = linkedSetOf<String>()
+                    do {
+                        checkCurrent()
+                        if (++pages > 1000 || cursor != null && !seen.add(cursor!!)) throw invalidNotificationCursor()
+                        val page = repository.notifications(cursor); checkCurrent()
+                        if (page.nextCursor != null && page.nextCursor in seen) throw invalidNotificationCursor()
+                        for (item in page.items) if (item.id in remaining) {
+                            checkCurrent()
+                            val listener = notificationListener ?: break
+                            remaining.remove(item.id)
+                            pendingNotifications.remove(item.id)
+                            if (item.readAt == null) listener(item)
+                        }
+                        cursor = page.nextCursor
+                    } while (remaining.isNotEmpty() && cursor != null)
+                    // New IDs queued while scanning start at the newest page. An unavailable
+                    // ID stays pending for a later refresh/reconnect, without a tight retry loop.
+                } while (pendingNotifications.any { it !in targets })
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { /* Retain unresolved IDs; the next successful refresh retries. */ }
+            finally { if (notificationDeliveryJob === coroutineContext[Job]) notificationDeliveryJob = null }
+        }
+        notificationDeliveryJob = delivery; delivery.start()
+    }
+    fun readNotification(id: String) {
+        if (scope() == null || state.value.notificationBusy) return
+        val existing = state.value.notifications.data.orEmpty().firstOrNull { it.id == id }
+        if (existing?.readAt != null) return
+        startNotificationMutation()
+        request("notification-mutation", {
+            checkCurrent()
+            repository.readNotification(id).also { checkCurrent(); validateNotificationRead(id, it) }
+        }, { item ->
+            applyNotificationRead(item, existing != null)
+            finishNotificationMutation()
+        }, { e -> finishNotificationMutation(e.message ?: "Не удалось прочитать уведомление.") })
+    }
+    fun readAllNotifications() {
+        if (scope() == null || state.value.notificationBusy || state.value.notificationUnread == 0L) return
+        startNotificationMutation()
+        request("notification-mutation", {
+            var cursor: String? = null; var pages = 0
+            val seen = linkedSetOf<String>(); val read = hashSetOf<String>()
+            // Read each server page, including notifications that have never been displayed.
+            // New events arriving after the first page remain unread and are reconciled below.
+            do {
+                checkCurrent()
+                if (++pages > 1000 || cursor != null && !seen.add(cursor!!)) throw invalidNotificationCursor()
+                val page = repository.notifications(cursor); checkCurrent()
+                if (page.nextCursor != null && page.nextCursor in seen) throw invalidNotificationCursor()
+                // Count is global, including older pages. A server-confirmed zero avoids
+                // walking years of read history; do not infer zero from local POST counts.
+                if (page.unreadCount == 0L) break
+                for (item in page.items) if (item.readAt == null && read.add(item.id)) {
+                    checkCurrent()
+                    val acknowledged = repository.readNotification(item.id); checkCurrent()
+                    validateNotificationRead(item.id, acknowledged)
+                    applyNotificationRead(acknowledged, true)
+                }
+                cursor = page.nextCursor
+            } while (cursor != null)
+        }, { finishNotificationMutation() }, { e ->
+            finishNotificationMutation("Не все уведомления прочитаны. ${e.message ?: "Повторите попытку."}")
+        })
+    }
+    private fun startNotificationMutation() {
+        // A list response begun before the read acknowledgement cannot restore unread state.
+        cancel("notifications")
+        mutable.update { it.copy(notificationBusy = true, notifications = it.notifications.copy(loading = false, error = null)) }
+    }
+    private fun applyNotificationRead(item: InboxNotification, wasUnread: Boolean) {
+        mutable.update { state -> state.copy(
+            notifications = state.notifications.copy(data = state.notifications.data?.map { if (it.id == item.id) item else it }
+                ?.filter { state.notificationFilter == NotificationFilter.ALL || it.readAt == null }),
+            notificationUnread = (state.notificationUnread - if (wasUnread) 1 else 0).coerceAtLeast(0),
+        ) }
+    }
+    private fun finishNotificationMutation(error: String? = null) {
+        mutable.update { it.copy(notificationBusy = false, notifications = it.notifications.copy(error = error)) }
+        notifications(false, mutationError = error)
+    }
+    private fun validateNotificationRead(id: String, item: InboxNotification) {
+        if (item.id != id || item.readAt == null) throw AppFailure(FailureKind.INVALID_RESPONSE, "Сервер не подтвердил прочтение уведомления.")
+    }
+    private fun invalidNotificationCursor() = AppFailure(FailureKind.INVALID_RESPONSE, "Сервер повторил страницу уведомлений или вернул слишком длинный список. Обновите список.")
     private fun loadPreferences() = request("preferences", { repository.notificationPreferences() },
         { prefs -> mutable.update { it.copy(notificationPreferences = MessagingLoad(prefs)) } },
         { e -> mutable.update { it.copy(notificationPreferences = MessagingLoad(error = e.message)) } })
@@ -413,7 +562,7 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
                         }
                         if (!eventIds.add(event.id)) continue
                         if (eventIds.size > 512) eventIds.remove(eventIds.first())
-                        if (event.type == "notification.created" && event.notificationId != null) notifications(false, event.notificationId)
+                        if (event.type == "notification.created") event.notificationId?.let { queueNotification(it); notifications(false) }
                         scheduleReconcile(event)
                     }; attempt++
                 } catch (cancelled: CancellationException) { throw cancelled }
@@ -452,6 +601,7 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
     }
     private fun stopEvents() {
         eventJob?.cancel(); eventJob = null; eventSession?.close(); eventSession = null; reconcileJob?.cancel(); reconcileJob = null
+        notificationDeliveryJob?.cancel(); notificationDeliveryJob = null
         mutable.update { it.copy(realtimeLabel = "Обновления приостановлены") }
     }
     fun message(text: String) { mutable.update { it.copy(error = text) } }
@@ -463,8 +613,8 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
     }
     private suspend fun checkCurrent() { coroutineContext.ensureActive(); if (scope() != account) throw CancellationException("Scope changed") }
     private fun cancel(key: String) { tickets[key] = (tickets[key] ?: 0) + 1; jobs.remove(key)?.cancel() }
-    private fun <T> request(key: String, block: suspend () -> T, done: (T) -> Unit, failed: (AppFailure) -> Unit = { message(it.message ?: "Действие не выполнено.") }) {
-        if (scope() == null) return
+    private fun <T> request(key: String, block: suspend () -> T, done: (T) -> Unit, failed: (AppFailure) -> Unit = { message(it.message ?: "Действие не выполнено.") }): Job? {
+        if (scope() == null) return null
         cancel(key); val ticket = tickets.getValue(key); val epoch = generation; val identity = scope()
         val job = viewModelScope.launch(start = CoroutineStart.LAZY) {
             try { val value = block(); coroutineContext.ensureActive(); if (epoch == generation && identity == scope() && tickets[key] == ticket) done(value) }
@@ -473,9 +623,9 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
                 coroutineContext.ensureActive()
                 if (epoch == generation && identity == scope() && tickets[key] == ticket) failed(error as? AppFailure ?: AppFailure(FailureKind.UNAVAILABLE, "Не удалось выполнить действие. Обновите данные и повторите."))
             } finally { if (epoch == generation && identity == scope() && tickets[key] == ticket) jobs.remove(key) }
-        }; jobs[key] = job; job.start()
+        }; jobs[key] = job; job.start(); return job
     }
-    private fun <T> mutate(block: suspend () -> T, revise: Boolean = true, done: (T) -> Unit) {
+    private fun <T> mutate(block: suspend () -> T, revise: Boolean = true, optionalResource: Boolean = false, done: (T) -> Unit) {
         if (scope() == null || state.value.busy) return
         val selected = state.value.selectedId
         mutable.update { it.copy(busy = true, error = null) }
@@ -485,7 +635,12 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
             if (stillSelected) done(value) else { history.clear(); loadConversations(false); loadFolders() }
         }, { e ->
             mutable.update { it.copy(busy = false, error = e.message) }
-            if (selected == state.value.selectedId) selected?.let { accessDenied(it, e) }
+            if (selected == state.value.selectedId) selected?.let { id ->
+                if (optionalResource) {
+                    if (resourceDenied(e)) mutable.update { it.copy(pins = MessagingLoad(error = e.message), pinsCursor = null) }
+                    revalidateResourceAccess(id, e)
+                } else accessDenied(id, e)
+            }
         })
     }
     private fun verifyCursor(previous: String?, next: String?) { if (previous != null && previous == next) throw AppFailure(FailureKind.INVALID_RESPONSE, "Сервер повторил страницу. Обновите список.") }

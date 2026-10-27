@@ -85,6 +85,7 @@ fun ProfileWorkspace(
     onAddAccount: (String, String, String, String?, String) -> Unit = { _, _, _, _, _ -> },
     registeredAccountEmail: String? = null,
     onDeleteAccount: (String) -> Unit = {},
+    onManagePush: (() -> Unit)? = null,
 ) {
     var section by rememberSaveable { mutableStateOf(AccountSection.entries.find { it.name.equals(initialSection?.replace('-', '_'), true) } ?: AccountSection.PROFILE) }
     var detailOpen by rememberSaveable { mutableStateOf(initialSection != null) }
@@ -182,7 +183,7 @@ fun ProfileWorkspace(
                                         AccountNotificationSound(settingsActions)
                                         AccountDivider(); AccountSectionLabel("Каналы доставки")
                                         AccountToggle("Email", prefs.email, { draft = prefs.copy(email = it) }, "Доставка зависит от настроек почты на сервере", tag = "account-notification-email")
-                                        AccountToggle("Push-уведомления", settings.pushEnabled, { settingsActions.openNotifications() }, if (settings.pushConfigured) "Доставка на это устройство" else "Не настроены на этом сервере", settings.pushConfigured, "account-notification-push")
+                                        AccountToggle("Push-уведомления", settings.pushEnabled, { (onManagePush ?: settingsActions.openNotifications)() }, if (settings.pushConfigured) "Доставка на это устройство" else "Не настроены на этом сервере", settings.pushConfigured, "account-notification-push")
                                         Spacer(Modifier.height(18.dp)); AccountSave("Сохранить настройки", "account-notification-save", !messaging.busy && prefs != current) { messagingActions.saveNotificationPreferences(prefs) }
                                     }
                                     messaging.error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 12.dp)) }

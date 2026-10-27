@@ -110,6 +110,12 @@ class LiveMessagingSafTest {
             val active = vm!!; model = active
             onMain { active.open(group.id) }
             await("SAF group loaded") { active.state.value.detail.data?.id == group.id && active.state.value.messages.data != null }
+            // REST completion precedes collection/recomposition in the activity. Start the
+            // actual SAF action only when the current thread's composer is in the UI tree.
+            await("visible SAF attachment action") {
+                compose.onAllNodesWithTag("message-attach").fetchSemanticsNodes().isNotEmpty() &&
+                    compose.onAllNodesWithTag("message-draft").fetchSemanticsNodes().isNotEmpty()
+            }
 
             compose.onNodeWithTag("message-attach").performClick()
             awaitDocumentsUi()

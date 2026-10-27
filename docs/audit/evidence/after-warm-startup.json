@@ -1,0 +1,74 @@
+{
+  "condition": "Task/activity recreated with NEW_TASK|CLEAR_TASK in already running process. 2 warmups excluded; compare PID and actual LaunchState. First-display, not fully drawn. No baseline warm samples.",
+  "samples": [
+    {
+      "excludedWarmup": true,
+      "sameProcess": true,
+      "LaunchState": "WARM",
+      "TotalTime": 211,
+      "WaitTime": 211
+    },
+    {
+      "excludedWarmup": true,
+      "sameProcess": true,
+      "LaunchState": "WARM",
+      "TotalTime": 150,
+      "WaitTime": 152
+    },
+    {
+      "excludedWarmup": false,
+      "sameProcess": true,
+      "LaunchState": "WARM",
+      "TotalTime": 145,
+      "WaitTime": 146
+    },
+    {
+      "excludedWarmup": false,
+      "sameProcess": true,
+      "LaunchState": "WARM",
+      "TotalTime": 138,
+      "WaitTime": 139
+    },
+    {
+      "excludedWarmup": false,
+      "sameProcess": true,
+      "LaunchState": "WARM",
+      "TotalTime": 150,
+      "WaitTime": 150
+    },
+    {
+      "excludedWarmup": false,
+      "sameProcess": true,
+      "LaunchState": "WARM",
+      "TotalTime": 128,
+      "WaitTime": 131
+    },
+    {
+      "excludedWarmup": false,
+      "sameProcess": true,
+      "LaunchState": "WARM",
+      "TotalTime": 107,
+      "WaitTime": 108
+    },
+    {
+      "excludedWarmup": false,
+      "sameProcess": true,
+      "LaunchState": "WARM",
+      "TotalTime": 121,
+      "WaitTime": 122
+    },
+    {
+      "excludedWarmup": false,
+      "sameProcess": true,
+      "LaunchState": "WARM",
+      "TotalTime": 109,
+      "WaitTime": 110
+    }
+  ],
+  "totalTimeMs": {
+    "p50": 128,
+    "p95NearestRank": 150,
+    "min": 107
+  },
+  "allSameProcess": true
+}

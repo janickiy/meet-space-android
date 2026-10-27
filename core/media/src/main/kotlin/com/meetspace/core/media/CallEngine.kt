@@ -16,6 +16,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.selects.select
 import kotlinx.serialization.json.*
 import org.webrtc.*
 import org.webrtc.audio.JavaAudioDeviceModule
@@ -32,6 +33,21 @@ class CallEngine(
     private val scope = CoroutineScope(SupervisorJob() + dispatcher)
     private val queueOverflow = java.util.concurrent.atomic.AtomicBoolean(false)
     private val commands = Channel<suspend () -> Unit>(256)
+    private val lifecycleCommands = Channel<suspend () -> Unit>(32)
+    private val pendingLifecycle = java.util.concurrent.atomic.AtomicInteger()
+    private val lifecycleOverflow = java.util.concurrent.atomic.AtomicBoolean()
+    private val callIntent = java.util.concurrent.atomic.AtomicLong()
+    private val deviceIntent = java.util.concurrent.atomic.AtomicLong()
+    private class ActiveCommand(val job: CompletableJob) {
+        val interrupted = java.util.concurrent.atomic.AtomicBoolean()
+        var started = false
+        var completed = false
+    }
+    private val activeCommand = java.util.concurrent.atomic.AtomicReference<ActiveCommand?>()
+    private var interruptedCommand = false
+    private class DirectIntent(val callId: String) { val valid = java.util.concurrent.atomic.AtomicBoolean(true) }
+    private val directIntents = mutableSetOf<DirectIntent>()
+    private val activeDirectIntent = java.util.concurrent.atomic.AtomicReference<DirectIntent?>()
     private val mutable = MutableStateFlow(CallState())
     val state = mutable.asStateFlow()
     private var generation = 0L
@@ -72,8 +88,9 @@ class CallEngine(
     private var screenHelper: SurfaceTextureHelper? = null
     private var screenSource: VideoSource? = null
     private var screenTrack: VideoTrack? = null
-    private var screenSession = 0L
-    private var screenSessionActive = false
+    private val screenIntent = java.util.concurrent.atomic.AtomicLong()
+    @Volatile private var screenSession = 0L
+    @Volatile private var screenSessionActive = false
     private var screenSize = 1280 to 720
     private var screenSenderLimited = false
     private data class ScreenStatsSample(val stream: String, val timestampUs: Double, val frames: Long)
@@ -90,105 +107,180 @@ class CallEngine(
 
     init {
         scope.launch {
-            for (command in commands) try { command() }
-            catch (_: CancellationException) { fail("Операция звонка не завершилась вовремя.") }
-            catch (e: CallDisconnected) { if (e.retryable) reconnect() else fail("Соединение звонка закрыто.") }
-            catch (e: AppFailure) { fail(e.message ?: "Не удалось подключиться к встрече.") }
-            catch (error: Exception) { android.util.Log.w("MeetSpaceCall", "operation_failed: " + error.javaClass.simpleName + " at " + error.stackTrace.firstOrNull()?.let { it.className + ":" + it.lineNumber }); fail("Не удалось установить медиасвязь. Проверьте сеть и повторите подключение.") }
+            var deferred: (suspend () -> Unit)? = null
+            while (isActive) {
+                val priority = if (pendingLifecycle.get() > 0) lifecycleCommands.receive() else lifecycleCommands.tryReceive().getOrNull()
+                val selected = if (priority != null) true to priority else deferred?.let { false to it } ?: select {
+                    lifecycleCommands.onReceive { true to it }
+                    commands.onReceive { false to it }
+                }
+                if (selected.first) pendingLifecycle.decrementAndGet() else deferred = null
+                if (!executeCommand(selected.second, selected.first)) deferred = selected.second
+            }
         }
     }
-    private fun enqueue(command: suspend () -> Unit) {
-        if (!commands.trySend(command).isSuccess && queueOverflow.compareAndSet(false, true)) {
+    /** A cancelled child cannot kill the actor or leave lifecycle cleanup behind REST/SDP. */
+    private suspend fun executeCommand(command: suspend () -> Unit, priority: Boolean): Boolean {
+        val operation = if (priority) null else ActiveCommand(Job(scope.coroutineContext[Job]))
+        var consumed = true
+        try {
+            if (operation == null) command() else {
+                activeCommand.set(operation)
+                if (pendingLifecycle.get() > 0) { operation.interrupted.set(true); operation.job.cancel() }
+                withContext(operation.job) {
+                    operation.started = true
+                    command()
+                    operation.completed = true
+                }
+            }
+        } catch (_: CancellationException) {
+            if (operation?.interrupted?.get() == true) {
+                consumed = operation.started
+                if (operation.started && !operation.completed) interruptedCommand = true
+            } else fail("Операция звонка не завершилась вовремя.")
+        } catch (e: CallDisconnected) { if (e.retryable) reconnect() else fail("Соединение звонка закрыто.") }
+        catch (e: AppFailure) { fail(e.message ?: "Не удалось подключиться к встрече.") }
+        catch (error: Exception) { android.util.Log.w("MeetSpaceCall", "operation_failed: " + error.javaClass.simpleName + " at " + error.stackTrace.firstOrNull()?.let { it.className + ":" + it.lineNumber }); fail("Не удалось установить медиасвязь. Проверьте сеть и повторите подключение.") }
+        finally {
+            if (operation != null) { activeCommand.compareAndSet(operation, null); operation.job.complete() }
+        }
+        return consumed
+    }
+    private fun enqueueLifecycle(directCallId: String? = null, mayInterrupt: () -> Boolean = { true }, command: suspend () -> Unit) {
+        pendingLifecycle.incrementAndGet()
+        if (!lifecycleCommands.trySend(command).isSuccess) {
+            pendingLifecycle.decrementAndGet()
+            if (lifecycleOverflow.compareAndSet(false, true)) {
+                pendingLifecycle.incrementAndGet()
+                scope.launch { lifecycleCommands.send {
+                    lifecycleOverflow.set(false); interruptedCommand = false
+                    fail("Слишком много запросов остановки звонка. Подключитесь снова.")
+                } }
+            }
+        }
+        val operation = activeCommand.get()
+        val runningDirect = activeDirectIntent.get()?.callId
+        if (operation != null && mayInterrupt() && (directCallId == null || runningDirect == null || runningDirect == directCallId)) {
+            operation.interrupted.set(true); operation.job.cancel()
+        }
+    }
+    private fun enqueue(command: suspend () -> Unit) { offer(command) }
+    private fun offer(command: suspend () -> Unit): Boolean {
+        val accepted = commands.trySend(command).isSuccess
+        if (!accepted && queueOverflow.compareAndSet(false, true)) {
             // Backpressure is fatal: never silently lose SDP or ICE and pretend the call is live.
             scope.launch { commands.send { queueOverflow.set(false); fail("Слишком много событий звонка. Подключитесь снова.") } }
         }
+        return accepted
     }
+    private fun enqueueDirect(callId: String, command: suspend () -> Unit) {
+        val intent = DirectIntent(callId)
+        synchronized(directIntents) { directIntents.add(intent) }
+        if (!offer {
+            activeDirectIntent.set(intent)
+            try { if (intent.valid.get()) command() }
+            finally { activeDirectIntent.compareAndSet(intent, null); synchronized(directIntents) { directIntents.remove(intent) } }
+        }) synchronized(directIntents) { directIntents.remove(intent) }
+    }
+    private fun enqueueForCall(target: CallState, command: suspend () -> Unit) {
+        val direct = target.directCallId
+        if (direct == null) enqueue(command) else enqueueDirect(direct, command)
+    }
+    private fun sameCall(target: CallState) = target.conferenceId == state.value.conferenceId && target.directCallId == state.value.directCallId
     private fun callback(epoch: Long, block: suspend () -> Unit) = enqueue { if (epoch == generation) block() }
     private fun permission(name: String) = ContextCompat.checkSelfPermission(context, name) == PackageManager.PERMISSION_GRANTED
     private fun id() = UUID.randomUUID().toString()
 
-    fun prepare(meeting: Meeting) = enqueue {
+    fun prepare(meeting: Meeting) { val intent = callIntent.get(); enqueue {
+        if (intent != callIntent.get()) return@enqueue
         if (state.value.visible) return@enqueue
         if (meeting.status != "active") return@enqueue
         mutable.value = CallState(CallPhase.PREJOIN, meeting.id, meeting.title, status = "Перед входом")
-    }
+    } }
     /** Local, explicitly selected camera preview only. No meeting REST, ticket or SFU publication. */
-    fun prepareDirectPreview(callId: String, title: String, microphone: Boolean = false, camera: Boolean = false) = enqueue {
-        if (state.value.visible) return@enqueue
+    fun prepareDirectPreview(callId: String, title: String, microphone: Boolean = false, camera: Boolean = false) {
+        val intent = callIntent.get(); val devices = deviceIntent.get(); enqueueDirect(callId) {
+        if (intent != callIntent.get()) return@enqueueDirect
+        if (state.value.visible) return@enqueueDirect
         validId(callId)
         directClientId = null
         mutable.value = CallState(phase = CallPhase.PREJOIN, title = title.take(200), status = "Личный звонок",
-            microphone = microphone && permission(Manifest.permission.RECORD_AUDIO), directCallId = callId)
-        if (camera && permission(Manifest.permission.CAMERA)) {
+            microphone = microphone && devices == deviceIntent.get() && permission(Manifest.permission.RECORD_AUDIO), directCallId = callId)
+        if (camera && devices == deviceIntent.get() && permission(Manifest.permission.CAMERA)) {
             ensureFactory()
             try { replaceCamera(true) }
             catch (_: Exception) { replaceCamera(false); notice("Камера недоступна. Можно ответить без видео.") }
         }
-    }
+    } }
     /** The controller owns durable call actions/heartbeat; this engine owns only the accepted media. */
     fun joinDirect(conferenceId: String, title: String, clientId: String, microphone: Boolean = true,
-        camera: Boolean = false, callId: String = state.value.directCallId.orEmpty()) = enqueue {
+        camera: Boolean = false, callId: String = state.value.directCallId.orEmpty()) {
+        val intent = callIntent.get(); val devices = deviceIntent.get(); enqueueDirect(callId) {
+        if (intent != callIntent.get()) return@enqueueDirect
         if (state.value.visible && (state.value.directCallId != callId ||
-                state.value.phase !in setOf(CallPhase.PREJOIN, CallPhase.FAILED))) return@enqueue
+                state.value.phase !in setOf(CallPhase.PREJOIN, CallPhase.FAILED))) return@enqueueDirect
         validId(callId); validId(conferenceId); validId(clientId)
         directClientId = clientId
         mutable.value = state.value.copy(phase = CallPhase.CONNECTING, conferenceId = conferenceId,
-            title = title.take(200), directCallId = callId, microphone = microphone && permission(Manifest.permission.RECORD_AUDIO),
+            title = title.take(200), directCallId = callId, microphone = microphone && devices == deviceIntent.get() && permission(Manifest.permission.RECORD_AUDIO),
             status = "Подключаем личный звонок…", error = null)
         authorizeDirect()
         wanted = true; attempts = 0; membershipEntered = false
         ensureFactory()
-        if (!camera || !permission(Manifest.permission.CAMERA)) replaceCamera(false)
+        if (!camera || devices != deviceIntent.get() || !permission(Manifest.permission.CAMERA)) replaceCamera(false)
         else if (cameraTrack == null && permission(Manifest.permission.CAMERA)) {
             try { replaceCamera(true) }
             catch (_: Exception) { replaceCamera(false); notice("Камера недоступна. Можно разговаривать без видео.") }
         }
         audio.start()
         open()
-    }
-    fun connect() = enqueue {
-        if (state.value.phase !in setOf(CallPhase.PREJOIN, CallPhase.FAILED)) return@enqueue
+    } }
+    fun connect() { val intent = callIntent.get(); val target = state.value; enqueueForCall(target) {
+        if (intent != callIntent.get() || !sameCall(target)) return@enqueueForCall
+        if (state.value.phase !in setOf(CallPhase.PREJOIN, CallPhase.FAILED)) return@enqueueForCall
         if (state.value.directCallId != null) {
             if (directClientId == null || state.value.conferenceId.isBlank()) {
-                notice("Медиасвязь подключается после принятия личного звонка."); return@enqueue
+                notice("Медиасвязь подключается после принятия личного звонка."); return@enqueueForCall
             }
             authorizeDirect()
             wanted = true; attempts = 0
             mutable.value = state.value.copy(phase = CallPhase.CONNECTING, status = "Подключаем личный звонок…", error = null)
             ensureFactory(); audio.start(); open()
-            return@enqueue
+            return@enqueueForCall
         }
         wanted = true; attempts = 0
         mutable.value = state.value.copy(phase = CallPhase.CONNECTING, status = "Проверяем допуск…", error = null)
         val conference = meetings.conference(state.value.conferenceId)
-        if (conference.status != "active") { fail("Встреча ещё не началась или уже завершена."); return@enqueue }
+        if (conference.status != "active") { fail("Встреча ещё не началась или уже завершена."); return@enqueueForCall }
         val member = meetings.membership(conference.id)
         val admitted = if (member?.canParticipate == true) member else meetings.joinMeeting(conference.id)
         membershipEntered = true
-        if (!admitted.canParticipate) { fail("Ожидайте допуска организатора и повторите вход."); return@enqueue }
+        if (!admitted.canParticipate) { fail("Ожидайте допуска организатора и повторите вход."); return@enqueueForCall }
         ensureFactory()
         audio.start()
         open()
-    }
+    } }
     fun retry() = connect()
-    fun microphone(enabled: Boolean) = enqueue {
+    fun microphone(enabled: Boolean) { val intent = callIntent.get(); val devices = deviceIntent.get(); val target = state.value; enqueueForCall(target) {
+        if (intent != callIntent.get() || devices != deviceIntent.get() || !sameCall(target)) return@enqueueForCall
         if (enabled && (state.value.microphoneBlocked || !permission(Manifest.permission.RECORD_AUDIO))) {
-            notice("Разрешите доступ к микрофону."); return@enqueue
+            notice("Разрешите доступ к микрофону."); return@enqueueForCall
         }
-        if (state.value.phase !in setOf(CallPhase.PREJOIN, CallPhase.CONNECTED)) return@enqueue
+        if (state.value.phase !in setOf(CallPhase.PREJOIN, CallPhase.CONNECTED)) return@enqueueForCall
         mutable.value = state.value.copy(microphone = enabled, error = null)
         if (pc != null) { replaceMic(enabled); changed() }
-    }
-    fun camera(enabled: Boolean) = enqueue {
+    } }
+    fun camera(enabled: Boolean) { val intent = callIntent.get(); val devices = deviceIntent.get(); val target = state.value; enqueueForCall(target) {
+        if (intent != callIntent.get() || devices != deviceIntent.get() || !sameCall(target)) return@enqueueForCall
         if (enabled && (state.value.cameraBlocked || !permission(Manifest.permission.CAMERA))) {
-            notice("Разрешите доступ к камере."); return@enqueue
+            notice("Разрешите доступ к камере."); return@enqueueForCall
         }
-        if (state.value.phase !in setOf(CallPhase.PREJOIN, CallPhase.CONNECTED)) return@enqueue
+        if (state.value.phase !in setOf(CallPhase.PREJOIN, CallPhase.CONNECTED)) return@enqueueForCall
         ensureFactory()
         try { replaceCamera(enabled) }
         catch (_: Exception) { replaceCamera(false); notice("Камера недоступна. Можно войти без видео или повторить включение.") }
         changed()
-    }
+    } }
     fun switchCamera() = enqueue {
         (cameraCapture as? CameraVideoCapturer)?.switchCamera(object : CameraVideoCapturer.CameraSwitchHandler {
             override fun onCameraSwitchDone(front: Boolean) = Unit
@@ -197,23 +289,38 @@ class CallEngine(
     }
     fun audioRoute(id: Int) = enqueue { if (!audio.select(id)) notice("Аудиоустройство недоступно. Проверьте подключение гарнитуры.") }
     fun refreshAudioRoutes() = enqueue { audio.refresh() }
-    fun pauseDevices() = enqueue {
-        if (!state.value.visible) return@enqueue
+    fun pauseDevices() {
+        deviceIntent.incrementAndGet()
+        enqueueLifecycle {
+        if (interruptedCommand) {
+            interruptedCommand = false
+            fail("Подключение прервано при остановке устройств. Повторите подключение; камера и микрофон выключены.")
+            return@enqueueLifecycle
+        }
+        if (!state.value.visible) return@enqueueLifecycle
         replaceMic(false); replaceCamera(false)
         mutable.value = state.value.copy(microphone = false, camera = false)
-        changed()
-    }
+        // Do not let another presence/SDP request delay the next lifecycle action.
+        val epoch = generation
+        callback(epoch) { changed() }
+    } }
     fun message(text: String) = enqueue { notice(text) }
     private fun notice(text: String) { mutable.value = state.value.copy(error = text) }
 
     /** Called only after the service has entered foreground with a fresh Android consent Intent. */
-    fun startScreen(consent: Intent, expectedConferenceId: String? = null, expectedDirectCallId: String? = null) = enqueue {
+    fun startScreen(consent: Intent, expectedConferenceId: String? = null, expectedDirectCallId: String? = null) {
+        val intent = screenIntent.get(); enqueue {
+        // A stopped foreground request may still be waiting behind another command.
+        // Never consume its old consent after the service/user has already stopped it.
+        if (intent != screenIntent.get()) return@enqueue
         if (!matchesScreenContext(expectedConferenceId, expectedDirectCallId) || state.value.phase != CallPhase.CONNECTED ||
                 state.value.screenBlocked || state.value.cameraBlocked || screenCapture != null) {
             onProjectionStopped(); return@enqueue
         }
         val epoch = generation
         val session = ++screenSession
+        val conference = state.value.conferenceId
+        val direct = state.value.directCallId
         screenSessionActive = true
         screenSize = 1280 to 720
         try {
@@ -223,9 +330,7 @@ class CallEngine(
             val helper = checkNotNull(SurfaceTextureHelper.create("MeetSpace-screen", egl!!.eglBaseContext))
             screenHelper = helper
             val capture = ScreenCapturerAndroid(consent, object : MediaProjection.Callback() {
-                override fun onStop() { callback(epoch) {
-                    if (session == screenSession && screenSessionActive) { stopScreenInternal(); changed() }
-                } }
+                override fun onStop() { requestScreenStop(session, conference, direct) }
                 override fun onCapturedContentResize(width: Int, height: Int) {
                     callback(epoch) {
                         if (session == screenSession && screenSessionActive && width > 0 && height > 0) {
@@ -256,10 +361,28 @@ class CallEngine(
             return@enqueue
         }
         changed()
+    } }
+    fun stopScreen(expectedConferenceId: String? = null, expectedDirectCallId: String? = null) {
+        val target = state.value
+        if (!matchesScreenContext(expectedConferenceId, expectedDirectCallId)) return
+        screenIntent.incrementAndGet()
+        requestScreenStop(screenSession, target.conferenceId, target.directCallId)
     }
-    fun stopScreen(expectedConferenceId: String? = null, expectedDirectCallId: String? = null) = enqueue {
-        if (!matchesScreenContext(expectedConferenceId, expectedDirectCallId)) return@enqueue
-        stopScreenInternal(); changed()
+    private fun requestScreenStop(session: Long, conferenceId: String, directCallId: String?) {
+        fun ownsScreen() = session == screenSession && screenSessionActive &&
+            state.value.conferenceId == conferenceId && state.value.directCallId == directCallId
+        if (!ownsScreen()) return
+        enqueueLifecycle(directCallId = directCallId, mayInterrupt = ::ownsScreen) {
+            if (!ownsScreen()) return@enqueueLifecycle
+            if (interruptedCommand) {
+                interruptedCommand = false
+                fail("Демонстрация остановлена во время подключения. Повторите подключение; устройства выключены.")
+            } else {
+                stopScreenInternal()
+                val epoch = generation
+                callback(epoch) { changed() }
+            }
+        }
     }
     private fun matchesScreenContext(conferenceId: String?, directCallId: String?): Boolean =
         if (conferenceId != null) state.value.conferenceId == conferenceId && state.value.directCallId == directCallId
@@ -292,12 +415,21 @@ class CallEngine(
         runCatching { helper?.dispose() }
         if (active) runCatching { onProjectionStopped() }
     }
-    fun leave(updateMembership: Boolean = true) = enqueue { leaveInternal(updateMembership) }
-    /** A delayed direct-call cleanup cannot tear down a newer conference or another call. */
-    fun leaveDirect(callId: String) = enqueue {
-        if (state.value.directCallId != callId) return@enqueue
-        leaveInternal(updateMembership = false)
+    fun leave(updateMembership: Boolean = true) {
+        callIntent.incrementAndGet(); deviceIntent.incrementAndGet()
+        enqueueLifecycle { interruptedCommand = false; leaveInternal(updateMembership) }
     }
+    /** A delayed direct-call cleanup cannot tear down a newer conference or another call. */
+    fun leaveDirect(callId: String) {
+        // Invalidate this call's queued requests even before they have installed CallState.
+        // Tokens are held only by accepted queue entries, so stale IDs cannot cancel a newer call.
+        synchronized(directIntents) { directIntents.filter { it.callId == callId }.forEach { it.valid.set(false) } }
+        if (state.value.directCallId != callId && activeDirectIntent.get()?.callId != callId) return
+        enqueueLifecycle(directCallId = callId) {
+        if (state.value.directCallId != callId) return@enqueueLifecycle
+        interruptedCommand = false
+        leaveInternal(updateMembership = false)
+    } }
     private suspend fun leaveInternal(updateMembership: Boolean) {
         val conference = state.value.conferenceId
         val joined = membershipEntered && state.value.directCallId == null

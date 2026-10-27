@@ -31,6 +31,61 @@ class RecordingsRepositoryTest {
     }
     @After fun stop() { server.shutdown() }
 
+    @Test fun `global library returns recordings from active and finished meetings without timeline requests`() = runBlocking {
+        login()
+        val first = """{"conference":${libraryMeeting("active")},"recording":${card()}}"""
+        val second = """{"conference":${libraryMeeting("finished").replace(CONFERENCE, OTHER)},"recording":${card().replace(CONFERENCE, OTHER).replace(RECORD, TRANSCRIPT)}}"""
+        server.enqueue(json("""{"status":"success","items":[$first,$second],"nextCursor":"opaque-next"}"""))
+        val page = repository.recordingLibrary(limit = 2)
+        assertEquals(listOf("active", "finished"), page.items.map { it.meeting.status })
+        assertEquals(listOf(RECORD, TRANSCRIPT), page.items.map { it.recording.id })
+        assertEquals("opaque-next", page.nextCursor)
+        assertFalse(page.toString().contains("signature"))
+        val request = take()
+        assertEquals("/api/v1/recordings?limit=2", request.path)
+        assertEquals("Bearer access", request.getHeader("Authorization"))
+        assertNull(request.getHeader("Cookie"))
+        server.enqueue(json("""{"status":"success","items":[],"nextCursor":null}"""))
+        assertNull(repository.recordingLibrary("opaque-next", 2).nextCursor)
+        assertEquals("/api/v1/recordings?limit=2&cursor=opaque-next", take().path)
+    }
+
+    @Test fun `global library rejects mismatched conference duplicate recording and invalid continuation`() = runBlocking {
+        login()
+        val row = """{"conference":${libraryMeeting()},"recording":${card()}}"""
+        val invalid = listOf(
+            """{"status":"success","items":[${row.replace(libraryMeeting(), libraryMeeting().replace(CONFERENCE, OTHER))}],"nextCursor":null}""",
+            """{"status":"success","items":[$row,$row],"nextCursor":null}""",
+            """{"status":"success","items":[$row],"nextCursor":""}""",
+            """{"status":"success","items":[$row],"nextCursor":"cursor"}""",
+        )
+        for (body in invalid) {
+            server.enqueue(json(body))
+            assertFailure(FailureKind.INVALID_RESPONSE) { repository.recordingLibrary("cursor") }; take()
+        }
+    }
+
+    @Test fun `global library unsupported endpoint is distinguished from temporary server failure`() = runBlocking {
+        login()
+        for (code in listOf(404, 501)) {
+            server.enqueue(MockResponse().setResponseCode(code))
+            assertFailure(FailureKind.INCOMPATIBLE_SERVER) { repository.recordingLibrary() }; take()
+        }
+        server.enqueue(MockResponse().setResponseCode(503))
+        assertFailure(FailureKind.UNAVAILABLE) { repository.recordingLibrary() }; take()
+        Unit
+    }
+
+    @Test fun `invalid global library pagination never issues a request`() = runBlocking {
+        login(); val count = server.requestCount
+        for (cursor in listOf("", " ", "bad\n", "a".repeat(257))) {
+            assertFailure(FailureKind.VALIDATION) { repository.recordingLibrary(cursor) }
+        }
+        assertFailure(FailureKind.VALIDATION) { repository.recordingLibrary(limit = 0) }
+        assertFailure(FailureKind.VALIDATION) { repository.recordingLibrary(limit = 101) }
+        assertEquals(count, server.requestCount)
+    }
+
     @Test fun `delete uses scoped endpoint and conflict remains visible`() = runBlocking {
         login(); server.enqueue(json("""{"status":"success"}"""))
         repository.deleteRecording(CONFERENCE, RECORD)
@@ -280,6 +335,8 @@ class RecordingsRepositoryTest {
     private fun json(body: String) = MockResponse().setHeader("Content-Type", "application/json").setBody(body)
     private fun media(body: String) = MockResponse().setHeader("Content-Type", "video/mp4").setBody(body)
     private fun item(value: String) = """{"status":"success","item":$value}"""
+    private fun libraryMeeting(status: String = "active") =
+        """{"id":"$CONFERENCE","ownerId":"$USER","title":"Meeting","inviteCode":"","inviteUrl":"","status":"$status","createdAt":"$AT","updatedAt":"$AT"}"""
     private fun card(status: String = "ready", url: String = server.url("/signed?signature=private").toString(), extra: String = "") =
         """{"id":12,"uuid":"$RECORD","conferenceId":"$CONFERENCE","mode":"composite","status":"$status","createdAt":"$AT","durationSec":5,"files":[${file(url)}$extra]}"""
     private fun file(url: String = server.url("/signed?signature=private").toString()) =

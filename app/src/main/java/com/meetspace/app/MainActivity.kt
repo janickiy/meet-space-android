@@ -10,7 +10,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.SideEffect
@@ -39,6 +42,11 @@ import com.meetspace.app.ui.HomeDashboard
 import com.meetspace.app.ui.WorkspaceTab
 import com.meetspace.app.ui.ProfileWorkspace
 import com.meetspace.app.ui.MeetingsWorkspace
+import com.meetspace.app.ui.NotificationBell
+import com.meetspace.app.ui.NotificationCenter
+import com.meetspace.app.ui.NotificationFilter
+import com.meetspace.core.model.InboxNotification
+import kotlin.math.roundToInt
 import com.meetspace.core.media.CallPhase
 import com.meetspace.core.designsystem.MeetSpaceTheme
 
@@ -145,8 +153,13 @@ class MainActivity : ComponentActivity() {
                     meetSpace.pushController.reconcile()
                 }
             }
-            DisposableEffect(messagingModel) {
-                messagingModel.onNotification(meetSpace.messagingNotifications::show)
+            val notificationDeliveryIdentity = state.repository.let { current ->
+                val origin = current.selectedProfile?.origin
+                val user = current.session?.user?.id
+                if (current.session?.guestMeeting == null && origin != null && user != null) "$origin|$user" else null
+            }
+            DisposableEffect(messagingModel, notificationDeliveryIdentity) {
+                messagingModel.onNotification { item -> meetSpace.messagingNotifications.show(item, notificationDeliveryIdentity) }
                 onDispose { messagingModel.onNotification(null) }
             }
             MeetSpaceTheme(themeMode = state.repository.theme) {
@@ -166,6 +179,50 @@ class MainActivity : ComponentActivity() {
                 val callsSearchVisible = remember(authIdentity) { mutableStateOf(false) }
                 val workspaceRequest = rememberSaveable(authIdentity) { mutableStateOf<WorkspaceTab?>(null) }
                 val activeWorkspace = remember(authIdentity) { mutableStateOf(WorkspaceTab.CALLS) }
+                val notificationScope = listOf(state.repository.selectedProfile?.id, state.repository.selectedProfile?.origin, state.repository.session?.user?.id)
+                val notificationPanel = remember(notificationScope) { mutableStateOf(false) }
+                val notificationAnchor = remember(notificationScope) { mutableStateOf<IntRect?>(null) }
+                val profileSectionRequest = remember(notificationScope) { mutableStateOf<String?>(null) }
+                val legacyNotificationSettings = remember(notificationScope) { mutableStateOf(false) }
+                val notificationConversationRequest = remember(notificationScope) { mutableStateOf(0) }
+                val showNotifications: () -> Unit = {
+                    if (messagingState.notificationFilter != NotificationFilter.ALL) messagingModel.actions.notificationFilter(NotificationFilter.ALL)
+                    else messagingModel.loadNotifications()
+                    notificationPanel.value = true
+                }
+                val notificationBell: @androidx.compose.runtime.Composable () -> Unit = {
+                    NotificationBell(messagingState.notificationUnread, notificationPanel.value, showNotifications,
+                        Modifier.onGloballyPositioned { coordinates ->
+                            val bounds = coordinates.boundsInWindow()
+                            notificationAnchor.value = IntRect(bounds.left.roundToInt(), bounds.top.roundToInt(), bounds.right.roundToInt(), bounds.bottom.roundToInt())
+                        })
+                }
+                val openNotification: (InboxNotification) -> Unit = { item ->
+                    messagingModel.readNotification(item.id)
+                    item.destination()?.let { destination ->
+                        notificationPanel.value = false
+                        when (destination) {
+                            is NotificationDestination.Meeting -> { meetingsModel.open(destination.id); workspaceRequest.value = WorkspaceTab.CALLS }
+                            is NotificationDestination.Conversation -> {
+                                notificationConversationRequest.value++
+                                messagingModel.open(destination.id)
+                                destination.messageId?.let(messagingModel::focusMessage)
+                                workspaceRequest.value = WorkspaceTab.MESSAGES
+                            }
+                            is NotificationDestination.Recording -> recordingsModel.openNotification(destination.meetingId, destination.recordingId, destination.summary)
+                        }
+                    }
+                }
+                val foundationVisible = !directSession.visible && !(meetingVisible && !callMinimized.value) && !recordingsState.visible &&
+                    state.screen == FoundationScreen.WORKSPACE && state.repository.session?.user != null && state.repository.session?.guestMeeting == null
+                LaunchedEffect(requestedInbox, foundationVisible, notificationScope) {
+                    if (requestedInbox && foundationVisible) {
+                        notificationAnchor.value = null
+                        showNotifications()
+                        openInbox.value = false
+                        if (intent.action == MessagingNotifications.OPEN_INBOX) setIntent(Intent(intent).setAction(null))
+                    }
+                }
                 val personalBannerVisible = directSession.active && directSession.minimized &&
                     (activeWorkspace.value != WorkspaceTab.MESSAGES || messagingState.selectedId != directSession.call?.conversationId || recordingsState.visible)
                 LaunchedEffect(authIdentity) {
@@ -211,7 +268,7 @@ class MainActivity : ComponentActivity() {
                     onTheme = model::theme,
                     onNavigate = model::navigate,
                     onClearMessage = model::clearMessage,
-                    onNotifications = { openInbox.value = true },
+                    onNotifications = showNotifications,
                     unreadCount = messagingState.notificationUnread.coerceIn(0, 99).toInt(),
                     messageThreadOpen = messagingState.selectedId != null,
                     requestedWorkspaceTab = workspaceRequest.value,
@@ -221,6 +278,7 @@ class MainActivity : ComponentActivity() {
                         key(state.repository.selectedProfile?.id, state.repository.selectedProfile?.origin, state.repository.session?.user?.id) {
                             LaunchedEffect(tab) {
                                 activeWorkspace.value = tab
+                                if (tab != WorkspaceTab.PROFILE) profileSectionRequest.value = null
                                 if (tab == com.meetspace.app.ui.WorkspaceTab.HOME) {
                                     messagingModel.activate()
                                     if (messagingState.selectedFolderId != null) messagingModel.filter(messagingState.filter)
@@ -230,9 +288,6 @@ class MainActivity : ComponentActivity() {
                                 messagingModel.workspaceVisible(tab == com.meetspace.app.ui.WorkspaceTab.MESSAGES)
                                 onDispose { messagingModel.workspaceVisible(false) }
                             }
-                            LaunchedEffect(requestedInbox) {
-                                if (requestedInbox) onTab(com.meetspace.app.ui.WorkspaceTab.MESSAGES)
-                            }
                             if (tab == com.meetspace.app.ui.WorkspaceTab.MESSAGES) MessagingHost(messagingModel, messagingState, meetSpace.pushController, pushState,
                                 listOf(state.repository.selectedProfile?.origin, state.repository.session?.user?.id).joinToString("|"),
                                 openMeeting = { id -> meetingsModel.open(id); onTab(com.meetspace.app.ui.WorkspaceTab.CALLS) },
@@ -240,14 +295,12 @@ class MainActivity : ComponentActivity() {
                                 onStartCall = messagingState.detail.data?.takeIf { it.type == "direct" }?.peer?.let { peer -> { directCalls.start(peer) } },
                                 personalCall = directSession.takeIf { it.active && it.call?.conversationId == messagingState.selectedId },
                                 onResumeCall = directCalls::resume,
+                                notificationBell = notificationBell, onNotifications = showNotifications, openNotification = openNotification,
+                                conversationNavigationRevision = notificationConversationRequest.value,
+                                inboxRequested = legacyNotificationSettings.value, consumeInbox = { legacyNotificationSettings.value = false },
                                 newChatRequested = newChatRequested.value, foldersRequested = foldersRequested.value,
                                 consumeWorkspaceRequest = { newChatRequested.value = false; foldersRequested.value = false },
-                                inboxRequested = requestedInbox, consumeInbox = {
-                                    openInbox.value = false
-                                    // onCreate sees this Intent again after rotation. Consume
-                                    // only this action, retaining all other launch information.
-                                    if (intent.action == MessagingNotifications.OPEN_INBOX) setIntent(Intent(intent).setAction(null))
-                                })
+                                )
                             else if (tab == com.meetspace.app.ui.WorkspaceTab.PROFILE) SettingsHost(pushState, content = { settings, settingsActions ->
                                 val changeAccount: (() -> Unit) -> Unit = { action ->
                                     when {
@@ -264,10 +317,11 @@ class MainActivity : ComponentActivity() {
                                     messaging = messagingState, messagingActions = messagingModel.actions,
                                     onServerAddress = { origin -> recordingsModel.close(); meetingsModel.suspendWork(); messagingModel.suspendWork(); model.connect(origin) },
                                     onSelectAccount = { id -> changeAccount { model.selectProfile(id) } },
-                                    initialSection = state.accountSection, registeredAccountEmail = state.accountCreatedEmail,
+                                    initialSection = profileSectionRequest.value ?: state.accountSection, registeredAccountEmail = state.accountCreatedEmail,
+                                    onManagePush = { legacyNotificationSettings.value = true; workspaceRequest.value = WorkspaceTab.MESSAGES },
                                     onAddAccount = { url, email, password, name, confirmation -> changeAccount { model.addAccount(url, email, password, name, confirmation) } },
                                     onDeleteAccount = { password -> changeAccount { model.deleteAccount(password) } })
-                            }) { openInbox.value = true; onTab(com.meetspace.app.ui.WorkspaceTab.MESSAGES) }
+                            }) { showNotifications() }
                             else {
                                 MeetingsWorkspace(tab, meetingsState, state.repository, meetingsModel.actions.copy(call = { meeting ->
                                     if (directSession.active) { directCalls.resume(); directCalls.message("Сначала завершите личный звонок, чтобы подключиться к встрече.") }
@@ -275,6 +329,7 @@ class MainActivity : ComponentActivity() {
                                     else meetSpace.callEngine.prepare(meeting)
                                 }, recordings = recordingsModel::show), onTab,
                                     callsSearchVisible = callsSearchVisible.value,
+                                    notificationBell = notificationBell,
                                     onFolders = { foldersRequested.value = true; onTab(com.meetspace.app.ui.WorkspaceTab.MESSAGES) },
                                     homeContent = { create, schedule, join ->
                                         HomeDashboard(state.repository, messagingState, messagingModel.actions,
@@ -321,6 +376,17 @@ class MainActivity : ComponentActivity() {
                     },
                 ) }
                 }
+                }
+                if (notificationPanel.value && foundationVisible) {
+                    NotificationCenter(messagingState, messagingModel.actions.copy(openNotification = openNotification),
+                        onDismiss = { notificationPanel.value = false },
+                        onSettings = {
+                            notificationPanel.value = false
+                            profileSectionRequest.value = "notifications"
+                            workspaceRequest.value = WorkspaceTab.PROFILE
+                        }, anchorBounds = notificationAnchor.value,
+                        meetingTitles = (meetingsState.list.data?.items.orEmpty() + meetingsState.upcoming.data?.items.orEmpty() +
+                            meetingsState.active.data?.items.orEmpty() + listOfNotNull(meetingsState.detail.data)).associate { it.id to it.title })
                 }
                 if (!directSession.visible && directSession.error != null) AlertDialog(onDismissRequest = directCalls::clearMessage,
                     title = { Text("Личный звонок") }, text = { Text(directSession.error) },

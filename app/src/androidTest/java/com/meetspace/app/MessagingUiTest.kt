@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.espresso.Espresso
 import androidx.core.view.WindowCompat
 import com.meetspace.app.ui.*
 import com.meetspace.core.designsystem.MeetSpaceTheme
@@ -174,12 +175,18 @@ class MessagingUiTest {
         var query = ""
         var filter: ChatFilter? = null
         var more = 0
-        val state = ready.copy(selectedId = null, conversationCursor = "opaque")
-        compose.setContent { Screen(state, MessagingActions(query = { query = it }, filter = { filter = it }, moreConversations = { more++ }), 360) }
+        var state by mutableStateOf(ready.copy(selectedId = null, conversationCursor = "opaque"))
+        val editor = FormEditorWindow()
+        compose.setContent {
+            editor.Observe()
+            Screen(state, MessagingActions(query = { query = it; state = state.copy(query = it) },
+                filter = { filter = it }, moreConversations = { more++ }), 360)
+        }
         compose.onNodeWithTag("messaging-search-toggle").performClick()
         compose.onNodeWithTag("conversation-search").performTextInput("Анна")
         compose.runOnIdle { assertEquals("Анна", query) }
-        compose.onNodeWithTag("chat-filter-direct").performClick()
+        compose.onNodeWithTag("conversation-search").assert(SemanticsMatcher.expectValue(SemanticsProperties.EditableText, AnnotatedString("Анна")))
+        compose.settleFormEditorForClick(editor, compose.onNodeWithTag("chat-filter-direct"), scroll = false).performClick()
         compose.runOnIdle { assertEquals(ChatFilter.DIRECT, filter) }
         compose.onNodeWithTag("conversation-list").performScrollToNode(hasTestTag("conversations-more"))
         compose.onNodeWithTag("conversations-more").performClick()
@@ -197,11 +204,21 @@ class MessagingUiTest {
         var state by mutableStateOf(ready.copy(draft = ""))
         var sends = 0
         var draft = ""
-        compose.setContent { Screen(state, MessagingActions(send = { sends++ }, draft = { draft = it }), 360) }
+        val editor = FormEditorWindow()
+        compose.setContent {
+            editor.Observe()
+            Screen(state, MessagingActions(send = { sends++ }, draft = {
+                draft = it
+                // Match the production controlled field: publish each edit immediately,
+                // before platform IME selection/resize callbacks can observe an old value.
+                state = state.copy(draft = it)
+            }), 360)
+        }
         compose.onNodeWithTag("message-send").assertIsNotEnabled()
         compose.onNodeWithTag("message-draft").performTextInput("Проверка")
-        compose.runOnIdle { assertEquals("Проверка", draft); state = state.copy(draft = draft) }
-        compose.onNodeWithTag("message-send").performClick()
+        compose.runOnIdle { assertEquals("Проверка", draft) }
+        compose.onNodeWithTag("message-draft").assert(SemanticsMatcher.expectValue(SemanticsProperties.EditableText, AnnotatedString("Проверка")))
+        compose.settleFormEditorForClick(editor, compose.onNodeWithTag("message-send"), scroll = false).assertIsEnabled().performClick()
         compose.runOnIdle { assertEquals(1, sends); state = state.copy(sending = true) }
         compose.onNodeWithTag("message-send").assertIsNotEnabled()
         compose.onNodeWithTag("message-attach").assertIsNotEnabled()
@@ -262,13 +279,18 @@ class MessagingUiTest {
     @Test fun createGroupNeedsTitleAndSelectedUserAndWaitsForAcknowledgment() {
         var created: Triple<String, String, List<String>>? = null
         var state by mutableStateOf(ready.copy(selectedId = null, users = MessagingLoad(listOf(peer))))
-        compose.setContent { Screen(state, MessagingActions(createGroup = { name, description, users -> created = Triple(name, description, users) }), 1000) }
+        val editor = FormEditorWindow()
+        compose.setContent { editor.Observe(); Screen(state, MessagingActions(createGroup = { name, description, users -> created = Triple(name, description, users) }), 1000) }
         compose.onNodeWithTag("messaging-new").performClick()
         compose.onNodeWithTag("create-chat-group").performClick()
         compose.onNodeWithTag("create-group-submit").assertIsNotEnabled()
         compose.onNodeWithTag("create-group-name").performTextInput("  Команда  ")
-        compose.onNodeWithTag("group-select-${peer.id}").performScrollTo().performClick()
-        compose.onNodeWithTag("create-group-submit").performClick()
+        // The dialog owns a separate Android window/focus manager. Dismiss its
+        // actual IME rather than asking the underlying Activity's editor to hide it.
+        Espresso.closeSoftKeyboard()
+        compose.onNodeWithTag("create-group-name").assertIsDisplayed()
+        compose.settleFormEditorForClick(editor, compose.onNodeWithTag("group-select-${peer.id}")).performClick()
+        compose.settleFormEditorForClick(editor, compose.onNodeWithTag("create-group-submit"), scroll = false).assertIsEnabled().performClick()
         compose.runOnIdle { assertEquals(Triple("Команда", "", listOf(peer.id)), created); state = state.copy(busy = true) }
         compose.onNodeWithTag("create-group-submit").assertIsNotEnabled()
         compose.onNodeWithTag("create-group-name").assertExists()

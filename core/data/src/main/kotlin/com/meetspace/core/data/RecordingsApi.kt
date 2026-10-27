@@ -35,6 +35,26 @@ internal class RecordingsApi(private val api: MeetSpaceApi) {
         return RecordingPage(cards.map { it.recording }, (offset + cards.size).takeIf { cards.size == limit })
     }
 
+    suspend fun library(origin: String, token: String, cursor: String?, limit: Int): RecordingLibraryPage {
+        if (limit !in 1..100 || cursor?.let { it.isBlank() || it.length > 256 || it.any(Char::isISOControl) } == true) input()
+        val query = buildMap { put("limit", "$limit"); cursor?.let { put("cursor", it) } }
+        val body = try { request(origin, token, listOf("recordings"), query) }
+        catch (failure: HttpFailure) {
+            if (failure.statusCode in setOf(404, 501)) throw AppFailure(FailureKind.INCOMPATIBLE_SERVER,
+                "Сервер не поддерживает общий каталог записей. Обновите MeetSpace на сервере.")
+            throw failure
+        }
+        val items = body.array("items", limit).map { element ->
+            val row = element.obj()
+            val meeting = decodeRecordingMeeting((row["conference"]?.obj() ?: invalid()).toString(), origin)
+            val record = card(row["recording"]?.obj() ?: invalid(), origin, meeting.id).recording
+            RecordingLibraryItem(meeting, record)
+        }
+        if (items.map { it.recording.id }.distinct().size != items.size) invalid()
+        val next = body.optionalText("nextCursor", 256)?.also { if (it.isBlank() || it == cursor) invalid() }
+        return RecordingLibraryPage(items, next)
+    }
+
     suspend fun read(origin: String, token: String, cid: String, rid: String): RecordingCard {
         val body = request(origin, token, path(cid, rid))
         return card(body["item"]?.obj() ?: invalid(), origin, cid).also { if (it.recording.id != rid) invalid() }

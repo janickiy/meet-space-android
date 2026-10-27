@@ -5,6 +5,7 @@ internal class RingtoneVolume(
     private val current: () -> Int,
     private val maximum: () -> Int,
     private val allowed: () -> Boolean,
+    private val restoreAllowed: () -> Boolean = allowed,
     private val set: (Int) -> Unit,
 ) : AutoCloseable {
     private var original: Int? = null
@@ -30,7 +31,7 @@ internal class RingtoneVolume(
         val last = applied
         original = null; applied = null
         runCatching {
-            if (before != null && last != null && allowed() && current() == last) set(before)
+            if (before != null && last != null && restoreAllowed() && current() == last) set(before)
         }
     }
 }

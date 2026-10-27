@@ -1,0 +1,20 @@
+{
+  "backendCommit": "f5267dcd025d21917512633ee92289531d90d18c",
+  "dirtySourceFilesSha256": {
+    "internal/transport/http/conference_recording_routes.go": "770bcce72a5356b8b86fcdc6d8ab7a1e165614cf27815f784151e16c52c766bd",
+    "internal/app/recordings/library.go": "4d58d74310e9cfc737eea7d4c3e82839d8df8f1f2f366a3efbaefe54d1b373b8",
+    "internal/domain/records/library.go": "09e6f2a93220d5d528b0cc0cbfb9e01731d9556bf4129409730a79bc479596ca",
+    "internal/domain/records/library_test.go": "9095f48ce2926c50def1666c98c10d5f58fb3d0a15d75fc90f4734943fe3ee45",
+    "internal/infrastructure/postgres/recording_library.go": "55cb756537491b794d5865afa135077b4cda21f1ac29689895b6762d08eb3287",
+    "internal/infrastructure/postgres/recording_library_integration_test.go": "158a7296446f7d3238f7bbaf6953e6fb70a52b24723fec4e6412d9659395a7ef",
+    "internal/transport/http/recording_library_test.go": "03d933d156592b08ab161c9576ec1e5a58cd6ea9182ceaf5f013f2300f5bd048",
+    "internal/usecase/recordings/library.go": "04dcdcb0cc14ac793d2198adb2dc20e0c2d161d49e55fb61b0d06be710ea7d41",
+    "internal/usecase/recordings/library_test.go": "195d5d6d5c3c6d3af5d4a5c6ba6c8c27ba5007165fdd73439d7499ac81e2b729"
+  },
+  "fixtureBinarySha256": "5f6ddcc6aa26648dd1ce63b429b99b8b268a4b499bd879baaff7dbcbd0c9922c",
+  "currentRecordingContractChecksPassed": 836,
+  "businessMocks": false,
+  "capturePipelineExercised": false,
+  "externalSttOrAiExercised": false,
+  "productionMutations": false
+}

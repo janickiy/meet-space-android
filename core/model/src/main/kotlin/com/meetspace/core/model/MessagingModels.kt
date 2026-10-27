@@ -45,7 +45,8 @@ data class FolderEntry(val type: String, val conversation: ChatConversation? = n
 }
 data class InboxNotification(val id: String, val type: String, val createdAt: Instant,
     val readAt: Instant? = null, val conferenceId: String? = null, val conversationId: String? = null,
-    val messageId: String? = null, val scheduledAt: Instant? = null)
+    val messageId: String? = null, val scheduledAt: Instant? = null,
+    val recordingId: String? = null, val transcriptId: String? = null, val summaryId: String? = null)
 data class NotificationPage(val items: List<InboxNotification>, val nextCursor: String? = null, val unreadCount: Long = 0)
 data class NotificationPreferences(val invitation: Boolean = true, val reminder: Boolean = true,
     val recording: Boolean = true, val summary: Boolean = true, val email: Boolean = false, val push: Boolean = false)

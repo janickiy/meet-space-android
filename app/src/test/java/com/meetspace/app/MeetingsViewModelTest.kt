@@ -258,6 +258,69 @@ class MeetingsViewModelTest {
         assertFalse(model.state.value.history.loading)
     }
 
+    @Test fun deniedMeetingRefreshPurgesItsPrivateProjectionAndRejectsLateHistory() = runTest(dispatcher) {
+        for (kind in listOf(FailureKind.FORBIDDEN, FailureKind.NOT_FOUND)) {
+            val closed = meeting("closed", "finished").copy(title = "Private meeting title", inviteCode = "private-invite")
+            val repository = FakeMeetings().apply {
+                conferenceResult = { closed }
+                timelineResult = { MeetingPage(listOf(closed, meeting("other")), null) }
+            }
+            val model = model(repository)
+            model.refreshHome(); model.refreshList(); model.refreshCalendar(); model.open("closed"); runCurrent()
+            assertEquals("Private meeting title", model.state.value.detail.data!!.title)
+            assertEquals("private-invite", model.state.value.detail.data!!.inviteCode)
+            assertNotNull(model.state.value.self.data); assertNotNull(model.state.value.history.data)
+            val historyGate = CompletableDeferred<MeetingHistory>()
+            repository.historyResult = { withContext(NonCancellable) { historyGate.await() } }
+            model.refreshDetail(); runCurrent()
+            assertTrue(model.state.value.history.loading)
+            repository.conferenceResult = { throw AppFailure(kind, "Доступ отозван") }
+            model.refreshDetail(); runCurrent()
+            assertNull(model.state.value.detail.data); assertNull(model.state.value.self.data); assertNull(model.state.value.history.data)
+            assertEquals("Доступ отозван", model.state.value.detail.error)
+            val feeds = listOf(model.state.value.upcoming, model.state.value.active, model.state.value.list) + model.state.value.calendarFeeds.values
+            assertTrue(feeds.all { it.data!!.items.map { row -> row.id } == listOf("other") })
+            historyGate.complete(history(closed)); runCurrent()
+            assertNull(model.state.value.history.data)
+            model.suspendWork()
+        }
+    }
+
+    @Test fun historyAndMembershipDenialsClearTheirCachedProjectionWithoutHidingReadableMeeting() = runTest(dispatcher) {
+        for (denyHistory in listOf(false, true)) {
+            val repository = FakeMeetings().apply { conferenceResult = { meeting(it, "finished") } }
+            val model = model(repository)
+            model.open("closed"); runCurrent()
+            assertNotNull(model.state.value.history.data); assertNotNull(model.state.value.self.data)
+            if (denyHistory) repository.historyResult = { throw AppFailure(FailureKind.FORBIDDEN, "История недоступна") }
+            else repository.membershipResult = { throw AppFailure(FailureKind.NOT_FOUND, "Участие недоступно") }
+            model.refreshDetail(); runCurrent()
+            assertNotNull(model.state.value.detail.data)
+            if (denyHistory) {
+                assertNull(model.state.value.history.data); assertEquals("История недоступна", model.state.value.history.error)
+                assertNotNull(model.state.value.self.data)
+            } else {
+                assertNull(model.state.value.self.data); assertEquals("Участие недоступно", model.state.value.self.error)
+                assertNotNull(model.state.value.history.data)
+            }
+            model.suspendWork()
+        }
+    }
+
+    @Test fun temporaryDetailNetworkFailureKeepsTheAuthorisedCachedProjection() = runTest(dispatcher) {
+        val repository = FakeMeetings().apply { conferenceResult = { meeting(it, "finished") } }
+        val model = model(repository)
+        model.open("closed"); runCurrent()
+        val before = model.state.value
+        repository.conferenceResult = { throw AppFailure(FailureKind.NETWORK, "Нет сети") }
+        model.refreshDetail(); runCurrent()
+        assertEquals(before.detail.data, model.state.value.detail.data)
+        assertEquals(before.self.data, model.state.value.self.data)
+        assertEquals(before.history.data, model.state.value.history.data)
+        assertEquals("Нет сети", model.state.value.detail.error)
+        model.suspendWork()
+    }
+
     @Test fun waitingAdmissionNeverClaimsConnectedAudioOrVideo() = runTest(dispatcher) {
         val repository = FakeMeetings().apply { joinResult = { participant("room").copy(status = "waiting", admissionState = "waiting") } }
         val model = model(repository)
@@ -305,13 +368,14 @@ class MeetingsViewModelTest {
         var conferenceResult: suspend (String) -> Meeting = { meeting(it) }
         var createResult: suspend (MeetingInput) -> Meeting = { meeting("created") }
         var historyResult: suspend (String) -> MeetingHistory = { history(meeting(it, "finished")) }
+        var membershipResult: suspend (String) -> MeetingParticipant? = { participant(it) }
         var joinResult: suspend (String) -> MeetingParticipant = { participant("room") }
         override suspend fun timeline(query: MeetingsQuery): MeetingPage { queries += query; return timelineResult(query) }
         override suspend fun conference(id: String) = conferenceResult(id)
         override suspend fun createMeeting(input: MeetingInput): Meeting { createCalls++; return createResult(input) }
         override suspend fun scheduleMeeting(id: String, scheduledAt: Instant, plannedDurationMin: Int?) = meeting(id, "scheduled").copy(scheduledAt = scheduledAt, plannedDurationMin = plannedDurationMin)
         override suspend fun transitionMeeting(id: String, transition: MeetingTransition) = meeting(id)
-        override suspend fun membership(id: String) = participant(id)
+        override suspend fun membership(id: String) = membershipResult(id)
         override suspend fun joinMeeting(id: String, inviteCode: String?) = joinResult(id)
         override suspend fun joinInvite(rawCodeOrUrl: String) = joinResult(rawCodeOrUrl)
         override suspend fun leaveMeeting(id: String) = participant(id).copy(status = "left")

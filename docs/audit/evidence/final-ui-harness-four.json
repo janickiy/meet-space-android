@@ -1,0 +1,32 @@
+{
+  "label": "final-ui-harness-four",
+  "serial": "emulator-5558",
+  "elapsedSeconds": 13.0,
+  "tests": [
+    {
+      "class": "com.meetspace.app.MessagingUiTest",
+      "test": "paginationAndServerSearchAreExplicitCallbacks",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.MessagingUiTest",
+      "test": "createGroupNeedsTitleAndSelectedUserAndWaitsForAcknowledgment",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.MessagingUiTest",
+      "test": "composerRequiresContentAndBlocksDuplicateSendUntilServerReturns",
+      "code": 0
+    },
+    {
+      "class": "com.meetspace.app.RecordingsUiTest",
+      "test": "librarySearchAndLargeTextKeepCardsReachableAndPrivateQueryIsNotRestored",
+      "code": 0
+    }
+  ],
+  "passed": 4,
+  "failed": 0,
+  "skipped": 0,
+  "total": 4,
+  "runnerSuccess": true
+}

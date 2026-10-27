@@ -21,6 +21,7 @@ import kotlinx.coroutines.withContext
 fun MeetingCallHost(engine: CallEngine, state: CallState, model: CallDiscussionViewModel, details: CallUiDetails,
     authScope: String, profileLabel: String, onWorkspaceTab: ((WorkspaceTab) -> Unit)?) {
     val context = LocalContext.current
+    val resolver = context.applicationContext.contentResolver
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val effects = rememberCoroutineScope()
     val identity by rememberUpdatedState(authScope to state.conferenceId)
@@ -39,8 +40,8 @@ fun MeetingCallHost(engine: CallEngine, state: CallState, model: CallDiscussionV
             try {
                 // Activity results can arrive before repeatOnLifecycle restarts the discussion.
                 lifecycle.withResumed { if (target == identity) model.foreground(true) }
-                val metadata = MessagingFiles.metadata(context.contentResolver, uri)
-                if (target == identity) model.upload(metadata.name, metadata.mimeType) { MessagingFiles.read(context.contentResolver, uri) }
+                val metadata = MessagingFiles.metadata(resolver, uri)
+                if (target == identity) model.upload(metadata.name, metadata.mimeType) { MessagingFiles.read(resolver, uri) }
             } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
             catch (error: Exception) { if (target == identity) model.message((error as? com.meetspace.core.model.AppFailure)?.message ?: "Не удалось открыть файл.") }
         }
@@ -52,12 +53,12 @@ fun MeetingCallHost(engine: CallEngine, state: CallState, model: CallDiscussionV
             try {
                 lifecycle.withResumed { if (target?.identity == identity) model.foreground(true) }
                 accepted = target != null && target.identity == identity && model.export(target.message, target.attachment,
-                    onFailure = { withContext(Dispatchers.IO) { runCatching { context.contentResolver.delete(uri, null, null) }; Unit } }) {
-                        MessagingFiles.write(context.contentResolver, uri, it)
+                    onFailure = { withContext(Dispatchers.IO) { runCatching { resolver.delete(uri, null, null) }; Unit } }) {
+                        MessagingFiles.write(resolver, uri, it)
                     }
             } finally {
                 if (!accepted) withContext(NonCancellable + Dispatchers.IO) {
-                    runCatching { context.contentResolver.delete(uri, null, null) }
+                    runCatching { resolver.delete(uri, null, null) }
                 }
             }
         }
@@ -68,5 +69,5 @@ fun MeetingCallHost(engine: CallEngine, state: CallState, model: CallDiscussionV
             exporting = Export(identity, message, attachment); save.launch(MessagingFiles.safeName(it.filename))
         } },
     )
-    CallHost(engine, state, onWorkspaceTab, profileLabel, details, actions, recordingActions = model.recordingActions)
+    CallHost(engine, state, onWorkspaceTab, profileLabel, details, actions, recordingActions = model.recordingActions, authScope = authScope)
 }

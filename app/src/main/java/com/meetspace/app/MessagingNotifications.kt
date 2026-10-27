@@ -10,11 +10,22 @@ import androidx.core.app.NotificationManagerCompat
 import com.meetspace.core.model.InboxNotification
 
 /** Generic lock-screen content. The inbox rechecks permissions; no signed URLs or message text in intents. */
-class MessagingNotifications(private val context: Context) {
+class MessagingNotifications internal constructor(private val context: Context, private val identity: () -> String?,
+    private val channelId: String = CHANNEL) {
     private val manager get() = context.getSystemService(NotificationManager::class.java)
-    fun show(item: InboxNotification) {
+    private val deliveredPreferences = context.getSharedPreferences("meetspace-notification-delivery", Context.MODE_PRIVATE)
+    private val delivered = NotificationDeliveryHistory(deliveredPreferences.getString("delivered", "").orEmpty())
+
+    fun show(item: InboxNotification) { show(item, identity()) }
+
+    @Synchronized
+    internal fun show(item: InboxNotification, expectedScope: String?) {
+        val scope = expectedScope ?: return
+        if (identity() != scope) return
+        if (item.readAt != null || item.id.isBlank() || delivered.contains(scope, item.id)) return
         if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return
-        manager.createNotificationChannel(NotificationChannel(CHANNEL, "Чаты и встречи", NotificationManager.IMPORTANCE_DEFAULT))
+        manager.createNotificationChannel(NotificationChannel(channelId, "Чаты и встречи", NotificationManager.IMPORTANCE_DEFAULT))
+        if (manager.getNotificationChannel(channelId)?.importance == NotificationManager.IMPORTANCE_NONE) return
         val intent = Intent(context, MainActivity::class.java).setAction(OPEN_INBOX).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         val open = PendingIntent.getActivity(context, 707, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val text = when {
@@ -23,11 +34,19 @@ class MessagingNotifications(private val context: Context) {
             item.type == "conference.invited" || item.type.contains("invitation") -> "Приглашение на встречу"
             else -> "Новое уведомление"
         }
-        val notification = NotificationCompat.Builder(context, CHANNEL).setSmallIcon(R.drawable.ic_meetspace)
+        val notification = NotificationCompat.Builder(context, channelId).setSmallIcon(R.drawable.ic_meetspace)
             .setContentTitle("MeetSpace").setContentText(text).setContentIntent(open).setAutoCancel(true)
-            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE).setOnlyAlertOnce(true).build()
-        runCatching { manager.notify(TAG, 707, notification) }
+            // The system channel owns sound, volume, vibration and DND policy in foreground too.
+            // New events may alert again; a duplicate event is rejected by the scoped journal.
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE).setOnlyAlertOnce(false).build()
+        if (identity() != scope) return
+        runCatching {
+            manager.notify(TAG, 707, notification)
+            delivered.record(scope, item.id)
+            deliveredPreferences.edit().putString("delivered", delivered.snapshot()).apply()
+        }
     }
+    @Synchronized
     fun clear() { manager.cancel(TAG, 707) }
     companion object {
         const val OPEN_INBOX = "com.meetspace.app.OPEN_INBOX"

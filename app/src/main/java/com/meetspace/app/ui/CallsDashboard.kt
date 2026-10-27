@@ -27,6 +27,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
@@ -42,14 +43,19 @@ import java.util.Locale
 
 /** The October 12 reference merges Home and Calls into the authenticated meeting list. */
 @Composable
-internal fun MeetingsHeader(wide: Boolean, calendar: () -> Unit, recordings: () -> Unit) {
+internal fun MeetingsHeader(wide: Boolean, calendar: () -> Unit, recordings: () -> Unit,
+    notificationBell: (@Composable () -> Unit)? = null) {
     Row(Modifier.fillMaxWidth().heightIn(min = 75.dp).background(MaterialTheme.colorScheme.surface)
         .padding(start = if (wide) 30.dp else 20.dp, end = if (wide) 24.dp else 14.dp, bottom = 0.dp)
         .testTag("meetings-header"), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
         if (wide) Image(painterResource(R.drawable.ic_meetspace), null, Modifier.size(32.dp))
-        Text("Встречи", Modifier.weight(1f).semantics { heading() }, fontSize = if (wide) 25.sp else 23.sp, lineHeight = 31.sp, fontWeight = FontWeight.SemiBold)
-        IconButton(calendar, Modifier.testTag("calls-calendar")) { Icon(Icons.Outlined.CalendarMonth, "Открыть календарь", Modifier.size(27.dp)) }
-        IconButton(recordings, Modifier.testTag("meeting-recordings")) { Icon(Icons.Outlined.PlayCircleOutline, "Записи встреч", Modifier.size(27.dp)) }
+        Text("Встречи", Modifier.weight(1f).semantics { heading() }, fontSize = if (wide) 25.sp else 23.sp, lineHeight = 31.sp, fontWeight = FontWeight.SemiBold,
+            maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (wide) 8.dp else 0.dp)) {
+            IconButton(calendar, Modifier.testTag("calls-calendar")) { Icon(Icons.Outlined.CalendarMonth, "Открыть календарь", Modifier.size(27.dp)) }
+            IconButton(recordings, Modifier.testTag("meeting-recordings")) { Icon(Icons.Outlined.PlayCircleOutline, "Записи встреч", Modifier.size(27.dp)) }
+            notificationBell?.invoke()
+        }
     }
 }
 

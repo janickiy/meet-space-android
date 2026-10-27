@@ -1,0 +1,74 @@
+{
+  "app": {
+    "tests": 238,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "core/data": {
+    "tests": 182,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 12
+  },
+  "core/media": {
+    "tests": 28,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "core/ssh": {
+    "tests": 71,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "core/designsystem": {
+    "tests": 0,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "core/model": {
+    "tests": 0,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "lint-debug": {
+    "severity": {
+      "Warning": 57,
+      "Hint": 1
+    },
+    "ids": {
+      "ApplySharedPref": 8,
+      "InlinedApi": 2,
+      "AndroidGradlePluginVersion": 3,
+      "GradleDependency": 13,
+      "NewerVersionAvailable": 10,
+      "ConfigurationScreenWidthHeight": 4,
+      "ModifierParameter": 2,
+      "AutoboxingStateCreation": 1,
+      "UseKtx": 11,
+      "UseTomlInstead": 4
+    }
+  },
+  "lint-release": {
+    "severity": {
+      "Warning": 56,
+      "Hint": 1
+    },
+    "ids": {
+      "ApplySharedPref": 8,
+      "InlinedApi": 2,
+      "AndroidGradlePluginVersion": 3,
+      "GradleDependency": 13,
+      "NewerVersionAvailable": 10,
+      "ConfigurationScreenWidthHeight": 3,
+      "ModifierParameter": 2,
+      "AutoboxingStateCreation": 1,
+      "UseKtx": 11,
+      "UseTomlInstead": 4
+    }
+  }
+}

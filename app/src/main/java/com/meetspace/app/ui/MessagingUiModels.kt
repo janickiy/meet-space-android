@@ -14,6 +14,7 @@ import com.meetspace.core.model.NotificationPreferences
 data class MessagingLoad<T>(val data: T? = null, val loading: Boolean = false, val error: String? = null)
 
 enum class ChatFilter { ALL, DIRECT, GROUP, UNREAD }
+enum class NotificationFilter { ALL, UNREAD }
 
 data class MessagingUiState(
     val selfId: String = "",
@@ -53,6 +54,8 @@ data class MessagingUiState(
     val notifications: MessagingLoad<List<InboxNotification>> = MessagingLoad(),
     val notificationCursor: String? = null,
     val notificationUnread: Long = 0,
+    val notificationFilter: NotificationFilter = NotificationFilter.ALL,
+    val notificationBusy: Boolean = false,
     val notificationPreferences: MessagingLoad<NotificationPreferences> = MessagingLoad(),
     val notificationPermissionEnabled: Boolean = false,
     val pushConfigured: Boolean = false,
@@ -122,6 +125,7 @@ data class MessagingActions(
     val openMeeting: (String) -> Unit = {},
     val loadNotifications: () -> Unit = {},
     val moreNotifications: () -> Unit = {},
+    val notificationFilter: (NotificationFilter) -> Unit = {},
     val readNotification: (String) -> Unit = {},
     val readAllNotifications: () -> Unit = {},
     val openNotification: (InboxNotification) -> Unit = {},

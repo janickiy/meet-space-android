@@ -1,0 +1,7 @@
+{
+  "queries": 178,
+  "advisories": 0,
+  "queriedAtUtc": "2026-10-26T23:15:42.495321+00:00",
+  "paginationIncomplete": false,
+  "scope": "Exact resolved releaseRuntimeClasspath Maven versions; excludes native transitive source vulnerabilities and build plugins"
+}

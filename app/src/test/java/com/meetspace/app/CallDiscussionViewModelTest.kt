@@ -594,6 +594,33 @@ class CallDiscussionViewModelTest {
         assertTrue(model.state.value.chat.entries.isEmpty())
     }
 
+    @Test fun clearingMeetingBeforeExportStartsStillCleansTheAcceptedDestination() = discussionTest {
+        val file = MeetingChatAttachment("file", "room", "notes.txt", "text/plain", 3, "attached", messageId = "entry")
+        var downloads = 0
+        val chat = Chat().apply {
+            stored = listOf(message("entry").copy(attachments = listOf(file)))
+            download = { _, _ -> downloads++; byteArrayOf(1, 2, 3) }
+        }
+        val model = model(chat)
+        connect(model); runCurrent()
+        var writes = 0; var cleanups = 0
+        assertTrue(model.export("entry", "file", onFailure = { cleanups++ }) { writes++ })
+        model.clear(); runCurrent()
+        assertEquals(0, downloads); assertEquals(0, writes); assertEquals(1, cleanups)
+        model.clear(); runCurrent(); assertEquals(1, cleanups)
+    }
+
+    @Test fun successfulMeetingAttachmentExportIsNotDeletedOnLeavingTheMeeting() = discussionTest {
+        val file = MeetingChatAttachment("file", "room", "notes.txt", "text/plain", 3, "attached", messageId = "entry")
+        val chat = Chat().apply { stored = listOf(message("entry").copy(attachments = listOf(file))) }
+        val model = model(chat)
+        connect(model); runCurrent()
+        var writes = 0; var cleanups = 0
+        assertTrue(model.export("entry", "file", onFailure = { cleanups++ }) { writes++ })
+        runCurrent(); model.clear(); runCurrent()
+        assertEquals(1, writes); assertEquals(0, cleanups)
+    }
+
     private fun discussionTest(block: suspend TestScope.() -> Unit) = runTest(dispatcher) {
         try { block() } finally {
             // viewModelScope is independent from the test body; stop polling before runTest

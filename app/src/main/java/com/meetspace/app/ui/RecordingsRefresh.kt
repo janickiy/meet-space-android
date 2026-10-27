@@ -1,6 +1,7 @@
 package com.meetspace.app.ui
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.selection.selectable
@@ -15,6 +16,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
@@ -23,6 +27,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.meetspace.core.model.*
+import com.meetspace.app.LocalRecordingPreviews
 import java.time.Instant
 
 internal val finishedRecordingStates = setOf("ready", "partial_ready", "failed", "cancelled")
@@ -142,7 +147,7 @@ internal fun RecordingLibraryContent(state: RecordingsUiState, actions: Recordin
                     row.recordings.error?.let { Text(it, color = MaterialTheme.colorScheme.error); TextButton({ actions.retryLibraryMeeting(row.meeting.id) }, modifier = Modifier.testTag("recordings-library-retry-${row.meeting.id}")) { Text("Повторить") } }
                     if (row.recordings.data?.nextOffset != null) TextButton({ actions.moreLibraryMeeting(row.meeting.id) }, enabled = !row.recordings.loading, modifier = Modifier.testTag("recordings-library-more-${row.meeting.id}")) { Text("Ещё записи этой встречи") } }
             }
-            if (library.hasMore) item { OutlinedButton(actions.moreLibrary, enabled = !library.loading, modifier = Modifier.fillMaxWidth().testTag("recordings-library-more")) { Text("Загрузить ещё встречи") } }
+            if (library.hasMore) item { OutlinedButton(actions.moreLibrary, enabled = !library.loading, modifier = Modifier.fillMaxWidth().testTag("recordings-library-more")) { Text("Показать ещё записи") } }
             item { RecordingRetention() }
         }
     }
@@ -187,12 +192,20 @@ private fun RecordingLibraryCard(meeting: Meeting, record: Recording, grid: Bool
     }
 }
 
-/** A neutral media placeholder until the authorised player supplies a real video frame. */
+/** Uses the backend's authorised JPEG poster; audio and unavailable posters retain a mode fallback. */
 @Composable
 internal fun RecordingModeCover(record: Recording, modifier: Modifier) {
+    val previews = LocalRecordingPreviews.current
+    val preview = record.files.firstOrNull { record.status in setOf("ready", "partial_ready") && it.type == "preview_jpg" && it.available }
+    val image = remember(previews, record.conferenceId, record.id, preview) { mutableStateOf<android.graphics.Bitmap?>(null) }
+    LaunchedEffect(previews, record.conferenceId, record.id, preview) {
+        image.value = if (previews != null && preview != null) previews.load(record, preview) else null
+    }
+    val bitmap = image.value
     val icon = when(record.mode) { "audio_only" -> Icons.Outlined.GraphicEq; "individual_tracks" -> Icons.Outlined.PeopleOutline; else -> Icons.Outlined.Videocam }
-    Box(modifier.background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
-        Icon(icon, null, Modifier.size(52.dp), tint = MaterialTheme.colorScheme.primary)
+    Box(modifier.clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
+        if (bitmap != null) Image(bitmap.asImageBitmap(), "Обложка записи", Modifier.fillMaxSize().testTag("recording-cover-${record.id}"), contentScale = ContentScale.Crop)
+        else Icon(icon, null, Modifier.size(52.dp).testTag("recording-cover-placeholder-${record.id}"), tint = MaterialTheme.colorScheme.primary)
         Surface(color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(6.dp), modifier = Modifier.align(Alignment.BottomEnd).padding(10.dp)) {
             Text(record.durationSec?.let(::recordingDuration) ?: recordingStatus(record), Modifier.padding(6.dp), fontSize = 10.sp)
         }
@@ -223,7 +236,7 @@ private fun RecordingRetention() { Surface(shape = RoundedCornerShape(12.dp), co
 @Composable
 internal fun RecordingDetails(state: RecordingsUiState, actions: RecordingsActions, modifier: Modifier, compact: Boolean, playingFileId: String?, inlinePlayer: (@Composable () -> Unit)?) {
     val record = state.detail.data
-    var summary by remember(state.detailId) { mutableStateOf(false) }
+    var summary by remember(state.detailId, state.initialSummary) { mutableStateOf(state.initialSummary) }
     var deleting by remember { mutableStateOf(false) }
     BoxWithConstraints(modifier.fillMaxHeight()) {
         val wide = maxWidth / LocalDensity.current.fontScale >= 850.dp

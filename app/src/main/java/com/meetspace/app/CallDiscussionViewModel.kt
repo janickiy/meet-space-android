@@ -378,12 +378,13 @@ class CallDiscussionViewModel(
         val cid = call.conferenceId
         val epoch = generation; val scope = identity
         downloading = file.id; publishMessages()
-        request("download", {
-            try {
-                val bytes = repository.downloadMeetingAttachment(cid, file)
-                try { coroutineContext.ensureActive(); guardScope(epoch, scope, cid); write(bytes) } finally { bytes.fill(0) }
-            } catch (error: Exception) { withContext(NonCancellable) { onFailure() }; throw error }
-        }, { downloading = null; publishMessages() }, { downloading = null; publishMessages(); message(it.message) })
+        var completed = false
+        val download = request("download", {
+            val bytes = repository.downloadMeetingAttachment(cid, file)
+            try { coroutineContext.ensureActive(); guardScope(epoch, scope, cid); write(bytes); completed = true } finally { bytes.fill(0) }
+        }, { downloading = null; publishMessages() }, { downloading = null; publishMessages(); message(it.message) }) ?: return false
+        // A cleared meeting may cancel the accepted request before its first instruction.
+        download.invokeOnCompletion { if (!completed) viewModelScope.launch(NonCancellable, start = CoroutineStart.UNDISPATCHED) { runCatching { onFailure() } } }
         return true
     }
 
@@ -437,8 +438,8 @@ class CallDiscussionViewModel(
     }
     private fun selfId() = foundation.state.value.session?.user?.id
     private fun cancel(key: String) { tickets[key] = (tickets[key] ?: 0) + 1; jobs.remove(key)?.cancel() }
-    private fun <T> request(key: String, block: suspend () -> T, success: (T) -> Unit, failure: (AppFailure) -> Unit) {
-        if (!connected()) return
+    private fun <T> request(key: String, block: suspend () -> T, success: (T) -> Unit, failure: (AppFailure) -> Unit): Job? {
+        if (!connected()) return null
         cancel(key)
         val ticket = tickets.getValue(key); val epoch = generation; val scope = identity; val conference = call.conferenceId
         fun current() = epoch == generation && scope == account() && conference == call.conferenceId && tickets[key] == ticket
@@ -453,6 +454,7 @@ class CallDiscussionViewModel(
         }
         jobs[key] = job
         job.start()
+        return job
     }
     private fun stopRequests() {
         generation++; poll?.cancel(); poll = null

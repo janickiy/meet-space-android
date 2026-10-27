@@ -123,8 +123,8 @@ jobs:
           "$adb" -s "$ANDROID_SERIAL" shell getprop ro.product.cpu.abi > build/reports/stage09/device-abi.txt
           "$adb" -s "$ANDROID_SERIAL" shell getconf PAGE_SIZE > build/reports/stage09/device-page-size.txt
           # Explicit class allowlist: no private fixture files or production credentials.
-          classes='com.meetspace.app.FoundationUiTest,com.meetspace.app.MeetingsUiTest,com.meetspace.app.CallUiTest,com.meetspace.app.MessagingUiTest,com.meetspace.app.RecordingsUiTest,com.meetspace.app.SettingsUiTest,com.meetspace.app.InstallerUiTest,com.meetspace.app.SshWizardUiTest,com.meetspace.app.NativeLibrariesSmokeTest'
-          ./gradlew --no-daemon --max-workers=2 :app:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=$classes"
+          classes='com.meetspace.app.FoundationUiTest,com.meetspace.app.MeetingsUiTest,com.meetspace.app.CallUiTest,com.meetspace.app.MessagingUiTest,com.meetspace.app.RecordingsUiTest,com.meetspace.app.SettingsUiTest,com.meetspace.app.InstallerUiTest,com.meetspace.app.SshWizardUiTest,com.meetspace.app.NativeLibrariesSmokeTest,com.meetspace.app.RegistrationUiTest,com.meetspace.app.CallLifecyclePriorityTest,com.meetspace.app.CallPermissionLifecycleTest,com.meetspace.app.ScreenShareLifecycleTest,com.meetspace.app.NotificationCenterUiTest,com.meetspace.app.RecordingPreviewTest,com.meetspace.app.MessagingNotificationsTest'
+          ./gradlew --no-daemon --max-workers=2 :app:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=$classes" "-Pandroid.testInstrumentationRunnerArguments.verifyNotificationSound=true" "-Pandroid.testInstrumentationRunnerArguments.auditOffline=true"
 
       - name: Upload build outputs and reports
         if: always()

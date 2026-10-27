@@ -163,6 +163,8 @@ class ScreenShareProjectionTest {
                 field<CoroutineScope>(engine, "scope").cancel()
                 field<ExecutorCoroutineDispatcher>(engine, "dispatcher").close()
                 File(context.cacheDir, "screen-share-projection-fps.json").writeText(evidence.toString(2))
+                device.setOrientationNatural()
+                device.unfreezeRotation()
             }
         }
     }
@@ -241,7 +243,17 @@ class ScreenShareProjectionTest {
     }
 
     private fun rotate(activity: ActivityScenario<ComponentActivity>, orientation: Int) {
-        activity.onActivity { it.requestedOrientation = orientation }
+        val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+        var portrait = false
+        activity.onActivity {
+            portrait = it.resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_PORTRAIT
+            it.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        }
+        // API36 large screens can ignore requestedOrientation. Rotate the owned emulator's
+        // display as a user would, and keep the actual configuration/dimension assertions.
+        val naturalPortrait = if (device.isNaturalOrientation) portrait else !portrait
+        if ((orientation == ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) == naturalPortrait) device.setOrientationNatural()
+        else device.setOrientationLeft()
         waitFor("Test activity did not change orientation", 10_000) {
             var correct = false
             activity.onActivity { host ->

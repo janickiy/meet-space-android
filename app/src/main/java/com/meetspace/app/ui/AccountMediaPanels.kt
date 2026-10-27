@@ -170,7 +170,7 @@ fun AccountNotificationSound(actions: AppSettingsActions) {
     val sound = remember(revision) { accountNotificationSound(context) }
     val audible = remember(revision) {
         val channel = context.getSystemService(NotificationManager::class.java).getNotificationChannel(MESSAGING_CHANNEL)
-        NotificationManagerCompat.from(context).areNotificationsEnabled() && sound != null && (channel == null || channel.importance != NotificationManager.IMPORTANCE_NONE)
+        NotificationManagerCompat.from(context).areNotificationsEnabled() && sound != null && (channel == null || channel.importance >= NotificationManager.IMPORTANCE_DEFAULT)
     }
     Column(Modifier.fillMaxWidth().testTag("account-notification-sound")) {
         AccountToggle("Звуковой сигнал", audible, { openAccountSoundSettings(context, actions) },

@@ -16,6 +16,25 @@ class RingtoneVolumeTest {
         val volume = RingtoneVolume({ level }, { 7 }, { true }) { level = it }
         volume.raise(); level = 4; volume.close(); assertEquals(4, level)
     }
+    @Test fun connectingAHeadsetDuringRingingStillRestoresTheUnchangedTemporaryBoost() {
+        var level = 2; var headset = false
+        val volume = RingtoneVolume({ level }, { 7 }, { !headset }, restoreAllowed = { true }) { level = it }
+        volume.raise(); assertEquals(6, level)
+        headset = true; volume.close(); assertEquals(2, level)
+    }
+    @Test fun headsetChangeDoesNotOverrideTheUsersNewVolume() {
+        var level = 2; var headset = false
+        val volume = RingtoneVolume({ level }, { 7 }, { !headset }, restoreAllowed = { true }) { level = it }
+        volume.raise(); headset = true; level = 4
+        volume.close(); assertEquals(4, level)
+    }
+    @Test fun quietSoundPolicyPreventsRestorationEvenIfReportedStreamLevelRemainsPositive() {
+        var level = 2; var quiet = false; var writes = 0
+        val volume = RingtoneVolume({ level }, { 7 }, { !quiet }, restoreAllowed = { !quiet }) { level = it; writes++ }
+        volume.raise(); assertEquals(6, level)
+        quiet = true; volume.close()
+        assertEquals(6, level); assertEquals(1, writes)
+    }
     @Test fun silentDndHeadsetAndFixedVolumeAreNotRaised() {
         var writes = 0
         RingtoneVolume({ 2 }, { 7 }, { false }) { writes++ }.apply { raise(); close() }

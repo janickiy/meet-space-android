@@ -1,0 +1,17 @@
+{
+  "label": "final-live-messaging-saf",
+  "serial": "emulator-5556",
+  "elapsedSeconds": 57.81,
+  "tests": [
+    {
+      "class": "com.meetspace.app.LiveMessagingSafTest",
+      "test": "actualDocumentPickSendAndCreateDocumentDownloadPreserveBytes",
+      "code": 0
+    }
+  ],
+  "passed": 1,
+  "failed": 0,
+  "skipped": 0,
+  "total": 1,
+  "runnerSuccess": true
+}

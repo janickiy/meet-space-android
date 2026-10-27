@@ -1,0 +1,27 @@
+{
+  "application": {
+    "package": "com.meetspace.app",
+    "versionName": "0.3.11-beta",
+    "versionCode": 29
+  },
+  "artifacts": [
+    {
+      "variant": "debug",
+      "path": "app/build/outputs/apk/debug/app-debug.apk",
+      "sha256": "9988c9b8e92d790f3cd3b41529b4652ec666ca00c464060985fcf67cd3c90a1b"
+    },
+    {
+      "variant": "release",
+      "path": "app/build/outputs/apk/release/app-release-unsigned.apk",
+      "sha256": "a8dd5869453223d2396c45c30af6d4cc663f1a0cc1e94e7efe2b3556cf8f7f44"
+    },
+    {
+      "variant": "releaseBundle",
+      "path": "app/build/outputs/bundle/release/app-release.aab",
+      "sha256": "08f56cf2b2d58a6079cd777a6c8c9d2d432df42467796e01a943f0888591f6c7"
+    }
+  ],
+  "staticPackagingChecksPassed": true,
+  "releaseSignedForDistribution": false,
+  "runtime16KiB": "Separate emulator evidence; not implied by packaging check"
+}

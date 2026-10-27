@@ -196,6 +196,16 @@ class MessagingRepositoryTest {
         server.enqueue(json("""{"items":[${notification.replace(USER, OTHER)}],"unreadCount":1}"""))
         assertFailure(FailureKind.INVALID_RESPONSE) { repository.notifications() }
     }
+    @Test fun `notification resource references retain recording transcript and summary destinations`() = runBlocking {
+        login()
+        val notification = """{"id":"$MESSAGE","userId":"$USER","type":"summary.ready","createdAt":"$AT","readAt":null,"payload":{"conferenceId":"$CHAT","recordingId":"$OTHER","transcriptId":"$MESSAGE","summaryId":"$USER"}}"""
+        server.enqueue(json("""{"items":[$notification],"unreadCount":1,"nextCursor":null}"""))
+        val item = repository.notifications().items.single()
+        assertEquals(OTHER, item.recordingId); assertEquals(MESSAGE, item.transcriptId); assertEquals(USER, item.summaryId)
+        take()
+        server.enqueue(json("""{"items":[${notification.replace("\"recordingId\":\"$OTHER\"", "\"recordingId\":\"https://untrusted.invalid/record\"")}],"unreadCount":1}"""))
+        assertFailure(FailureKind.INVALID_RESPONSE) { repository.notifications() }
+    }
     @Test fun `folder candidate filters preserve mixed kinds and membership`() = runBlocking {
         login(); server.enqueue(json("""{"items":[{"type":"conversation","item":${conversation()},"inFolder":true}],"nextCursor":"next"}"""))
         val page = repository.folderItems(OTHER, FolderQuery(candidates = true, search = "Team"))

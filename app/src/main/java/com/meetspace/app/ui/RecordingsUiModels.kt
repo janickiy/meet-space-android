@@ -47,6 +47,7 @@ data class RecordingsUiState(
     val mediaBusy: Boolean = false,
     val error: String? = null,
     val notice: String? = null,
+    val initialSummary: Boolean = false,
 )
 
 data class RecordingsActions(

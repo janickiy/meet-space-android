@@ -107,10 +107,12 @@ def strict_json(raw, maximum=MAX_JSON, *, expected_type=dict):
         fail("INVALID_REQUEST")
 
 
-def run(args, *, timeout=30, capture=False, data=None, env=None, cwd=None, code="COMMAND_FAILED", pass_fds=()):
+def run(args, *, timeout=30, capture=False, data=None, stdin=None, env=None, cwd=None, code="COMMAND_FAILED", pass_fds=()):
     """Never includes argv, output, environment or subprocess exceptions in errors."""
+    if data is not None and stdin is not None:
+        fail("INVALID_REQUEST")
     try:
-        result = subprocess.run(args, input=data, stdout=subprocess.PIPE if capture else subprocess.DEVNULL,
+        result = subprocess.run(args, input=data, stdin=stdin, stdout=subprocess.PIPE if capture else subprocess.DEVNULL,
                                 stderr=subprocess.DEVNULL, timeout=timeout, check=False,
                                 env=env or SAFE_ENV, cwd=cwd, pass_fds=pass_fds)
         if result.returncode != 0:
@@ -1407,10 +1409,10 @@ class Worker:
         if disk_free() < (6 if self.compact else 8) * 1024 ** 3:
             fail("DISK_SPACE")
 
-    def compose(self, *args, capture=False, timeout=300, code="COMPOSE_FAILED", data=None):
+    def compose(self, *args, capture=False, timeout=300, code="COMPOSE_FAILED", data=None, stdin=None):
         return run(["docker", "compose", "--project-name", PROJECT, "--project-directory", str(self.release),
                     "--env-file", str(self.env_file), "-f", str(self.compose_file), *args],
-                   capture=capture, timeout=timeout, code=code, data=data)
+                   capture=capture, timeout=timeout, code=code, data=data, stdin=stdin)
 
     def phase_docker(self):
         suite = ubuntu_suite(self.plan.get("platform"), legacy=True, code="PLAN_CHANGED")
@@ -1799,7 +1801,7 @@ server {
         target = ROOT / "backups" / (self.directory.name + "-before-migrations.dump")
         receipt = target.with_suffix(".json")
         if target.exists() and receipt.exists():
-            if digest(target.read_bytes()) != read_json(receipt)["sha256"]:
+            if file_digest(target) != read_json(receipt)["sha256"]:
                 fail("BACKUP_INVALID")
             return
         partial = target.with_suffix(".partial")
@@ -1816,9 +1818,10 @@ server {
                 os.fsync(stream.fileno())
             if partial.stat().st_size < 100:
                 fail("BACKUP_FAILED")
-            self.compose("exec", "-T", "postgres", "pg_restore", "--list", data=partial.read_bytes(), code="BACKUP_INVALID")
+            with partial.open("rb") as stream:
+                self.compose("exec", "-T", "postgres", "pg_restore", "--list", stdin=stream, code="BACKUP_INVALID")
             os.replace(partial, target)
-            write_atomic(receipt, canonical({"schema": 1, "sha256": digest(target.read_bytes()), "jobId": self.directory.name,
+            write_atomic(receipt, canonical({"schema": 1, "sha256": file_digest(target), "jobId": self.directory.name,
                          "beforeMigrations": True, "offsite": False, "restoreDrillPerformed": False}))
         except (OSError, subprocess.TimeoutExpired):
             fail("BACKUP_FAILED")
