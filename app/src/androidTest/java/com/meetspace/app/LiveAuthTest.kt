@@ -26,6 +26,53 @@ class LiveAuthTest {
         return Properties().apply { file.inputStream().use { load(it) } }
     }
 
+    /** Run before restoreCurrentSessionAndLogout in a separate instrumentation process. */
+    @Test fun connectLoginAndRecreateAgainstCurrentServer() {
+        val input = input()
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            waitFor("welcome")
+            compose.waitUntil(10_000) {
+                compose.onAllNodesWithTag("welcome-connect").fetchSemanticsNodes().firstOrNull()
+                    ?.config?.contains(androidx.compose.ui.semantics.SemanticsProperties.Disabled) == false
+            }
+            compose.onNodeWithTag("welcome-connect").performClick()
+            compose.onNodeWithTag("server-url").performTextInput(input.getProperty("server"))
+            androidx.test.espresso.Espresso.closeSoftKeyboard()
+            compose.waitForIdle()
+            compose.onNodeWithTag("connect-submit").performScrollTo().performClick()
+            waitFor("login")
+            compose.onNodeWithTag("email").performTextClearance()
+            compose.onNodeWithTag("email").performTextInput(input.getProperty("email"))
+            compose.onNodeWithTag("password").performTextInput(input.getProperty("password"))
+            // Keep the system IME from intercepting the submit button's touch coordinates.
+            androidx.test.espresso.Espresso.closeSoftKeyboard()
+            compose.waitForIdle()
+            compose.onNodeWithTag("login-submit").assertIsEnabled()
+            compose.onNodeWithTag("login-submit").performScrollTo().performClick()
+            waitFor("workspace")
+            assertEquals(input.getProperty("email"), application.repository.state.value.session?.user?.email)
+            assertTrue(application.repository.state.value.session!!.supportsPersistentSession)
+            assertTrue(application.repository.state.value.session!!.capabilities.recordingModes.isNotEmpty())
+            scenario.recreate()
+            waitFor("workspace")
+            assertEquals(input.getProperty("email"), application.repository.state.value.session?.user?.email)
+        }
+    }
+
+    @Test fun restoreCurrentSessionAndLogout() {
+        val input = input()
+        ActivityScenario.launch(MainActivity::class.java).use {
+            waitFor("workspace")
+            assertEquals(input.getProperty("email"), application.repository.state.value.session?.user?.email)
+            assertTrue(application.repository.state.value.session!!.supportsPersistentSession)
+            val logout = kotlinx.coroutines.runBlocking { application.repository.logout() }
+            assertTrue("The test session must be revoked on the server", logout.remoteConfirmed)
+            waitFor("login")
+            assertNull(application.repository.state.value.session)
+        }
+        File(context.filesDir, "live-auth.properties").delete()
+    }
+
     @Test fun connectLoginAndRotate() {
         val input = input()
         val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())

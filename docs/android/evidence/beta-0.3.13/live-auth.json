@@ -1,0 +1,23 @@
+{
+  "date": "2026-10-30",
+  "server": "https://chat.stage.org.ru",
+  "backendVersion": "20261030-eb18a39",
+  "backendCommit": "eb18a390134d3bb88c0086fe00010228f0ffcc32",
+  "androidApi": 36,
+  "abi": "arm64-v8a",
+  "physicalDevice": false,
+  "apkSha256": "eefc9645342be6558c9df92ea2b28039322c87a912275f630b955dff638c59de",
+  "tests": {
+    "uiLoginAndActivityRecreate": "passed",
+    "restoreAfterProcessRestartAndRemoteLogout": "passed"
+  },
+  "testCredentialsRemoved": true,
+  "earlierAttempts": [
+    "emulator DNS unavailable before explicit DNS configuration",
+    "system IME intercepted button touch before test harness closed keyboard"
+  ],
+  "limitations": [
+    "Physical device not tested",
+    "Server configuration and production data not modified"
+  ]
+}

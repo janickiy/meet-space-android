@@ -290,11 +290,13 @@ private data class LoginDto(
 private data class MeDto(val status: String, val user: UserDto)
 @Serializable
 private data class CapabilitiesDto(
-    val liveCaptions: Boolean,
-    val transcription: Boolean,
-    val aiSummary: Boolean,
-    val semanticSearch: Boolean,
-    val meetingAnalytics: Boolean,
+    // Newer servers omit retired AI flags. Absence disables an optional feature;
+    // explicitly supplied values still have to be booleans.
+    val liveCaptions: Boolean = false,
+    val transcription: Boolean = false,
+    val aiSummary: Boolean = false,
+    val semanticSearch: Boolean = false,
+    val meetingAnalytics: Boolean = false,
     val recordingModes: List<String>,
 )
 @Serializable

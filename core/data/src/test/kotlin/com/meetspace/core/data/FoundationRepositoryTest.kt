@@ -185,6 +185,63 @@ class FoundationRepositoryTest {
         assertNull(capabilities.getHeader("Cookie"))
     }
 
+    @Test fun `login accepts current server without retired AI capability flags`() = runBlocking {
+        enqueueVersion(); repository.addServer(origin)
+        enqueueLogin("first-access", "first-cookie"); enqueueMe()
+        server.enqueue(json(CURRENT_CAPABILITIES))
+        repository.login("test@example.com", "synthetic-password")
+
+        val session = repository.state.value.session!!
+        assertTrue(session.supportsPersistentSession)
+        assertEquals("first-cookie", credentials.values.values.single().value)
+        assertEquals(listOf("composite", "individual_tracks"), session.capabilities.recordingModes)
+        assertEquals("20261030-eb18a39", session.capabilities.buildVersion)
+        with(session.capabilities) {
+            assertFalse(liveCaptions); assertFalse(transcription); assertFalse(aiSummary)
+            assertFalse(semanticSearch); assertFalse(meetingAnalytics)
+        }
+    }
+
+    @Test fun `saved session restores when server removes optional capability flags`() = runBlocking {
+        connectAndLogin()
+        val restored = newRepository()
+        enqueueVersion(); enqueueLogin("renewed-access", "rotated-cookie"); enqueueMe()
+        server.enqueue(json(CURRENT_CAPABILITIES))
+        restored.restore()
+
+        assertEquals("user-a", restored.state.value.session!!.user.id)
+        assertEquals("rotated-cookie", credentials.values.values.single().value)
+        assertEquals(listOf("composite", "individual_tracks"), restored.state.value.session!!.capabilities.recordingModes)
+    }
+
+    @Test fun `explicit legacy capability values and unknown future fields remain supported`() = runBlocking {
+        enqueueVersion(); repository.addServer(origin)
+        enqueueLogin("first-access", "first-cookie"); enqueueMe()
+        server.enqueue(json(CAPABILITIES.replace(":false", ":true")
+            .replace("\"capabilities\":{", "\"capabilities\":{\"futureFeature\":true,")))
+        repository.login("test@example.com", "synthetic-password")
+        with(repository.state.value.session!!.capabilities) {
+            assertTrue(liveCaptions); assertTrue(transcription); assertTrue(aiSummary)
+            assertTrue(semanticSearch); assertTrue(meetingAnalytics)
+        }
+    }
+
+    @Test fun `optional capability defaults do not bypass malformed contract validation`() = runBlocking {
+        enqueueVersion(); repository.addServer(origin)
+        listOf(
+            CURRENT_CAPABILITIES.replace("\"success\"", "\"error\""),
+            CURRENT_CAPABILITIES.replace("\"recordingModes\":[\"composite\",\"individual_tracks\"]", "\"liveCaptions\":false"),
+            CURRENT_CAPABILITIES.replace("\"capabilities\":{", "\"capabilities\":{\"liveCaptions\":null,"),
+            CURRENT_CAPABILITIES.replace("\"capabilities\":{", "\"capabilities\":{\"transcription\":\"yes\","),
+            CURRENT_CAPABILITIES.replace("\"recordingModes\":[\"composite\",\"individual_tracks\"]", "\"recordingModes\":null"),
+        ).forEach { body ->
+            enqueueLogin("first-access", "first-cookie"); enqueueMe(); server.enqueue(json(body))
+            assertEquals(FailureKind.INVALID_RESPONSE, failure { repository.login("test@example.com", "synthetic-password") }.kind)
+            assertNull(repository.state.value.session)
+            assertTrue(credentials.values.isEmpty())
+        }
+    }
+
     @Test fun `restart refreshes saved session without persisting bearer token or password`() = runBlocking {
         connectAndLogin()
         repeat(4) { take() }
@@ -694,6 +751,7 @@ class FoundationRepositoryTest {
         const val VERSION = """{"version":"dev","commit":"unknown","buildTime":"unknown"}"""
         const val ME = """{"status":"success","user":{"id":"user-a","email":"test@example.com","displayName":"Test","isAdmin":false}}"""
         const val CAPABILITIES = """{"status":"success","buildVersion":"dev","capabilities":{"liveCaptions":false,"transcription":false,"aiSummary":false,"semanticSearch":false,"meetingAnalytics":false,"recordingModes":["composite"]}}"""
+        const val CURRENT_CAPABILITIES = """{"status":"success","buildVersion":"20261030-eb18a39","capabilities":{"recordingModes":["composite","individual_tracks"]}}"""
     }
 }
 
