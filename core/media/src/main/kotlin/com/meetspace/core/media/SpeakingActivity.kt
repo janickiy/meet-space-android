@@ -6,8 +6,10 @@ import kotlin.math.sqrt
 /** Audio activity only: no second recorder, PCM ownership, audio gain or server protocol changes. */
 internal class SpeakingActivity {
     private data class Previous(val participant: String, val timestamp: Double, val energy: Double?, val duration: Double?, val packets: Double?)
+    private data class Level(val participant: String, val sampledAt: Long, val rms: Float)
     private val previous = mutableMapOf<String, Previous>()
     private val voicedAt = mutableMapOf<String, Long>()
+    private val measuredLevels = mutableMapOf<String, Level>()
 
     fun update(
         report: RTCStatsReport, nowMs: Long, localParticipant: String, localTrack: String?,
@@ -54,22 +56,37 @@ internal class SpeakingActivity {
             }
             val threshold = if (participant in voicedAt && nowMs - voicedAt.getValue(participant) < HOLD_MS) .012 else .025
             if (level >= threshold) voicedAt[participant] = nowMs
+            // Unlike the speaker hold, the meter follows each fresh interval, including silence.
+            measuredLevels[key] = Level(participant, nowMs, level.toFloat())
         }
         previous.keys.retainAll(seen)
+        measuredLevels.keys.retainAll(seen)
         return expire(nowMs, allowed)
     }
 
     fun expire(nowMs: Long, allowed: Set<String>): Set<String> {
         voicedAt.entries.removeAll { (id, time) -> id !in allowed || nowMs < time || nowMs - time >= HOLD_MS }
         previous.entries.removeAll { it.value.participant !in allowed }
+        measuredLevels.entries.removeAll { (_, sample) -> sample.participant !in allowed ||
+            nowMs < sample.sampledAt || nowMs - sample.sampledAt >= HOLD_MS }
         return voicedAt.keys.toSet()
+    }
+
+    fun audioLevels(nowMs: Long, allowed: Set<String>): Map<String, Float> {
+        expire(nowMs, allowed)
+        val result = mutableMapOf<String, Float>()
+        for (sample in measuredLevels.values) if (sample.rms > 0f) {
+            result[sample.participant] = maxOf(result[sample.participant] ?: 0f, sample.rms)
+        }
+        return result
     }
 
     fun forget(participant: String) {
         voicedAt.remove(participant)
         previous.entries.removeAll { it.value.participant == participant }
+        measuredLevels.entries.removeAll { it.value.participant == participant }
     }
-    fun clear() { previous.clear(); voicedAt.clear() }
+    fun clear() { previous.clear(); voicedAt.clear(); measuredLevels.clear() }
 
     companion object {
         const val POLL_MS = 200L

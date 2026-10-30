@@ -1,0 +1,48 @@
+{
+  "app": {
+    "tests": 276,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "core/model": {
+    "tests": 0,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "core/data": {
+    "tests": 193,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 12
+  },
+  "core/designsystem": {
+    "tests": 0,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "core/ssh": {
+    "tests": 71,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "core/media": {
+    "tests": 41,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "total": {
+    "tests": 581,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 12
+  },
+  "lint": {
+    "Error": 0,
+    "Warning": 64
+  }
+}

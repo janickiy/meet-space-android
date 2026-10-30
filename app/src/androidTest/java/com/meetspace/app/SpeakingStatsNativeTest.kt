@@ -8,7 +8,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import java.nio.ByteOrder
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.PI
 import kotlin.math.sin
@@ -29,16 +29,16 @@ class SpeakingStatsNativeTest {
         val context = instrumentation.targetContext
         instrumentation.uiAutomation.grantRuntimePermission(context.packageName, Manifest.permission.RECORD_AUDIO)
         PeerConnectionFactory.initialize(PeerConnectionFactory.InitializationOptions.builder(context).createInitializationOptions())
-        val tone = AtomicBoolean(false)
+        val amplitude = AtomicInteger(0)
         var phase = 0.0
         val adm = JavaAudioDeviceModule.builder(context).setAudioFormat(AudioFormat.ENCODING_PCM_16BIT)
             .setUseHardwareAcousticEchoCanceler(false).setUseHardwareNoiseSuppressor(false)
             .setAudioBufferCallback { buffer, format, channels, sampleRate, bytes, timestamp ->
                 check(format == AudioFormat.ENCODING_PCM_16BIT && channels == 1)
                 buffer.order(ByteOrder.nativeOrder())
-                val loud = tone.get()
+                val strength = amplitude.get()
                 for (index in 0 until minOf(bytes, buffer.capacity()) / 2) {
-                    buffer.putShort(index * 2, if (loud) (7000 * sin(phase)).toInt().toShort() else 0)
+                    buffer.putShort(index * 2, (strength * sin(phase)).toInt().toShort())
                     phase = (phase + 2 * PI * 440 / sampleRate) % (2 * PI)
                 }
                 timestamp
@@ -83,6 +83,8 @@ class SpeakingStatsNativeTest {
             val localActivity = activityClass.getConstructor().newInstance()
             val remoteActivity = activityClass.getConstructor().newInstance()
             val update = activityClass.getMethod("update", RTCStatsReport::class.java, java.lang.Long.TYPE, String::class.java, String::class.java, Map::class.java, Set::class.java)
+            val audioLevels = activityClass.getMethod("audioLevels", java.lang.Long.TYPE, Set::class.java)
+            fun level(owner: Any, id: String): Float = ((audioLevels.invoke(owner, SystemClock.elapsedRealtime(), setOf(id)) as Map<*, *>)[id] as? Number)?.toFloat() ?: 0f
             fun active(owner: Any, peer: PeerConnection, local: Boolean): Set<*> {
                 val report = stats(peer)
                 return update.invoke(owner, report, SystemClock.elapsedRealtime(), if (local) "self" else "unused",
@@ -91,20 +93,30 @@ class SpeakingStatsNativeTest {
             }
             assertTrue(active(localActivity, sender, true).isEmpty())
             assertTrue(active(remoteActivity, receiver, false).isEmpty())
-            tone.set(true)
+            amplitude.set(3000)
+            var quietLocal = 0f
+            var quietRemote = 0f
             waitFor("native local and received tone") {
                 val local = active(localActivity, sender, true)
                 val remote = active(remoteActivity, receiver, false)
-                "self" in local && "remote" in remote
+                quietLocal = level(localActivity, "self"); quietRemote = level(remoteActivity, "remote")
+                "self" in local && "remote" in remote && quietLocal > .025f && quietRemote > .025f
             }
-            tone.set(false)
+            amplitude.set(12000)
+            waitFor("louder tone raises measured local and received volume") {
+                active(localActivity, sender, true); active(remoteActivity, receiver, false)
+                level(localActivity, "self") > quietLocal * 1.6f && level(remoteActivity, "remote") > quietRemote * 1.6f
+            }
+            amplitude.set(0)
             waitFor("native silence clears both highlights") {
-                active(localActivity, sender, true).isEmpty() && active(remoteActivity, receiver, false).isEmpty()
+                active(localActivity, sender, true).isEmpty() && active(remoteActivity, receiver, false).isEmpty() &&
+                    // Opus may retain inaudible comfort noise; it must remain below the UI floor.
+                    level(localActivity, "self") < .012f && level(remoteActivity, "remote") < .012f
             }
             activityClass.getMethod("clear").invoke(localActivity)
             activityClass.getMethod("clear").invoke(remoteActivity)
         } finally {
-            tone.set(false)
+            amplitude.set(0)
             sender?.close(); receiver?.close()
             sender?.dispose(); receiver?.dispose()
             track?.dispose(); source?.dispose(); factory?.dispose(); adm.release()

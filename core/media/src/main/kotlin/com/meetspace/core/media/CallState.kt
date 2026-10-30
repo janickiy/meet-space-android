@@ -23,12 +23,16 @@ data class CallState(
     val discussionRevision: Long = 0, val recordingRevision: Long = 0,
     val directCallId: String? = null,
     val activeSpeakerIds: Set<String> = emptySet(),
+    /** Fresh microphone RMS (0..1), separate from the longer-lived speaker highlight. */
+    val microphoneLevels: Map<String, Float> = emptyMap(),
 ) {
     val visible: Boolean get() = phase != CallPhase.IDLE
     fun canSpeak(id: String): Boolean = phase == CallPhase.CONNECTED && id.isNotBlank() &&
         if (id == participantId) microphone && !microphoneBlocked
         else participants.any { it.id == id && it.online && it.microphone }
     fun isSpeaking(id: String): Boolean = id in activeSpeakerIds && canSpeak(id)
+    fun microphoneLevel(id: String): Float = if (isSpeaking(id))
+        microphoneLevels[id]?.takeIf { it.isFinite() }?.coerceIn(0f, 1f) ?: 0f else 0f
 }
 
 /** Rendering never races a disposed native track during rotation, reconnect or leave. */

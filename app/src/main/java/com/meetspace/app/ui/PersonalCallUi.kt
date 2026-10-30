@@ -319,7 +319,7 @@ private fun PersonalCallFooter(state: PersonalCallUiState, actions: PersonalCall
             PersonalCallControl(if (state.media.microphone) "Микрофон" else "Без звука", if (state.media.microphone) CallIcons.Mic else CallIcons.MicOff,
                 "personal-call-microphone", devicesEnabled && !state.media.microphoneBlocked, actions.microphone, state.media.microphone,
                 if (state.media.microphone) "Выключить микрофон" else "Включить микрофон", phone,
-                speaking = state.media.isSpeaking(state.media.participantId))
+                speaking = state.media.isSpeaking(state.media.participantId), microphoneLevel = state.media.microphoneLevel(state.media.participantId))
             PersonalCallControl("Камера", if (state.media.camera) CallIcons.Video else CallIcons.VideoOff,
                 "personal-call-camera", devicesEnabled && !state.media.cameraBlocked, actions.camera, state.media.camera,
                 if (state.media.camera) "Выключить камеру" else "Включить камеру", phone)
@@ -341,10 +341,10 @@ private fun PersonalCallFooter(state: PersonalCallUiState, actions: PersonalCall
 
 @Composable
 private fun PersonalCallControl(label: String, icon: ImageVector, tag: String, enabled: Boolean, action: () -> Unit,
-    selected: Boolean?, description: String, phone: Boolean, danger: Boolean = false, accept: Boolean = false, speaking: Boolean = false) {
-    val background = when { speaking && enabled -> SpeakingGreen; danger -> PersonalCallColors.Danger; accept -> Color(0xFF83CCB6); selected == true -> PersonalCallColors.Selected; else -> PersonalCallColors.Control }
-    val border = when { speaking && enabled -> SpeakingGreen; danger -> PersonalCallColors.DangerLine; accept -> Color(0xFF9DE0CC); selected == true -> PersonalCallColors.Selected; else -> PersonalCallColors.ControlLine }
-    val foreground = when { speaking && enabled -> Color(0xFF103622); danger -> Color.White; accept || selected == true -> PersonalCallColors.SelectedForeground; else -> Color(0xFFADBDD7) }
+    selected: Boolean?, description: String, phone: Boolean, danger: Boolean = false, accept: Boolean = false, speaking: Boolean = false, microphoneLevel: Float = 0f) {
+    val background = when { danger -> PersonalCallColors.Danger; accept -> Color(0xFF83CCB6); selected == true -> PersonalCallColors.Selected; else -> PersonalCallColors.Control }
+    val border = when { danger -> PersonalCallColors.DangerLine; accept -> Color(0xFF9DE0CC); selected == true -> PersonalCallColors.Selected; else -> PersonalCallColors.ControlLine }
+    val foreground = when { danger -> Color.White; accept || selected == true -> PersonalCallColors.SelectedForeground; else -> Color(0xFFADBDD7) }
     val interaction = if (selected != null) Modifier.toggleable(selected, enabled = enabled, role = Role.Switch, onValueChange = { action() })
         else Modifier.clickable(enabled = enabled, role = Role.Button, onClick = action)
     Column(Modifier.width(if (phone) 65.dp else 75.dp).heightIn(min = 76.dp).then(interaction).testTag(tag)
@@ -353,7 +353,9 @@ private fun PersonalCallControl(label: String, icon: ImageVector, tag: String, e
         Box(Modifier.size(if (phone) 54.dp else 58.dp, if (phone) 52.dp else 54.dp).clip(RoundedCornerShape(18.dp))
             .background(background.copy(alpha = if (enabled) 1f else .48f)).border(1.dp, border.copy(alpha = if (enabled) 1f else .48f), RoundedCornerShape(18.dp)),
             contentAlignment = Alignment.Center) {
-            Icon(icon, null, Modifier.size(23.dp), tint = foreground.copy(alpha = if (enabled) 1f else .6f))
+            if (tag == "personal-call-microphone" && selected == true) MicrophoneLevelIcon(microphoneLevel, enabled,
+                foreground.copy(alpha = if (enabled) 1f else .6f), null, Modifier.size(23.dp).testTag("$tag-icon"))
+            else Icon(icon, null, Modifier.size(23.dp), tint = foreground.copy(alpha = if (enabled) 1f else .6f))
         }
         Text(label, fontSize = 10.sp, lineHeight = 15.sp, textAlign = TextAlign.Center,
             color = (if (danger) Color(0xFFFFD2D9) else Color(0xFFADBDD7)).copy(alpha = if (enabled) 1f else .6f))

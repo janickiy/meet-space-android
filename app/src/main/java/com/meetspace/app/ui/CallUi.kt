@@ -606,7 +606,7 @@ private fun CallToolbar(state: CallState, phone: Boolean, microphone: () -> Unit
         horizontalArrangement = if (phone && fontScale <= 1.3f) Arrangement.SpaceAround else Arrangement.spacedBy(if (phone) 7.dp else 15.dp, Alignment.CenterHorizontally), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         CallControl(if (state.microphone) "Микрофон" else "Без звука", if (state.microphone) CallIcons.Mic else CallIcons.MicOff,
             enabled && !state.microphoneBlocked, state.microphone, "call-mic", microphone, highlightOff = true, controlWidth = regularWidth, buttonWidth = buttonWidth, buttonHeight = buttonHeight, labelFontSize = labelSize,
-            speaking = state.isSpeaking(state.participantId))
+            speaking = state.isSpeaking(state.participantId), microphoneLevel = state.microphoneLevel(state.participantId))
         CallControl("Камера", if (state.camera) CallIcons.Video else CallIcons.VideoOff,
             enabled && !state.cameraBlocked, state.camera, "call-camera", camera, highlightOff = true, controlWidth = regularWidth, buttonWidth = buttonWidth, buttonHeight = buttonHeight, labelFontSize = labelSize)
         if (!phone) CallControl("Экран", CallIcons.MonitorUp, enabled && !state.screenBlocked && !state.cameraBlocked, state.sharing, "call-share", share,
@@ -614,7 +614,7 @@ private fun CallToolbar(state: CallState, phone: Boolean, microphone: () -> Unit
         CallControl("Участники", CallIcons.Users, true, panel == CallPanel.PARTICIPANTS, "call-people", { openPanel(CallPanel.PARTICIPANTS) }, controlWidth = peopleWidth, buttonWidth = buttonWidth, buttonHeight = buttonHeight, labelFontSize = labelSize)
         CallControl("Чат", CallIcons.MessageCircle, true, panel == CallPanel.CHAT, "call-chat", { openPanel(CallPanel.CHAT) }, controlWidth = regularWidth, buttonWidth = buttonWidth, buttonHeight = buttonHeight, labelFontSize = labelSize)
 
-        Box(Modifier.padding(start = if (phone) 0.dp else 12.dp)) { CallControl("Выйти", CallIcons.PhoneOff, state.phase != CallPhase.LEAVING, true, "call-leave", leave, danger = true, controlWidth = regularWidth.coerceAtLeast(leaveWidth), buttonWidth = leaveWidth, buttonHeight = buttonHeight, labelFontSize = labelSize) }
+        Box(Modifier.padding(start = if (phone) 0.dp else 12.dp)) { CallControl("Выйти", CallIcons.LogOut, state.phase != CallPhase.LEAVING, true, "call-leave", leave, danger = true, controlWidth = regularWidth.coerceAtLeast(leaveWidth), buttonWidth = leaveWidth, buttonHeight = buttonHeight, labelFontSize = labelSize) }
     }
 }
 
@@ -694,16 +694,17 @@ private fun ParticipantPanel(state: CallState, modifier: Modifier, close: () -> 
 }
 
 @Composable
-private fun CallControl(label: String, icon: ImageVector, enabled: Boolean, selected: Boolean, tag: String, click: () -> Unit, danger: Boolean = false, showLabel: Boolean = true, highlightOff: Boolean = false, controlWidth: Dp? = null, buttonWidth: Dp = 48.dp, buttonHeight: Dp = 48.dp, labelFontSize: TextUnit = 10.sp, speaking: Boolean = false) {
-    val background = when { !enabled -> Color(0xFF303C4F); danger -> Color(0xFFDD5D6A); speaking -> SpeakingGreen; highlightOff && !selected -> Color(0xFFE2E8F0); selected && !highlightOff -> Color(0xFF4668AD); else -> Color(0xFF303C4F) }
-    val foreground = when { !enabled -> Color(0xFF8290A5); speaking -> Color(0xFF103622); danger || selected && !highlightOff -> Color.White; highlightOff && !selected -> Color(0xFF263449); else -> Color(0xFFCAD4E4) }
+private fun CallControl(label: String, icon: ImageVector, enabled: Boolean, selected: Boolean, tag: String, click: () -> Unit, danger: Boolean = false, showLabel: Boolean = true, highlightOff: Boolean = false, controlWidth: Dp? = null, buttonWidth: Dp = 48.dp, buttonHeight: Dp = 48.dp, labelFontSize: TextUnit = 10.sp, speaking: Boolean = false, microphoneLevel: Float = 0f) {
+    val background = when { !enabled -> Color(0xFF303C4F); danger -> Color(0xFFDD5D6A); highlightOff && !selected -> Color(0xFFE2E8F0); selected && !highlightOff -> Color(0xFF4668AD); else -> Color(0xFF303C4F) }
+    val foreground = when { !enabled -> Color(0xFF8290A5); danger || selected && !highlightOff -> Color.White; highlightOff && !selected -> Color(0xFF263449); else -> Color(0xFFCAD4E4) }
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(if (buttonHeight < 48.dp) 3.dp else 7.dp), modifier = Modifier.width((controlWidth ?: if (LocalDensity.current.fontScale > 1.3f && showLabel) 74.dp else 50.dp).coerceAtLeast(buttonWidth).coerceAtLeast(48.dp))) {
         // Preserve a 48dp action target around the smaller discs from the phone reference.
         Box(Modifier.size(width = buttonWidth.coerceAtLeast(48.dp), height = buttonHeight.coerceAtLeast(48.dp))
             .testTag(tag).toggleable(value = selected, enabled = enabled, role = Role.Checkbox, onValueChange = { click() })
             .then(if (tag == "call-mic") Modifier.speakingStatus(speaking && enabled) else Modifier), contentAlignment = Alignment.Center) {
             Box(Modifier.size(buttonWidth, buttonHeight).clip(RoundedCornerShape(if (buttonHeight < 48.dp) 14.dp else 15.dp)).background(background), contentAlignment = Alignment.Center) {
-                Icon(icon, contentDescription = label, tint = foreground, modifier = Modifier.size(20.dp))
+                if (tag == "call-mic" && selected) MicrophoneLevelIcon(microphoneLevel, enabled, foreground, label, Modifier.size(20.dp).testTag("$tag-icon"))
+                else Icon(icon, contentDescription = label, tint = foreground, modifier = Modifier.size(20.dp))
             }
         }
         if (showLabel) Text(label, style = MaterialTheme.typography.labelSmall.copy(fontSize = labelFontSize, lineHeight = 14.sp, letterSpacing = 0.sp), color = Color(0xFFCAD4E4), textAlign = TextAlign.Center, modifier = Modifier.testTag("$tag-label"))

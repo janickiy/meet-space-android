@@ -1,0 +1,16 @@
+[
+  {
+    "viewport": "tablet",
+    "pixels": "2000x1668",
+    "density": 320,
+    "passed": true,
+    "tests": 47
+  },
+  {
+    "viewport": "phone",
+    "pixels": "780x1688",
+    "density": 320,
+    "passed": true,
+    "tests": 4
+  }
+]

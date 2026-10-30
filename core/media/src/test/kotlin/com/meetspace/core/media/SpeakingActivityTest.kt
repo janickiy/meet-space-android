@@ -100,6 +100,51 @@ class SpeakingActivityTest {
         assertFalse(state.copy(phase = CallPhase.RECONNECTING).isSpeaking("remote"))
     }
 
+    @Test fun measuredVolumeChangesDuringContinuousSpeechAndDropsBeforeSpeakerHoldExpires() {
+        update(0, local(0, 0.0, 0.0), remote(0, 0.0, 0.0))
+        update(200, local(200, .00032, .2), remote(200, .002, .2)) // RMS .04 / .10
+        assertEquals(.04f, detector.audioLevels(200, allowed).getValue("self"), .00001f)
+        assertEquals(.10f, detector.audioLevels(200, allowed).getValue("remote"), .00001f)
+        update(400, local(400, .00832, .4)) // RMS .20, no remote track anymore.
+        assertEquals(mapOf("self" to .20f), detector.audioLevels(400, allowed))
+        assertEquals(setOf("self", "remote"), update(500, local(500, .00832, .5)))
+        assertTrue(detector.audioLevels(500, allowed).isEmpty()) // Silence, despite held tile highlight.
+    }
+
+    @Test fun cachedReportsDoNotRefreshVolumeAndMuteOrNewTrackClearsIt() {
+        val stat = local(0, null, null, mapOf("audioLevel" to .1))
+        update(0, stat)
+        update(400, stat) // Cached native sample: same timestamp.
+        assertEquals(.1f, detector.audioLevels(449, allowed).getValue("self"), .00001f)
+        assertTrue(detector.audioLevels(450, allowed).isEmpty())
+        update(600, local(600, null, null, mapOf("audioLevel" to .2)))
+        assertTrue(detector.audioLevels(610, setOf("remote")).isEmpty())
+        update(800, local(800, null, null, mapOf("audioLevel" to .3)))
+        detector.forget("self")
+        assertTrue(detector.audioLevels(800, allowed).isEmpty())
+        update(1000, local(1000, null, null, mapOf("audioLevel" to .4)))
+        detector.clear()
+        assertTrue(detector.audioLevels(1000, allowed).isEmpty())
+        update(1200, local(1200, null, null, mapOf("audioLevel" to .5)))
+        assertTrue(update(1300, local(1300, null, null, mapOf("trackIdentifier" to "old-track", "audioLevel" to .8))).isNotEmpty())
+        assertTrue(detector.audioLevels(1300, allowed).isEmpty())
+    }
+
+    @Test fun stateMeterRejectsStaleSpeakerFlagsInvalidLevelsAndMutedMedia() {
+        val state = CallState(phase = CallPhase.CONNECTED, participantId = "self", microphone = true,
+            participants = listOf(CallParticipant("remote", "Участник", true, true, false)), activeSpeakerIds = allowed,
+            microphoneLevels = mapOf("self" to .2f, "remote" to .1f))
+        assertEquals(.2f, state.microphoneLevel("self"), 0f)
+        assertEquals(.1f, state.microphoneLevel("remote"), 0f)
+        assertEquals(0f, state.copy(microphone = false).microphoneLevel("self"), 0f)
+        assertEquals(0f, state.copy(microphoneBlocked = true).microphoneLevel("self"), 0f)
+        assertEquals(0f, state.copy(phase = CallPhase.RECONNECTING).microphoneLevel("self"), 0f)
+        assertEquals(0f, state.copy(activeSpeakerIds = emptySet()).microphoneLevel("self"), 0f)
+        assertEquals(0f, state.copy(participants = emptyList()).microphoneLevel("remote"), 0f)
+        for (bad in listOf(Float.NaN, Float.POSITIVE_INFINITY, -.1f))
+            assertEquals(0f, state.copy(microphoneLevels = mapOf("self" to bad)).microphoneLevel("self"), 0f)
+    }
+
     private fun update(now: Long, vararg stats: RTCStats): Set<String> =
         detector.update(report(*stats), now, "self", "local-track", microphones, allowed)
     private fun report(vararg stats: RTCStats) = RTCStatsReport(0, stats.associateBy { it.id })

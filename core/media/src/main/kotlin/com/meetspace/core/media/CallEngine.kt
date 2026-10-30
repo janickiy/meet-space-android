@@ -642,7 +642,7 @@ class CallEngine(
                     PeerConnection.PeerConnectionState.CONNECTED -> { if (gate.pending == null) connected() }
                     PeerConnection.PeerConnectionState.DISCONNECTED -> {
                         speaking.clear()
-                        mutable.value = state.value.copy(status = "Связь прервана…", activeSpeakerIds = emptySet())
+                        mutable.value = state.value.copy(status = "Связь прервана…", activeSpeakerIds = emptySet(), microphoneLevels = emptyMap())
                         deadline(8_000, null)
                     }
                     PeerConnection.PeerConnectionState.FAILED -> reconnect()
@@ -822,7 +822,7 @@ class CallEngine(
         val now = android.os.SystemClock.elapsedRealtime()
         pruneSpeakers(now)
         if (state.value.phase != CallPhase.CONNECTED || pc?.connectionState() != PeerConnection.PeerConnectionState.CONNECTED) {
-            speaking.clear(); publishSpeakers(emptySet()); return
+            speaking.clear(); publishSpeakers(emptySet(), now); return
         }
         // One report in flight; a delayed native callback cannot queue an unbounded backlog.
         if (statsPending) return
@@ -836,7 +836,7 @@ class CallEngine(
                 pc?.connectionState() != PeerConnection.PeerConnectionState.CONNECTED) return@callback
             val microphones = RemoteSdpTracks.catalogBindings(remoteTracksByMid, catalog)
                 .filterValues { it.kind == "audio" && it.source == "microphone" }
-            publishSpeakers(speaking.update(report, sampledAt, state.value.participantId, micTrack?.id(), microphones, eligibleSpeakers()))
+            publishSpeakers(speaking.update(report, sampledAt, state.value.participantId, micTrack?.id(), microphones, eligibleSpeakers()), sampledAt)
             if (!diagnostics) return@callback
             var receivedBytes = 0L; var sent = 0L; var frames = 0L; var relay = false; var audioBytes = 0L; var videoBytes = 0L
             report.statsMap.values.forEach { stat ->
@@ -881,9 +881,11 @@ class CallEngine(
     private fun eligibleSpeakers(): Set<String> = (state.value.participants.map { it.id } + state.value.participantId)
         .filterTo(mutableSetOf()) { state.value.canSpeak(it) }
     private fun pruneSpeakers(now: Long = android.os.SystemClock.elapsedRealtime()) =
-        publishSpeakers(speaking.expire(now, eligibleSpeakers()))
-    private fun publishSpeakers(ids: Set<String>) {
-        if (ids != state.value.activeSpeakerIds) mutable.value = state.value.copy(activeSpeakerIds = ids)
+        publishSpeakers(speaking.expire(now, eligibleSpeakers()), now)
+    private fun publishSpeakers(ids: Set<String>, now: Long) {
+        val levels = speaking.audioLevels(now, eligibleSpeakers())
+        if (ids != state.value.activeSpeakerIds || levels != state.value.microphoneLevels)
+            mutable.value = state.value.copy(activeSpeakerIds = ids, microphoneLevels = levels)
     }
     private fun deadline(delayMs: Long, message: String?) {
         timer?.cancel(); val epoch = generation
@@ -920,7 +922,7 @@ class CallEngine(
         peerId = ""; connectionId = ""; joinRequest = ""; hasRemote = false; hasOffer = false
         remoteIce.clear(); localIce.clear(); seenIce.clear(); gate = NegotiationGate(); catalog = emptyList()
         catalogRevision = -1; policyVersion = -1; presenceSequence = 0
-        mutable.value = state.value.copy(videos = emptyList(), participants = emptyList(), diagnostics = CallDiagnostics(), activeSpeakerIds = emptySet())
+        mutable.value = state.value.copy(videos = emptyList(), participants = emptyList(), diagnostics = CallDiagnostics(), activeSpeakerIds = emptySet(), microphoneLevels = emptyMap())
     }
     private fun disposeAll() {
         closeNetwork(); replaceMic(false); replaceCamera(false); stopScreenInternal()
