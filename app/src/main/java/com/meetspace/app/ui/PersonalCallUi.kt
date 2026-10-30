@@ -157,15 +157,17 @@ private fun PersonalCallStage(state: PersonalCallUiState, actions: PersonalCallA
     val connected = state.phase in setOf(PersonalCallUiPhase.CONNECTED, PersonalCallUiPhase.RECONNECTING)
     val feed = if (connected) remoteScreen ?: remoteCamera else null
     val shape = RoundedCornerShape(if (phone) 24.dp else 26.dp)
-    BoxWithConstraints(modifier.clip(shape).drawBehind {
-        drawRect(Brush.radialGradient(listOf(PersonalCallColors.StageCenter, PersonalCallColors.StageMiddle, PersonalCallColors.StageEdge),
+    val speaking = remote?.let { media.isSpeaking(it.id) } == true
+    BoxWithConstraints(modifier.speakingStatus(speaking).clip(shape).drawBehind {
+        drawRect(Brush.radialGradient(if (speaking) listOf(SpeakingBackground, Color(0xFF204535), Color(0xFF132F24)) else listOf(PersonalCallColors.StageCenter, PersonalCallColors.StageMiddle, PersonalCallColors.StageEdge),
             center = Offset(size.width * .48f, size.height * .42f), radius = max(size.width, size.height) * .75f))
-    }.border(1.dp, PersonalCallColors.Line, shape).testTag("personal-call-stage")) {
+    }.border(if (speaking) 2.dp else 1.dp, if (speaking) SpeakingGreen else PersonalCallColors.Line, shape).testTag("personal-call-stage")) {
         val compact = maxHeight < 420.dp || maxHeight.value / LocalDensity.current.fontScale < 350f
         val short = maxHeight < 190.dp || maxHeight.value / LocalDensity.current.fontScale < 170f
         if (feed != null) {
             Box(Modifier.fillMaxSize().testTag(if (remoteScreen != null) "personal-call-remote-screen" else "personal-call-remote-video")) {
                 VideoContent(feed.feed, remoteScreen != null)
+                if (speaking) Box(Modifier.fillMaxSize().background(SpeakingGreen.copy(alpha = .09f)))
             }
             Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().background(Color(0xB3141E30))
                 .padding(16.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -256,7 +258,9 @@ private fun PersonalSelfPreview(state: PersonalCallUiState, switchCamera: () -> 
     val height = if (short || (phone && compact)) 78.dp else if (phone) 102.dp else 150.dp
     val shape = RoundedCornerShape(if (phone) 14.dp else 18.dp)
     val feed = state.media.localVideo?.takeIf { state.media.camera }
-    Box(modifier.size(width, height).clip(shape).background(Color(0xFF344158)).border(1.dp, Color(0xFF516079), shape)
+    val speaking = state.media.isSpeaking(state.media.participantId)
+    Box(modifier.size(width, height).speakingStatus(speaking).clip(shape).background(if (speaking) SpeakingBackground else Color(0xFF344158))
+        .border(if (speaking) 2.dp else 1.dp, if (speaking) SpeakingGreen else Color(0xFF516079), shape)
         .then(if (feed != null && !state.busy && state.controlsEnabled) Modifier.clickable(role = Role.Button,
             onClickLabel = "Сменить камеру", onClick = switchCamera) else Modifier)
         .testTag("personal-call-self").semantics(mergeDescendants = true) {
@@ -270,6 +274,7 @@ private fun PersonalSelfPreview(state: PersonalCallUiState, switchCamera: () -> 
                 lineHeight = if (phone) 15.sp else 21.sp,
                 modifier = Modifier.clearAndSetSemantics { })
         }
+        if (speaking && feed != null) Box(Modifier.fillMaxSize().background(SpeakingGreen.copy(alpha = .09f)))
         Icon(if (state.media.camera) CallIcons.Video else CallIcons.VideoOff, null,
             Modifier.align(Alignment.TopEnd).padding(8.dp).size(12.dp), tint = if (state.media.camera) Color(0xFFA4DFCB) else Color(0xFFB0BFD5))
         Row(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(if (phone) 6.dp else 9.dp)
@@ -277,7 +282,10 @@ private fun PersonalSelfPreview(state: PersonalCallUiState, switchCamera: () -> 
             .padding(horizontal = if (phone) 6.dp else 9.dp, vertical = if (phone) 5.dp else 7.dp),
             horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text("Вы", color = Color(0xFFDCE6F9), fontSize = if (phone) 9.sp else 10.sp, lineHeight = 14.sp)
-            Icon(if (state.media.microphone) CallIcons.Mic else CallIcons.MicOff, null, Modifier.size(if (phone) 10.dp else 12.dp), tint = Color(0xFFDCE6F9))
+            Box(Modifier.clip(RoundedCornerShape(4.dp)).background(if (speaking) SpeakingGreen else Color.Transparent).padding(2.dp)) {
+                Icon(if (state.media.microphone) CallIcons.Mic else CallIcons.MicOff, null, Modifier.size(if (phone) 10.dp else 12.dp),
+                    tint = if (speaking) Color(0xFF103622) else Color(0xFFDCE6F9))
+            }
         }
     }
 }
@@ -310,7 +318,8 @@ private fun PersonalCallFooter(state: PersonalCallUiState, actions: PersonalCall
             verticalAlignment = Alignment.Top) {
             PersonalCallControl(if (state.media.microphone) "Микрофон" else "Без звука", if (state.media.microphone) CallIcons.Mic else CallIcons.MicOff,
                 "personal-call-microphone", devicesEnabled && !state.media.microphoneBlocked, actions.microphone, state.media.microphone,
-                if (state.media.microphone) "Выключить микрофон" else "Включить микрофон", phone)
+                if (state.media.microphone) "Выключить микрофон" else "Включить микрофон", phone,
+                speaking = state.media.isSpeaking(state.media.participantId))
             PersonalCallControl("Камера", if (state.media.camera) CallIcons.Video else CallIcons.VideoOff,
                 "personal-call-camera", devicesEnabled && !state.media.cameraBlocked, actions.camera, state.media.camera,
                 if (state.media.camera) "Выключить камеру" else "Включить камеру", phone)
@@ -332,14 +341,14 @@ private fun PersonalCallFooter(state: PersonalCallUiState, actions: PersonalCall
 
 @Composable
 private fun PersonalCallControl(label: String, icon: ImageVector, tag: String, enabled: Boolean, action: () -> Unit,
-    selected: Boolean?, description: String, phone: Boolean, danger: Boolean = false, accept: Boolean = false) {
-    val background = when { danger -> PersonalCallColors.Danger; accept -> Color(0xFF83CCB6); selected == true -> PersonalCallColors.Selected; else -> PersonalCallColors.Control }
-    val border = when { danger -> PersonalCallColors.DangerLine; accept -> Color(0xFF9DE0CC); selected == true -> PersonalCallColors.Selected; else -> PersonalCallColors.ControlLine }
-    val foreground = when { danger -> Color.White; accept || selected == true -> PersonalCallColors.SelectedForeground; else -> Color(0xFFADBDD7) }
+    selected: Boolean?, description: String, phone: Boolean, danger: Boolean = false, accept: Boolean = false, speaking: Boolean = false) {
+    val background = when { speaking && enabled -> SpeakingGreen; danger -> PersonalCallColors.Danger; accept -> Color(0xFF83CCB6); selected == true -> PersonalCallColors.Selected; else -> PersonalCallColors.Control }
+    val border = when { speaking && enabled -> SpeakingGreen; danger -> PersonalCallColors.DangerLine; accept -> Color(0xFF9DE0CC); selected == true -> PersonalCallColors.Selected; else -> PersonalCallColors.ControlLine }
+    val foreground = when { speaking && enabled -> Color(0xFF103622); danger -> Color.White; accept || selected == true -> PersonalCallColors.SelectedForeground; else -> Color(0xFFADBDD7) }
     val interaction = if (selected != null) Modifier.toggleable(selected, enabled = enabled, role = Role.Switch, onValueChange = { action() })
         else Modifier.clickable(enabled = enabled, role = Role.Button, onClick = action)
     Column(Modifier.width(if (phone) 65.dp else 75.dp).heightIn(min = 76.dp).then(interaction).testTag(tag)
-        .semantics(mergeDescendants = true) { contentDescription = description; if (selected != null) stateDescription = if (selected) "Включён" else "Выключен" },
+        .semantics(mergeDescendants = true) { contentDescription = description; if (selected != null) stateDescription = if (speaking && enabled) "Говорит" else if (selected) "Включён" else "Выключен" },
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(9.dp)) {
         Box(Modifier.size(if (phone) 54.dp else 58.dp, if (phone) 52.dp else 54.dp).clip(RoundedCornerShape(18.dp))
             .background(background.copy(alpha = if (enabled) 1f else .48f)).border(1.dp, border.copy(alpha = if (enabled) 1f else .48f), RoundedCornerShape(18.dp)),

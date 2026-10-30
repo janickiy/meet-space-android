@@ -22,7 +22,14 @@ data class CallState(
     // Events invalidate REST projections; untrusted socket message bodies never enter the UI.
     val discussionRevision: Long = 0, val recordingRevision: Long = 0,
     val directCallId: String? = null,
-) { val visible: Boolean get() = phase != CallPhase.IDLE }
+    val activeSpeakerIds: Set<String> = emptySet(),
+) {
+    val visible: Boolean get() = phase != CallPhase.IDLE
+    fun canSpeak(id: String): Boolean = phase == CallPhase.CONNECTED && id.isNotBlank() &&
+        if (id == participantId) microphone && !microphoneBlocked
+        else participants.any { it.id == id && it.online && it.microphone }
+    fun isSpeaking(id: String): Boolean = id in activeSpeakerIds && canSpeak(id)
+}
 
 /** Rendering never races a disposed native track during rotation, reconnect or leave. */
 class VideoFeed internal constructor(private val track: VideoTrack, val eglContext: EglBase.Context) {

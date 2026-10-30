@@ -95,7 +95,6 @@ data class CallTextPanelState(
 data class CallUiDetails(
     val elapsedSeconds: Long? = null,
     val recording: Boolean = false,
-    val activeSpeakerIds: Set<String> = emptySet(),
     val chat: CallTextPanelState = CallTextPanelState(),
     val comments: CallTextPanelState = CallTextPanelState(),
     val commentCount: Int? = null,

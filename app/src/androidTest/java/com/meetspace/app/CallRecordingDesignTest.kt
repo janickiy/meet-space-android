@@ -151,13 +151,13 @@ class CallRecordingDesignTest {
     companion object {
         private val self = CallParticipant("self", "Александр Соколов", true, true, false)
         private val call = CallState(CallPhase.CONNECTED, conferenceId = "design-fixture", title = "Дизайн-синхронизация", participantId = self.id,
-            microphone = true,
+            microphone = true, activeSpeakerIds = setOf("anna"),
             status = "Вы в звонке", participants = listOf(self,
                 CallParticipant("anna", "Анна Кузнецова", true, true, false),
                 CallParticipant("maria", "Мария Полякова", true, false, false),
                 CallParticipant("dmitry", "Дмитрий Волков", true, false, false),
                 CallParticipant("maxim", "Максим Петров", true, false, false)))
-        private val callDetails = CallUiDetails(elapsedSeconds = 768, recording = true, activeSpeakerIds = setOf("anna"),
+        private val callDetails = CallUiDetails(elapsedSeconds = 768, recording = true,
             room = MeetingRoomUiState(selfId = "self", participants = call.participants.map { MeetingParticipant(it.id, "design-fixture", it.id, it.name, if (it.id == "self") "owner" else "participant", "joined", "admitted") } + MeetingParticipant("waiting", "design-fixture", null, "Елена Смирнова", "guest", "waiting", "waiting")),
             recordingState = CallRecordingUiState(status = CallRecordingStatus.STOPPED, canStart = true, modes = listOf("composite", "audio_only", "individual_tracks", "screen_focus"),
                 description = "Видео, звук и демонстрация экрана в одной записи."),

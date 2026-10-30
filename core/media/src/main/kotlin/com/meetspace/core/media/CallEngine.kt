@@ -59,6 +59,10 @@ class CallEngine(
     private var reader: Job? = null
     private var timer: Job? = null
     private var statsJob: Job? = null
+    private val speaking = SpeakingActivity()
+    private var statsPending = false
+    private val statsTickQueued = java.util.concurrent.atomic.AtomicBoolean()
+    private var nextDiagnosticsMs = 0L
     private var reconnectJob: Job? = null
     private var credentialTimer: Job? = null
     private var connectionId = ""
@@ -508,6 +512,7 @@ class CallEngine(
                     CallParticipant(validId(p.string("id")), p.string("displayName").take(100), p.flag("online"), p.flag("microphoneEnabled"), p.flag("cameraEnabled"))
                 }
                 mutable.value = state.value.copy(participantId = participant, participants = roster)
+                pruneSpeakers()
                 if (joinRequest.isEmpty()) { joinRequest = send("media.join"); deadline(20_000, "Медиасервис не подтвердил вход.") }
             }
             "participant.media.updated" -> {
@@ -516,6 +521,7 @@ class CallEngine(
                 mutable.value = state.value.copy(participants = state.value.participants.map {
                     if (it.id == participantId) it.copy(microphone = person.flag("microphoneEnabled"), camera = person.flag("cameraEnabled")) else it
                 })
+                pruneSpeakers()
             }
             "media.joined" -> {
                 if (event.reply != joinRequest || pc != null) return
@@ -635,7 +641,8 @@ class CallEngine(
                 when (value) {
                     PeerConnection.PeerConnectionState.CONNECTED -> { if (gate.pending == null) connected() }
                     PeerConnection.PeerConnectionState.DISCONNECTED -> {
-                        mutable.value = state.value.copy(status = "Связь прервана…")
+                        speaking.clear()
+                        mutable.value = state.value.copy(status = "Связь прервана…", activeSpeakerIds = emptySet())
                         deadline(8_000, null)
                     }
                     PeerConnection.PeerConnectionState.FAILED -> reconnect()
@@ -708,6 +715,8 @@ class CallEngine(
             micTrack = factory!!.createAudioTrack(id(), micSource).also { setSource("microphone", it) }
         }
         mutable.value = state.value.copy(microphone = effective)
+        speaking.forget(state.value.participantId)
+        pruneSpeakers()
     }
     private fun replaceCamera(enabled: Boolean) {
         setSource("camera", null)
@@ -794,7 +803,14 @@ class CallEngine(
         updatePresence()
         if (statsJob == null) {
             val epoch = generation
-            statsJob = scope.launch { while (isActive) { delay(3_000); callback(epoch) { stats(epoch) } } }
+            statsJob = scope.launch { while (isActive) {
+                delay(SpeakingActivity.POLL_MS)
+                // Coalesce telemetry while signaling is busy; do not displace SDP/ICE or
+                // turn a full command queue into a failed call just to update an indicator.
+                if (statsTickQueued.compareAndSet(false, true) && !commands.trySend {
+                    if (epoch == generation) { statsTickQueued.set(false); stats(epoch) }
+                }.isSuccess) statsTickQueued.set(false)
+            } }
         }
     }
     private suspend fun updatePresence() {
@@ -803,7 +819,25 @@ class CallEngine(
         catch (_: Exception) { notice("Не удалось обновить состояние устройств на сервере.") }
     }
     private fun stats(epoch: Long) {
+        val now = android.os.SystemClock.elapsedRealtime()
+        pruneSpeakers(now)
+        if (state.value.phase != CallPhase.CONNECTED || pc?.connectionState() != PeerConnection.PeerConnectionState.CONNECTED) {
+            speaking.clear(); publishSpeakers(emptySet()); return
+        }
+        // One report in flight; a delayed native callback cannot queue an unbounded backlog.
+        if (statsPending) return
+        val diagnostics = now >= nextDiagnosticsMs
+        if (diagnostics) nextDiagnosticsMs = now + 3_000
+        statsPending = true
         pc?.getStats { report -> callback(epoch) {
+            statsPending = false
+            val sampledAt = android.os.SystemClock.elapsedRealtime()
+            if (sampledAt - now > 1_000 || state.value.phase != CallPhase.CONNECTED ||
+                pc?.connectionState() != PeerConnection.PeerConnectionState.CONNECTED) return@callback
+            val microphones = RemoteSdpTracks.catalogBindings(remoteTracksByMid, catalog)
+                .filterValues { it.kind == "audio" && it.source == "microphone" }
+            publishSpeakers(speaking.update(report, sampledAt, state.value.participantId, micTrack?.id(), microphones, eligibleSpeakers()))
+            if (!diagnostics) return@callback
             var receivedBytes = 0L; var sent = 0L; var frames = 0L; var relay = false; var audioBytes = 0L; var videoBytes = 0L
             report.statsMap.values.forEach { stat ->
                 val m = stat.members
@@ -824,6 +858,7 @@ class CallEngine(
             mutable.value = state.value.copy(diagnostics = state.value.diagnostics.copy(relay = relay, receivedBytes = receivedBytes,
                 decodedFrames = frames, sentBytes = sent, receivedAudioBytes = audioBytes, receivedVideoBytes = videoBytes))
         } }
+        if (!diagnostics) return
         val sender = slots["video/screen"]?.sender ?: return
         if (screenTrack == null || !screenSessionActive) return
         val session = screenSession
@@ -842,6 +877,13 @@ class CallEngine(
             if (fps != null) android.util.Log.d("MeetSpaceCall", "screen_encoded_fps=" +
                 String.format(java.util.Locale.ROOT, "%.2f", fps) + " framesEncoded=$frames")
         } }
+    }
+    private fun eligibleSpeakers(): Set<String> = (state.value.participants.map { it.id } + state.value.participantId)
+        .filterTo(mutableSetOf()) { state.value.canSpeak(it) }
+    private fun pruneSpeakers(now: Long = android.os.SystemClock.elapsedRealtime()) =
+        publishSpeakers(speaking.expire(now, eligibleSpeakers()))
+    private fun publishSpeakers(ids: Set<String>) {
+        if (ids != state.value.activeSpeakerIds) mutable.value = state.value.copy(activeSpeakerIds = ids)
     }
     private fun deadline(delayMs: Long, message: String?) {
         timer?.cancel(); val epoch = generation
@@ -869,6 +911,7 @@ class CallEngine(
         generation++
         timer?.cancel(); timer = null; reader?.cancel(); reader = null
         statsJob?.cancel(); statsJob = null; reconnectJob?.cancel(); reconnectJob = null
+        statsPending = false; statsTickQueued.set(false); nextDiagnosticsMs = 0; speaking.clear()
         credentialTimer?.cancel(); credentialTimer = null
         if (joinRequest.isNotEmpty()) runCatching { send("media.leave", if (peerId.isBlank()) buildJsonObject {} else peerData()) }
         signaling?.close(); signaling = null
@@ -877,7 +920,7 @@ class CallEngine(
         peerId = ""; connectionId = ""; joinRequest = ""; hasRemote = false; hasOffer = false
         remoteIce.clear(); localIce.clear(); seenIce.clear(); gate = NegotiationGate(); catalog = emptyList()
         catalogRevision = -1; policyVersion = -1; presenceSequence = 0
-        mutable.value = state.value.copy(videos = emptyList(), participants = emptyList(), diagnostics = CallDiagnostics())
+        mutable.value = state.value.copy(videos = emptyList(), participants = emptyList(), diagnostics = CallDiagnostics(), activeSpeakerIds = emptySet())
     }
     private fun disposeAll() {
         closeNetwork(); replaceMic(false); replaceCamera(false); stopScreenInternal()
