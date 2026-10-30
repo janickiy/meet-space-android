@@ -22,6 +22,7 @@ data class User(
     val displayName: String? = null,
     val isAdmin: Boolean = false,
     val createdAt: String? = null,
+    val avatarVersion: String? = null,
 ) {
     val displayLabel: String get() = displayName?.takeIf(String::isNotBlank) ?: email
 }

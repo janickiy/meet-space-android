@@ -31,7 +31,7 @@ internal class MessagingApi(private val api: MeetSpaceApi) {
         conversation(request(origin, token, path, method, payload).item()).also { expected?.let { id -> same(it.id, id) } }
     suspend fun members(origin: String, token: String, id: String): List<ChatMember> =
         request(origin, token, path(id) + "members").items(100).map {
-            ChatMember(it.id(), it.text("displayName", 100), it.text("role", 30), it.optionalBool("online"))
+            ChatMember(it.id(), it.text("displayName", 100), it.text("role", 30), it.optionalBool("online"), it.optionalId("avatarVersion"))
         }
     suspend fun messages(origin: String, token: String, id: String, cursor: String?): MessagePage {
         val body = request(origin, token, path(id) + "messages", query = pageQuery(cursor, 30))
@@ -216,7 +216,7 @@ internal class MessagingApi(private val api: MeetSpaceApi) {
         }
         fun same(actual: String, expected: String) { if (actual != expected) throw InvalidContract() }
         fun distinct(ids: List<String>) { if (ids.distinct().size != ids.size) throw InvalidContract() }
-        fun peer(o: JsonObject) = ChatPeer(o.id(), o.text("displayName", 400))
+        fun peer(o: JsonObject) = ChatPeer(o.id(), o.text("displayName", 400), o.optionalId("avatarVersion"))
         fun conversation(o: JsonObject): ChatConversation {
             val type = o.text("type", 30)
             val peer = (o["peer"] as? JsonObject)?.let(::peer)
@@ -226,7 +226,7 @@ internal class MessagingApi(private val api: MeetSpaceApi) {
             return ChatConversation(o.id(), type, peer, o.optionalText("name", 200).orEmpty(),
                 o.optionalText("description", 800).orEmpty(), o.optionalText("myRole", 30).orEmpty(), count.toInt(),
                 o.text("preview", 16000), o.count("unreadCount"), o.bool("notificationsEnabled"),
-                o.instant("createdAt"), o.instant("updatedAt"), o.optionalInstant("lastMessageAt"), o.optionalId("lastMessageId"))
+                o.instant("createdAt"), o.instant("updatedAt"), o.optionalInstant("lastMessageAt"), o.optionalId("lastMessageId"), o.optionalId("avatarVersion"))
         }
         fun attachment(o: JsonObject, scope: String): ChatAttachment {
             same(o.id("conversationId"), scope)

@@ -194,25 +194,102 @@ class MessagingViewModelTest {
         assertNull(model.state.value.messages.data)
     }
 
-    @Test fun ambiguousSendRetriesSameIdentityAndPayloadWhileDoubleTapIsIgnored() = runTest(dispatcher) {
+    @Test fun failedSendUsesLocalRowAndRetriesIdenticalPayloadWithoutLockingComposer() = runTest(dispatcher) {
         val gate = CompletableDeferred<ChatMessage>()
         val repository = FakeMessaging().apply { sendResult = { _, _ -> gate.await() } }
         val model = model(repository)
         model.open("room"); runCurrent(); model.draft("Original"); model.send(); model.send(); runCurrent()
         assertEquals(1, repository.sent.size)
-        assertTrue(model.state.value.sending)
-        gate.completeExceptionally(network()); runCurrent()
-        assertTrue(model.state.value.pendingSend)
-        model.draft("Must not replace uncertain payload"); model.reply(message("different")); model.cancelCompose()
-        assertEquals("Original", model.state.value.draft)
-        assertNull(model.state.value.replyTo)
-        repository.sendResult = { id, input -> message("accepted", id).copy(text = input.text, clientRequestId = input.clientRequestId) }
-        model.send(); runCurrent()
-        assertEquals(2, repository.sent.size)
-        assertEquals(repository.sent[0].second, repository.sent[1].second)
-        assertFalse(model.state.value.pendingSend)
+        val row = model.state.value.localMessages.single()
+        assertTrue(row.sending); assertFalse(row.failed)
         assertEquals("", model.state.value.draft)
+        gate.completeExceptionally(network()); runCurrent()
+        assertTrue(model.state.value.localMessages.single().failed)
+        assertNull(model.state.value.error); assertNull(model.state.value.notice)
+        model.draft("Next message")
+        repository.sendResult = { id, input -> message("accepted", id).copy(text = input.text, clientRequestId = input.clientRequestId) }
+        model.retryMessage(row.clientRequestId); runCurrent()
+        assertEquals(repository.sent[0].second, repository.sent[1].second)
+        assertTrue(model.state.value.localMessages.isEmpty())
+        assertEquals("Next message", model.state.value.draft)
         assertEquals(1, model.state.value.messages.data!!.count { it.id == "accepted" })
+    }
+
+    @Test fun localFailuresSurviveViewModelRecreationAndAreIsolatedByAccountAndConversation() = runTest(dispatcher) {
+        val store = MemoryOutgoingMessageStore()
+        val repository = FakeMessaging().apply { sendResult = { _, _ -> throw network() } }
+        val foundation = FakeFoundation()
+        val first = model(repository, foundation, store)
+        first.open("room"); runCurrent()
+        for (text in listOf("First failed", "Second failed")) { first.draft(text); first.send(); runCurrent() }
+        val ids = first.state.value.localMessages.map { it.clientRequestId }
+        assertEquals(2, ids.size)
+        assertTrue(first.state.value.localMessages.all { it.failed })
+        first.open("other-room"); runCurrent(); assertTrue(first.state.value.localMessages.isEmpty())
+        first.suspendWork()
+        val restored = model(repository, foundation, store)
+        restored.open("room"); runCurrent()
+        assertEquals(ids, restored.state.value.localMessages.map { it.clientRequestId })
+        assertTrue(restored.state.value.localMessages.all { it.failed && !it.sending })
+        foundation.state.value = foundation.state.value.copy(session = AccountSession(User("another", "another@example.test"), Capabilities(), true))
+        runCurrent(); restored.open("room"); runCurrent()
+        assertTrue(restored.state.value.localMessages.isEmpty())
+        assertNull(restored.state.value.error)
+    }
+
+    @Test fun everySendFailureRemainsLocalAndSilentAndCanBeExplicitlyDiscarded() = runTest(dispatcher) {
+        for (kind in listOf(FailureKind.NETWORK, FailureKind.TIMEOUT, FailureKind.UNAVAILABLE, FailureKind.FORBIDDEN, FailureKind.NOT_FOUND, FailureKind.VALIDATION)) {
+            val repository = FakeMessaging().apply { sendResult = { _, _ -> throw AppFailure(kind, "Must not be displayed") } }
+            val model = model(repository)
+            model.open("room"); runCurrent(); model.draft("Keep this text"); model.send(); runCurrent()
+            val local = model.state.value.localMessages.single()
+            assertTrue(local.failed); assertFalse(local.sending)
+            assertEquals("Keep this text", local.text)
+            assertNull(model.state.value.error); assertNull(model.state.value.notice)
+            assertEquals("room", model.state.value.selectedId)
+            model.discardMessage(local.clientRequestId); runCurrent()
+            assertTrue(model.state.value.localMessages.isEmpty())
+            model.suspendWork()
+        }
+    }
+
+    @Test fun failedEditKeepsItsDraftWithoutSendingAnUnintendedNewMessageOrBanner() = runTest(dispatcher) {
+        val repository = FakeMessaging().apply { editResult = { _, _, _ -> throw network() } }
+        val model = model(repository)
+        model.open("room"); runCurrent(); model.edit(message("own")); model.draft("Edited text"); model.send(); runCurrent()
+        assertEquals("Edited text", model.state.value.draft)
+        assertNotNull(model.state.value.editing)
+        assertTrue(repository.sent.isEmpty())
+        assertNull(model.state.value.error); assertNull(model.state.value.notice)
+    }
+
+    @Test fun discardingDuringDurableWriteCannotResurrectTheRowOrSendItLater() = runTest(dispatcher) {
+        val memory = MemoryOutgoingMessageStore()
+        val gate = CompletableDeferred<Unit>()
+        val store = object : OutgoingMessageStore by memory {
+            override suspend fun put(scope: String, message: LocalOutgoingMessage) { gate.await(); memory.put(scope, message) }
+        }
+        val repository = FakeMessaging()
+        val model = model(repository, outgoing = store)
+        model.open("room"); runCurrent(); model.draft("Discard before disk completes"); model.send(); runCurrent()
+        val row = model.state.value.localMessages.single()
+        model.discardMessage(row.clientRequestId); runCurrent()
+        gate.complete(Unit); runCurrent()
+        assertTrue(repository.sent.isEmpty())
+        assertTrue(model.state.value.localMessages.isEmpty())
+        assertTrue(memory.messages("profile|https://fixture.example.test|self", row.kind, row.targetId).isEmpty())
+    }
+
+    @Test fun boundedLocalOutboxKeepsTheNextDraftWhenItsConversationIsFull() = runTest(dispatcher) {
+        val repository = FakeMessaging().apply { sendResult = { _, _ -> throw network() } }
+        val model = model(repository)
+        model.open("room"); runCurrent()
+        repeat(100) { model.draft("Unsent $it"); model.send(); runCurrent() }
+        model.draft("Keep this next draft"); model.send(); runCurrent()
+        assertEquals(100, model.state.value.localMessages.size)
+        assertEquals(100, repository.sent.size)
+        assertEquals("Keep this next draft", model.state.value.draft)
+        assertNull(model.state.value.error)
     }
 
     @Test fun validationRejectionUnlocksDraftAndCorrectedMessageGetsNewIdentity() = runTest(dispatcher) {
@@ -826,7 +903,7 @@ class MessagingViewModelTest {
             else -> error("Unknown test resource")
         }
     }
-    private fun model(repository: FakeMessaging, foundation: FakeFoundation = FakeFoundation()) = MessagingViewModel(foundation, repository)
+    private fun model(repository: FakeMessaging, foundation: FakeFoundation = FakeFoundation(), outgoing: OutgoingMessageStore = MemoryOutgoingMessageStore()) = MessagingViewModel(foundation, repository, outgoing)
     private class FakeEvents : UserEvents {
         val channel = Channel<UserEvent>(Channel.UNLIMITED)
         override val events: ReceiveChannel<UserEvent> get() = channel
@@ -861,6 +938,7 @@ class MessagingViewModelTest {
         override suspend fun pinMessage(id: String, messageId: String, pinned: Boolean) = pinResult()
         var eventOpens = 0
         var messageResult: suspend (String, String?) -> MessagePage = { id, _ -> MessagePage(listOf(message("$id-message", id))) }
+        var editResult: suspend (String, String, String) -> ChatMessage = { id, messageId, text -> message(messageId, id).copy(text = text, version = 2) }
         var sendResult: suspend (String, ChatMessageInput) -> ChatMessage = { id, input -> message("sent", id).copy(text = input.text, clientRequestId = input.clientRequestId, replyTo = input.replyTo) }
         var deleteResult: suspend (String, String) -> ChatMessage = { id, messageId -> message(messageId, id).copy(version = 2, text = "", deletedAt = at) }
         var groupChangeResult: suspend (String, String, String) -> ChatConversation = { id, name, description -> conversation(id).copy(name = name, description = description) }
@@ -887,7 +965,7 @@ class MessagingViewModelTest {
         override suspend fun setConversationNotifications(id: String, enabled: Boolean) = conversation(id).copy(notificationsEnabled = enabled)
         override suspend fun messages(id: String, cursor: String?) = messageResult(id, cursor)
         override suspend fun sendMessage(id: String, input: ChatMessageInput): ChatMessage { sent += id to input; return sendResult(id, input) }
-        override suspend fun editMessage(id: String, messageId: String, text: String): ChatMessage { edited += Triple(id, messageId, text); return message(messageId, id).copy(text = text, version = 2) }
+        override suspend fun editMessage(id: String, messageId: String, text: String): ChatMessage { edited += Triple(id, messageId, text); return editResult(id, messageId, text) }
         override suspend fun deleteMessage(id: String, messageId: String): ChatMessage { deleted += id to messageId; return deleteResult(id, messageId) }
         override suspend fun markConversationRead(id: String, messageId: String): ChatReadState { reads += id to messageId; return readResult(id, messageId) }
         override suspend fun uploadAttachment(id: String, filename: String, mimeType: String, bytes: ByteArray, clientRequestId: String) = uploadResult(id, filename, mimeType, bytes)

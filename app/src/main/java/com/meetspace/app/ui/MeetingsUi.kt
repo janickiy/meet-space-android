@@ -127,6 +127,7 @@ data class MeetingsUiState(
     val profileBusy: Boolean = false,
     val creationUncertain: Boolean = false,
     val mutationRevision: Long = 0,
+    val avatarRevision: Long = 0,
     val error: String? = null,
     val notice: String? = null,
 )
@@ -155,6 +156,8 @@ data class MeetingsActions(
     val call: ((Meeting) -> Unit)? = null,
     val leave: (String) -> Unit = {},
     val updateProfile: (String) -> Unit = {},
+    val updateAvatar: (String, ByteArray) -> Unit = { _, _ -> },
+    val deleteAvatar: () -> Unit = {},
     val recordings: (String?) -> Unit = {},
     val acknowledgeUncertainCreate: () -> Unit = {},
     val clearMessage: () -> Unit = {},

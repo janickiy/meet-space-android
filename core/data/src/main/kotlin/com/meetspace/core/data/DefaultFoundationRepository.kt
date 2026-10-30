@@ -152,6 +152,20 @@ internal class DefaultFoundationRepository(
         messagingApi.mutateConversation(it.scope.origin, it.token, path(id), "PATCH",
             fields("name" to inputText(name, 50, true), "description" to inputText(description, 200, multiline = true)), id)
     }
+    override suspend fun groupAvatar(id: String) = meetingOperation(true) {
+        api.avatar(it.scope.origin, path(id) + listOf("avatar", "content"), it.token)
+    }
+    override suspend fun putGroupAvatar(id: String, mimeType: String, bytes: ByteArray) = meetingOperation(false) {
+        val result = MessagingApi.conversation(MessagingApi.parse(api.uploadAvatar(it.scope.origin,
+            path(id) + "avatar", it.token, mimeType, bytes)).item())
+        if (result.id != id || result.type != "group" || result.avatarVersion == null) throw InvalidContract()
+        result
+    }
+    override suspend fun deleteGroupAvatar(id: String) = meetingOperation(false) {
+        messagingApi.mutateConversation(it.scope.origin, it.token, path(id) + "avatar", "DELETE", null, id).also { result ->
+            if (result.type != "group" || result.avatarVersion != null) throw InvalidContract()
+        }
+    }
     override suspend fun groupMembers(id: String) = meetingOperation(true) { messagingApi.members(it.scope.origin, it.token, id) }
     override suspend fun addGroupMembers(id: String, userIds: List<String>) = meetingOperation(false) {
         validateMembers(userIds)
@@ -385,6 +399,29 @@ internal class DefaultFoundationRepository(
             if (it.id == state.value.selectedProfileId) it.copy(accountName = user.displayLabel) else it
         }))
         user
+    }
+
+    override suspend fun userAvatar(userId: String) = meetingOperation(true) {
+        api.avatar(it.scope.origin, listOf("users", inputId(userId), "avatar", "content"), it.token)
+    }
+
+    override suspend fun putUserAvatar(mimeType: String, bytes: ByteArray): User = meetingOperation(false) { context ->
+        applyAvatarUser(context, api.putUserAvatar(context.scope.origin, context.token, mimeType, bytes))
+    }
+
+    override suspend fun deleteUserAvatar(): User = meetingOperation(false) { context ->
+        applyAvatarUser(context, api.deleteUserAvatar(context.scope.origin, context.token))
+    }
+
+    private suspend fun applyAvatarUser(context: AuthContext, user: User): User {
+        val previous = state.value.session ?: throw InvalidContract()
+        if (user.id != context.scope.accountId || user.email != previous.user.email || user.isAdmin != previous.user.isAdmin) {
+            throw InvalidContract()
+        }
+        persist(state.value.copy(session = previous.copy(user = user), profiles = state.value.profiles.map {
+            if (it.id == state.value.selectedProfileId) it.copy(accountName = user.displayLabel) else it
+        }))
+        return user
     }
 
     /** Serialised with login/switch/logout, so requests cannot cross an account or origin change. */

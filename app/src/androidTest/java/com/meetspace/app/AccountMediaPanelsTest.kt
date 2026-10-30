@@ -43,7 +43,7 @@ class AccountMediaPanelsTest {
         }
         compose.onNodeWithTag("account-auto-mute").performScrollTo().assertIsOn().performClick()
         compose.runOnIdle { assertFalse(settings.devicePreferences.autoMute); assertTrue(settings.devicePreferences.cameraOff) }
-        compose.onNodeWithTag("account-noise").assertIsNotEnabled()
+        compose.onNodeWithTag("account-noise").assertDoesNotExist()
         compose.onNodeWithTag("account-speaker").performScrollTo().performClick()
         compose.onNodeWithText("Наушники").performClick()
         compose.runOnIdle { assertEquals(SpeakerPreference.HEADSET, settings.devicePreferences.speaker) }

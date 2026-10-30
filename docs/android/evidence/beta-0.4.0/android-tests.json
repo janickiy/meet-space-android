@@ -1,0 +1,199 @@
+{
+  "androidApi": 36,
+  "abi": "arm64-v8a",
+  "physicalDevice": false,
+  "apkSha256": "c890cdd46d047c1840c8fda012df35541b000ea7f2e554ddcce4ec52de0fb59b",
+  "counts": {
+    "passed": 28,
+    "skipped": 3,
+    "failed": 0
+  },
+  "tests": [
+    {
+      "class": "com.meetspace.app.AvatarImagesTest",
+      "test": "cacheSeparatesVersionsAndUserGroupResources",
+      "status": "passed"
+    },
+    {
+      "class": "com.meetspace.app.AvatarImagesTest",
+      "test": "selectedPhotoIsSubsampledRotatedAndStrippedBeforeUpload",
+      "status": "passed"
+    },
+    {
+      "class": "com.meetspace.app.AvatarImagesTest",
+      "test": "malformedAndOversizedInputsCannotBeUploaded",
+      "status": "passed"
+    },
+    {
+      "class": "com.meetspace.app.AvatarImagesTest",
+      "test": "aLateImageFromAnOldAccountIsDiscardedAndItsEncodedBufferCleared",
+      "status": "passed"
+    },
+    {
+      "class": "com.meetspace.app.AvatarCropBitmapTest",
+      "test": "exportDoesNotPaintEmptyCornersAndLeavesSourceOwnedByTheCaller",
+      "status": "passed"
+    },
+    {
+      "class": "com.meetspace.app.AvatarCropBitmapTest",
+      "test": "editorKeepsTheWholeAspectAndExportMatchesHorizontalAndVerticalOffsets",
+      "status": "passed"
+    },
+    {
+      "class": "com.meetspace.app.AvatarCropBitmapTest",
+      "test": "invalidAndOversizedSourcesAreRejectedBeforeAnEditableBitmapIsReturned",
+      "status": "passed"
+    },
+    {
+      "class": "com.meetspace.app.AvatarCropBitmapTest",
+      "test": "decodeAppliesExifBeforeEditingAndExportStripsLocationMetadata",
+      "status": "passed"
+    },
+    {
+      "class": "com.meetspace.app.AvatarEditorViewModelTest",
+      "test": "failedUploadStaysOpenAndOnlyANewCompletionRevisionCanAcknowledgeIt",
+      "status": "passed"
+    },
+    {
+      "class": "com.meetspace.app.AvatarEditorViewModelTest",
+      "test": "acknowledgedOriginalAndCropSurviveClosingButCancelledReplacementDoesNotOverwriteThem",
+      "status": "passed"
+    },
+    {
+      "class": "com.meetspace.app.AvatarEditorViewModelTest",
+      "test": "cachedOriginalNeverCrossesAResourceVersionAndCacheRemainsBounded",
+      "status": "passed"
+    },
+    {
+      "class": "com.meetspace.app.AvatarEditorViewModelTest",
+      "test": "errorsPreserveTheDraftAndAChangedAccountRejectsLateLoadingResults",
+      "status": "passed"
+    },
+    {
+      "class": "com.meetspace.app.AvatarCropEditorUiTest",
+      "test": "anEmptyEditorRequestsAnImageAndCancelDoesNotSave",
+      "status": "passed"
+    },
+    {
+      "class": "com.meetspace.app.AvatarCropEditorUiTest",
+      "test": "footerStaysVisibleWhileControlsScrollAtTheCurrentDeviceSize",
+      "status": "passed"
+    },
+    {
+      "class": "com.meetspace.app.AvatarCropEditorUiTest",
+      "test": "loadingAndSavingDisableActionsAndFailureKeepsTheCropForRetry",
+      "status": "passed"
+    },
+    {
+      "class": "com.meetspace.app.AvatarCropEditorUiTest",
+      "test": "cropControlsDragResetAndReplaceKeepSaveExplicit",
+      "status": "passed"
+    },
+    {
+      "class": "com.meetspace.app.AvatarPhotoCardUiTest",
+      "test": "groupPhotoControlsRespectPermissionsAndDeletionRequiresAnExplicitConfirmation",
+      "status": "passed"
+    },
+    {
+      "class": "com.meetspace.app.AvatarPhotoCardUiTest",
+      "test": "profilePreviewAndActionsMatchTheMockAndWorkAtPhoneAndTabletWidths",
+      "status": "passed"
+    },
+    {
+      "class": "com.meetspace.app.ProfileAvatarUiTest",
+      "test": "profileOffersAddReplaceAndRemoveOnlyForItsCurrentAvatar",
+      "status": "passed"
+    },
+    {
+      "class": "com.meetspace.app.Release040MessagingUiTest",
+      "test": "failedChatMessageStaysInHistoryWhileComposerAndRetryDiscardWorkOnPhoneAndTablet",
+      "status": "passed"
+    },
+    {
+      "class": "com.meetspace.app.Release040MessagingUiTest",
+      "test": "failedMeetingChatAndCommentHaveInlineActionsWithoutAStatusAnnouncement",
+      "status": "passed"
+    },
+    {
+      "class": "com.meetspace.app.Release040MessagingUiTest",
+      "test": "ordinaryGroupMemberCannotChangeTheAvatar",
+      "status": "passed"
+    },
+    {
+      "class": "com.meetspace.app.Release040MessagingUiTest",
+      "test": "groupOwnerCanAddAndReplaceAvatarFromBothLayouts",
+      "status": "passed"
+    },
+    {
+      "class": "com.meetspace.app.OutgoingMessageStoreAndroidTest",
+      "test": "encryptedOutboxSurvivesStoreRecreationRejectsMovedCiphertextAndClearsOnlyItsScope",
+      "status": "passed"
+    },
+    {
+      "class": "com.meetspace.app.AccountMediaPanelsTest",
+      "test": "audioStartsSilentAndChangesOnlyTheRequestedPreferences",
+      "status": "passed"
+    },
+    {
+      "class": "com.meetspace.app.AccountMediaPanelsTest",
+      "test": "largeFontVideoKeepsPreviewAndPreferenceLabelsReadable",
+      "status": "passed"
+    },
+    {
+      "class": "com.meetspace.app.AccountMediaPanelsTest",
+      "test": "videoStartsWithoutCameraAndPreferenceCallbacksDoNotStartIt",
+      "status": "passed"
+    },
+    {
+      "class": "com.meetspace.app.AccountMediaPanelsTest",
+      "test": "notificationSoundReflectsAndroidAndDoesNotAutoplay",
+      "status": "passed"
+    },
+    {
+      "class": "com.meetspace.app.AccountMediaPanelsTest",
+      "test": "realMicrophoneStopsOnBackgroundAndCanBeOpenedAgain",
+      "status": "skipped"
+    },
+    {
+      "class": "com.meetspace.app.AccountMediaPanelsTest",
+      "test": "realCameraProducesFramesStopsAndCanBeOpenedAgain",
+      "status": "skipped"
+    },
+    {
+      "class": "com.meetspace.app.AccountMediaPanelsTest",
+      "test": "realSpeakerAndNotificationTestsReleaseAtTheirDeadlines",
+      "status": "skipped"
+    }
+  ],
+  "physicalViewportRuns": [
+    {
+      "name": "tablet",
+      "widthDp": 1000,
+      "heightDp": 834,
+      "fixedFooterAndScroll": "passed"
+    },
+    {
+      "name": "phone",
+      "widthDp": 390,
+      "heightDp": 844,
+      "fixedFooterAndScroll": "passed"
+    },
+    {
+      "name": "compact",
+      "widthDp": 320,
+      "heightDp": 560,
+      "fixedFooterAndScroll": "passed"
+    },
+    {
+      "name": "landscape",
+      "widthDp": 844,
+      "heightDp": 390,
+      "fixedFooterAndScroll": "passed"
+    }
+  ],
+  "additionalLayoutRuns": 3,
+  "notes": [
+    "The earlier ForcedSize-loop for a separate Dialog window was replaced by fresh runs using actual emulator display sizes.",
+    "No production-photo upload or physical device was used."
+  ]
+}

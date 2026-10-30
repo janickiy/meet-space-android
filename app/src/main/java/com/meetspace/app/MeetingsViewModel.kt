@@ -60,7 +60,8 @@ class MeetingsViewModel(
         moreCalendar = ::moreCalendar, open = ::open, closeDetail = ::closeDetail,
         refreshDetail = ::refreshDetail, create = ::create, edit = ::edit,
         transition = ::transition, join = ::join, joinMeeting = ::joinMeeting, leave = ::leave,
-        updateProfile = ::updateProfile, acknowledgeUncertainCreate = ::acknowledgeUncertainCreate,
+        updateProfile = ::updateProfile, updateAvatar = ::updateAvatar, deleteAvatar = ::deleteAvatar,
+        acknowledgeUncertainCreate = ::acknowledgeUncertainCreate,
         clearMessage = ::clearMessage, invitations = MeetingRoomActions(searchUsers = ::searchInviteUsers, invite = ::inviteUsers),
     )
 
@@ -342,6 +343,25 @@ class MeetingsViewModel(
         "Имя сохранено."
     }
 
+    fun updateAvatar(mimeType: String, bytes: ByteArray) {
+        if (scope() == null || state.value.actionBusy) { bytes.fill(0); return }
+        mutate(profile = true, avatar = true) {
+            try {
+                foundation.putUserAvatar(mimeType, bytes)
+                checkCurrent()
+                "Фото профиля обновлено."
+            } finally { bytes.fill(0) }
+        }
+        // Also clear an upload cancelled before its lazy coroutine enters the block.
+        jobs["action"]?.invokeOnCompletion { bytes.fill(0) }
+    }
+
+    fun deleteAvatar() = mutate(profile = true, avatar = true) {
+        foundation.deleteUserAvatar()
+        checkCurrent()
+        "Фото профиля удалено."
+    }
+
     fun acknowledgeUncertainCreate() {
         if (!creationReconciled) {
             mutableState.update { it.copy(error = "Сначала обновите главную или список ваших будущих встреч и проверьте результат.") }
@@ -352,7 +372,7 @@ class MeetingsViewModel(
 
     fun clearMessage() { mutableState.update { it.copy(error = null, notice = null) } }
 
-    private fun mutate(creating: Boolean = false, profile: Boolean = false, operation: suspend () -> String) {
+    private fun mutate(creating: Boolean = false, profile: Boolean = false, avatar: Boolean = false, operation: suspend () -> String) {
         if (scope() == null || state.value.actionBusy) return
         mutableState.update { it.copy(actionBusy = true, profileBusy = profile, error = null, notice = null) }
         request("action", failure = { failure ->
@@ -360,6 +380,7 @@ class MeetingsViewModel(
             if (creating && uncertain) creationReconciled = false
             mutableState.update { it.copy(
                 actionBusy = false, profileBusy = false,
+                avatarRevision = it.avatarRevision + if (avatar) 1 else 0,
                 creationUncertain = it.creationUncertain || (creating && uncertain),
                 error = if (uncertain && !profile) "${failure.message} Результат действия неизвестен. Обновите данные перед повтором." else failure.message,
             ) }
@@ -367,7 +388,8 @@ class MeetingsViewModel(
         }) {
             val notice = operation()
             checkCurrent()
-            mutableState.update { it.copy(actionBusy = false, profileBusy = false, notice = notice, error = null, mutationRevision = it.mutationRevision + 1) }
+            mutableState.update { it.copy(actionBusy = false, profileBusy = false, notice = notice, error = null,
+                mutationRevision = it.mutationRevision + 1, avatarRevision = it.avatarRevision + if (avatar) 1 else 0) }
             if (!profile) refreshKnownData()
         }
     }

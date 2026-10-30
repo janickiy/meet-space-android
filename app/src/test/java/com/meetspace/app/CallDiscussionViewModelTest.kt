@@ -59,7 +59,7 @@ class CallDiscussionViewModelTest {
         assertEquals("sent-1", chat.marked.last().second)
     }
 
-    @Test fun ambiguousSendBlocksDoubleTapAndRetriesIdenticalPayloadFromEitherPanel() = discussionTest {
+    @Test fun failedMeetingSendRemainsAnInlineRowAndRetriesIdenticalPayloadFromEitherPanel() = discussionTest {
         val gate = CompletableDeferred<MeetingChatMessage>()
         val chat = Chat().apply { send = { _, _ -> gate.await() } }
         val model = model(chat)
@@ -67,20 +67,38 @@ class CallDiscussionViewModelTest {
         model.actions.chatDraft("Исходный текст")
         model.actions.sendChat(); model.actions.sendComment(); runCurrent()
         assertEquals(1, chat.sent.size)
-        assertTrue(model.state.value.chat.sending)
-        assertTrue(model.state.value.comments.sending)
-        gate.completeExceptionally(network()); runCurrent()
-        model.actions.chatDraft("Нельзя заменить неподтверждённое сообщение")
-        model.actions.commentDraft("Нельзя отправить второе")
-        assertEquals("Исходный текст", model.state.value.chat.draft)
-        assertEquals("", model.state.value.comments.draft)
-        chat.send = { room, input -> message("accepted", room).copy(text = input.text, clientRequestId = input.clientRequestId) }
-        model.actions.retryComments(); runCurrent()
-        assertEquals(2, chat.sent.size)
-        assertEquals(chat.sent.first(), chat.sent.last())
+        assertTrue(model.state.value.chat.entries.single().sending)
         assertEquals("", model.state.value.chat.draft)
-        assertFalse(model.state.value.comments.sending)
+        gate.completeExceptionally(network()); runCurrent()
+        val row = model.state.value.chat.entries.single()
+        assertTrue(row.deliveryFailed); assertFalse(row.sending)
+        assertNull(model.state.value.chat.error); assertNull(model.state.value.comments.error)
+        model.actions.chatDraft("Следующее сообщение")
+        chat.send = { room, input -> message("accepted", room).copy(text = input.text, clientRequestId = input.clientRequestId) }
+        model.actions.retryMessage(row.localRequestId!!); runCurrent()
+        assertEquals(chat.sent.first(), chat.sent.last())
+        assertEquals("Следующее сообщение", model.state.value.chat.draft)
         assertEquals(listOf("accepted"), model.state.value.comments.entries.map { it.id })
+    }
+
+    @Test fun meetingOutboxRestoresAfterRecreationAndDoesNotAppearInAnotherRoom() = discussionTest {
+        val store = MemoryOutgoingMessageStore()
+        val chat = Chat().apply { send = { _, _ -> throw network() } }
+        val first = model(chat, outgoing = store)
+        connect(first); runCurrent()
+        first.actions.commentDraft("Сохранённый комментарий"); first.actions.sendComment(); runCurrent()
+        val id = first.state.value.chat.entries.single().localRequestId
+        first.clear()
+        val restored = model(chat, outgoing = store)
+        connect(restored); runCurrent()
+        assertEquals(id, restored.state.value.comments.entries.single().localRequestId)
+        assertTrue(restored.state.value.chat.entries.single().deliveryFailed)
+        restored.bind(liveCall("another")); runCurrent()
+        assertTrue(restored.state.value.chat.entries.isEmpty())
+        restored.bind(liveCall()); runCurrent()
+        assertEquals(id, restored.state.value.chat.entries.single().localRequestId)
+        restored.actions.discardMessage(id!!); runCurrent()
+        assertTrue(restored.state.value.chat.entries.isEmpty())
     }
 
     @Test fun authoritativeRefreshAcknowledgesAnUncertainSendWithoutAnotherPost() = discussionTest {
@@ -447,7 +465,7 @@ class CallDiscussionViewModelTest {
         assertEquals(CallRecordingStatus.STOPPING, model.state.value.recordingState.status)
     }
 
-    @Test fun interruptedSendKeepsRetryVisibleAfterResumeAndResendsTheIdenticalPayload() = discussionTest {
+    @Test fun interruptedSendKeepsAnInlineFailureAfterResumeAndResendsTheIdenticalPayload() = discussionTest {
         val gate = CompletableDeferred<MeetingChatMessage>()
         val chat = Chat().apply { send = { _, _ -> gate.await() } }
         val model = model(chat)
@@ -455,30 +473,22 @@ class CallDiscussionViewModelTest {
         model.actions.chatDraft("Неподтверждённое сообщение")
         model.actions.sendChat(); runCurrent()
         val original = chat.sent.single()
-        assertTrue(model.state.value.chat.sending)
-
+        assertTrue(model.state.value.chat.entries.single().sending)
         model.foreground(false); runCurrent()
-        assertFalse(model.state.value.chat.sending)
-        val error = model.state.value.chat.error
-        assertTrue(error.orEmpty().contains("Повторите"))
-        assertEquals(error, model.state.value.comments.error)
+        val failed = model.state.value.chat.entries.single()
+        assertTrue(failed.deliveryFailed); assertFalse(failed.sending)
+        assertNull(model.state.value.chat.error); assertNull(model.state.value.comments.error)
         model.foreground(true); runCurrent()
         advanceTimeBy(5_000); runCurrent()
-        assertEquals(error, model.state.value.chat.error)
-        assertEquals("Неподтверждённое сообщение", model.state.value.chat.draft)
-        assertEquals(1, chat.sent.size)
-        assertFalse(model.state.value.chat.canSend)
-        model.actions.chatDraft("Нельзя подменить ожидающую отправку")
-        assertEquals(original.second.text, model.state.value.chat.draft)
-
-        chat.send = { room, input -> message("confirmed", room).copy(text = input.text, clientRequestId = input.clientRequestId) }
-        model.actions.retryComments(); runCurrent()
-        assertEquals(listOf(original, original), chat.sent)
-        assertNull(model.state.value.chat.error)
-        assertNull(model.state.value.comments.error)
+        assertTrue(model.state.value.chat.entries.single().deliveryFailed)
         assertEquals("", model.state.value.chat.draft)
-        assertEquals(listOf("confirmed"), model.state.value.chat.entries.map { it.id })
+        assertEquals(1, chat.sent.size)
         assertTrue(model.state.value.chat.canSend)
+        chat.send = { room, input -> message("confirmed", room).copy(text = input.text, clientRequestId = input.clientRequestId) }
+        model.actions.retryMessage(failed.localRequestId!!); runCurrent()
+        assertEquals(listOf(original, original), chat.sent)
+        assertNull(model.state.value.chat.error); assertNull(model.state.value.comments.error)
+        assertEquals(listOf("confirmed"), model.state.value.chat.entries.map { it.id })
     }
 
     @Test fun interruptedUploadRemainsVisibleAfterPollingAndExplicitRetryKeepsItsRequestId() = discussionTest {
@@ -631,8 +641,8 @@ class CallDiscussionViewModelTest {
         }
     }
 
-    private fun model(chat: Chat, foundation: Foundation = Foundation(), meetings: Meetings = Meetings(), records: Records = Records()): CallDiscussionViewModel =
-        CallDiscussionViewModel(foundation, chat, meetings, records, Clock.fixed(AT.plusSeconds(90), ZoneOffset.UTC)).also { model ->
+    private fun model(chat: Chat, foundation: Foundation = Foundation(), meetings: Meetings = Meetings(), records: Records = Records(), outgoing: OutgoingMessageStore = MemoryOutgoingMessageStore()): CallDiscussionViewModel =
+        CallDiscussionViewModel(foundation, chat, meetings, records, Clock.fixed(AT.plusSeconds(90), ZoneOffset.UTC), outgoing).also { model ->
             stores += ViewModelStore().apply { put("discussion", model) }
         }
     private fun connect(model: CallDiscussionViewModel, room: String = "room") { model.foreground(true); model.bind(liveCall(room)) }

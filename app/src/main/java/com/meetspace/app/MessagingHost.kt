@@ -30,6 +30,16 @@ fun MessagingHost(model: MessagingViewModel, state: MessagingUiState, pushContro
     val identity by rememberUpdatedState(authScope)
     var importTarget by remember { mutableStateOf<Pair<String, String>?>(null) }
     var exportTarget by remember { mutableStateOf<Pair<String, ChatAttachment>?>(null) }
+    val avatarPicker = rememberAvatarPicker(
+        identityKey = "$authScope|${state.selectedId.orEmpty()}",
+        enabled = state.detail.data?.canManage == true && !state.busy && !state.avatarBusy,
+        onPicked = model::uploadGroupAvatar,
+        onError = model::message,
+        existingAvatar = state.detail.data?.let { AvatarEditTarget(it.id, it.avatarVersion, group = true) },
+        title = "Фото группы",
+        operationRevision = state.avatarRevision,
+        operationError = state.error,
+    )
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         val target = importTarget; importTarget = null
         if (uri != null && target != null && target.first == identity && target.second == selected) {
@@ -60,6 +70,7 @@ fun MessagingHost(model: MessagingViewModel, state: MessagingUiState, pushContro
         enablePush = { effects.launch { pushController.enable() } },
         disablePush = { effects.launch { pushController.disable() } },
         pickAttachment = { selected?.let { importTarget = identity to it; picker.launch(arrayOf("*/*")) } },
+        pickGroupAvatar = avatarPicker,
         download = { attachment -> exportTarget = identity to attachment; save.launch(MessagingFiles.safeName(attachment.filename)) },
         openMeeting = openMeeting,
         openNotification = openNotification ?: { item ->

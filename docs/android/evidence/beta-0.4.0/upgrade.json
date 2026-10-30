@@ -1,0 +1,11 @@
+{
+  "previousVersion": "0.3.13-beta",
+  "newVersion": "0.4.0-beta",
+  "versionCode": 32,
+  "androidApi": 36,
+  "abi": "arm64-v8a",
+  "physicalDevice": false,
+  "replaceInstallPassed": true,
+  "privateDataMarkerPreserved": true,
+  "certificatePreserved": true
+}

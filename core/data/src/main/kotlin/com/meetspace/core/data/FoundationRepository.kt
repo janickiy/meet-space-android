@@ -29,6 +29,13 @@ interface FoundationRepository {
     suspend fun restore()
     suspend fun logout(): LogoutResult
     suspend fun setTheme(mode: ThemeMode)
+    /** Private bounded image bytes from the selected account's HTTPS server. */
+    suspend fun userAvatar(userId: String): ByteArray =
+        throw AppFailure(FailureKind.INCOMPATIBLE_SERVER, "Аватарки пользователей недоступны на этом сервере.")
+    suspend fun putUserAvatar(mimeType: String, bytes: ByteArray): com.meetspace.core.model.User =
+        throw AppFailure(FailureKind.INCOMPATIBLE_SERVER, "Изменение аватарки недоступно на этом сервере.")
+    suspend fun deleteUserAvatar(): com.meetspace.core.model.User =
+        throw AppFailure(FailureKind.INCOMPATIBLE_SERVER, "Изменение аватарки недоступно на этом сервере.")
 }
 
 object FoundationRepositoryFactory {

@@ -29,6 +29,48 @@ class MeetingsViewModelTest {
     @Before fun setup() { Dispatchers.setMain(dispatcher) }
     @After fun teardown() { Dispatchers.resetMain() }
 
+    @Test fun avatarUploadPublishesAccountAndClearsTheOwnedImageBuffer() = runTest(dispatcher) {
+        val foundation = FakeFoundation()
+        val model = model(FakeMeetings(), foundation)
+        val image = byteArrayOf(1, 2, 3)
+        model.updateAvatar("image/jpeg", image)
+        runCurrent()
+        assertEquals("avatar-v1", foundation.state.value.session!!.user.avatarVersion)
+        assertTrue(image.all { it == 0.toByte() })
+        assertFalse(model.state.value.profileBusy)
+        assertEquals("Фото профиля обновлено.", model.state.value.notice)
+        model.deleteAvatar(); runCurrent()
+        assertNull(foundation.state.value.session!!.user.avatarVersion)
+        assertEquals("Фото профиля удалено.", model.state.value.notice)
+    }
+
+    @Test fun cancelledBeforeStartAvatarUploadCannotRetainTheImageBuffer() = runTest(dispatcher) {
+        val model = model(FakeMeetings())
+        val image = byteArrayOf(4, 5, 6)
+        model.updateAvatar("image/jpeg", image)
+        model.suspendWork()
+        runCurrent()
+        assertTrue(image.all { it == 0.toByte() })
+        assertFalse(model.state.value.profileBusy)
+        assertNull(model.state.value.notice)
+    }
+
+    @Test fun lateAvatarUploadCannotShowSuccessAfterSwitchingAccounts() = runTest(dispatcher) {
+        val gate = CompletableDeferred<User>()
+        val foundation = FakeFoundation().apply { avatarResult = { _, _ -> withContext(NonCancellable) { gate.await() } } }
+        val model = model(FakeMeetings(), foundation)
+        val image = byteArrayOf(7, 8, 9)
+        model.updateAvatar("image/jpeg", image); runCurrent()
+        assertTrue(model.state.value.profileBusy)
+        foundation.state.value = foundation.state.value.copy(session = AccountSession(User("other", "other@example.test"), Capabilities(), true))
+        runCurrent()
+        gate.complete(User("current-user", "member@example.test", avatarVersion = "old-avatar")); runCurrent()
+        assertTrue(image.all { it == 0.toByte() })
+        assertNull(model.state.value.notice)
+        assertFalse(model.state.value.profileBusy)
+        assertEquals("other", foundation.state.value.session!!.user.id)
+    }
+
     @Test fun homeRequestsRealUpcomingAndActiveOnlyOnceUntilRefreshed() = runTest(dispatcher) {
         val repository = FakeMeetings()
         val model = model(repository)
@@ -388,6 +430,9 @@ class MeetingsViewModelTest {
             profiles = listOf(ServerProfile("profile", "https://fixture.example.test")), selectedProfileId = "profile",
             session = AccountSession(User("current-user", "member@example.test"), Capabilities(), true),
         ))
+        var avatarResult: suspend (String, ByteArray) -> User = { _, _ -> state.value.session!!.user.copy(avatarVersion = "avatar-v1").also { user -> state.value = state.value.copy(session = state.value.session!!.copy(user = user)) } }
+        override suspend fun putUserAvatar(mimeType: String, bytes: ByteArray) = avatarResult(mimeType, bytes)
+        override suspend fun deleteUserAvatar() = state.value.session!!.user.copy(avatarVersion = null).also { user -> state.value = state.value.copy(session = state.value.session!!.copy(user = user)) }
         override suspend fun restore() = Unit
         override suspend fun addServer(rawUrl: String) = state.value.selectedProfile!!
         override suspend fun selectServer(profileId: String) = Unit

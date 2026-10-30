@@ -26,6 +26,7 @@ class CallDiscussionViewModel(
     private val meetings: MeetingsRepository,
     private val recordings: RecordingsRepository,
     private val clock: Clock = Clock.systemDefaultZone(),
+    private val outgoingStore: OutgoingMessageStore = MemoryOutgoingMessageStore(),
 ) : ViewModel() {
     private val mutable = MutableStateFlow(CallUiDetails())
     val state = mutable.asStateFlow()
@@ -36,6 +37,7 @@ class CallDiscussionViewModel(
     private var generation = 0L
     private val jobs = mutableMapOf<String, Job>()
     private val tickets = mutableMapOf<String, Long>()
+    private var nextTicket = 0L
     private var poll: Job? = null
     private var messages = emptyList<MeetingChatMessage>()
     private var cursor: String? = null
@@ -44,8 +46,9 @@ class CallDiscussionViewModel(
     private var startedAt: Instant? = null
     private var activeMeeting = true
     private var access = true
-    private data class Attempt(val input: ChatMessageInput, val panel: CallPanel)
-    private var pending: Attempt? = null
+    private val outgoing = linkedMapOf<String, LocalOutgoingMessage>()
+    private val persisting = mutableMapOf<String, Deferred<Result<Unit>>>()
+    private val retiredOutgoing = linkedSetOf<String>()
     private val attached = mutableListOf<MeetingChatAttachment>()
     private data class Upload(val id: String, val name: String, val mime: String, var bytes: ByteArray? = null,
         var status: CallAttachmentStatus = CallAttachmentStatus.PREPARING, var error: String? = null)
@@ -59,7 +62,7 @@ class CallDiscussionViewModel(
     private var recordingMode = "composite"
 
     init { viewModelScope.launch { foundation.state.collect {
-        if (identity != account()) { clear(); identity = account() }
+        if (identity != account()) { clear(); retiredOutgoing.clear(); identity = account() }
     } } }
 
     val actions get() = CallPanelActions(
@@ -69,13 +72,13 @@ class CallDiscussionViewModel(
         commentDraft = { draft(CallPanel.COMMENTS, it) }, sendComment = { send(CallPanel.COMMENTS) },
         retryComments = { retry(CallPanel.COMMENTS) }, moreComments = { loadMessages(older = true) },
         latestChat = ::latest, latestComments = ::latest,
-        removeChatAttachment = ::removeAttachment,
+        removeChatAttachment = ::removeAttachment, retryMessage = ::retryMessage, discardMessage = ::discardMessage,
     )
 
     val recordingActions get() = CallRecordingActions(start = { controlRecording(false) }, stop = { controlRecording(true) }, retry = ::loadRecording, selectMode = { mode -> if (mode in state.value.recordingState.modes) { recordingMode = mode; updateRecording() } })
 
     fun bind(value: CallState) {
-        if (identity != account()) { clear(); identity = account() }
+        if (identity != account()) { clear(); retiredOutgoing.clear(); identity = account() }
         if (!value.visible || account() == null) { if (call.visible) clear(); return }
         val changed = call.conferenceId != value.conferenceId
         val wasConnected = connected()
@@ -86,7 +89,7 @@ class CallDiscussionViewModel(
         call = value
         updateAvailability()
         if (!connected()) { stopRequests(); return }
-        if (changed || becameConnected || !wasConnected) { refresh(); startPolling() }
+        if (changed || becameConnected || !wasConnected) { loadOutgoing(); refresh(); startPolling() }
         else {
             if (revision) loadMessages()
             if (recordingRevision) loadRecording()
@@ -114,45 +117,90 @@ class CallDiscussionViewModel(
     }
 
     private fun draft(target: CallPanel, text: String) {
-        if (pending != null || state.value.chat.sending) return
+        if (state.value.chat.sending) return
         val bounded = if (text.codePointCount(0, text.length) > 4000) text.substring(0, text.offsetByCodePoints(0, 4000)) else text
         editPanel(target) { it.copy(draft = bounded, error = null) }
     }
 
     private fun retry(target: CallPanel) {
-        if (pending != null) send(target)
+        val failed = outgoing.values.firstOrNull { it.targetId == call.conferenceId && it.failed }
+        if (failed != null) retryMessage(failed.clientRequestId)
         else if (upload?.bytes != null) startUpload(checkNotNull(upload), null)
         else { access = true; updateAvailability(); loadMessages(); loadRecording(); startPolling() }
     }
 
     private fun send(target: CallPanel) {
-        if (!canSend() || state.value.chat.sending || upload != null) return
+        if (!canSend() || upload != null) return
         val draft = if (target == CallPanel.COMMENTS) state.value.comments.draft else state.value.chat.draft
-        val attempt = pending ?: if (draft.isNotBlank() || attached.isNotEmpty()) {
-            Attempt(ChatMessageInput(UUID.randomUUID().toString(), draft.trim(), attachmentIds = attached.map { it.id }), target)
-        } else return
-        pending = attempt
-        editBoth { it.copy(sending = true, error = null) }
-        request("send", { repository.sendMeetingMessage(call.conferenceId, attempt.input) }, { message ->
-            cancel("messages")
-            messages = merge(messages, listOf(message))
-            browsingOlder = false
-            acknowledged(); publishMessages(); markRead()
-        }, { error ->
-            val uncertain = error.kind in setOf(FailureKind.NETWORK, FailureKind.TIMEOUT, FailureKind.UNAVAILABLE)
-            if (!uncertain) pending = null
-            if (!denied(error)) editBoth { it.copy(sending = false, error = error.message +
-                if (uncertain) " Повторите отправку: повтор не создаст дубликат." else "") }
-            updateAvailability()
-        })
-    }
-
-    private fun acknowledged() {
-        val target = pending?.panel
-        pending = null
+        if (draft.isBlank() && attached.isEmpty()) return
+        val scope = identity ?: return
+        if (outgoing.size >= 100) return
+        val user = foundation.state.value.session?.user ?: return
+        val row = LocalOutgoingMessage(UUID.randomUUID().toString(), OutgoingMessageKind.MEETING, call.conferenceId, draft.trim(), user.id, user.displayLabel,
+            attachments = attached.map { OutgoingAttachment(it.id, it.filename, it.mimeType, it.size, it.checksum) })
+        outgoing[row.clientRequestId] = row
         attached.clear(); publishAttachments()
-        editBoth { it.copy(sending = false, error = null) }
-        target?.let { editPanel(it) { p -> p.copy(draft = "") } }
+        editPanel(target) { it.copy(draft = "", error = null) }
+        publishMessages()
+        persistAndDeliver(scope, row)
+    }
+    fun retryMessage(clientRequestId: String) {
+        val row = outgoing[clientRequestId] ?: return
+        val scope = identity ?: return
+        if (!canSend() || row.targetId != call.conferenceId || row.sending) return
+        val sending = row.copy(failed = false, sending = true)
+        outgoing[clientRequestId] = sending; publishMessages()
+        persistAndDeliver(scope, sending)
+    }
+    fun discardMessage(clientRequestId: String) {
+        val row = outgoing[clientRequestId] ?: return
+        val scope = identity ?: return
+        if (row.targetId != call.conferenceId) return
+        cancel("outgoing-$clientRequestId"); removeOutgoing(scope, row)
+    }
+    private fun persistAndDeliver(scope: String, row: LocalOutgoingMessage) {
+        val saved = viewModelScope.async(NonCancellable, start = CoroutineStart.UNDISPATCHED) { runCatching { outgoingStore.put(scope, row) } }
+        persisting[row.clientRequestId] = saved
+        saved.invokeOnCompletion { if (persisting[row.clientRequestId] === saved) persisting.remove(row.clientRequestId) }
+        var acknowledged = false
+        val job = request("outgoing-${row.clientRequestId}", {
+            saved.await().getOrThrow()
+            repository.sendMeetingMessage(row.targetId, row.input)
+        }, { message ->
+            acknowledged = true
+            cancel("messages"); messages = merge(messages, listOf(message)); browsingOlder = false
+            removeOutgoing(scope, row); publishMessages(); markRead()
+        }, {
+            outgoing[row.clientRequestId]?.let { outgoing[row.clientRequestId] = it.copy(failed = true, sending = false) }
+            editBoth { it.copy(error = null) }; publishMessages()
+        })
+        job?.invokeOnCompletion {
+            if (!acknowledged && identity == scope && account() == scope) {
+                outgoing[row.clientRequestId]?.let { outgoing[row.clientRequestId] = it.copy(failed = true, sending = false) }
+                publishMessages()
+            }
+        }
+    }
+    private fun removeOutgoing(scope: String, row: LocalOutgoingMessage) {
+        retiredOutgoing.add(row.clientRequestId)
+        while (retiredOutgoing.size > 1000) retiredOutgoing.remove(retiredOutgoing.first())
+        jobs.remove("outgoing-${row.clientRequestId}"); tickets.remove("outgoing-${row.clientRequestId}")
+        outgoing.remove(row.clientRequestId); publishMessages()
+        val saved = persisting.remove(row.clientRequestId)
+        viewModelScope.launch(NonCancellable) { saved?.await(); runCatching { outgoingStore.remove(scope, row.kind, row.targetId, row.clientRequestId) } }
+    }
+    private fun loadOutgoing() {
+        val scope = identity ?: return
+        val target = call.conferenceId
+        request("outgoing-load", { outgoingStore.messages(scope, OutgoingMessageKind.MEETING, target) }, { rows ->
+            rows.filter { it.clientRequestId !in retiredOutgoing && it.clientRequestId !in outgoing }.take((100 - outgoing.size).coerceAtLeast(0)).forEach { outgoing.putIfAbsent(it.clientRequestId, it) }
+            reconcileOutgoing(messages); publishMessages()
+        }, { /* Failure to read encrypted drafts does not produce a send notification. */ })
+    }
+    private fun reconcileOutgoing(items: List<MeetingChatMessage>) {
+        val scope = identity ?: return
+        outgoing.values.filter { row -> row.targetId == call.conferenceId && items.any { it.senderId == selfId() && it.clientRequestId == row.clientRequestId } }
+            .toList().forEach { row -> cancel("outgoing-${row.clientRequestId}"); removeOutgoing(scope, row) }
     }
 
     private fun refresh() { loadMessages(); loadMeeting(); loadRecording(); loadParticipants() }
@@ -174,11 +222,7 @@ class CallDiscussionViewModel(
                 messages = merge(messages.filter { known -> page.items.any { it.id == known.id } }, page.items)
                 cursor = page.nextCursor
             }
-            pending?.let { attempt ->
-                if (page.items.any { it.clientRequestId == attempt.input.clientRequestId && it.senderId == selfId() }) {
-                    cancel("send"); acknowledged()
-                }
-            }
+            reconcileOutgoing(page.items)
             mutable.value = state.value.copy(commentCount = page.unreadCount.coerceIn(0, 99).toInt().takeIf { it > 0 })
             publishMessages()
             if (!older) markRead()
@@ -206,8 +250,14 @@ class CallDiscussionViewModel(
                         downloading = downloading == a.id)
                 })
         }
-        editBoth { it.copy(entries = entries, loading = false, hasMore = cursor != null, viewingOlder = browsingOlder,
-            error = if (pending == null && upload?.error == null) null else it.error) }
+        val localEntries = outgoing.values.filter { it.targetId == call.conferenceId }.sortedBy { it.createdAt }.map { row ->
+            CallTextEntry(row.id, row.senderName, row.text, row.createdAt.atZone(zone).format(DateTimeFormatter.ofPattern("HH:mm")), own = true,
+                localRequestId = row.clientRequestId, deliveryFailed = row.failed, sending = row.sending,
+                attachmentLabel = row.attachments.takeIf { it.isNotEmpty() }?.joinToString { it.filename },
+                attachments = row.attachments.map { CallAttachmentUi(it.id, it.filename, it.mimeType, it.size, canDownload = false) })
+        }
+        editBoth { it.copy(entries = entries + localEntries, loading = false, hasMore = cursor != null, viewingOlder = browsingOlder,
+            error = if (upload?.error == null) null else it.error) }
         updateAvailability()
     }
 
@@ -358,7 +408,7 @@ class CallDiscussionViewModel(
     }
 
     private fun removeAttachment(id: String) {
-        if (pending != null || state.value.chat.sending || jobs["upload"]?.isActive == true) return
+        if (state.value.chat.sending || jobs["upload"]?.isActive == true) return
         if (upload?.id == id) { upload?.bytes?.fill(0); upload = null }
         attached.removeAll { it.id == id }; publishAttachments(); editBoth { it.copy(error = null) }
     }
@@ -404,8 +454,8 @@ class CallDiscussionViewModel(
     private fun tick() { mutable.value = state.value.copy(elapsedSeconds = startedAt?.let { (clock.instant().epochSecond - it.epochSecond).coerceAtLeast(0) }) }
     private fun connected() = foreground && identity != null && identity == account() && call.phase == CallPhase.CONNECTED && call.participantId.isNotBlank()
     private fun canSend() = connected() && access && activeMeeting
-    private fun updateAvailability() { editBoth { it.copy(canSend = canSend() && (pending == null || it.sending),
-        canAttach = canSend() && pending == null && upload == null && attached.size < 5,
+    private fun updateAvailability() { editBoth { it.copy(canSend = canSend(),
+        canAttach = canSend() && upload == null && attached.size < 5,
         participantCount = call.participants.count { p -> p.online }, unavailableReason = when {
         !access -> "Доступ к истории встречи не подтверждён."
         !activeMeeting -> "Встреча завершена. История доступна для чтения."
@@ -416,7 +466,7 @@ class CallDiscussionViewModel(
     private fun denied(error: AppFailure): Boolean {
         if (error.kind !in setOf(FailureKind.FORBIDDEN, FailureKind.NOT_FOUND, FailureKind.SESSION_EXPIRED)) return false
         stopRequests()
-        access = false; messages = emptyList(); cursor = null; pending = null
+        access = false; messages = emptyList(); cursor = null
         upload?.bytes?.fill(0); upload = null; attached.clear()
         editBoth { CallTextPanelState(error = error.message) }
         mutable.value = state.value.copy(commentCount = null)
@@ -437,7 +487,7 @@ class CallDiscussionViewModel(
         if (epoch != generation || scope != account() || conference != call.conferenceId || !connected()) throw CancellationException("Meeting scope changed")
     }
     private fun selfId() = foundation.state.value.session?.user?.id
-    private fun cancel(key: String) { tickets[key] = (tickets[key] ?: 0) + 1; jobs.remove(key)?.cancel() }
+    private fun cancel(key: String) { tickets[key] = ++nextTicket; jobs.remove(key)?.cancel() }
     private fun <T> request(key: String, block: suspend () -> T, success: (T) -> Unit, failure: (AppFailure) -> Unit): Job? {
         if (!connected()) return null
         cancel(key)
@@ -450,7 +500,7 @@ class CallDiscussionViewModel(
             }
             catch (cancelled: CancellationException) { throw cancelled }
             catch (error: Exception) { if (current()) failure(error as? AppFailure ?: AppFailure(FailureKind.UNAVAILABLE, "Не удалось обновить встречу. Повторите попытку.")) }
-            finally { if (current()) jobs.remove(key) }
+            finally { if (current()) { jobs.remove(key); if (key.startsWith("outgoing-")) tickets.remove(key) } }
         }
         jobs[key] = job
         job.start()
@@ -460,7 +510,7 @@ class CallDiscussionViewModel(
         generation++; poll?.cancel(); poll = null
         jobs.values.toList().forEach(Job::cancel); jobs.clear(); tickets.clear()
         editBoth { it.copy(loading = false, sending = false,
-            error = if (pending != null) "Отправка прервана. Повторите отправку: повтор не создаст дубликат." else it.error) }
+            error = null) }
         recordingBusy = false; recordingKnown = false; downloading = null
         upload?.let { it.status = CallAttachmentStatus.UNKNOWN; it.error = if (it.bytes == null) "Чтение файла прервано. Уберите файл и выберите его заново." else "Загрузка прервана. Повторите её или уберите файл." }
         if (upload != null) { publishAttachments(); editBoth { it.copy(error = upload?.error) } }
@@ -469,13 +519,13 @@ class CallDiscussionViewModel(
     }
     fun clear() {
         stopRequests(); call = CallState(); panel = null; messages = emptyList(); cursor = null
-        pending = null; readThrough = null; startedAt = null; browsingOlder = false; access = true; activeMeeting = true
+        outgoing.clear(); persisting.clear(); readThrough = null; startedAt = null; browsingOlder = false; access = true; activeMeeting = true
         upload?.bytes?.fill(0); upload = null; attached.clear(); downloading = null
         currentRecording = null; recordingKnown = false; recordingBusy = false; recordingError = null; meetingOwner = null
         mutable.value = CallUiDetails()
     }
     override fun onCleared() { clear(); super.onCleared() }
-    class Factory(private val foundation: FoundationRepository, private val repository: MeetingChatRepository, private val meetings: MeetingsRepository, private val recordings: RecordingsRepository) : ViewModelProvider.Factory {
-        @Suppress("UNCHECKED_CAST") override fun <T : ViewModel> create(modelClass: Class<T>): T = CallDiscussionViewModel(foundation, repository, meetings, recordings) as T
+    class Factory(private val foundation: FoundationRepository, private val repository: MeetingChatRepository, private val meetings: MeetingsRepository, private val recordings: RecordingsRepository, private val outgoingStore: OutgoingMessageStore = MemoryOutgoingMessageStore()) : ViewModelProvider.Factory {
+        @Suppress("UNCHECKED_CAST") override fun <T : ViewModel> create(modelClass: Class<T>): T = CallDiscussionViewModel(foundation, repository, meetings, recordings, outgoingStore = outgoingStore) as T
     }
 }

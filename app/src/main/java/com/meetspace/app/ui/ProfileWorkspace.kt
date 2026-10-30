@@ -48,6 +48,9 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.meetspace.app.AvatarImage
+import com.meetspace.app.AvatarEditTarget
+import com.meetspace.app.rememberAvatarPicker
 import com.meetspace.core.model.NotificationPreferences
 import com.meetspace.core.model.RepositoryState
 import com.meetspace.core.model.ThemeMode
@@ -97,6 +100,13 @@ fun ProfileWorkspace(
     val user = repository.session?.user
     val origin = repository.selectedProfile?.origin.orEmpty()
     val name = user?.displayLabel.orEmpty()
+    var avatarError by remember(origin, user?.id) { mutableStateOf<String?>(null) }
+    val avatarEnabled = user != null && !busy && !meetings.profileBusy && !meetings.actionBusy
+    val pickAvatar = rememberAvatarPicker("$origin|${user?.id}", avatarEnabled,
+        onPicked = { mime, bytes -> avatarError = null; meetingsActions.updateAvatar(mime, bytes) },
+        onError = { avatarError = it },
+        existingAvatar = user?.let { AvatarEditTarget(it.id, it.avatarVersion) },
+        title = "Фото профиля", operationRevision = meetings.avatarRevision, operationError = meetings.error)
     val host = remember(origin) { runCatching { URI(origin).host }.getOrNull() ?: origin }
     val density = LocalDensity.current
     val device = settings.devicePreferences
@@ -123,7 +133,7 @@ fun ProfileWorkspace(
                     if (wide || !detailOpen) {
                         AccountSidebar(name, user?.email.orEmpty(), host, section, wide, busy, repository.profiles.filter { it.accountId != null },
                             repository.selectedProfileId, onSelectAccount, choose, { logout = true }, { privacy = true },
-                            settings.versionName, Modifier.then(if (wide) Modifier.width(sidebarWidth) else Modifier.fillMaxWidth()).fillMaxHeight())
+                            settings.versionName, Modifier.then(if (wide) Modifier.width(sidebarWidth) else Modifier.fillMaxWidth()).fillMaxHeight(), user?.id, user?.avatarVersion)
                     }
                     if (wide || detailOpen) {
                         Column(Modifier.weight(1f).fillMaxHeight().wrapContentWidth(Alignment.Start).widthIn(max = 860.dp).fillMaxWidth().verticalScroll(rememberScrollState())
@@ -137,7 +147,12 @@ fun ProfileWorkspace(
                             }
                             when (section) {
                                 AccountSection.PROFILE -> {
-                                    AccountHeading("Ваш профиль", "Как вас видят участники встречи.", wide, name)
+                                    AccountHeading("Ваш профиль", "Как вас видят участники встречи.", wide)
+                                    AvatarPhotoCard(name, user?.id, user?.avatarVersion, avatarEnabled, meetings.profileBusy,
+                                        pickAvatar, { avatarError = null; meetingsActions.deleteAvatar() },
+                                        Modifier.padding(bottom = 24.dp))
+                                    avatarError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall,
+                                        modifier = Modifier.padding(bottom = 16.dp).testTag("account-avatar-error")) }
                                     var draft by remember(user?.id, user?.displayName) { mutableStateOf(user?.displayName.orEmpty()) }
                                     val clean = draft.trim()
                                     val valid = clean.codePointCount(0, clean.length) in 1..100 && clean.none { Character.isISOControl(it) }
@@ -267,7 +282,7 @@ fun ProfileWorkspace(
                 modifier = Modifier.fillMaxWidth().testTag("account-card-${account.id}")) {
                 Row(Modifier.padding(horizontal = if (wide) 18.dp else 12.dp, vertical = if (wide) 18.dp else 14.dp),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (wide) 14.dp else 10.dp)) {
-                    AccountAvatar(name, if (wide) 54 else 42)
+                    AccountAvatar(name, if (wide) 54 else 42, if (current) repository.session?.user?.id else null, if (current) repository.session?.user?.avatarVersion else null)
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                         Text(account.accountEmail.orEmpty(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -367,14 +382,14 @@ fun ProfileWorkspace(
 
 @Composable private fun AccountSidebar(name: String, email: String, host: String, section: AccountSection, wide: Boolean, busy: Boolean,
     profiles: List<com.meetspace.core.model.ServerProfile>, selectedProfileId: String?, onSelectAccount: (String) -> Unit,
-    choose: (AccountSection) -> Unit, logout: () -> Unit, about: () -> Unit, version: String, modifier: Modifier) {
+    choose: (AccountSection) -> Unit, logout: () -> Unit, about: () -> Unit, version: String, modifier: Modifier, avatarId: String?, avatarVersion: String?) {
     var accountMenu by remember { mutableStateOf(false) }
     BoxWithConstraints(modifier.background(if (wide) lerp(MaterialTheme.colorScheme.background, MaterialTheme.colorScheme.surface, .35f) else MaterialTheme.colorScheme.surface)) {
         val availableHeight = maxHeight
         val accent = MaterialTheme.colorScheme.primary
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).heightIn(min = availableHeight).padding(horizontal = if (wide) if (maxWidth >= 270.dp) 18.dp else 14.dp else 20.dp, vertical = if (wide) 26.dp else 24.dp)) {
             Row(Modifier.fillMaxWidth().clickable { choose(AccountSection.PROFILE) }.testTag("profile-edit").padding(horizontal = if (wide) 7.dp else 0.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (wide) 10.dp else 14.dp)) {
-                AccountAvatar(name, if (wide) 42 else 54)
+                AccountAvatar(name, if (wide) 42 else 54, avatarId, avatarVersion)
                 Column(Modifier.weight(1f)) { Text(name, fontSize = if (wide) 12.6.sp else 16.sp, lineHeight = if (wide) 18.sp else 23.sp, fontWeight = FontWeight.SemiBold); Text(email, fontSize = if (wide) 10.8.sp else 12.6.sp, lineHeight = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 3.dp)) }
             }
             if (wide && profiles.size > 1) Box(Modifier.padding(start = 48.dp, top = 4.dp)) {
@@ -431,16 +446,14 @@ fun ProfileWorkspace(
     }
 }
 
-@Composable private fun AccountAvatar(name: String, size: Int) {
-    val initials = name.trim().split(Regex("\\s+")).mapNotNull { it.firstOrNull(Char::isLetterOrDigit)?.uppercaseChar() }.take(2).joinToString("")
-    Box(Modifier.size(size.dp).clip(RoundedCornerShape(if (size <= 42) 14.dp else if (size >= 64) 20.dp else 18.dp)).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
-        Text(initials, fontSize = if (size <= 42) 15.sp else if (size >= 64) 23.sp else 20.sp, lineHeight = if (size <= 42) 20.sp else 28.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
-    }
+@Composable private fun AccountAvatar(name: String, size: Int, id: String? = null, version: String? = null) {
+    AvatarImage(name, id, version, size = size.dp, modifier = Modifier.testTag("account-avatar"),
+        shape = RoundedCornerShape(if (size <= 42) 14.dp else if (size >= 64) 20.dp else 18.dp))
 }
-@Composable private fun AccountHeading(title: String, subtitle: String, wide: Boolean, avatar: String? = null) {
+@Composable private fun AccountHeading(title: String, subtitle: String, wide: Boolean, avatar: String? = null, avatarId: String? = null, avatarVersion: String? = null) {
     Row(Modifier.fillMaxWidth().padding(bottom = if (wide) 32.dp else 30.dp), horizontalArrangement = Arrangement.spacedBy(15.dp)) {
         Column(Modifier.weight(1f)) { Text(title, fontSize = if (wide) 23.sp else 21.sp, lineHeight = 29.sp, letterSpacing = (-.5).sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.semantics { heading() }); Text(subtitle, fontSize = 13.2.sp, lineHeight = 21.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp)) }
-        avatar?.let { AccountAvatar(it, if (wide) 70 else 64) }
+        avatar?.let { AccountAvatar(it, if (wide) 70 else 64, avatarId, avatarVersion) }
     }
 }
 @Composable private fun AccountField(label: String, value: String, change: (String) -> Unit, tag: String, enabled: Boolean = true, readOnly: Boolean = false, hint: String? = null, error: Boolean = false, keyboardType: KeyboardType = KeyboardType.Text, password: Boolean = false) {

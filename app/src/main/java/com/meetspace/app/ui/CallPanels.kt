@@ -70,6 +70,9 @@ data class CallTextEntry(
     val attachmentLabel: String? = null,
     val deleted: Boolean = false,
     val attachments: List<CallAttachmentUi> = emptyList(),
+    val localRequestId: String? = null,
+    val deliveryFailed: Boolean = false,
+    val sending: Boolean = false,
 )
 
 data class CallTextPanelState(
@@ -116,6 +119,8 @@ data class CallPanelActions(
     val attachChat: () -> Unit = {},
     val removeChatAttachment: (String) -> Unit = {},
     val downloadChatAttachment: (entryId: String, attachmentId: String) -> Unit = { _, _ -> },
+    val retryMessage: (String) -> Unit = {},
+    val discardMessage: (String) -> Unit = {},
 )
 
 private val PanelBackground = Color(0xFF222C3B)
@@ -165,7 +170,7 @@ internal fun CallTextPanel(
             CallTextPanelHeader(state.participantCount, phone, close)
             LazyColumn((if (short) Modifier.height(96.dp) else Modifier.weight(1f)).fillMaxWidth().testTag("call-$slug-scroll"),
                 state = feedState, contentPadding = PaddingValues(if (phone) 14.dp else 16.dp)) {
-                callTextFeed(state, slug, retry, more, latest, actions.downloadChatAttachment)
+                callTextFeed(state, slug, retry, more, latest, actions.downloadChatAttachment, actions.retryMessage, actions.discardMessage)
             }
             CallTextComposer(state, slug, draft, send, actions, phone, compact = short)
         }
@@ -204,6 +209,8 @@ private fun participantLabel(count: Int): String {
 private fun LazyListScope.callTextFeed(
     state: CallTextPanelState, slug: String, retry: () -> Unit, more: () -> Unit, latest: () -> Unit,
     download: (String, String) -> Unit,
+    retryMessage: (String) -> Unit,
+    discardMessage: (String) -> Unit,
 ) {
     if (state.loading) item("loading") {
         LinearProgressIndicator(Modifier.fillMaxWidth().padding(vertical = 12.dp).testTag("call-$slug-loading"), color = Color(0xFF88A5FF), trackColor = PanelBorder)
@@ -233,13 +240,14 @@ private fun LazyListScope.callTextFeed(
                 Text(it, Modifier.fillMaxWidth().padding(bottom = 18.dp), textAlign = TextAlign.Center,
                     color = Color(0xFF93A4BF), fontSize = 10.sp, lineHeight = 15.sp, letterSpacing = 0.sp)
             }
-            CallTextEntryView(entry, slug, download)
+            CallTextEntryView(entry, slug, download, retryMessage, discardMessage)
         }
     }
 }
 
 @Composable
-private fun CallTextEntryView(entry: CallTextEntry, slug: String, download: (String, String) -> Unit) {
+private fun CallTextEntryView(entry: CallTextEntry, slug: String, download: (String, String) -> Unit,
+    retryMessage: (String) -> Unit, discardMessage: (String) -> Unit) {
     BoxWithConstraints(Modifier.fillMaxWidth().testTag("call-$slug-entry-${entry.id}"),
         contentAlignment = if (entry.own) Alignment.TopEnd else Alignment.TopStart) {
         val shape = if (entry.own) RoundedCornerShape(14.dp, 14.dp, 4.dp, 14.dp) else RoundedCornerShape(14.dp, 14.dp, 14.dp, 4.dp)
@@ -262,8 +270,13 @@ private fun CallTextEntryView(entry: CallTextEntry, slug: String, download: (Str
                 }
             }
             Spacer(Modifier.height(8.dp))
-            Text(entry.timeLabel + if (entry.own) " · Вы" else "", Modifier.align(Alignment.End),
-                color = Color(0xFFA8B7CC), fontSize = 9.sp, lineHeight = 13.5.sp, letterSpacing = 0.sp)
+            Row(Modifier.align(Alignment.End), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(entry.timeLabel + if (entry.own) " · Вы" else "",
+                    color = Color(0xFFA8B7CC), fontSize = 9.sp, lineHeight = 13.5.sp, letterSpacing = 0.sp)
+                entry.localRequestId?.let { requestId -> MessageDeliveryStatus(requestId, entry.deliveryFailed,
+                    entry.sending, { retryMessage(requestId) }, { discardMessage(requestId) }) }
+            }
         }
     }
 }

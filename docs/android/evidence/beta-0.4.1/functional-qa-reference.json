@@ -1,0 +1,10 @@
+{
+  "testedVersion": "0.4.0-beta",
+  "testedApkSha256": "c890cdd46d047c1840c8fda012df35541b000ea7f2e554ddcce4ec52de0fb59b",
+  "nativeReport": "../beta-0.4.0/android-tests.json",
+  "nativePassed": 28,
+  "nativeSkipped": 3,
+  "additionalViewportPassed": 3,
+  "nativeSuiteRerunFor041": false,
+  "changeAfterFunctionalQa": "Version name and code for publication; no functionality changes."
+}

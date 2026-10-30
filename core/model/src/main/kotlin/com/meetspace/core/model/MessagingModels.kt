@@ -2,14 +2,16 @@ package com.meetspace.core.model
 
 import java.time.Instant
 
-data class ChatPeer(val id: String, val displayName: String)
-data class ChatMember(val id: String, val displayName: String, val role: String, val online: Boolean? = null)
+data class ChatPeer(val id: String, val displayName: String, val avatarVersion: String? = null)
+data class ChatMember(val id: String, val displayName: String, val role: String, val online: Boolean? = null,
+    val avatarVersion: String? = null)
 data class ChatConversation(
     val id: String, val type: String, val peer: ChatPeer? = null, val name: String = "",
     val description: String = "", val myRole: String = "", val memberCount: Int = 0,
     val preview: String = "", val unreadCount: Long = 0, val notificationsEnabled: Boolean = true,
     val createdAt: Instant = Instant.EPOCH, val updatedAt: Instant = Instant.EPOCH,
     val lastMessageAt: Instant? = null, val lastMessageId: String? = null,
+    val avatarVersion: String? = null,
 ) {
     val title: String get() = if (type == "direct") peer?.displayName.orEmpty() else name
     val canManage: Boolean get() = type == "group" && myRole in setOf("owner", "admin")

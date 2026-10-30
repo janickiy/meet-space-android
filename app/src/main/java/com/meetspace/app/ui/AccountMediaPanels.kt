@@ -120,8 +120,6 @@ fun AccountAudioPanel(settings: AppSettingsUiState, actions: AppSettingsActions)
         }
         MediaHint("Выбор микрофона относится к этой проверке. Во время встречи устройство выбирает Android.")
         MediaToggle("Подключаться с выключенным микрофоном", device.autoMute, { actions.updateDevicePreferences(device.copy(autoMute = it)) }, "account-auto-mute")
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        MediaToggle("Шумоподавление", true, {}, "account-noise", "Включено автоматически во время звонка", enabled = false)
         MediaSectionDivider()
         val routes = listOf(SpeakerPreference.DEFAULT to "По умолчанию", SpeakerPreference.SPEAKER to "Динамик устройства", SpeakerPreference.HEADSET to "Наушники")
         MediaChoice("Динамик", routes.first { it.first == device.speaker }.second, routes, "account-speaker", enabled = probe.kind == null) { actions.updateDevicePreferences(device.copy(speaker = it)) }

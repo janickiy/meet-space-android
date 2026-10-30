@@ -5,6 +5,7 @@ import android.content.Intent
 import android.media.AudioManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -78,7 +79,7 @@ class MainActivity : ComponentActivity() {
             val recordingsState = recordingsModel.state.collectAsStateWithLifecycle().value
             val recordingPlayback = recordingsModel.playback.collectAsStateWithLifecycle().value
             val foundationHolder = rememberSaveableStateHolder()
-            val messagingModel: MessagingViewModel = viewModel(factory = MessagingViewModel.Factory(repository, meetSpace.messagingRepository))
+            val messagingModel: MessagingViewModel = viewModel(factory = MessagingViewModel.Factory(repository, meetSpace.messagingRepository, meetSpace.outgoingMessageStore))
             val messagingState = messagingModel.state.collectAsStateWithLifecycle().value
             val directCalls: DirectCallViewModel = viewModel(factory = DirectCallViewModel.Factory(repository, meetSpace.directCallsRepository, meetSpace.callEngine) {
                 !AccountDevicePreferencesStore(meetSpace.getSharedPreferences("account-device-preferences", MODE_PRIVATE)).read().autoMute
@@ -93,7 +94,7 @@ class MainActivity : ComponentActivity() {
             val requestedInbox = openInbox.collectAsStateWithLifecycle().value
             val meetingsState = meetingsModel.state.collectAsStateWithLifecycle().value
             val callState = meetSpace.callEngine.state.collectAsStateWithLifecycle().value
-            val callDiscussion: CallDiscussionViewModel = viewModel(factory = CallDiscussionViewModel.Factory(repository, meetSpace.meetingChatRepository, meetSpace.meetingsRepository, meetSpace.recordingsRepository))
+            val callDiscussion: CallDiscussionViewModel = viewModel(factory = CallDiscussionViewModel.Factory(repository, meetSpace.meetingChatRepository, meetSpace.meetingsRepository, meetSpace.recordingsRepository, meetSpace.outgoingMessageStore))
             val callDetails = callDiscussion.state.collectAsStateWithLifecycle().value
             LaunchedEffect(callState.conferenceId, callState.phase, callState.participantId, callState.participants, callState.discussionRevision, callState.recordingRevision, callState.directCallId) {
                 callDiscussion.bind(if (callState.directCallId == null) callState else com.meetspace.core.media.CallState())
@@ -162,6 +163,18 @@ class MainActivity : ComponentActivity() {
                 messagingModel.onNotification { item -> meetSpace.messagingNotifications.show(item, notificationDeliveryIdentity) }
                 onDispose { messagingModel.onNotification(null) }
             }
+            val avatarScope = listOf(state.repository.selectedProfile?.id, state.repository.selectedProfile?.origin,
+                state.repository.session?.user?.id).joinToString("|")
+            val avatarLoader = remember(avatarScope) {
+                AvatarImageLoader(user = repository::userAvatar, group = meetSpace.messagingRepository::groupAvatar,
+                    isCurrent = {
+                        val current = repository.state.value
+                        current.session != null && listOf(current.selectedProfile?.id, current.selectedProfile?.origin,
+                            current.session?.user?.id).joinToString("|") == avatarScope
+                    })
+            }
+            DisposableEffect(avatarLoader) { onDispose { avatarLoader.close() } }
+            CompositionLocalProvider(LocalAvatarImages provides avatarLoader) {
             MeetSpaceTheme(themeMode = state.repository.theme) {
                 val meetingVisible = callState.visible && callState.directCallId == null
                 val darkCallCanvas = directSession.visible || meetingVisible && !callMinimized.value && callState.phase !in setOf(CallPhase.PREJOIN, CallPhase.FAILED)
@@ -391,6 +404,7 @@ class MainActivity : ComponentActivity() {
                 if (!directSession.visible && directSession.error != null) AlertDialog(onDismissRequest = directCalls::clearMessage,
                     title = { Text("Личный звонок") }, text = { Text(directSession.error) },
                     confirmButton = { TextButton(onClick = directCalls::clearMessage) { Text("Понятно") } })
+            }
             }
         }
     }

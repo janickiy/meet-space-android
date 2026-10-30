@@ -1,5 +1,6 @@
 package com.meetspace.app.ui
 
+import com.meetspace.app.LocalOutgoingMessage
 import com.meetspace.core.model.ChatAttachment
 import com.meetspace.core.model.ChatConversation
 import com.meetspace.core.model.ChatFolder
@@ -25,6 +26,7 @@ data class MessagingUiState(
     val selectedId: String? = null,
     val detail: MessagingLoad<ChatConversation> = MessagingLoad(),
     val messages: MessagingLoad<List<ChatMessage>> = MessagingLoad(),
+    val localMessages: List<LocalOutgoingMessage> = emptyList(),
     val messageCursor: String? = null,
     val searchQuery: String = "",
     val searchResults: MessagingLoad<List<ChatMessage>> = MessagingLoad(),
@@ -66,6 +68,8 @@ data class MessagingUiState(
     val busy: Boolean = false,
     val sending: Boolean = false,
     val attachmentBusy: Boolean = false,
+    val avatarBusy: Boolean = false,
+    val avatarRevision: Long = 0,
     val pendingSend: Boolean = false,
     val mutationRevision: Long = 0,
     val error: String? = null,
@@ -94,6 +98,8 @@ data class MessagingActions(
     val folderFilter: (String) -> Unit = {},
     val draft: (String) -> Unit = {},
     val send: () -> Unit = {},
+    val retryMessage: (String) -> Unit = {},
+    val discardMessage: (String) -> Unit = {},
     val reply: (ChatMessage) -> Unit = {},
     val edit: (ChatMessage) -> Unit = {},
     val cancelCompose: () -> Unit = {},
@@ -108,6 +114,8 @@ data class MessagingActions(
     val loadMembers: () -> Unit = {},
     val moreMembers: () -> Unit = {},
     val editGroup: (String, String) -> Unit = { _, _ -> },
+    val pickGroupAvatar: () -> Unit = {},
+    val deleteGroupAvatar: () -> Unit = {},
     val addMember: (String) -> Unit = {},
     val removeMember: (String) -> Unit = {},
     val leaveGroup: () -> Unit = {},

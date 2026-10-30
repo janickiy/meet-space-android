@@ -1,0 +1,30 @@
+[
+  {
+    "module": "app",
+    "tests": 274,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "module": "core/data",
+    "tests": 193,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 12
+  },
+  {
+    "module": "core/media",
+    "tests": 28,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "module": "core/ssh",
+    "tests": 71,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  }
+]

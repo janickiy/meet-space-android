@@ -11,6 +11,11 @@ interface MessagingRepository {
     suspend fun createDirect(peerId: String): ChatConversation
     suspend fun createGroup(name: String, description: String, memberIds: List<String>, clientRequestId: String): ChatConversation
     suspend fun updateGroup(id: String, name: String, description: String): ChatConversation
+    suspend fun groupAvatar(id: String): ByteArray = throw AppFailure(FailureKind.INCOMPATIBLE_SERVER, "Аватарка группы недоступна на этом сервере.")
+    suspend fun putGroupAvatar(id: String, mimeType: String, bytes: ByteArray): ChatConversation =
+        throw AppFailure(FailureKind.INCOMPATIBLE_SERVER, "Изменение аватарки группы недоступно на этом сервере.")
+    suspend fun deleteGroupAvatar(id: String): ChatConversation =
+        throw AppFailure(FailureKind.INCOMPATIBLE_SERVER, "Изменение аватарки группы недоступно на этом сервере.")
     suspend fun groupMembers(id: String): List<ChatMember>
     suspend fun addGroupMembers(id: String, userIds: List<String>): ChatConversation
     suspend fun removeGroupMember(id: String, userId: String): ChatConversation

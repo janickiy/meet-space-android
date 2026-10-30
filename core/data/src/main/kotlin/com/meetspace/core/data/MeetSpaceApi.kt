@@ -138,6 +138,39 @@ internal class MeetSpaceApi(
         return response.user.asAccount()
     }
 
+    suspend fun putUserAvatar(origin: String, token: String, mimeType: String, bytes: ByteArray): User {
+        val response = decode<MeDto>(uploadAvatar(origin, listOf("auth", "me", "avatar"), token, mimeType, bytes))
+        if (response.status != "success") throw InvalidContract()
+        return response.user.asAccount().also { if (it.avatarVersion == null) throw InvalidContract() }
+    }
+
+    suspend fun deleteUserAvatar(origin: String, token: String): User {
+        val response = decode<MeDto>(authenticatedRequest(origin, listOf("auth", "me", "avatar"), token, method = "DELETE"))
+        if (response.status != "success") throw InvalidContract()
+        return response.user.asAccount().also { if (it.avatarVersion != null) throw InvalidContract() }
+    }
+
+    /** The API supplies resource IDs, never a server-controlled upload or redirect URL. */
+    internal suspend fun uploadAvatar(origin: String, segments: List<String>, token: String, mimeType: String, bytes: ByteArray): String =
+        withContext(Dispatchers.IO) {
+            if (bytes.isEmpty() || bytes.size > MAX_AVATAR_UPLOAD_BYTES || mimeType !in setOf("image/jpeg", "image/png")) {
+                throw com.meetspace.core.model.AppFailure(com.meetspace.core.model.FailureKind.VALIDATION,
+                    "Выберите изображение JPEG или PNG размером до 2 МБ.")
+            }
+            val url = ServerOrigin.url(origin, "/api/v1").newBuilder().apply { segments.forEach(::addPathSegment) }.build()
+            if (!ServerOrigin.matches(origin, url)) throw InvalidContract()
+            client(CookieJar.NO_COOKIES).newCall(Request.Builder().url(url)
+                .header("Authorization", "Bearer $token").header("Accept", "application/json")
+                .put(bytes.toRequestBody(mimeType.toMediaType())).build()).awaitJsonBody()
+        }
+
+    internal suspend fun avatar(origin: String, segments: List<String>, token: String): ByteArray = withContext(Dispatchers.IO) {
+        val url = ServerOrigin.url(origin, "/api/v1").newBuilder().apply { segments.forEach(::addPathSegment) }.build()
+        if (!ServerOrigin.matches(origin, url)) throw InvalidContract()
+        client(CookieJar.NO_COOKIES).newCall(Request.Builder().url(url)
+            .header("Authorization", "Bearer $token").header("Accept", "image/jpeg").build()).awaitAvatarBody()
+    }
+
     suspend fun deleteAccount(origin: String, token: String, jar: SessionCookieJar, password: String) {
         val response = decode<StatusResponse>(authenticatedRequest(origin, listOf("auth", "me"), token,
             method = "DELETE", payload = wireJson.encodeToString(DeleteAccountRequest(password)), jar = jar))
@@ -223,6 +256,34 @@ internal class MeetSpaceApi(
 
 private const val MAX_RESPONSE_BYTES = 128L * 1024
 private const val MAX_MEETING_RESPONSE_BYTES = 512L * 1024
+internal const val MAX_AVATAR_UPLOAD_BYTES = 2 * 1024 * 1024
+private const val MAX_AVATAR_RESPONSE_BYTES = 256L * 1024
+
+private suspend fun Call.awaitAvatarBody(): ByteArray = suspendCancellableCoroutine { continuation ->
+    continuation.invokeOnCancellation { cancel() }
+    enqueue(object : Callback {
+        override fun onFailure(call: Call, error: IOException) {
+            if (continuation.isActive) continuation.resumeWithException(error)
+        }
+        override fun onResponse(call: Call, response: Response) {
+            try {
+                val bytes = response.use {
+                    if (!it.isSuccessful) throw HttpFailure(it.code)
+                    val body = it.body ?: throw InvalidContract()
+                    if (body.contentType()?.let { type -> type.type == "image" && type.subtype == "jpeg" } != true ||
+                        body.contentLength() > MAX_AVATAR_RESPONSE_BYTES) throw InvalidContract()
+                    val source = body.source()
+                    source.request(MAX_AVATAR_RESPONSE_BYTES + 1)
+                    if (source.buffer.size !in 1..MAX_AVATAR_RESPONSE_BYTES) throw InvalidContract()
+                    source.buffer.readByteArray()
+                }
+                if (continuation.isActive) continuation.resume(bytes) else bytes.fill(0)
+            } catch (error: Exception) {
+                if (continuation.isActive) continuation.resumeWithException(error)
+            }
+        }
+    })
+}
 
 private suspend fun Call.awaitJsonBody(maxResponseBytes: Long = MAX_RESPONSE_BYTES, expectedStatus: Int? = null): String = suspendCancellableCoroutine { continuation ->
     continuation.invokeOnCancellation { cancel() }
@@ -270,12 +331,15 @@ private data class UserDto(
     val isAdmin: Boolean = false,
     val guestConferenceId: String? = null,
     val createdAt: String? = null,
+    val avatarVersion: String? = null,
 ) {
     fun asAccount(): User {
         if (id.isBlank() || id.length > 128 || id.any(Char::isISOControl) || email.isBlank() ||
             email.length > 254 || email.any(Char::isISOControl) || guestConferenceId != null ||
-            (displayName?.length ?: 0) > 256 || displayName?.any(Char::isISOControl) == true) throw InvalidContract()
-        return User(id, email, displayName, isAdmin, createdAt?.takeIf { it.length <= 64 && runCatching { java.time.Instant.parse(it) }.isSuccess })
+            (displayName?.length ?: 0) > 256 || displayName?.any(Char::isISOControl) == true ||
+            avatarVersion?.let { !MessagingApi.validId(it) } == true) throw InvalidContract()
+        return User(id, email, displayName, isAdmin,
+            createdAt?.takeIf { it.length <= 64 && runCatching { java.time.Instant.parse(it) }.isSuccess }, avatarVersion)
     }
 }
 @Serializable

@@ -50,6 +50,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.meetspace.app.R
+import com.meetspace.app.LocalOutgoingMessage
+import com.meetspace.app.AvatarImage
 import com.meetspace.core.model.*
 import java.time.Instant
 import java.time.ZoneId
@@ -289,7 +291,7 @@ private fun ConversationRow(conversation: ChatConversation, selected: Boolean, s
     Surface(onClick = open, modifier = Modifier.fillMaxWidth().heightIn(min = if (conversation.type == "group") 98.dp else 87.dp).testTag("conversation-${conversation.id}"),
         color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface) {
         Row(Modifier.padding(vertical = 15.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            ChatAvatar(conversation.title, conversation.type == "group", if (smallPhone) 43.dp else 51.dp, if (smallPhone) 46.dp else 53.dp)
+            ConversationAvatar(conversation, if (smallPhone) 43.dp else 51.dp)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(conversation.title.ifBlank { "Чат" }, fontSize = if (smallPhone) 13.sp else 15.sp, lineHeight = 22.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (conversation.type == "group") Text("Группа · ${memberCountLabel(conversation.memberCount)}", fontSize = 10.sp, lineHeight = 15.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -355,7 +357,7 @@ private fun ConversationDetail(state: MessagingUiState, actions: MessagingAction
             .padding(horizontal = if (compactHeight) 4.dp else if (showBack) 12.dp else 18.dp, vertical = if (compactHeight) 0.dp else if (showBack) 12.dp else 14.dp)
             .testTag("thread-header"), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (compactHeight) 4.dp else if (showBack) 6.dp else 11.dp)) {
             if (showBack) IconButton(onClick = actions.back, modifier = Modifier.testTag("conversation-back")) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "К списку чатов") }
-            if (!compactHeight) ChatAvatar(conversation?.title.orEmpty(), conversation?.type == "group", if (showBack) 32.dp else 40.dp)
+            if (!compactHeight) conversation?.let { ConversationAvatar(it, if (showBack) 32.dp else 40.dp) }
             Column(Modifier.weight(1f)) {
                 Text(conversation?.title?.ifBlank { "Чат" } ?: "Загружаем чат…", fontSize = if (showBack) 13.sp else 14.sp,
                     lineHeight = 20.sp, fontWeight = FontWeight.SemiBold, maxLines = if (compactHeight) 1 else 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.semantics {
@@ -421,11 +423,12 @@ private fun ConversationDetail(state: MessagingUiState, actions: MessagingAction
         }
         val messages = remember(state.messages.data) { state.messages.data.orEmpty().sortedByDescending { it.sequence } }
         val scroll = rememberLazyListState()
-        LaunchedEffect(state.focusedMessageId, state.messages.data) {
-            state.focusedMessageId?.let { id -> messages.indexOfFirst { it.id == id }.takeIf { it >= 0 }?.let { scroll.scrollToItem(it) } }
+        LaunchedEffect(state.focusedMessageId, state.messages.data, state.localMessages.size) {
+            state.focusedMessageId?.let { id -> messages.indexOfFirst { it.id == id }.takeIf { it >= 0 }?.let { scroll.scrollToItem(it + state.localMessages.size) } }
         }
-        LaunchedEffect(state.selectedId, messages.firstOrNull()?.id) {
-            if (!state.viewingContext && messages.isNotEmpty() && (scroll.firstVisibleItemIndex <= 1 || messages.first().senderId == state.selfId)) scroll.scrollToItem(0)
+        LaunchedEffect(state.selectedId, messages.firstOrNull()?.id, state.localMessages.lastOrNull()?.clientRequestId) {
+            if (!state.viewingContext && (state.localMessages.isNotEmpty() || messages.isNotEmpty() &&
+                (scroll.firstVisibleItemIndex <= 1 || messages.first().senderId == state.selfId))) scroll.scrollToItem(0)
         }
         LazyColumn(state = scroll, reverseLayout = true, modifier = Modifier.weight(1f).fillMaxWidth().background(MaterialTheme.colorScheme.background).testTag("message-history"),
             contentPadding = PaddingValues(horizontal = if (showBack) 16.dp else 24.dp, vertical = 20.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
@@ -436,7 +439,10 @@ private fun ConversationDetail(state: MessagingUiState, actions: MessagingAction
                     LoadingStatus(state.messages.loading, state.messages.error, actions.refreshMessages)
                 }
             }
-            if (messages.isEmpty() && state.messages.data != null && !state.messages.loading && state.messages.error == null) item { EmptyChat("Начните разговор") }
+            if (messages.isEmpty() && state.localMessages.isEmpty() && state.messages.data != null && !state.messages.loading && state.messages.error == null) item { EmptyChat("Начните разговор") }
+            items(state.localMessages.sortedByDescending { it.createdAt }, key = { it.id }) { message ->
+                LocalMessageBubble(message, actions, showBack)
+            }
             itemsIndexed(messages, key = { _, message -> message.id }) { index, message ->
                 Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
                     val day = message.createdAt.atZone(ZoneId.systemDefault()).toLocalDate()
@@ -452,6 +458,35 @@ private fun ConversationDetail(state: MessagingUiState, actions: MessagingAction
         if (onNewChat != null && !compactHeight) ThreadCreateAction(state.busy, onNewChat)
         HorizontalDivider()
         if (conversation != null) MessageComposer(state, actions, compactHeight, showBack)
+    }
+}
+
+@Composable
+private fun LocalMessageBubble(message: LocalOutgoingMessage, actions: MessagingActions, compactWidth: Boolean) {
+    Row(Modifier.fillMaxWidth().testTag("local-message-${message.clientRequestId}"), horizontalArrangement = Arrangement.End) {
+        Surface(shape = RoundedCornerShape(17.dp, 17.dp, 4.dp, 17.dp),
+            color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.fillMaxWidth(if (compactWidth) .93f else .9f)) {
+            Column(Modifier.padding(horizontal = 15.dp, vertical = 11.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                if (message.replyTo != null) Text("Ответ на сообщение", style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary)
+                if (message.text.isNotBlank()) Text(message.text, fontSize = 12.sp, lineHeight = 20.sp)
+                message.attachments.forEach { attachment ->
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(Icons.Outlined.Description, null, Modifier.size(24.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(attachment.filename, fontSize = 11.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            Text(sizeLabel(attachment.size), fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+                Row(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Text(timeLabel(message.createdAt), fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    MessageDeliveryStatus(message.clientRequestId, message.failed, message.sending,
+                        { actions.retryMessage(message.clientRequestId) }, { actions.discardMessage(message.clientRequestId) })
+                }
+            }
+        }
     }
 }
 
@@ -576,7 +611,10 @@ private fun MessageComposer(state: MessagingUiState, actions: MessagingActions, 
             }
             // Keep vertical scrolling and focus when the window or keyboard changes height.
             // Compact mode limits visible lines without changing the internal scroll orientation.
-            BasicTextField(value = state.draft, onValueChange = { actions.draft(it.take(8000)) },
+            BasicTextField(value = state.draft, onValueChange = {
+                val end = if (it.codePointCount(0, it.length) > 4000) it.offsetByCodePoints(0, 4000) else it.length
+                actions.draft(it.substring(0, end))
+            },
                 enabled = !state.sending && !state.pendingSend, singleLine = false, maxLines = if (compactHeight) 1 else 4,
                 textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = fieldFontSize, lineHeight = fieldLineHeight, color = MaterialTheme.colorScheme.onSurface), cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                 modifier = Modifier.weight(1f).heightIn(min = 48.dp).testTag("message-draft").semantics { contentDescription = fieldLabel },
@@ -818,8 +856,16 @@ private fun MembersDialog(state: MessagingUiState, actions: MessagingActions, di
     var removal by remember { mutableStateOf<ChatMember?>(null) }
     var leave by remember { mutableStateOf(false) }
     var delete by remember { mutableStateOf(false) }
-    AlertDialog(onDismissRequest = { if (!state.busy) dismiss() }, title = { Text("Группа") },
+    AlertDialog(onDismissRequest = { if (!state.busy) dismiss() }, title = { Text(if (group.canManage) "Редактировать группу" else "Группа", fontSize = 21.sp, lineHeight = 27.sp) },
         text = { Column(Modifier.heightIn(max = 520.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            if (group.canManage) Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(8.dp)) {
+                Row(Modifier.padding(horizontal = 9.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Outlined.VerifiedUser, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
+                    Text("Вы — администратор группы", fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
+                }
+            }
+            AvatarPhotoCard(group.title, group.id, group.avatarVersion, !state.busy && !state.avatarBusy, state.avatarBusy,
+                actions.pickGroupAvatar, actions.deleteGroupAvatar, group = true, canManage = group.canManage)
             if (group.canManage) {
                 OutlinedTextField(value = name, onValueChange = { name = it.take(200) }, label = { Text("Название") }, enabled = !state.busy, modifier = Modifier.fillMaxWidth().testTag("group-name"))
                 OutlinedTextField(value = description, onValueChange = { description = it.take(2000) }, label = { Text("Описание") }, enabled = !state.busy, modifier = Modifier.fillMaxWidth())
@@ -973,6 +1019,13 @@ private fun PreferenceToggle(label: String, checked: Boolean, enabled: Boolean, 
 private fun ConfirmationDialog(title: String, message: String, busy: Boolean, error: String?, dismiss: () -> Unit, confirm: () -> Unit) {
     AlertDialog(onDismissRequest = { if (!busy) dismiss() }, title = { Text(title) }, text = { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { Text(message); error?.let { Text(it, color = MaterialTheme.colorScheme.error) } } },
         confirmButton = { Button(onClick = confirm, enabled = !busy, modifier = Modifier.testTag("messaging-confirm")) { Text("Подтвердить") } }, dismissButton = { TextButton(onClick = dismiss, enabled = !busy) { Text("Отмена") } })
+}
+
+@Composable
+private fun ConversationAvatar(conversation: ChatConversation, size: androidx.compose.ui.unit.Dp) {
+    AvatarImage(conversation.title, if (conversation.type == "group") conversation.id else conversation.peer?.id,
+        if (conversation.type == "group") conversation.avatarVersion else conversation.peer?.avatarVersion,
+        group = conversation.type == "group", size = size, modifier = Modifier.testTag("conversation-avatar-${conversation.id}"))
 }
 
 @Composable

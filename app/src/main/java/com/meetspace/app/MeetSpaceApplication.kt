@@ -8,6 +8,7 @@ import com.meetspace.core.ssh.SshPreflightRepository
 import com.meetspace.core.ssh.SshPreflightRepositoryFactory
 
 open class MeetSpaceApplication : Application() {
+    val outgoingMessageStore: OutgoingMessageStore by lazy { EncryptedOutgoingMessageStore(this) }
     open val callEngine: com.meetspace.core.media.CallEngine by lazy {
         com.meetspace.core.media.CallEngine(this, repository as com.meetspace.core.data.CallRepository, meetingsRepository) {
             stopService(android.content.Intent(this, ScreenShareService::class.java))
