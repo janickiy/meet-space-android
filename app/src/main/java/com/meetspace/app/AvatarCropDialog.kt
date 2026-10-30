@@ -3,6 +3,7 @@ package com.meetspace.app
 import android.graphics.Bitmap
 import android.graphics.Paint
 import android.graphics.RectF
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -13,9 +14,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.FileUpload
+import androidx.compose.material.icons.outlined.PersonOutline
+import androidx.compose.material.icons.outlined.RestartAlt
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -50,23 +54,44 @@ internal fun AvatarCropDialog(
         usePlatformDefaultWidth = false, dismissOnBackPress = !saving, dismissOnClickOutside = !saving)) {
         BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).padding(16.dp), contentAlignment = Alignment.Center) {
             val availableHeight = maxHeight
-            Surface(Modifier.widthIn(max = 720.dp).fillMaxWidth().heightIn(max = availableHeight).testTag("avatar-editor"),
+            Surface(Modifier.widthIn(max = 960.dp).fillMaxWidth().heightIn(max = availableHeight).testTag("avatar-editor"),
                 color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(24.dp)) {
                 BoxWithConstraints {
-                    val wide = maxWidth >= 600.dp && LocalDensity.current.fontScale < 1.5f
+                    val dialogWidth = maxWidth
+                    // Keep controls beside the preview on tablets, including before a photo is chosen.
+                    // Large text and narrow windows use the scrollable single-column layout.
+                    val wide = maxWidth >= 560.dp && LocalDensity.current.fontScale < 1.5f
                     val inset = if (wide) 24.dp else 20.dp
-                    Column(Modifier.padding(inset)) {
-                        Row(Modifier.fillMaxWidth().padding(bottom = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleLarge, fontSize = if (wide) 21.sp else 19.sp)
+                    val enabled = !loading && !saving
+                    Column {
+                        Row(Modifier.fillMaxWidth().padding(start = inset, end = inset, top = 12.dp, bottom = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically) {
+                            Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleLarge, fontSize = if (wide) 23.sp else 19.sp)
                             IconButton(onDismiss, enabled = !saving, modifier = Modifier.size(48.dp).testTag("avatar-editor-close")) {
                                 Icon(Icons.Outlined.Close, "Закрыть редактор фото")
                             }
                         }
-                        Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).testTag("avatar-editor-content"),
-                            verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                            if (source == null) {
-                                Surface(onClick = onChoose, enabled = !loading && !saving, color = MaterialTheme.colorScheme.primaryContainer,
-                                    shape = RoundedCornerShape(19.dp), border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = .5f)),
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())
+                            .padding(inset).testTag("avatar-editor-content"), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                            if (wide) {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    Box(Modifier.size(44.dp).background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(13.dp)),
+                                        contentAlignment = Alignment.Center) {
+                                        Icon(Icons.Outlined.CameraAlt, null, tint = MaterialTheme.colorScheme.primary)
+                                    }
+                                    Text("Выберите фото и настройте, как оно будет выглядеть.",
+                                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                                    AvatarTabletPreview(source, crop, onCrop, enabled,
+                                        Modifier.weight(1f).height(380.dp))
+                                    AvatarCropControls(source, crop, enabled, onCrop, onChoose,
+                                        Modifier.width(if (dialogWidth >= 800.dp) 260.dp else 220.dp), wide = true)
+                                }
+                            } else if (source == null) {
+                                Surface(onClick = onChoose, enabled = enabled, color = MaterialTheme.colorScheme.primaryContainer,
+                                    shape = RoundedCornerShape(19.dp), border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = .5f)),
                                     modifier = Modifier.fillMaxWidth().heightIn(min = 180.dp).testTag("avatar-choose")) {
                                     Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                         Icon(Icons.Outlined.FileUpload, null, Modifier.size(30.dp), tint = MaterialTheme.colorScheme.primary)
@@ -77,45 +102,28 @@ internal fun AvatarCropDialog(
                                 Text(if (loading) "Подготавливаем изображение…" else "Выберите фото, затем настройте область и масштаб.",
                                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             } else {
-                                val stage: @Composable () -> Unit = {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                        AvatarCropStage(source, crop, onCrop, !loading && !saving,
-                                            Modifier.widthIn(max = if (wide) 360.dp else 240.dp).fillMaxWidth())
-                                        Text("Перетащите фото или используйте ползунки.", style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    }
+                                Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    AvatarCropStage(source, crop, onCrop, enabled, Modifier.widthIn(max = 240.dp).fillMaxWidth())
+                                    Text("Перетащите фото или используйте ползунки.", style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
-                                val controls: @Composable () -> Unit = {
-                                    Column(verticalArrangement = Arrangement.spacedBy(if (wide) 12.dp else 5.dp)) {
-                                        if (wide) AvatarCropPreview(source, crop, Modifier.size(80.dp).clip(CircleShape)
-                                            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape).testTag("avatar-preview"))
-                                        val metrics = avatarCropMetrics(source.width, source.height, 320f, crop)
-                                        AvatarCropSlider("Масштаб", crop.zoom, 1f..3f, !loading && !saving, "avatar-zoom") { onCrop(crop.copy(zoom = it).normalized()) }
-                                        AvatarCropSlider("По горизонтали", crop.x, -1f..1f, !loading && !saving && metrics.maxOffsetX > .01f, "avatar-x") { onCrop(crop.copy(x = it)) }
-                                        AvatarCropSlider("По вертикали", crop.y, -1f..1f, !loading && !saving && metrics.maxOffsetY > .01f, "avatar-y") { onCrop(crop.copy(y = it)) }
-                                        OutlinedButton({ onCrop(AvatarCrop()) }, enabled = !loading && !saving,
-                                            shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("avatar-reset")) { Text("Сбросить") }
-                                        OutlinedButton(onChoose, enabled = !loading && !saving, shape = RoundedCornerShape(12.dp),
-                                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("avatar-choose")) {
-                                            Icon(Icons.Outlined.FileUpload, null, Modifier.size(18.dp)); Spacer(Modifier.width(7.dp)); Text("Заменить фото")
-                                        }
-                                    }
-                                }
-                                if (wide) Row(horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.Top) {
-                                    Box(Modifier.weight(1f)) { stage() }
-                                    Box(Modifier.width(220.dp)) { controls() }
-                                } else Column(verticalArrangement = Arrangement.spacedBy(14.dp)) { stage(); controls() }
+                                AvatarCropControls(source, crop, enabled, onCrop, onChoose, Modifier.fillMaxWidth(), wide = false)
                             }
                             if (loading) LinearProgressIndicator(Modifier.fillMaxWidth().testTag("avatar-editor-loading"))
                         }
                         error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.fillMaxWidth().heightIn(max = 72.dp).verticalScroll(rememberScrollState()).padding(top = 10.dp).testTag("avatar-editor-error")) }
-                        HorizontalDivider(Modifier.padding(top = 14.dp, bottom = 12.dp), color = MaterialTheme.colorScheme.outlineVariant)
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(9.dp, Alignment.End)) {
+                            modifier = Modifier.fillMaxWidth().heightIn(max = 72.dp).verticalScroll(rememberScrollState())
+                                .padding(horizontal = inset, vertical = 10.dp).testTag("avatar-editor-error")) }
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        Row(Modifier.fillMaxWidth().padding(horizontal = inset, vertical = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End), verticalAlignment = Alignment.CenterVertically) {
+                            if (wide && dialogWidth >= 800.dp) Text("Фото увидят участники встреч и чатов.",
+                                Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             OutlinedButton(onDismiss, enabled = !saving, shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier.heightIn(min = 48.dp).testTag("avatar-cancel")) { Text("Отмена") }
-                            if (source != null) Button(onSave, enabled = !loading && !saving, shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.weight(1f, fill = !wide).heightIn(min = 48.dp).testTag("avatar-save")) {
+                            if (source != null || wide) Button(onSave, enabled = source != null && enabled, shape = RoundedCornerShape(12.dp),
+                                modifier = (if (wide) Modifier else Modifier.weight(1f)).heightIn(min = 48.dp).testTag("avatar-save")) {
                                 if (saving) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
                                 else Icon(Icons.Outlined.Check, null, Modifier.size(18.dp))
                                 Spacer(Modifier.width(7.dp)); Text(if (saving) "Сохраняем…" else "Сохранить фото")
@@ -129,16 +137,75 @@ internal fun AvatarCropDialog(
 }
 
 @Composable
+private fun AvatarTabletPreview(
+    source: Bitmap?, crop: AvatarCrop, onCrop: (AvatarCrop) -> Unit, enabled: Boolean, modifier: Modifier,
+) {
+    Surface(modifier.testTag("avatar-editor-preview-panel"), shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.background, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+        Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            val preview = Modifier.widthIn(max = 280.dp).fillMaxWidth().aspectRatio(1f)
+            if (source == null) {
+                Box(preview.clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer)
+                    .border(5.dp, MaterialTheme.colorScheme.surface, CircleShape).testTag("avatar-preview-placeholder"),
+                    contentAlignment = Alignment.Center) {
+                    Icon(Icons.Outlined.PersonOutline, "Превью фото", Modifier.size(72.dp), tint = MaterialTheme.colorScheme.primary)
+                }
+            } else AvatarCropStage(source, crop, onCrop, enabled,
+                preview.border(5.dp, MaterialTheme.colorScheme.surface, CircleShape), round = true)
+            Spacer(Modifier.height(14.dp))
+            Text("Так вас увидят участники", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+private fun AvatarCropControls(
+    source: Bitmap?, crop: AvatarCrop, enabled: Boolean, onCrop: (AvatarCrop) -> Unit, onChoose: () -> Unit,
+    modifier: Modifier, wide: Boolean,
+) {
+    Column(modifier.testTag("avatar-editor-controls"), verticalArrangement = Arrangement.spacedBy(if (wide) 12.dp else 5.dp)) {
+        val choose: @Composable () -> Unit = {
+            OutlinedButton(onChoose, enabled = enabled, shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("avatar-choose")) {
+                Icon(Icons.Outlined.FileUpload, null, Modifier.size(18.dp)); Spacer(Modifier.width(7.dp))
+                Text(if (source == null) "Выбрать файл" else "Заменить фото")
+            }
+        }
+        if (wide) {
+            choose()
+            Text("JPG, PNG или WebP\nРазмер файла — до 8 МБ", style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        val canCrop = enabled && source != null
+        val metrics = source?.let { avatarCropMetrics(it.width, it.height, 320f, crop) }
+        AvatarCropSlider("Масштаб", crop.zoom, 1f..3f, canCrop, "avatar-zoom") { onCrop(crop.copy(zoom = it).normalized()) }
+        AvatarCropSlider("По горизонтали", crop.x, -1f..1f, canCrop && metrics != null && metrics.maxOffsetX > .01f, "avatar-x",
+            percentage = ((crop.x + 1f) * 50).roundToInt()) { onCrop(crop.copy(x = it)) }
+        AvatarCropSlider("По вертикали", crop.y, -1f..1f, canCrop && metrics != null && metrics.maxOffsetY > .01f, "avatar-y",
+            percentage = ((crop.y + 1f) * 50).roundToInt()) { onCrop(crop.copy(y = it)) }
+        if (wide) TextButton({ onCrop(AvatarCrop()) }, enabled = canCrop,
+            contentPadding = PaddingValues(horizontal = 4.dp), modifier = Modifier.heightIn(min = 48.dp).testTag("avatar-reset")) {
+            Icon(Icons.Outlined.RestartAlt, null, Modifier.size(19.dp)); Spacer(Modifier.width(7.dp)); Text("Сбросить кадр")
+        } else {
+            OutlinedButton({ onCrop(AvatarCrop()) }, enabled = canCrop,
+                shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("avatar-reset")) { Text("Сбросить") }
+            choose()
+        }
+    }
+}
+
+@Composable
 @OptIn(ExperimentalMaterial3Api::class)
-private fun AvatarCropSlider(label: String, value: Float, range: ClosedFloatingPointRange<Float>, enabled: Boolean, tag: String, change: (Float) -> Unit) {
+private fun AvatarCropSlider(
+    label: String, value: Float, range: ClosedFloatingPointRange<Float>, enabled: Boolean, tag: String,
+    percentage: Int = (value * 100).roundToInt(), change: (Float) -> Unit,
+) {
     val active = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
     val inactive = MaterialTheme.colorScheme.outlineVariant
     Column {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(label, Modifier.weight(1f), fontSize = 12.sp)
-            Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(8.dp)) {
-                Text("${(value * 100).roundToInt()}%", Modifier.padding(horizontal = 7.dp, vertical = 4.dp), fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
-            }
+            Text(label, Modifier.weight(1f), fontSize = 13.sp)
+            Text("$percentage%", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Slider(value = value, onValueChange = change, valueRange = range, enabled = enabled,
             thumb = { Box(Modifier.size(16.dp).background(active, CircleShape)) },
@@ -153,11 +220,13 @@ private fun AvatarCropSlider(label: String, value: Float, range: ClosedFloatingP
 }
 
 @Composable
-private fun AvatarCropStage(source: Bitmap, crop: AvatarCrop, onCrop: (AvatarCrop) -> Unit, enabled: Boolean, modifier: Modifier) {
+private fun AvatarCropStage(
+    source: Bitmap, crop: AvatarCrop, onCrop: (AvatarCrop) -> Unit, enabled: Boolean, modifier: Modifier, round: Boolean = false,
+) {
     val latestCrop by rememberUpdatedState(crop)
     val latestChange by rememberUpdatedState(onCrop)
     var gestureCrop by remember(source) { mutableStateOf(crop) }
-    AvatarCropPreview(source, crop, modifier.aspectRatio(1f).clip(RoundedCornerShape(20.dp))
+    AvatarCropPreview(source, crop, modifier.aspectRatio(1f).clip(if (round) CircleShape else RoundedCornerShape(20.dp))
         .background(Color(0xFF182130)).testTag("avatar-crop-stage").semantics { contentDescription = "Область обрезки фотографии" }
         .pointerInput(source, enabled) {
             if (enabled) detectDragGestures(onDragStart = { gestureCrop = latestCrop }) { change, pan ->

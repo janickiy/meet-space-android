@@ -1,0 +1,15 @@
+{
+  "versionName": "0.4.1-beta",
+  "previousVersionCode": 33,
+  "newVersionCode": 34,
+  "sameBetaSigningCertificate": true,
+  "replaceInstallPassed": true,
+  "privateDataMarkerPreserved": true,
+  "launchSucceeded": true,
+  "androidApi": 36,
+  "abi": "arm64-v8a",
+  "physicalDevice": false,
+  "actualAccountMigrationTested": false,
+  "firstRunUiVisible": true,
+  "privateDataMarkerPreservedAfterUiTests": true
+}

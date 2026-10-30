@@ -39,6 +39,14 @@ class AvatarCropEditorUiTest {
         } }
         compose.onNodeWithTag("avatar-editor").assertIsDisplayed()
         compose.onNodeWithText("Фото профиля").assertIsDisplayed()
+        assertTabletControlsAreBesidePreview()
+        if (compose.onAllNodesWithTag("avatar-preview-placeholder").fetchSemanticsNodes().isNotEmpty()) {
+            compose.onNodeWithTag("avatar-preview-placeholder").assertIsDisplayed()
+            compose.onNodeWithTag("avatar-zoom").assertIsNotEnabled()
+            compose.onNodeWithTag("avatar-reset").assertIsNotEnabled()
+            val configuration = compose.activity.resources.configuration
+            capture("avatar-editor-empty-${configuration.screenWidthDp}x${configuration.screenHeightDp}.png")
+        }
         compose.onNodeWithTag("avatar-choose").assertIsDisplayed().assertIsEnabled().performClick()
         compose.runOnIdle { assertEquals(1, chosen); assertEquals(0, saved); assertEquals(0, dismissed) }
         if (compose.onAllNodesWithTag("avatar-save").fetchSemanticsNodes().isNotEmpty()) {
@@ -131,18 +139,46 @@ class AvatarCropEditorUiTest {
         val configuration = compose.activity.resources.configuration
         val dimensions = DpSize(configuration.screenWidthDp.dp, configuration.screenHeightDp.dp)
         captureDiagnostics(dimensions)
+        assertTabletControlsAreBesidePreview()
         compose.onNodeWithTag("avatar-save").assertIsDisplayed().assertIsEnabled()
         compose.onNodeWithTag("avatar-cancel").assertIsDisplayed()
         compose.onNodeWithTag("avatar-y").performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag("avatar-choose").performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag("avatar-save").assertIsDisplayed()
         compose.onNodeWithTag("avatar-cancel").assertIsDisplayed()
-        capture("avatar-editor-${dimensions.width.value.toInt()}x${dimensions.height.value.toInt()}-after-scroll.png")
+        capture("avatar-editor-${dimensions.width.value.toInt()}x${dimensions.height.value.toInt()}-font-${configuration.fontScale}-after-scroll.png")
+    }
+
+    /** Verify the actual Dialog window: both empty and populated editors keep the same columns. */
+    private fun assertTabletControlsAreBesidePreview() {
+        val editor = compose.onNodeWithTag("avatar-editor").fetchSemanticsNode().boundsInRoot
+        val density = compose.activity.resources.displayMetrics.density
+        val fontScale = compose.activity.resources.configuration.fontScale
+        val wide = editor.width / density >= 560f && fontScale < 1.5f
+        if (!wide) {
+            compose.onNodeWithTag("avatar-editor-preview-panel").assertDoesNotExist()
+            return
+        }
+        val preview = compose.onNodeWithTag("avatar-editor-preview-panel").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+        val controls = compose.onNodeWithTag("avatar-editor-controls").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+        val choose = compose.onNodeWithTag("avatar-choose").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+        assertTrue("Controls must be to the right of the preview", controls.left >= preview.right + 20f * density)
+        assertEquals("Preview and controls share the same top", preview.top, controls.top, 2f)
+        assertTrue("The file button belongs to the right column", choose.left >= controls.left && choose.right <= controls.right)
+        if (compose.activity.resources.configuration.screenHeightDp >= 700 && fontScale == 1f) {
+            val previewNode = compose.onNodeWithTag("avatar-editor-preview-panel").fetchSemanticsNode()
+            assertEquals("The full preview fits without scrolling on a tablet", previewNode.size.height.toFloat(), preview.height, 2f)
+        }
+        val save = compose.onNodeWithTag("avatar-save").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+        val cancel = compose.onNodeWithTag("avatar-cancel").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+        assertEquals("Save stays at the right edge of the footer", editor.right - 24f * density, save.right, 2f)
+        assertTrue("Cancel precedes Save without overlap", cancel.right < save.left)
+        assertEquals("Footer actions share a row", cancel.center.y, save.center.y, 2f)
     }
 
     /** Capture layout evidence before the unchanged visibility assertions run. */
     private fun captureDiagnostics(size: DpSize) {
-        val prefix = "avatar-editor-${size.width.value.toInt()}x${size.height.value.toInt()}"
+        val prefix = "avatar-editor-${size.width.value.toInt()}x${size.height.value.toInt()}-font-${compose.activity.resources.configuration.fontScale}"
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val directory = instrumentation.targetContext.cacheDir
         val lines = mutableListOf("requestedSize=$size")
