@@ -33,7 +33,7 @@ fun PersonalCallHost(model: DirectCallViewModel, session: DirectCallSession, eng
     var permissionTarget by remember { mutableStateOf<PersonalPermissionTarget?>(null) }
     var projectionTarget by remember { mutableStateOf<String?>(null) }
     var hostActive by remember { mutableStateOf(true) }
-    var routeChosen by remember(callId) { mutableStateOf(false) }
+    var routeChosen by remember(callId, preferences.speaker) { mutableStateOf(false) }
     DisposableEffect(lifecycle) {
         hostActive = true
         val observer = LifecycleEventObserver { _, event ->
@@ -147,13 +147,15 @@ fun PersonalCallHost(model: DirectCallViewModel, session: DirectCallSession, eng
     val otherMedia = media.visible && media.directCallId != callId
     PersonalCallUi(PersonalCallUiState(callId = callId.orEmpty(), peerName = session.peer?.displayName.orEmpty(), selfName = selfName,
         phase = phase, media = mediaForCall.copy(
+            videos = if (preferences.hideParticipantVideo) emptyList() else mediaForCall.videos,
+            localVideo = if (preferences.showSelf) mediaForCall.localVideo else null,
             microphone = if (waiting) session.microphoneWanted && allowed(Manifest.permission.RECORD_AUDIO) else mediaForCall.microphone,
             camera = mediaForCall.camera),
         elapsedSeconds = session.elapsedSeconds.takeIf { session.call?.acceptedAt != null },
         busy = session.busy || permissionTarget != null,
         error = session.error ?: if (otherMedia) "Сначала завершите текущую встречу, чтобы ответить на звонок." else mediaForCall.error,
         controlsEnabled = session.canControl && !otherMedia,
-        statusText = statusText),
+        statusText = statusText, showSelf = preferences.showSelf),
         PersonalCallActions(minimize = minimize,
             microphone = {
                 val enabled = if (waiting) session.microphoneWanted && allowed(Manifest.permission.RECORD_AUDIO) else mediaForCall.microphone

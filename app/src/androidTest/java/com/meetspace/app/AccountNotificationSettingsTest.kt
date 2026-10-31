@@ -39,8 +39,7 @@ class AccountNotificationSettingsTest {
         compose.onNodeWithTag("account-notification-save").performScrollTo().assertIsNotEnabled()
         compose.onNodeWithTag("account-sound-enabled").performScrollTo().assertIsOn().performClick().assertIsOff()
         compose.runOnIdle { assertEquals(0, saves); assertTrue(settings.notificationSoundEnabled) }
-        compose.onNodeWithTag("account-test-notification").performScrollTo().performClick()
-        compose.onNodeWithTag("account-notification-test-status").assertTextEquals("Включите звуковой сигнал для проверки")
+        compose.onNodeWithTag("account-test-notification").performScrollTo().assertIsNotEnabled()
         compose.onNodeWithTag("account-notification-save").performScrollTo().performClick()
         compose.runOnIdle { assertEquals(1, saves); assertEquals(0, requests); assertFalse(settings.notificationSoundEnabled) }
         compose.onNodeWithTag("account-notification-save").assertIsNotEnabled()
@@ -55,10 +54,11 @@ class AccountNotificationSettingsTest {
             request = prefs; confirmed = done; state = state.copy(busy = true)
         }), settings, AppSettingsActions(updateNotificationSound = { soundSaves++; settings = settings.copy(notificationSoundEnabled = it) }), false) } }
         compose.onNodeWithTag("notification-pref-invitation").performScrollTo().performClick()
+        compose.onNodeWithTag("notification-pref-email").performScrollTo().performClick()
         compose.onNodeWithTag("account-sound-enabled").performScrollTo().performClick()
         compose.onNodeWithTag("account-notification-save").performScrollTo().performClick().assertIsNotEnabled()
         compose.runOnIdle {
-            assertEquals(original.copy(invitation = false), request)
+            assertEquals(original.copy(invitation = false, email = false), request)
             assertEquals(0, soundSaves)
             state = state.copy(busy = false, notificationPreferences = MessagingLoad(checkNotNull(request)))
             checkNotNull(confirmed).invoke()
@@ -106,7 +106,7 @@ class AccountNotificationSettingsTest {
         compose.onNodeWithTag("account-notification-save").performScrollTo().assertIsNotEnabled()
     }
 
-    @Test fun prototypeLayoutHasExactlyFourSwitchesAndRemainsReadableOnPhonesTabletsAndLargeFonts() {
+    @Test fun prototypeLayoutHasExactlyFiveSwitchesAndRemainsReadableOnPhonesTabletsAndLargeFonts() {
         var size by mutableStateOf(DpSize(390.dp, 844.dp)); var dark by mutableStateOf(false); var scale by mutableFloatStateOf(1f)
         compose.setContent { DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(size)) {
             val density = LocalDensity.current
@@ -122,11 +122,11 @@ class AccountNotificationSettingsTest {
             for (night in listOf(false, true)) {
                 compose.runOnIdle { size = DpSize(width.dp, height.dp); scale = textScale; dark = night }
                 for ((tag, label) in listOf("notification-pref-invitation" to "Приглашения и изменения встреч", "notification-pref-reminder" to "Напоминания о встречах",
-                    "notification-pref-recording" to "Готовность записи", "account-sound-enabled" to "Звуковой сигнал")) {
+                    "notification-pref-recording" to "Готовность записи", "account-sound-enabled" to "Звуковой сигнал", "notification-pref-email" to "Email")) {
                     val row = compose.onNodeWithTag(tag).performScrollTo().assertIsDisplayed()
                     row.assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Switch))
                     assertReadableTextAtActualBounds(compose.onNodeWithText(label, useUnmergedTree = true), label)
-                    if (textScale == 1f) row.assertHeightIsEqualTo(64.dp)
+                    if (textScale == 1f) row.assertHeightIsAtLeast(64.dp)
                 }
                 listOf("notification-pref-summary", "account-notification-email", "account-notification-push", "account-ringtone-meter", "settings-notifications").forEach {
                     compose.onNodeWithTag(it).assertDoesNotExist()

@@ -1,0 +1,7 @@
+{
+  "release.json": true,
+  "release.sig": true,
+  "runner.py": true,
+  "trust-root.pem": true,
+  "docker.asc": true
+}

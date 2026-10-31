@@ -4,10 +4,7 @@ import android.app.NotificationManager
 import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioManager
-import android.media.Ringtone
 import android.media.RingtoneManager
-import android.os.Handler
-import android.os.Looper
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -17,9 +14,7 @@ import androidx.core.app.NotificationManagerCompat
 internal class NotificationSoundPreview(private val context: Context, private val channelId: String = MessagingNotifications.CHANNEL) : AutoCloseable {
     var playing by mutableStateOf(false); private set
     var status by mutableStateOf(""); private set
-    private val handler = Handler(Looper.getMainLooper())
-    private var tone: Ringtone? = null
-    private val finish = Runnable { stop("Проверка завершена") }
+    private val tone = LocalSignalPlayer(context)
 
     fun play(enabled: Boolean) {
         stop("")
@@ -36,19 +31,15 @@ internal class NotificationSoundPreview(private val context: Context, private va
             return
         }
         try {
-            val ringtone = RingtoneManager.getRingtone(context, uri) ?: error("Notification tone unavailable")
-            tone = ringtone
-            ringtone.audioAttributes = AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build()
-            ringtone.play()
+            val preferences = localDevicePreferences(context)
             playing = true; status = "Проверяем звук уведомления…"
-            handler.postDelayed(finish, 3_000)
+            tone.play(checkNotNull(uri), preferences.signalOutput, preferences.signalVolume, AudioAttributes.USAGE_NOTIFICATION,
+                finished = { message -> stop(message ?: "Проверка завершена") })
         } catch (_: Exception) { stop("Звуковой сигнал недоступен") }
     }
 
     fun stop(message: String = "") {
-        handler.removeCallbacks(finish)
-        tone?.let { runCatching { it.stop() } }; tone = null
+        tone.close()
         playing = false; status = message
     }
     override fun close() = stop()

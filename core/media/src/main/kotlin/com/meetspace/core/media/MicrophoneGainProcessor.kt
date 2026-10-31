@@ -6,7 +6,7 @@ import org.webrtc.AudioProcessingFactory
 import org.webrtc.ExternalAudioProcessingFactory
 
 /** Attenuates the mono microphone after WebRTC's AGC and before encoding. */
-internal class MicrophoneGainProcessor : ExternalAudioProcessingFactory.AudioProcessing {
+internal class MicrophoneGainProcessor(private val gain: () -> Float = { .8f }) : ExternalAudioProcessingFactory.AudioProcessing {
     override fun initialize(sampleRateHz: Int, numChannels: Int) = Unit
     override fun reset(newRate: Int) = Unit
 
@@ -16,9 +16,10 @@ internal class MicrophoneGainProcessor : ExternalAudioProcessingFactory.AudioPro
         // The pointer belongs to WebRTC and is only valid during this callback.
         if (numFrames <= 0 || numFrames > buffer.limit() / Float.SIZE_BYTES || buffer.isReadOnly) return
         buffer.order(ByteOrder.nativeOrder())
+        val factor = gain().let { if (it.isFinite()) it.coerceIn(0f, 1f) else 0f }
         var offset = 0
         repeat(numFrames) {
-            buffer.putFloat(offset, buffer.getFloat(offset) * 0.8f)
+            buffer.putFloat(offset, buffer.getFloat(offset) * factor)
             offset += Float.SIZE_BYTES
         }
     }
@@ -26,13 +27,14 @@ internal class MicrophoneGainProcessor : ExternalAudioProcessingFactory.AudioPro
 
 /** The SDK's external APM is process-global, even across PeerConnection factories. */
 internal object MicrophoneAudioProcessing {
+    @Volatile var microphoneVolume: Int = 80
     // Kotlin initializes this object on first use, after WebRTC initialization.
     // Keep Java SDK types out of generic lazy/apply inference for Android lint's K2 UAST.
     val factory: AudioProcessingFactory = createFactory()
 
     private fun createFactory(): AudioProcessingFactory {
         val processing = ExternalAudioProcessingFactory()
-        processing.setCapturePostProcessing(MicrophoneGainProcessor())
+        processing.setCapturePostProcessing(MicrophoneGainProcessor { microphoneVolume.coerceIn(0, 100) / 100f })
         processing.setBypassFlagForCapturePost(false)
         return processing
     }

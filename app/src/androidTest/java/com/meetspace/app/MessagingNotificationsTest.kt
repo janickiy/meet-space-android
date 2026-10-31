@@ -84,6 +84,44 @@ class MessagingNotificationsTest {
         assertEquals(1, manager.activeNotifications.count { it.tag == TAG && it.id == ID })
     }
 
+    @Test fun localZeroVolumeSilencesForegroundAndBackgroundWithoutChangingTheChannel() {
+        val store = AccountDevicePreferencesStore(isolatedContext.getSharedPreferences("account-device-preferences", Context.MODE_PRIVATE))
+        store.write(store.read().copy(signalVolume = 0))
+        val notifications = MessagingNotifications(isolatedContext, { identity }, channelId, foreground = { true })
+        try {
+            notifications.show(event("local-zero"))
+            val post = awaitPost()
+            assertEquals(Notification.GROUP_ALERT_SUMMARY, post.notification.groupAlertBehavior)
+            assertNotNull(manager.getNotificationChannel(channelId).sound)
+            instrumentation.waitForIdleSync()
+            val field = MessagingNotifications::class.java.getDeclaredField("soundPreview").apply { isAccessible = true }
+            val preview = field.get(notifications) as? NotificationSoundPreview
+            assertFalse(preview?.playing == true)
+            notifications.clear()
+            waitUntil("clear before background delivery") { posted() == null }
+            delivery().show(event("background-zero"))
+            assertEquals(Notification.GROUP_ALERT_SUMMARY, awaitPost().notification.groupAlertBehavior)
+        } finally { notifications.stopSound(); instrumentation.waitForIdleSync() }
+    }
+
+    @Test fun customForegroundVolumeUsesOneBoundedToneAndASilentSystemPost() {
+        val store = AccountDevicePreferencesStore(isolatedContext.getSharedPreferences("account-device-preferences", Context.MODE_PRIVATE))
+        store.write(store.read().copy(signalVolume = 35))
+        val notifications = MessagingNotifications(isolatedContext, { identity }, channelId, foreground = { true })
+        val audio = base.getSystemService(AudioManager::class.java)
+        val original = audio.getStreamVolume(AudioManager.STREAM_NOTIFICATION)
+        try {
+            notifications.show(event("foreground-gain"))
+            assertEquals(Notification.GROUP_ALERT_SUMMARY, awaitPost().notification.groupAlertBehavior)
+            instrumentation.waitForIdleSync()
+            val field = MessagingNotifications::class.java.getDeclaredField("soundPreview").apply { isAccessible = true }
+            val preview = field.get(notifications) as NotificationSoundPreview
+            assertEquals(original, audio.getStreamVolume(AudioManager.STREAM_NOTIFICATION))
+            compose.runOnIdle { preview.stop(); assertFalse(preview.playing) }
+            assertNotNull(manager.getNotificationChannel(channelId).sound)
+        } finally { notifications.stopSound(); instrumentation.waitForIdleSync() }
+    }
+
     @Test fun duplicateEventDoesNotUpdateTheSystemNotification() {
         val notifications = delivery()
         val item = event("duplicate")

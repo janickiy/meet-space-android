@@ -1,0 +1,64 @@
+{
+  "apk": {
+    "versionName": "0.5.0-beta",
+    "versionCode": 39,
+    "bytes": 79522529,
+    "sha256": "04f9e0418c25da3372ddf443a05d736758a677705ab8b355544dc729acbccde3",
+    "certificateSha256": "5472281448cf33dea7fe8a4b119683701cd43815d5e038bb34fad92e22b1e471",
+    "zipAlignment16KiB": true
+  },
+  "checks": {
+    "jvm": {
+      "tests": 589,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 12,
+      "passed": 577,
+      "reports": 47
+    },
+    "lint": {
+      "errors": 0,
+      "warnings": 65
+    }
+  },
+  "android": [
+    {
+      "layout": "tablet",
+      "success": true,
+      "passed": 72,
+      "skipped": 1,
+      "failed": 0
+    }
+  ],
+  "upgrade": {
+    "fromVersionCode": 38,
+    "toVersionCode": 39,
+    "compatibleSignature": true,
+    "privateDataMarkerPreserved": true,
+    "launchSucceeded": true,
+    "physicalDevice": false,
+    "actualAccountMigrationTested": false
+  },
+  "emulator": "API 36 arm64-v8a; disposable MeetSpace_Release39_20261031",
+  "uiSizesDp": [
+    "390x844",
+    "1194x834",
+    "320x640; fontScale=1.5"
+  ],
+  "themes": [
+    "light",
+    "dark"
+  ],
+  "nativeNoiseProcessingAcceptedOnOffOn": true,
+  "remoteAudioGainReadback": [
+    0,
+    0.25,
+    1
+  ],
+  "physicalDeviceTested": false,
+  "physicalHeadsetsTested": false,
+  "productionBackendCallTested": false,
+  "backgroundSignalRouting": "Android notification channel",
+  "android8SignalOutput": "Android default output",
+  "signedInstallerAssetsMatch": true
+}

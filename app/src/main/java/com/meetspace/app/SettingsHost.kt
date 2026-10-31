@@ -85,6 +85,13 @@ internal class AccountDevicePreferencesStore(private val preferences: SharedPref
         hideParticipantVideo = preferences.getBoolean("hideParticipantVideo", false),
         speaker = preferences.getString("speaker", null)?.let { saved -> SpeakerPreference.entries.firstOrNull { it.name == saved } } ?: SpeakerPreference.DEFAULT,
         textScale = preferences.getFloat("textScale", 1f).let { if (it.isFinite()) it.coerceIn(.75f, 2f) else 1f },
+        microphone = MicrophonePreference.entries.firstOrNull { it.name == preferences.getString("microphone", null) } ?: MicrophonePreference.DEFAULT,
+        microphoneVolume = preferences.getInt("microphoneVolume", 80).coerceIn(0, 100),
+        speakerVolume = preferences.getInt("speakerVolume", 100).coerceIn(0, 100),
+        signalVolume = preferences.getInt("signalVolume", 100).coerceIn(0, 100),
+        signalOutput = SpeakerPreference.entries.firstOrNull { it.name == preferences.getString("signalOutput", null) } ?: SpeakerPreference.DEFAULT,
+        noiseSuppression = preferences.getBoolean("noiseSuppression", true),
+        camera = CameraPreference.entries.firstOrNull { it.name == preferences.getString("camera", null) } ?: CameraPreference.DEFAULT,
     )
 
     fun write(value: AccountDevicePreferences) {
@@ -94,6 +101,13 @@ internal class AccountDevicePreferencesStore(private val preferences: SharedPref
             .putBoolean("showSelf", value.showSelf)
             .putBoolean("hideParticipantVideo", value.hideParticipantVideo)
             .putString("speaker", value.speaker.name)
+            .putString("microphone", value.microphone.name)
+            .putInt("microphoneVolume", value.microphoneVolume.coerceIn(0, 100))
+            .putInt("speakerVolume", value.speakerVolume.coerceIn(0, 100))
+            .putInt("signalVolume", value.signalVolume.coerceIn(0, 100))
+            .putString("signalOutput", value.signalOutput.name)
+            .putBoolean("noiseSuppression", value.noiseSuppression)
+            .putString("camera", value.camera.name)
             .putFloat("textScale", if (value.textScale.isFinite()) value.textScale.coerceIn(.75f, 2f) else 1f)
             .apply()
     }

@@ -62,6 +62,14 @@ internal class CallAudio(private val context: Context, private val onChanged: (L
             refresh(); true
         }
     }.getOrDefault(false)
+    fun useDefault() {
+        if (!started) return
+        runCatching {
+            if (Build.VERSION.SDK_INT >= 31) manager.clearCommunicationDevice()
+            else { manager.stopBluetoothSco(); manager.isBluetoothScoOn = false; manager.isSpeakerphoneOn = false }
+        }
+        refresh()
+    }
     fun close() {
         if (!started) return
         started = false

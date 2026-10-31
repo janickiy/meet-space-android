@@ -5,7 +5,6 @@ import android.app.NotificationManager
 import android.media.AudioDeviceInfo
 import android.media.AudioAttributes
 import android.media.AudioManager
-import android.media.Ringtone
 import android.media.RingtoneManager
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -19,8 +18,9 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 internal fun IncomingCallRingtone(session: DirectCallSession) {
     val context = LocalContext.current.applicationContext
     val lifecycle = LocalLifecycleOwner.current.lifecycle
-    DisposableEffect(session.call?.id, session.incoming, session.ending, lifecycle) {
-        var ringtone: Ringtone? = null
+    val (preferences, _) = rememberAccountDevicePreferences()
+    DisposableEffect(session.call?.id, session.incoming, session.ending, lifecycle, preferences.signalVolume, preferences.signalOutput) {
+        var ringtone: LocalSignalPlayer? = null
         val audio = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         val notifications = context.getSystemService(NotificationManager::class.java)
         fun soundPolicyAllowsChange() = audio.ringerMode == AudioManager.RINGER_MODE_NORMAL && !audio.isVolumeFixed &&
@@ -35,21 +35,19 @@ internal fun IncomingCallRingtone(session: DirectCallSession) {
             restoreAllowed = ::soundPolicyAllowsChange,
             set = { audio.setStreamVolume(AudioManager.STREAM_RING, it, 0) },
         )
-        fun stop() { runCatching { ringtone?.stop() }; ringtone = null; volume.close() }
+        fun stop() { ringtone?.close(); ringtone = null; volume.close() }
         fun start() {
             if (!session.incoming || session.ending || !lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED) || ringtone != null) return
-            if (audio.ringerMode != AudioManager.RINGER_MODE_NORMAL) return
+            if (audio.ringerMode != AudioManager.RINGER_MODE_NORMAL || preferences.signalVolume == 0) return
             try {
                 // A deliberately silent ringtone must remain silent.
                 if (RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_RINGTONE) == null) return
-                ringtone = RingtoneManager.getRingtone(context, RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE))
-                ringtone?.apply {
-                    audioAttributes = AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build()
-                    if (android.os.Build.VERSION.SDK_INT >= 28) { isLooping = true; setVolume(1f) }
-                    volume.raise()
-                    play()
-                }
+                volume.raise()
+                val player = LocalSignalPlayer(context)
+                ringtone = player
+                player.play(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE), preferences.signalOutput,
+                        preferences.signalVolume, AudioAttributes.USAGE_NOTIFICATION_RINGTONE, durationMs = 120_000, loop = true,
+                        finished = { stop() })
             } catch (_: Exception) { stop() }
         }
         val observer = LifecycleEventObserver { _, event ->

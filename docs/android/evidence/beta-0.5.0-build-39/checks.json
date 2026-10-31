@@ -1,0 +1,14 @@
+{
+  "jvm": {
+    "tests": 589,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 12,
+    "passed": 577,
+    "reports": 47
+  },
+  "lint": {
+    "errors": 0,
+    "warnings": 65
+  }
+}

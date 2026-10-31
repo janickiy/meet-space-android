@@ -62,7 +62,7 @@ private enum class AccountSection(val title: String, val hint: String, val icon:
     ADD_ACCOUNT("Добавить аккаунт", "", Icons.Outlined.PersonAdd),
     AUDIO("Аудио", "Микрофон, динамик и звук", Icons.Outlined.MicNone),
     VIDEO("Видео", "Камера и участники", Icons.Outlined.Videocam),
-    NOTIFICATIONS("Уведомления", "События и звук", Icons.Outlined.NotificationsNone),
+    NOTIFICATIONS("Уведомления", "События и каналы доставки", Icons.Outlined.NotificationsNone),
     APPEARANCE("Оформление", "Тема и размер текста", Icons.Outlined.Palette),
     CONNECTION("Подключение", "Адрес сервера", Icons.Outlined.Dns),
 }
@@ -120,6 +120,7 @@ fun ProfileWorkspace(
         LocalTextStyle provides MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 21.sp)) {
         BoxWithConstraints(Modifier.fillMaxSize().testTag("profile")) {
             val wide = maxWidth / LocalDensity.current.fontScale.coerceAtLeast(1f) >= 780.dp
+            val videoColumns = maxWidth / LocalDensity.current.fontScale.coerceAtLeast(1f) >= 1100.dp
             val panelPadding = (maxWidth * .04f).coerceIn(26.dp, 54.dp)
             val sidebarWidth = if (maxWidth >= 1100.dp) 270.dp else 240.dp
             val back = { if (section == AccountSection.ADD_ACCOUNT) section = AccountSection.ACCOUNTS else detailOpen = false }
@@ -127,7 +128,7 @@ fun ProfileWorkspace(
             val choose: (AccountSection) -> Unit = { section = it; detailOpen = true }
             val shape = RoundedCornerShape(topStart = 25.dp, topEnd = 25.dp)
             Surface(Modifier.fillMaxSize().padding(horizontal = if (wide) 24.dp else 0.dp).testTag(if (wide) "profile-wide" else "profile-compact"),
-                shape = shape, color = if (section == AccountSection.NOTIFICATIONS) MaterialTheme.colorScheme.background else MaterialTheme.colorScheme.surface,
+                shape = shape, color = if (section in setOf(AccountSection.AUDIO, AccountSection.VIDEO, AccountSection.NOTIFICATIONS)) MaterialTheme.colorScheme.background else MaterialTheme.colorScheme.surface,
                 border = if (wide) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant) else null) {
                 Row(Modifier.fillMaxSize()) {
                     if (wide || !detailOpen) {
@@ -176,8 +177,8 @@ fun ProfileWorkspace(
                                     { section = AccountSection.ADD_ACCOUNT }, { deleteAccountDialog = true })
                                 AccountSection.ADD_ACCOUNT -> AccountAddPanel(origin, wide, busy, registeredAccountEmail, onAddAccount,
                                     { section = AccountSection.ACCOUNTS })
-                                AccountSection.AUDIO -> AccountAudioPanel(settings, settingsActions)
-                                AccountSection.VIDEO -> AccountVideoPanel(name, settings, settingsActions)
+                                AccountSection.AUDIO -> AccountAudioPanel(settings, settingsActions, wide)
+                                AccountSection.VIDEO -> AccountVideoPanel(name, settings, settingsActions, wide, videoColumns)
                                 AccountSection.NOTIFICATIONS -> key(origin, user?.id) {
                                     AccountNotificationHeading(wide)
                                     AccountNotificationPanel(messaging, messagingActions, settings, settingsActions, wide)

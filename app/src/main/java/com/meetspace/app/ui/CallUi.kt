@@ -93,7 +93,7 @@ fun CallHost(engine: CallEngine, state: CallState, onWorkspaceTab: ((WorkspaceTa
     var pendingJoin by rememberSaveable(state.conferenceId) { mutableStateOf(false) }
     var joinMicrophone by rememberSaveable(state.conferenceId) { mutableStateOf(false) }
     var joinCamera by rememberSaveable(state.conferenceId) { mutableStateOf(false) }
-    var routeChosen by rememberSaveable(state.conferenceId) { mutableStateOf(false) }
+    var routeChosen by rememberSaveable(state.conferenceId, preferences.speaker, state.phase == CallPhase.RECONNECTING) { mutableStateOf(false) }
     var requestingProjection by remember { mutableStateOf(false) }
     var confirmExit by remember { mutableStateOf(false) }
     fun foreground() = hostActive && lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
@@ -475,7 +475,7 @@ private fun CallError(state: CallState) {
 @Composable
 private fun CallStage(state: CallState, phone: Boolean, columns: Int, modifier: Modifier, preferences: AccountDevicePreferences,
     stageContentOverride: (@Composable () -> Unit)?, sharePreviewName: String?) {
-    val screen = state.videos.firstOrNull { it.screen }
+    val screen = if (preferences.hideParticipantVideo) null else state.videos.firstOrNull { it.screen }
     val sharedFeed = screen?.feed ?: state.localScreen
     val hasScreen = sharedFeed != null || stageContentOverride != null
     val remoteTiles = state.participants.filter { it.id != state.participantId && it.online }.mapIndexed { index, participant ->

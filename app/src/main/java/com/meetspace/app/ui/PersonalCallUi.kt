@@ -51,6 +51,7 @@ data class PersonalCallUiState(
     val error: String? = null,
     val controlsEnabled: Boolean = true,
     val statusText: String? = null,
+    val showSelf: Boolean = true,
 )
 
 /** Permissions, signaling, media effects and navigation remain owned by the host. */
@@ -193,7 +194,7 @@ private fun PersonalCallStage(state: PersonalCallUiState, actions: PersonalCallA
                 PersonalPeerInfo(state, remote?.camera, remoteCamera != null, short = false, phone = phone)
             }
         }
-        if (state.phase !in setOf(PersonalCallUiPhase.ENDED, PersonalCallUiPhase.FAILED)) {
+        if (state.showSelf && state.phase !in setOf(PersonalCallUiPhase.ENDED, PersonalCallUiPhase.FAILED)) {
             PersonalSelfPreview(state, actions.switchCamera, phone, compact, short,
                 Modifier.align(Alignment.TopEnd).padding(if (phone) 14.dp else 22.dp))
         }

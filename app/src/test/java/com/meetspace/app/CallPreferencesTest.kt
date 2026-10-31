@@ -41,9 +41,10 @@ class CallPreferencesTest {
         assertEquals(42, preferredAudioRoute(SpeakerPreference.SPEAKER, listOf(AudioRoute(42, "Динамик", false)))?.id)
     }
 
-    @Test fun selectedHeadsetWinsOverAnotherAvailableHeadset() {
+    @Test fun wiredAndBluetoothPreferencesSelectTheirOwnDevices() {
         val wired = AudioRoute(2, "Гарнитура", false)
         val bluetooth = AudioRoute(9, "Bluetooth", true)
-        assertEquals(bluetooth, preferredAudioRoute(SpeakerPreference.HEADSET, listOf(wired, bluetooth)))
+        assertEquals(wired, preferredAudioRoute(SpeakerPreference.HEADSET, listOf(wired, bluetooth)))
+        assertEquals(bluetooth, preferredAudioRoute(SpeakerPreference.BLUETOOTH, listOf(wired, bluetooth)))
     }
 }

@@ -1,6 +1,7 @@
 package com.meetspace.app
 
 import androidx.test.platform.app.InstrumentationRegistry
+import org.junit.Assert.assertTrue
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertSame
@@ -47,6 +48,10 @@ class MicrophoneProcessingNativeTest {
                 source = factory.createAudioSource(MediaConstraints())
                 track = factory.createAudioTrack("microphone-owner-$cycle", source)
                 assertEquals("microphone-owner-$cycle", track.id())
+                for (enabled in listOf(true, false, true)) {
+                    val result = track.setAudioProcessingOptions(org.webrtc.audio.AudioProcessingOptions(true, enabled, true, true))
+                    assertTrue("Pinned SDK must accept noise suppression=$enabled: ${result.message}", result.isSuccess)
+                }
                 assertSame("Recreating a call must reuse the SDK's process-wide owner",
                     processing, productionAudioProcessing())
                 assertEquals(apm, nativeApm(processing))

@@ -76,6 +76,11 @@ class SpeakingStatsNativeTest {
             val transceiver = receiver.transceivers.single { it.mediaType == MediaStreamTrack.MediaType.MEDIA_TYPE_AUDIO }
             val mid = checkNotNull(transceiver.mid)
             assertEquals("synthetic-microphone", transceiver.receiver.track()?.id())
+            val playout = transceiver.receiver.track() as AudioTrack
+            for (gain in listOf(0.0, .25, 1.0)) {
+                playout.setVolume(gain)
+                assertEquals("Received audio uses the local speaker gain", gain, playout.volume, .00001)
+            }
             val bindingClass = Class.forName("com.meetspace.core.media.CatalogTrack")
             val binding = bindingClass.getConstructor(String::class.java, String::class.java, String::class.java, String::class.java, String::class.java)
                 .newInstance("synthetic-microphone", "synthetic-stream", "remote", "microphone", "audio")

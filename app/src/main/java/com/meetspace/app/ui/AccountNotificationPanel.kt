@@ -18,6 +18,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -29,7 +30,7 @@ internal fun AccountNotificationHeading(wide: Boolean) {
     Column(Modifier.fillMaxWidth().padding(bottom = if (wide) 32.dp else 30.dp)) {
         Text("Уведомления", fontSize = if (wide) 23.1.sp else 21.sp, lineHeight = if (wide) 30.03.sp else 27.3.sp,
             letterSpacing = (-.5).sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.semantics { heading() })
-        Text("Выберите события и настройте звук.", fontSize = 13.16.sp, lineHeight = 21.056.sp, letterSpacing = 0.sp,
+        Text("Выберите события и каналы доставки.", fontSize = 13.16.sp, lineHeight = 21.056.sp, letterSpacing = 0.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp))
     }
 }
@@ -67,6 +68,12 @@ internal fun AccountNotificationPanel(state: MessagingUiState, actions: Messagin
             HorizontalDivider(Modifier.padding(top = if (wide) 24.dp else 16.dp, bottom = if (wide) 24.dp else 20.dp), color = colors.outlineVariant)
             NotificationSectionHeading("Звук уведомлений", wide)
             AccountNotificationSound(sound, !state.busy) { saved = false; sound = it }
+            HorizontalDivider(Modifier.padding(vertical = 24.dp), color = colors.outlineVariant)
+            NotificationSectionHeading("Каналы доставки", wide)
+            NotificationSwitch("Email", prefs.email, !state.busy, "notification-pref-email",
+                hint = "Получать выбранные события по электронной почте.") {
+                saved = false; draft = prefs.copy(email = it)
+            }
             FlowRow(Modifier.fillMaxWidth().padding(top = if (wide) 24.dp else 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Button(onClick = {
@@ -87,6 +94,8 @@ internal fun AccountNotificationPanel(state: MessagingUiState, actions: Messagin
                 }
             }
             state.error?.let { Text(it, color = colors.error, modifier = Modifier.padding(top = 12.dp).testTag("account-notification-error")) }
+            Text("Личные приглашения, отправленные организатором, приходят отдельно.", fontSize = 11.48.sp,
+                lineHeight = 18.37.sp, color = colors.onSurfaceVariant, modifier = Modifier.padding(top = 20.dp))
         }
     }
 }
@@ -98,12 +107,17 @@ private fun NotificationSectionHeading(label: String, wide: Boolean) {
 }
 
 @Composable
-private fun NotificationSwitch(label: String, value: Boolean, enabled: Boolean, tag: String, change: (Boolean) -> Unit) {
+internal fun NotificationSwitch(label: String, value: Boolean, enabled: Boolean, tag: String,
+    hint: String? = null, verticalPadding: Dp = 16.dp, change: (Boolean) -> Unit) {
     val track = (if (value) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant).copy(alpha = if (enabled) 1f else .45f)
     Row(Modifier.fillMaxWidth().toggleable(value, enabled = enabled, role = Role.Switch, onValueChange = change)
-        .testTag(tag).padding(vertical = 16.dp), verticalAlignment = Alignment.CenterVertically,
+        .testTag(tag).padding(vertical = verticalPadding).heightIn(min = if (verticalPadding == 0.dp) 44.dp else 32.dp), verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-        Text(label, Modifier.weight(1f), fontSize = 13.44.sp, lineHeight = 20.832.sp, letterSpacing = 0.sp)
+        Column(Modifier.weight(1f)) {
+            Text(label, fontSize = 13.44.sp, lineHeight = 20.832.sp, letterSpacing = 0.sp)
+            if (hint != null) Text(hint, fontSize = 11.48.sp, lineHeight = 18.37.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+        }
         Box(Modifier.size(51.dp, 32.dp).drawBehind {
             drawRoundRect(track, Offset(4.dp.toPx(), 3.dp.toPx()), Size(44.dp.toPx(), 26.dp.toPx()), CornerRadius(13.dp.toPx()))
             drawCircle(Color.White.copy(alpha = if (enabled) 1f else .6f), 10.dp.toPx(), Offset((if (value) 35 else 17).dp.toPx(), 16.dp.toPx()))
@@ -122,13 +136,17 @@ internal fun AccountNotificationSound(value: Boolean, enabled: Boolean, change: 
         onDispose { lifecycle.removeObserver(observer); preview.close() }
     }
     LaunchedEffect(value) { if (!value) preview.stop() }
-    NotificationSwitch("Звуковой сигнал", value, enabled, "account-sound-enabled", change)
-    TextButton(onClick = { if (preview.playing) preview.stop() else preview.play(value) }, enabled = enabled,
-        contentPadding = PaddingValues(vertical = 4.dp), modifier = Modifier.heightIn(min = 44.dp).testTag("account-test-notification")
+    NotificationSwitch("Звуковой сигнал", value, enabled, "account-sound-enabled",
+        hint = "Новые сообщения, ответы и другие уведомления.", change = change)
+    OutlinedButton(onClick = { if (preview.playing) preview.stop() else preview.play(value) }, enabled = enabled && value,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(11.dp),
+        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp), modifier = Modifier.heightIn(min = 44.dp).testTag("account-test-notification")
             .semantics { stateDescription = if (preview.playing) "Воспроизводится" else "Остановлен" }) {
         Icon(CallIcons.Volume2, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp))
         Text("Проверить звук", fontSize = 12.6.sp, lineHeight = 18.9.sp, fontWeight = FontWeight.Normal, letterSpacing = 0.sp)
     }
     if (preview.status.isNotBlank()) Text(preview.status, fontSize = 11.2.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.testTag("account-notification-test-status").semantics { liveRegion = LiveRegionMode.Polite })
+    Text("В чатах с отключёнными уведомлениями сигнал не звучит.", fontSize = 11.48.sp, lineHeight = 18.37.sp,
+        color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 10.dp))
 }

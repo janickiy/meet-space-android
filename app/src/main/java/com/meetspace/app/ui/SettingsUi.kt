@@ -18,7 +18,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.meetspace.core.designsystem.MeetSpaceTokens
 
-enum class SpeakerPreference { DEFAULT, SPEAKER, HEADSET }
+enum class SpeakerPreference { DEFAULT, SPEAKER, HEADSET, BLUETOOTH }
+enum class MicrophonePreference { DEFAULT, DEVICE, HEADSET }
+enum class CameraPreference { DEFAULT, FRONT, BACK }
 
 /** Local device preferences; hiding a video changes display, not server subscriptions. */
 data class AccountDevicePreferences(
@@ -28,6 +30,13 @@ data class AccountDevicePreferences(
     val hideParticipantVideo: Boolean = false,
     val speaker: SpeakerPreference = SpeakerPreference.DEFAULT,
     val textScale: Float = 1f,
+    val microphone: MicrophonePreference = MicrophonePreference.DEFAULT,
+    val microphoneVolume: Int = 80,
+    val speakerVolume: Int = 100,
+    val signalVolume: Int = 100,
+    val signalOutput: SpeakerPreference = SpeakerPreference.DEFAULT,
+    val noiseSuppression: Boolean = true,
+    val camera: CameraPreference = CameraPreference.DEFAULT,
 )
 
 data class AppSettingsUiState(

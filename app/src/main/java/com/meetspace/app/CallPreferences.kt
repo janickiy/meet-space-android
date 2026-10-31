@@ -18,7 +18,13 @@ internal fun preferredAudioRoute(preference: SpeakerPreference, routes: List<Aud
     val matches = when (preference) {
         SpeakerPreference.DEFAULT -> return null
         SpeakerPreference.SPEAKER -> routes.filter { it.name == "Динамик" }
-        SpeakerPreference.HEADSET -> routes.filter { it.name == "Гарнитура" || it.name == "Bluetooth" }
+        SpeakerPreference.HEADSET -> routes.filter { it.name == "Гарнитура" }
+        SpeakerPreference.BLUETOOTH -> routes.filter { it.name == "Bluetooth" }
     }
     return matches.firstOrNull { it.selected } ?: matches.firstOrNull()
 }
+
+internal fun AccountDevicePreferences.mediaSettings() = com.meetspace.core.media.CallDeviceSettings(
+    microphone = microphone.name, microphoneVolume = microphoneVolume, speakerVolume = speakerVolume, speaker = speaker.name,
+    noiseSuppression = noiseSuppression, camera = camera.name, hideRemoteVideo = hideParticipantVideo,
+)

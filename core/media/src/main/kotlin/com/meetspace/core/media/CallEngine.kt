@@ -107,7 +107,14 @@ class CallEngine(
     private var captureWidth = 1280
     private var captureHeight = 720
     private var captureFps = 30
-    private val audio = CallAudio(this.context, { routes -> enqueue { mutable.value = state.value.copy(routes = routes) } }, { pauseDevices() })
+    private val requestedDeviceSettings = java.util.concurrent.atomic.AtomicReference(CallDeviceSettings())
+    private val deviceSettingsQueued = java.util.concurrent.atomic.AtomicBoolean()
+    private var deviceSettings = CallDeviceSettings()
+    private var preferredInputId: Int? = null
+    private val audio = CallAudio(this.context, { routes -> enqueue {
+        mutable.value = state.value.copy(routes = routes)
+        if (factory != null) applyMicrophoneInput()
+    } }, { pauseDevices() })
 
     init {
         scope.launch {
@@ -292,6 +299,58 @@ class CallEngine(
         })
     }
     fun audioRoute(id: Int) = enqueue { if (!audio.select(id)) notice("Аудиоустройство недоступно. Проверьте подключение гарнитуры.") }
+
+    /** Coalesce slider changes while signaling is busy; never open capture from a preference. */
+    fun configureDevices(settings: CallDeviceSettings) {
+        requestedDeviceSettings.set(settings)
+        if (deviceSettingsQueued.compareAndSet(false, true) && !offer {
+            deviceSettingsQueued.set(false)
+            val next = requestedDeviceSettings.get()
+            val old = deviceSettings
+            deviceSettings = next
+            if (factory != null) {
+                MicrophoneAudioProcessing.microphoneVolume = next.microphoneVolume
+                if (old.microphone != next.microphone || old.noiseSuppression != next.noiseSuppression) applyMicrophoneSettings()
+                if (old.speaker != next.speaker && next.speaker == "DEFAULT") audio.useDefault()
+                syncVideos()
+                if (old.camera != next.camera && state.value.camera && permission(Manifest.permission.CAMERA)) {
+                    replaceCamera(true); changed()
+                }
+            }
+        }) deviceSettingsQueued.set(false)
+    }
+
+    private fun applyMicrophoneSettings() {
+        MicrophoneAudioProcessing.microphoneVolume = deviceSettings.microphoneVolume
+        applyMicrophoneInput()
+        micTrack?.let { track ->
+            val result = track.setAudioProcessingOptions(org.webrtc.audio.AudioProcessingOptions(true, deviceSettings.noiseSuppression, true, true))
+            if (!result.isSuccess) notice("Не удалось применить шумоподавление. Повторите настройку после подключения.")
+        }
+    }
+
+    private fun applyMicrophoneInput() {
+        val manager = context.getSystemService(android.media.AudioManager::class.java)
+        val inputs = manager.getDevices(android.media.AudioManager.GET_DEVICES_INPUTS)
+        val selected = inputs.firstOrNull { input -> when (deviceSettings.microphone) {
+            "DEVICE" -> input.type == android.media.AudioDeviceInfo.TYPE_BUILTIN_MIC
+            "HEADSET" -> input.type in setOf(android.media.AudioDeviceInfo.TYPE_WIRED_HEADSET, android.media.AudioDeviceInfo.TYPE_USB_HEADSET,
+                android.media.AudioDeviceInfo.TYPE_USB_DEVICE, android.media.AudioDeviceInfo.TYPE_BLUETOOTH_SCO, android.media.AudioDeviceInfo.TYPE_BLE_HEADSET)
+            else -> false
+        } }
+        // This pinned SDK dereferences null in setPreferredInputDevice. Resolve the
+        // current communication route instead, including changes after a headset unplug.
+        @Suppress("DEPRECATION")
+        val outputType = if (android.os.Build.VERSION.SDK_INT >= 31) manager.communicationDevice?.type
+            else if (manager.isBluetoothScoOn) android.media.AudioDeviceInfo.TYPE_BLUETOOTH_SCO else null
+        val preferred = selected ?: inputs.firstOrNull { it.type == outputType }
+            ?: inputs.firstOrNull { outputType == null && it.type in setOf(android.media.AudioDeviceInfo.TYPE_WIRED_HEADSET, android.media.AudioDeviceInfo.TYPE_USB_HEADSET) }
+            ?: inputs.firstOrNull { it.type == android.media.AudioDeviceInfo.TYPE_BUILTIN_MIC }
+        if (preferred != null && preferred.id != preferredInputId && audioModule != null) {
+            audioModule!!.setPreferredInputDevice(preferred)
+            preferredInputId = preferred.id
+        }
+    }
     fun refreshAudioRoutes() = enqueue { audio.refresh() }
     fun pauseDevices() {
         deviceIntent.incrementAndGet()
@@ -616,6 +675,7 @@ class CallEngine(
     }
     private fun ensureFactory() {
         if (factory != null) return
+        deviceSettings = requestedDeviceSettings.get()
         PeerConnectionFactory.initialize(PeerConnectionFactory.InitializationOptions.builder(context)
             .setEnableInternalTracer(false).setInjectableLogger({ _, _, _ -> }, Logging.Severity.LS_NONE).createInitializationOptions())
         val base = EglBase.create(); egl = base
@@ -625,6 +685,7 @@ class CallEngine(
             .setAudioProcessingFactory(MicrophoneAudioProcessing.factory)
             .setVideoEncoderFactory(DefaultVideoEncoderFactory(base.eglBaseContext, false, false))
             .setVideoDecoderFactory(DefaultVideoDecoderFactory(base.eglBaseContext)).createPeerConnectionFactory()
+        applyMicrophoneSettings()
     }
     private fun createPeer(ice: IceConfiguration, maxPeers: Int) {
         val config = PeerConnection.RTCConfiguration(ice.servers.map { PeerConnection.IceServer.builder(it.urls).setUsername(it.username).setPassword(it.credential).createIceServer() }).apply {
@@ -713,6 +774,7 @@ class CallEngine(
         if (effective && pc != null) {
             micSource = factory!!.createAudioSource(MediaConstraints())
             micTrack = factory!!.createAudioTrack(id(), micSource).also { setSource("microphone", it) }
+            applyMicrophoneSettings()
         }
         mutable.value = state.value.copy(microphone = effective)
         speaking.forget(state.value.participantId)
@@ -728,7 +790,7 @@ class CallEngine(
         cameraHelper?.dispose(); cameraHelper = null
         if (!enabled) return
         val enumerator: CameraEnumerator = if (Camera2Enumerator.isSupported(context)) Camera2Enumerator(context) else Camera1Enumerator(false)
-        val device = enumerator.deviceNames.firstOrNull(enumerator::isFrontFacing) ?: enumerator.deviceNames.firstOrNull()
+        val device = enumerator.deviceNames.firstOrNull { if (deviceSettings.camera == "BACK") enumerator.isBackFacing(it) else enumerator.isFrontFacing(it) } ?: enumerator.deviceNames.firstOrNull()
             ?: throw IllegalStateException("Камера недоступна")
         val capture = enumerator.createCapturer(device, null) ?: throw IllegalStateException("Камера недоступна")
         cameraCapture = capture
@@ -781,12 +843,14 @@ class CallEngine(
         if (line !in 0..127 || !pc!!.addIceCandidate(IceCandidate(mid, line, c.string("candidate")))) throw ProtocolFailure()
     }
     private fun syncVideos() {
+        peerTransceivers.forEach { (it.receiver.track() as? AudioTrack)?.setVolume(deviceSettings.speakerVolume.coerceIn(0, 100) / 100.0) }
         val live = RemoteSdpTracks.catalogBindings(remoteTracksByMid, catalog).filterValues { it.kind == "video" }
         (received.keys - live.keys).forEach { received.remove(it)?.feed?.close() }
         val videos = live.mapNotNull { (mid, metadata) ->
             val transceiver = peerTransceivers.singleOrNull { it.mid == mid } ?: return@mapNotNull null
             val receiver = transceiver.receiver
             val track = receiver.track() as? VideoTrack ?: return@mapNotNull null
+            track.setEnabled(!deviceSettings.hideRemoteVideo)
             val binding = remoteTracksByMid.getValue(mid)
             val existing = received[mid]
             val video = if (existing != null && existing.receiverId == receiver.id() && existing.binding == binding) existing else {
@@ -928,7 +992,7 @@ class CallEngine(
         closeNetwork(); replaceMic(false); replaceCamera(false); stopScreenInternal()
         audio.close()
         factory?.dispose(); factory = null
-        audioModule?.release(); audioModule = null
+        audioModule?.release(); audioModule = null; preferredInputId = null
         egl?.release(); egl = null
     }
     private fun fail(message: String) {

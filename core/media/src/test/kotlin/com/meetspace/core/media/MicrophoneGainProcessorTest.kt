@@ -10,6 +10,21 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MicrophoneGainProcessorTest {
+    @Test fun volumeChangesAffectTheNextBorrowedBufferWithoutRecreatingTheProcessor() {
+        var gain = .8f
+        val processor = MicrophoneGainProcessor { gain }
+        processor.initialize(16_000, 1)
+        for (value in listOf(0f, .25f, 1f, 3f, -1f, Float.NaN)) {
+            gain = value
+            val buffer = ByteBuffer.allocateDirect(160 * Float.SIZE_BYTES).order(ByteOrder.nativeOrder())
+            repeat(160) { buffer.putFloat(it * Float.SIZE_BYTES, 1000f) }
+            processor.process(1, 160, buffer)
+            val expected = if (value.isFinite()) value.coerceIn(0f, 1f) * 1000 else 0f
+            repeat(160) { assertEquals(expected, buffer.getFloat(it * Float.SIZE_BYTES), 0f) }
+            assertEquals(0, buffer.position())
+        }
+    }
+
     @Test fun microphoneRmsDropsByTwentyPercentWithoutChangingTheWaveformAtEveryCaptureRate() {
         val processor = MicrophoneGainProcessor()
         for (rate in listOf(8_000, 16_000, 32_000, 48_000)) {

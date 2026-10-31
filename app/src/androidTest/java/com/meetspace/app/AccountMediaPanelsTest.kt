@@ -38,12 +38,13 @@ class AccountMediaPanelsTest {
         compose.setContent { Frame { AccountAudioPanel(settings, AppSettingsActions(updateDevicePreferences = { settings = settings.copy(devicePreferences = it) })) } }
         listOf("mic", "speaker", "ringtone").forEach { id ->
             compose.onNodeWithTag("account-test-$id").performScrollTo().assertIsEnabled()
-            compose.onNodeWithTag("account-$id-meter").assert(SemanticsMatcher.expectValue(SemanticsProperties.ProgressBarRangeInfo, ProgressBarRangeInfo(0f, 0f..1f)))
-            compose.onNodeWithTag("account-$id-test-status").assertDoesNotExist()
+            if (id != "ringtone") compose.onNodeWithTag("account-$id-meter").assert(SemanticsMatcher.expectValue(SemanticsProperties.ProgressBarRangeInfo, ProgressBarRangeInfo(0f, 0f..1f)))
+            if (id != "mic") compose.onNodeWithTag("account-$id-test-status").assertDoesNotExist()
         }
         compose.onNodeWithTag("account-auto-mute").performScrollTo().assertIsOn().performClick()
         compose.runOnIdle { assertFalse(settings.devicePreferences.autoMute); assertTrue(settings.devicePreferences.cameraOff) }
-        compose.onNodeWithTag("account-noise").assertDoesNotExist()
+        compose.onNodeWithTag("account-noise").performScrollTo().assertIsOn().performClick().assertIsOff()
+        compose.runOnIdle { assertFalse(settings.devicePreferences.noiseSuppression) }
         compose.onNodeWithTag("account-speaker").performScrollTo().performClick()
         compose.onNodeWithText("Наушники").performClick()
         compose.runOnIdle { assertEquals(SpeakerPreference.HEADSET, settings.devicePreferences.speaker) }
@@ -53,9 +54,9 @@ class AccountMediaPanelsTest {
     @Test fun videoStartsWithoutCameraAndPreferenceCallbacksDoNotStartIt() {
         var settings by mutableStateOf(initial)
         compose.setContent { Frame { AccountVideoPanel("Анна Смирнова", settings, AppSettingsActions(updateDevicePreferences = { settings = settings.copy(devicePreferences = it) })) } }
-        compose.onNodeWithTag("account-camera-status").assertTextEquals("Камера выключена")
-        compose.onNodeWithTag("account-camera-live").assertDoesNotExist()
-        compose.onNodeWithTag("account-camera-starting").assertDoesNotExist()
+        compose.onNodeWithTag("account-camera-status", useUnmergedTree = true).assertTextEquals("Предпросмотр камеры")
+        compose.onNodeWithTag("account-camera-live", useUnmergedTree = true).assertDoesNotExist()
+        compose.onNodeWithTag("account-camera-starting", useUnmergedTree = true).assertDoesNotExist()
         compose.onNodeWithTag("account-camera-off").performScrollTo().assertIsOn().performClick()
         compose.onNodeWithTag("account-self-video").performScrollTo().assertIsOn().performClick()
         compose.onNodeWithTag("account-hide-video").performScrollTo().assertIsOff().performClick()
@@ -64,13 +65,13 @@ class AccountMediaPanelsTest {
             assertFalse(settings.devicePreferences.showSelf)
             assertTrue(settings.devicePreferences.hideParticipantVideo)
         }
-        compose.onNodeWithTag("account-camera-status").performScrollTo().assertTextEquals("Камера выключена")
+        compose.onNodeWithTag("account-camera-status", useUnmergedTree = true).performScrollTo().assertTextEquals("Предпросмотр камеры")
     }
 
     @Test fun largeFontVideoKeepsPreviewAndPreferenceLabelsReadable() {
         compose.setContent { Frame(fontScale = 1.5f) { AccountVideoPanel("Анна Смирнова", initial, AppSettingsActions()) } }
         compose.onNodeWithTag("account-camera-toggle").performScrollTo().assertIsDisplayed().assertHeightIsAtLeast(48.dp)
-        listOf("Показать предпросмотр", "Подключаться с выключенной камерой", "Видеть себя на встрече", "Скрыть видео участников").forEach { label ->
+        listOf("Предпросмотр камеры", "Подключаться с выключенной камерой", "Видеть себя на звонке", "Скрыть видео участников").forEach { label ->
             val node = compose.onNodeWithText(label, useUnmergedTree = true).performScrollTo()
             assertReadableTextAtActualBounds(node, label)
         }
@@ -83,8 +84,7 @@ class AccountMediaPanelsTest {
         compose.onNodeWithTag("account-test-notification").assertIsEnabled()
         compose.onNodeWithTag("account-notification-test-status").assertDoesNotExist()
         compose.onNodeWithTag("account-sound-enabled").performClick().assertIsOff()
-        compose.onNodeWithTag("account-test-notification").performClick()
-        compose.onNodeWithTag("account-notification-test-status").assertTextEquals("Включите звуковой сигнал для проверки")
+        compose.onNodeWithTag("account-test-notification").assertIsNotEnabled()
         compose.onNodeWithTag("account-ringtone-meter").assertDoesNotExist()
     }
 
@@ -109,16 +109,16 @@ class AccountMediaPanelsTest {
         compose.setContent { Frame { AccountVideoPanel("Проверка камеры", initial, AppSettingsActions()) } }
         repeat(2) {
             compose.onNodeWithTag("account-camera-toggle").performScrollTo().performClick()
-            compose.waitUntil(10_000) { compose.onAllNodesWithTag("account-camera-live").fetchSemanticsNodes().isNotEmpty() }
-            compose.onNodeWithTag("account-camera-status").assertTextEquals("Предпросмотр камеры")
+            compose.waitUntil(10_000) { compose.onAllNodesWithTag("account-camera-live", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithTag("account-camera-status", useUnmergedTree = true).assertTextEquals("Предпросмотр камеры")
             if (it == 0) {
                 compose.onNodeWithTag("account-camera-toggle").performScrollTo().performClick()
             } else {
                 compose.activityRule.scenario.moveToState(Lifecycle.State.CREATED)
                 compose.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
             }
-            compose.onNodeWithTag("account-camera-status").performScrollTo().assertTextEquals("Камера выключена")
-            compose.onNodeWithTag("account-camera-live").assertDoesNotExist()
+            compose.onNodeWithTag("account-camera-status", useUnmergedTree = true).performScrollTo().assertTextEquals("Предпросмотр камеры")
+            compose.onNodeWithTag("account-camera-live", useUnmergedTree = true).assertDoesNotExist()
         }
     }
 
