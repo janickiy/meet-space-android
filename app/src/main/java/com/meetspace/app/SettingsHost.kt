@@ -17,7 +17,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.meetspace.app.ui.*
 
 @Composable
-fun SettingsHost(push: PushState, content: @Composable (AppSettingsUiState, AppSettingsActions) -> Unit = { state, actions -> AppSettings(state, actions) }, openNotifications: () -> Unit) {
+fun SettingsHost(push: PushState, notificationScope: String? = null, content: @Composable (AppSettingsUiState, AppSettingsActions) -> Unit = { state, actions -> AppSettings(state, actions) }, openNotifications: () -> Unit) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     var revision by remember { mutableIntStateOf(0) }
@@ -31,12 +31,32 @@ fun SettingsHost(push: PushState, content: @Composable (AppSettingsUiState, AppS
     } }
     val notifications = remember(revision) { NotificationManagerCompat.from(context).areNotificationsEnabled() }
     val (devicePreferences, updateDevicePreferences) = rememberAccountDevicePreferences()
+    val (soundEnabled, updateSound) = rememberNotificationSound(notificationScope)
     content(AppSettingsUiState(BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE, notifications,
-        permissions[0], permissions[1], push.configured, push.enabled, devicePreferences), AppSettingsActions(
+        permissions[0], permissions[1], push.configured, push.enabled, devicePreferences, soundEnabled), AppSettingsActions(
         openNotifications = openNotifications,
         openSystemSettings = { context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}"))) },
         updateDevicePreferences = updateDevicePreferences,
+        updateNotificationSound = updateSound,
     ))
+}
+
+@Composable
+private fun rememberNotificationSound(scope: String?): Pair<Boolean, (Boolean) -> Unit> {
+    val context = LocalContext.current.applicationContext
+    val store = remember(context) { NotificationSoundSettings(context) }
+    var current by remember(store, scope) { mutableStateOf(store.enabled(scope)) }
+    val liveScope by rememberUpdatedState(scope)
+    DisposableEffect(store, scope) {
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ -> current = store.enabled(scope) }
+        store.preferences.registerOnSharedPreferenceChangeListener(listener)
+        current = store.enabled(scope)
+        onDispose { store.preferences.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
+    val update: (Boolean) -> Unit = remember(store, scope) { { enabled ->
+        if (scope != null && scope == liveScope) { store.setEnabled(scope, enabled); current = store.enabled(scope) }
+    } }
+    return current to update
 }
 
 /** Both the profile and call host observe the same device-local preferences. */

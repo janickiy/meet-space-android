@@ -29,6 +29,7 @@ internal object CallIcons {
     val Monitor by lazy { icon("Monitor", "M4 3H20a2 2 0 0 1 2 2V15a2 2 0 0 1 -2 2H4a2 2 0 0 1 -2 -2V5a2 2 0 0 1 2 -2Z", "M8 21L16 21", "M12 17L12 21") }
     val Ellipsis by lazy { icon("Ellipsis", "M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0", "M18 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0", "M4 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0") }
     val AudioLines by lazy { icon("AudioLines", "M2 10v3", "M6 6v11", "M10 3v18", "M14 8v7", "M18 5v13", "M22 10v3") }
+    val Volume2 by lazy { icon("Volume2", "M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z", "M16 9a5 5 0 0 1 0 6", "M19.364 18.364a9 9 0 0 0 0-12.728") }
     val ArrowUp by lazy { icon("ArrowUp", "m5 12 7-7 7 7", "M12 19V5") }
     val X by lazy { icon("X", "M18 6 6 18", "m6 6 12 12") }
 

@@ -54,8 +54,9 @@ class RefreshUiTest {
         compose.onNodeWithTag("admit-guest").performClick()
         compose.runOnIdle { assertEquals("guest" to true, admitted) }
         compose.onNodeWithTag("moderate-peer").performClick()
-        compose.onNodeWithText("Отключить камеру").performClick()
-        compose.runOnIdle { assertEquals("peer" to MeetingModeration("camera", true), command) }
+        compose.onNodeWithText("Отключить камеру").assertDoesNotExist()
+        compose.onNodeWithTag("participant-role").performClick()
+        compose.runOnIdle { assertEquals("peer" to MeetingModeration("role", role = "co_host"), command) }
         compose.onNodeWithText("Готово").performClick()
         compose.runOnIdle { room = room.copy(selfId = peer.id) }
         compose.onNodeWithTag("admit-guest").assertDoesNotExist()

@@ -942,10 +942,10 @@ private fun NotificationsDialog(state: MessagingUiState, actions: MessagingActio
                         if (!state.notificationPermissionEnabled) OutlinedButton(onClick = actions.requestSystemNotifications, modifier = Modifier.testTag("notifications-permission")) { Text("Разрешить уведомления") }
                         LoadingStatus(state.notificationPreferences.loading, state.notificationPreferences.error, actions.loadNotifications)
                         state.notificationPreferences.data?.let { preferences ->
-                            PreferenceToggle("Приглашения на встречи", preferences.invitation, !state.busy, "notification-pref-invitation") { actions.saveNotificationPreferences(preferences.copy(invitation = it)) }
-                            PreferenceToggle("Напоминания о встречах", preferences.reminder, !state.busy, "notification-pref-reminder") { actions.saveNotificationPreferences(preferences.copy(reminder = it)) }
-                            PreferenceToggle("Готовность записи", preferences.recording, !state.busy, "notification-pref-recording") { actions.saveNotificationPreferences(preferences.copy(recording = it)) }
-                            PreferenceToggle("Итоги встречи", preferences.summary, !state.busy, "notification-pref-summary") { actions.saveNotificationPreferences(preferences.copy(summary = it)) }
+                            PreferenceToggle("Приглашения на встречи", preferences.invitation, !state.busy, "notification-pref-invitation") { actions.saveNotificationPreferences(preferences.copy(invitation = it)) {} }
+                            PreferenceToggle("Напоминания о встречах", preferences.reminder, !state.busy, "notification-pref-reminder") { actions.saveNotificationPreferences(preferences.copy(reminder = it)) {} }
+                            PreferenceToggle("Готовность записи", preferences.recording, !state.busy, "notification-pref-recording") { actions.saveNotificationPreferences(preferences.copy(recording = it)) {} }
+                            PreferenceToggle("Итоги встречи", preferences.summary, !state.busy, "notification-pref-summary") { actions.saveNotificationPreferences(preferences.copy(summary = it)) {} }
                         }
                         state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                     } else {

@@ -158,6 +158,66 @@ class MessagingNotificationsTest {
         assertSystemManagedAlert(notification)
     }
 
+    @Test fun accountSoundChoiceSurvivesRecreationAndIsIsolatedByServerAndUser() {
+        val scope = checkNotNull(identity)
+        val settings = NotificationSoundSettings(isolatedContext)
+        assertTrue(settings.enabled(scope))
+        settings.setEnabled(scope, false)
+        assertFalse(NotificationSoundSettings(isolatedContext).enabled(scope))
+        assertTrue(settings.enabled("https://sound-test.invalid|account-b"))
+        assertTrue(settings.enabled("https://another.invalid|account-a"))
+        settings.setEnabled(null, false)
+        assertTrue(settings.enabled(null))
+        settings.setEnabled(scope, true)
+        assertTrue(NotificationSoundSettings(isolatedContext).enabled(scope))
+    }
+
+    @Test fun disablingAppSoundPostsSilentlyWithoutChangingTheUserChannel() {
+        NotificationSoundSettings(isolatedContext).setEnabled(identity, false)
+        delivery().show(event("account-sound-off"))
+        val notification = awaitPost().notification
+        val channel = checkNotNull(manager.getNotificationChannel(channelId))
+        assertEquals(Notification.GROUP_ALERT_SUMMARY, notification.groupAlertBehavior)
+        assertFalse(notification.flags and Notification.FLAG_GROUP_SUMMARY != 0)
+        assertNotNull(channel.sound)
+        assertEquals(NotificationManager.IMPORTANCE_DEFAULT, channel.importance)
+        assertFalse(channel.canBypassDnd())
+        assertNotNull(notification.contentIntent)
+    }
+
+    @Test fun mutedEventsAreNotReplayedWhenSoundIsEnabledAgain() {
+        val settings = NotificationSoundSettings(isolatedContext)
+        val item = event("muted-duplicate")
+        settings.setEnabled(identity, false)
+        delivery().show(item); awaitPost()
+        delivery().clear(); waitUntil("muted notification cleared") { posted() == null }
+        settings.setEnabled(identity, true)
+        delivery().show(item)
+        instrumentation.waitForIdleSync(); SystemClock.sleep(200)
+        assertNull(posted())
+        SystemClock.sleep(1_100)
+        delivery().show(event("sound-enabled-new-event"))
+        val notification = awaitPost().notification
+        assertEquals(Notification.GROUP_ALERT_ALL, notification.groupAlertBehavior)
+        assertSystemManagedAlert(notification)
+    }
+
+    @Test fun enabledTonePreviewIsBoundedAndCanBeStoppedAndRestarted() {
+        val audio = base.getSystemService(AudioManager::class.java)
+        assumeTrue(audio.ringerMode == AudioManager.RINGER_MODE_NORMAL &&
+            audio.getStreamVolume(AudioManager.STREAM_NOTIFICATION) > 0 &&
+            manager.currentInterruptionFilter == NotificationManager.INTERRUPTION_FILTER_ALL &&
+            android.media.RingtoneManager.getActualDefaultRingtoneUri(base, android.media.RingtoneManager.TYPE_NOTIFICATION) != null)
+        manager.createNotificationChannel(NotificationChannel(channelId, "Isolated preview fixture", NotificationManager.IMPORTANCE_DEFAULT))
+        val preview = NotificationSoundPreview(isolatedContext, channelId)
+        try {
+            compose.runOnIdle { preview.play(true); assertTrue(preview.playing); preview.stop(); assertFalse(preview.playing) }
+            compose.runOnIdle { preview.play(true); assertTrue(preview.playing) }
+            compose.waitUntil(5_000) { !preview.playing }
+            compose.runOnIdle { preview.play(true); assertTrue(preview.playing); preview.close(); assertFalse(preview.playing) }
+        } finally { compose.runOnIdle { preview.close() } }
+    }
+
     @Test fun postingInSilentVibrateAndDndDoesNotAlterDeviceSoundSettings() {
         val audio = base.getSystemService(AudioManager::class.java)
         assumeTrue("This fixture needs an adjustable emulator audio service", !audio.isVolumeFixed)
@@ -205,6 +265,9 @@ class MessagingNotificationsTest {
                 assertEquals(baseline, soundState())
                 assertFalse(checkNotNull(manager.getNotificationChannel(channelId)).canBypassDnd())
                 assertSystemManagedAlert(post.notification)
+                val preview = NotificationSoundPreview(isolatedContext, channelId)
+                compose.runOnIdle { preview.play(true); assertFalse(preview.playing); preview.close() }
+                assertEquals(baseline, soundState())
             }
         } finally {
             // This opt-in fixture owns the disposable emulator, but still restores every

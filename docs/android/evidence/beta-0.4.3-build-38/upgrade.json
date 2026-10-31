@@ -1,0 +1,9 @@
+{
+  "fromVersionCode": 37,
+  "toVersionCode": 38,
+  "compatibleSignature": true,
+  "privateDataMarkerPreserved": true,
+  "launchSucceeded": true,
+  "physicalDevice": false,
+  "actualAccountMigrationTested": false
+}

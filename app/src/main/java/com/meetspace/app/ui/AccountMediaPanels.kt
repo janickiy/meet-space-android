@@ -64,7 +64,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
-import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -146,35 +145,6 @@ fun AccountAudioPanel(settings: AppSettingsUiState, actions: AppSettingsActions)
         MediaNote("Проверка микрофона длится до 8 секунд; звук не сохраняется. Тесты останавливаются при уходе с экрана. Настройки устройств сохраняются на этом устройстве.")
         TextButton(actions.openSystemSettings, contentPadding = PaddingValues(0.dp), modifier = Modifier.heightIn(min = 48.dp).testTag("settings-system-permissions")) {
             Icon(Icons.Outlined.Settings, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text("Разрешения микрофона и звука", fontSize = 12.6.sp)
-        }
-    }
-}
-
-/** Existing Android channels are user-owned: open the real settings instead of a fake toggle. */
-@Composable
-fun AccountNotificationSound(actions: AppSettingsActions) {
-    val context = LocalContext.current
-    val lifecycle = LocalLifecycleOwner.current.lifecycle
-    val probe = remember(context.applicationContext) { AccountAudioProbe(context.applicationContext) }
-    var revision by remember { mutableIntStateOf(0) }
-    DisposableEffect(probe, lifecycle) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_STOP) probe.stop()
-            if (event == Lifecycle.Event.ON_RESUME) revision++
-        }
-        lifecycle.addObserver(observer)
-        onDispose { lifecycle.removeObserver(observer); probe.close() }
-    }
-    val sound = remember(revision) { accountNotificationSound(context) }
-    val audible = remember(revision) {
-        val channel = context.getSystemService(NotificationManager::class.java).getNotificationChannel(MESSAGING_CHANNEL)
-        NotificationManagerCompat.from(context).areNotificationsEnabled() && sound != null && (channel == null || channel.importance >= NotificationManager.IMPORTANCE_DEFAULT)
-    }
-    Column(Modifier.fillMaxWidth().testTag("account-notification-sound")) {
-        AccountToggle("Звуковой сигнал", audible, { openAccountSoundSettings(context, actions) },
-            hint = "Управляется в настройках уведомлений Android", tag = "account-sound-enabled")
-        DeviceTestRow("ringtone", Icons.Outlined.VolumeUp, "Проверить звук", probe) {
-            if (probe.kind == AudioProbeKind.RINGTONE) probe.stop() else probe.ringtone(sound)
         }
     }
 }

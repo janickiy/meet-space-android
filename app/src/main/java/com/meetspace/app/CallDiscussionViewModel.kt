@@ -295,7 +295,7 @@ class CallDiscussionViewModel(
     }
     private fun moderate(id: String, action: MeetingModeration) {
         val room = state.value.room; val person = room.participants.find { it.id == id } ?: return
-        if (room.busy || !canModerateMeeting(room.self, person, action.action)) return
+        if (room.busy || action.action !in setOf("role", "kick") || !canModerateMeeting(room.self, person, action.action)) return
         roomMutation { meetings.moderateParticipant(call.conferenceId, id, action) }
     }
     private fun roomMutation(block: suspend () -> MeetingParticipant) {

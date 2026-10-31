@@ -81,7 +81,7 @@ class ProfileDesignTest {
         val prefs = NotificationPreferences()
         compose.setContent { MeetSpaceTheme { ProfileWorkspace(repository, MeetingsUiState(), MeetingsActions(), settings, AppSettingsActions(),
             onTheme = {}, onLogout = {}, onServers = {}, onFolders = {}, initialSection = "notifications",
-            messaging = MessagingUiState(notificationPreferences = MessagingLoad(prefs)), messagingActions = MessagingActions(saveNotificationPreferences = { saved = it })) } }
+            messaging = MessagingUiState(notificationPreferences = MessagingLoad(prefs)), messagingActions = MessagingActions(saveNotificationPreferences = { value, done -> saved = value; done() })) } }
         compose.onNodeWithTag("account-notification-save").performScrollTo().assertIsNotEnabled()
         compose.onNodeWithTag("notification-pref-reminder").performScrollTo().performClick()
         compose.onNodeWithTag("notification-pref-reminder").assertIsOff().assert(SemanticsMatcher.expectValue(androidx.compose.ui.semantics.SemanticsProperties.Role, androidx.compose.ui.semantics.Role.Switch))

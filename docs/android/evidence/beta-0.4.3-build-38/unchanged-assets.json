@@ -1,0 +1,28 @@
+{
+  "files": 22,
+  "nativeLibrariesAndInstallerAssetsUnchanged": true,
+  "filesChecked": [
+    "lib/arm64-v8a/libandroidx.graphics.path.so",
+    "lib/arm64-v8a/libdatastore_shared_counter.so",
+    "lib/arm64-v8a/libjingle_peerconnection_so.so",
+    "lib/armeabi-v7a/libandroidx.graphics.path.so",
+    "lib/armeabi-v7a/libdatastore_shared_counter.so",
+    "lib/armeabi-v7a/libjingle_peerconnection_so.so",
+    "lib/x86/libandroidx.graphics.path.so",
+    "lib/x86/libdatastore_shared_counter.so",
+    "lib/x86/libjingle_peerconnection_so.so",
+    "lib/x86_64/libandroidx.graphics.path.so",
+    "lib/x86_64/libdatastore_shared_counter.so",
+    "lib/x86_64/libjingle_peerconnection_so.so",
+    "assets/docker.asc",
+    "assets/licenses/WEBRTC.md",
+    "assets/licenses/inter-NOTICE.txt",
+    "assets/licenses/inter-OFL.txt",
+    "assets/licenses/jsch-LICENSE.txt",
+    "assets/licenses/webrtc-sdk-LICENSE.txt",
+    "assets/release.json",
+    "assets/release.sig",
+    "assets/runner.py",
+    "assets/trust-root.pem"
+  ]
+}

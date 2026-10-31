@@ -1,0 +1,23 @@
+[
+  {
+    "layout": "tablet",
+    "success": true,
+    "passed": 30,
+    "skipped": 0,
+    "failed": 0
+  },
+  {
+    "layout": "phone",
+    "success": true,
+    "passed": 4,
+    "skipped": 0,
+    "failed": 0
+  },
+  {
+    "layout": "largefont",
+    "success": true,
+    "passed": 1,
+    "skipped": 0,
+    "failed": 0
+  }
+]

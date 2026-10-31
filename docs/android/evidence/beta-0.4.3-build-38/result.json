@@ -1,0 +1,54 @@
+{
+  "apk": {
+    "versionName": "0.4.3-beta",
+    "versionCode": 38,
+    "bytes": 80366305,
+    "sha256": "2593e30e1bf218da7af528b3c7c21c9c2ebd26e5c8aeababff87cd449db3234c",
+    "certificateSha256": "5472281448cf33dea7fe8a4b119683701cd43815d5e038bb34fad92e22b1e471",
+    "zipAlignment16KiB": true
+  },
+  "checks": {
+    "jvmTests": 588,
+    "jvmSkipped": 12,
+    "jvmFailures": 0,
+    "jvmErrors": 0,
+    "jvmPassed": 576,
+    "lintErrors": 0,
+    "lintWarnings": 64
+  },
+  "android": [
+    {
+      "layout": "tablet",
+      "success": true,
+      "passed": 30,
+      "skipped": 0,
+      "failed": 0
+    },
+    {
+      "layout": "phone",
+      "success": true,
+      "passed": 4,
+      "skipped": 0,
+      "failed": 0
+    },
+    {
+      "layout": "largefont",
+      "success": true,
+      "passed": 1,
+      "skipped": 0,
+      "failed": 0
+    }
+  ],
+  "physicalDeviceTested": false,
+  "productionConferenceActionsTested": false,
+  "audibleSoundOnPhysicalDeviceTested": false,
+  "upgrade": {
+    "fromVersionCode": 37,
+    "toVersionCode": 38,
+    "compatibleSignature": true,
+    "privateDataMarkerPreserved": true,
+    "launchSucceeded": true,
+    "physicalDevice": false,
+    "actualAccountMigrationTested": false
+  }
+}

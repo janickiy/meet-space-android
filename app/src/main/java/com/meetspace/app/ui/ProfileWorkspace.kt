@@ -62,7 +62,7 @@ private enum class AccountSection(val title: String, val hint: String, val icon:
     ADD_ACCOUNT("Добавить аккаунт", "", Icons.Outlined.PersonAdd),
     AUDIO("Аудио", "Микрофон, динамик и звук", Icons.Outlined.MicNone),
     VIDEO("Видео", "Камера и участники", Icons.Outlined.Videocam),
-    NOTIFICATIONS("Уведомления", "События и каналы доставки", Icons.Outlined.NotificationsNone),
+    NOTIFICATIONS("Уведомления", "События и звук", Icons.Outlined.NotificationsNone),
     APPEARANCE("Оформление", "Тема и размер текста", Icons.Outlined.Palette),
     CONNECTION("Подключение", "Адрес сервера", Icons.Outlined.Dns),
 }
@@ -127,7 +127,7 @@ fun ProfileWorkspace(
             val choose: (AccountSection) -> Unit = { section = it; detailOpen = true }
             val shape = RoundedCornerShape(topStart = 25.dp, topEnd = 25.dp)
             Surface(Modifier.fillMaxSize().padding(horizontal = if (wide) 24.dp else 0.dp).testTag(if (wide) "profile-wide" else "profile-compact"),
-                shape = shape, color = MaterialTheme.colorScheme.surface,
+                shape = shape, color = if (section == AccountSection.NOTIFICATIONS) MaterialTheme.colorScheme.background else MaterialTheme.colorScheme.surface,
                 border = if (wide) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant) else null) {
                 Row(Modifier.fillMaxSize()) {
                     if (wide || !detailOpen) {
@@ -178,32 +178,9 @@ fun ProfileWorkspace(
                                     { section = AccountSection.ACCOUNTS })
                                 AccountSection.AUDIO -> AccountAudioPanel(settings, settingsActions)
                                 AccountSection.VIDEO -> AccountVideoPanel(name, settings, settingsActions)
-                                AccountSection.NOTIFICATIONS -> {
-                                    AccountHeading("Уведомления", "Выберите события и каналы доставки.", wide)
-                                    val current = messaging.notificationPreferences.data
-                                    var draft by remember(current) { mutableStateOf(current) }
-                                    if (current == null) {
-                                        Text(messaging.notificationPreferences.error ?: "Загружаем настройки уведомлений…", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                        TextButton(messagingActions.loadNotifications) { Text("Обновить") }
-                                    } else draft?.let { prefs ->
-                                        AccountSectionLabel("События")
-                                        AccountToggle("Приглашения и изменения встреч", prefs.invitation, { draft = prefs.copy(invitation = it) }, tag = "notification-pref-invitation")
-                                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                                        AccountToggle("Напоминания о встречах", prefs.reminder, { draft = prefs.copy(reminder = it) }, tag = "notification-pref-reminder")
-                                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                                        AccountToggle("Готовность записи", prefs.recording, { draft = prefs.copy(recording = it) }, tag = "notification-pref-recording")
-                                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                                        AccountToggle("Расшифровка и итоги встречи", prefs.summary, { draft = prefs.copy(summary = it) }, tag = "notification-pref-summary")
-                                        AccountDivider(); AccountSectionLabel("Звук уведомлений")
-                                        AccountNotificationSound(settingsActions)
-                                        AccountDivider(); AccountSectionLabel("Каналы доставки")
-                                        AccountToggle("Email", prefs.email, { draft = prefs.copy(email = it) }, "Доставка зависит от настроек почты на сервере", tag = "account-notification-email")
-                                        AccountToggle("Push-уведомления", settings.pushEnabled, { (onManagePush ?: settingsActions.openNotifications)() }, if (settings.pushConfigured) "Доставка на это устройство" else "Не настроены на этом сервере", settings.pushConfigured, "account-notification-push")
-                                        Spacer(Modifier.height(18.dp)); AccountSave("Сохранить настройки", "account-notification-save", !messaging.busy && prefs != current) { messagingActions.saveNotificationPreferences(prefs) }
-                                    }
-                                    messaging.error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 12.dp)) }
-                                    messaging.notice?.let { Text(it, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 12.dp)) }
-                                    TextButton(settingsActions.openNotifications, modifier = Modifier.padding(top = 12.dp).testTag("settings-notifications")) { Text("Открыть центр уведомлений") }
+                                AccountSection.NOTIFICATIONS -> key(origin, user?.id) {
+                                    AccountNotificationHeading(wide)
+                                    AccountNotificationPanel(messaging, messagingActions, settings, settingsActions, wide)
                                 }
                                 AccountSection.APPEARANCE -> {
                                     AccountHeading("Оформление", "Настройте MeetSpace под себя.", wide)

@@ -76,12 +76,16 @@ class AccountMediaPanelsTest {
         }
     }
 
-    @Test fun notificationSoundReflectsAndroidAndDoesNotAutoplay() {
-        compose.setContent { Frame { AccountNotificationSound(AppSettingsActions()) } }
+    @Test fun notificationSoundUsesALocalSwitchAndDoesNotAutoplay() {
+        var enabled by mutableStateOf(true)
+        compose.setContent { Frame { AccountNotificationSound(enabled, true) { enabled = it } } }
         compose.onNodeWithTag("account-sound-enabled").assertIsEnabled().assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, androidx.compose.ui.semantics.Role.Switch))
-        compose.onNodeWithTag("account-test-ringtone").assertIsEnabled()
-        compose.onNodeWithTag("account-ringtone-test-status").assertDoesNotExist()
-        compose.onNodeWithTag("account-ringtone-meter").assert(SemanticsMatcher.expectValue(SemanticsProperties.ProgressBarRangeInfo, ProgressBarRangeInfo(0f, 0f..1f)))
+        compose.onNodeWithTag("account-test-notification").assertIsEnabled()
+        compose.onNodeWithTag("account-notification-test-status").assertDoesNotExist()
+        compose.onNodeWithTag("account-sound-enabled").performClick().assertIsOff()
+        compose.onNodeWithTag("account-test-notification").performClick()
+        compose.onNodeWithTag("account-notification-test-status").assertTextEquals("Включите звуковой сигнал для проверки")
+        compose.onNodeWithTag("account-ringtone-meter").assertDoesNotExist()
     }
 
     /** Explicitly opt in only on the owned test emulator, with permissions pregranted by the runner. */

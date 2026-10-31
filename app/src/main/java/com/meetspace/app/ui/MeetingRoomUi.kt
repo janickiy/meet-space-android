@@ -72,7 +72,7 @@ internal fun MeetingRoomPanel(call: CallState, room: MeetingRoomUiState, actions
                             val restrictions = listOfNotNull("Микрофон".takeIf { person.microphoneBlocked }, "Камера".takeIf { person.cameraBlocked }, "Экран".takeIf { person.screenBlocked })
                             if (restrictions.isNotEmpty()) Text("Ограничено: ${restrictions.joinToString()}", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        if (canModerateMeeting(room.self, person, "mute")) IconButton({ target = person }, enabled = !room.busy, modifier = Modifier.testTag("moderate-${person.id}")) { Icon(Icons.Outlined.MoreHoriz, "Управление ${person.displayName}") }
+                        if (canManageMeetingParticipant(room.self, person)) IconButton({ target = person }, enabled = !room.busy, modifier = Modifier.testTag("moderate-${person.id}")) { Icon(Icons.Outlined.MoreHoriz, "Управление ${person.displayName}") }
                     }
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 }
@@ -83,26 +83,11 @@ internal fun MeetingRoomPanel(call: CallState, room: MeetingRoomUiState, actions
     }
     target?.let { old ->
         val person = room.participants.find { it.id == old.id }
-        if (person != null) ParticipantManagement(person, room, actions) { target = null }
+        if (person != null && canManageMeetingParticipant(room.self, person)) {
+            key(person.id) { ParticipantManagement(person, room, actions) { target = null } }
+        } else LaunchedEffect(old.id) { target = null }
     }
     if (invite) MeetingInvitationDialog(room, actions) { invite = false }
-}
-
-@Composable
-private fun ParticipantManagement(person: MeetingParticipant, room: MeetingRoomUiState, actions: MeetingRoomActions, close: () -> Unit) {
-    var kick by remember { mutableStateOf(false) }
-    AlertDialog(onDismissRequest = close, title = { Text(person.displayName) },
-        text = { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(meetingRole(person.role), color = MaterialTheme.colorScheme.onSurfaceVariant)
-            listOf(Triple("mute", "микрофон", person.microphoneBlocked), Triple("camera", "камеру", person.cameraBlocked), Triple("screen", "экран", person.screenBlocked)).forEach { (key, label, blocked) ->
-                if (canModerateMeeting(room.self, person, key)) OutlinedButton({ actions.moderate(person.id, MeetingModeration(key, !blocked)) }, enabled = !room.busy, modifier = Modifier.fillMaxWidth()) { Text(if (blocked) "Разрешить $label" else "Отключить $label") }
-            }
-            if (person.role != "guest" && canModerateMeeting(room.self, person, "role")) OutlinedButton({ actions.moderate(person.id, MeetingModeration("role", role = if (person.role == "co_host") "participant" else "co_host")) }, enabled = !room.busy) { Text(if (person.role == "co_host") "Снять роль соорганизатора" else "Сделать соорганизатором") }
-            if (canModerateMeeting(room.self, person, "kick")) TextButton({ kick = true }, enabled = !room.busy) { Text("Удалить из встречи", color = MaterialTheme.colorScheme.error) }
-            room.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        } }, confirmButton = { TextButton(close) { Text("Готово") } })
-    if (kick) AlertDialog(onDismissRequest = { kick = false }, title = { Text("Удалить участника?") }, text = { Text("${person.displayName} потеряет доступ к встрече и не сможет войти снова по этой ссылке.") },
-        confirmButton = { TextButton({ actions.moderate(person.id, MeetingModeration("kick")); kick = false; close() }) { Text("Удалить") } }, dismissButton = { TextButton({ kick = false }) { Text("Отмена") } })
 }
 
 @Composable

@@ -22,6 +22,52 @@ class MessagingViewModelTest {
     @Before fun setup() { Dispatchers.setMain(dispatcher) }
     @After fun teardown() { Dispatchers.resetMain() }
 
+    @Test fun notificationSettingsCommitOnlyAfterAcknowledgementAndIgnoreConversationNavigation() = runTest(dispatcher) {
+        val response = CompletableDeferred<NotificationPreferences>()
+        val repository = FakeMessaging().apply { preferenceSave = { response.await() } }
+        val model = model(repository)
+        val target = NotificationPreferences(invitation = false, email = true, push = true)
+        var saved = 0
+        model.open("one"); runCurrent()
+        model.saveNotificationPreferences(target) { saved++ }; runCurrent()
+        assertTrue(model.state.value.busy); assertEquals(0, saved)
+        model.open("two"); runCurrent()
+        response.complete(target); runCurrent()
+        assertEquals(1, saved); assertFalse(model.state.value.busy)
+        assertEquals(target, model.state.value.notificationPreferences.data)
+    }
+
+    @Test fun failedOrUnconfirmedSettingsNeverCommitTheLocalSoundChoice() = runTest(dispatcher) {
+        for (fail in listOf(true, false)) {
+            val repository = FakeMessaging().apply { preferenceSave = { if (fail) throw network() else NotificationPreferences() } }
+            val model = model(repository); var saved = 0
+            model.saveNotificationPreferences(NotificationPreferences(reminder = false)) { saved++ }; runCurrent()
+            assertEquals(0, saved); assertFalse(model.state.value.busy); assertNotNull(model.state.value.error)
+        }
+    }
+
+    @Test fun lateSettingsAcknowledgementCannotCommitSoundForADifferentAccount() = runTest(dispatcher) {
+        val response = CompletableDeferred<NotificationPreferences>()
+        val foundation = FakeFoundation()
+        val repository = FakeMessaging().apply { preferenceSave = { withContext(NonCancellable) { response.await() } } }
+        val model = model(repository, foundation); var saved = 0
+        model.saveNotificationPreferences(NotificationPreferences(recording = false)) { saved++ }; runCurrent()
+        foundation.state.value = foundation.state.value.copy(session = null); runCurrent()
+        response.complete(NotificationPreferences(recording = false)); runCurrent()
+        assertEquals(0, saved); assertNull(model.state.value.notificationPreferences.data)
+    }
+
+    @Test fun failedSettingsRefreshKeepsKnownPreferencesInsteadOfDiscardingTheFormsDraft() = runTest(dispatcher) {
+        val repository = FakeMessaging()
+        val model = model(repository)
+        model.loadNotifications(); runCurrent()
+        val previous = checkNotNull(model.state.value.notificationPreferences.data)
+        repository.preferenceLoad = { throw network() }
+        model.loadNotifications(); runCurrent()
+        assertEquals(previous, model.state.value.notificationPreferences.data)
+        assertNotNull(model.state.value.notificationPreferences.error)
+    }
+
     @Test fun draftsFollowConversationAndAreDiscardedOnAccountChange() = runTest(dispatcher) {
         val f = FakeFoundation(); val m = model(FakeMessaging(), f)
         m.open("one"); runCurrent(); m.draft("First draft")
@@ -983,8 +1029,10 @@ class MessagingViewModelTest {
             notificationReads += id
             return notificationReadResult(id).also { if (it.readAt != null) acknowledgedNotifications += id }
         }
-        override suspend fun notificationPreferences() = NotificationPreferences()
-        override suspend fun saveNotificationPreferences(preferences: NotificationPreferences) = preferences
+        var preferenceLoad: suspend () -> NotificationPreferences = { NotificationPreferences() }
+        override suspend fun notificationPreferences() = preferenceLoad()
+        var preferenceSave: suspend (NotificationPreferences) -> NotificationPreferences = { it }
+        override suspend fun saveNotificationPreferences(preferences: NotificationPreferences) = preferenceSave(preferences)
         override suspend fun integrationCapabilities() = IntegrationCapabilities("noop")
         override suspend fun registerPushDevice(token: String) = PushDevice("device", "android", "fcm")
         override suspend fun revokePushDevice(id: String) = Unit

@@ -15,6 +15,7 @@ class MessagingNotifications internal constructor(private val context: Context, 
     private val manager get() = context.getSystemService(NotificationManager::class.java)
     private val deliveredPreferences = context.getSharedPreferences("meetspace-notification-delivery", Context.MODE_PRIVATE)
     private val delivered = NotificationDeliveryHistory(deliveredPreferences.getString("delivered", "").orEmpty())
+    private val soundSettings = NotificationSoundSettings(context)
 
     fun show(item: InboxNotification) { show(item, identity()) }
 
@@ -38,7 +39,8 @@ class MessagingNotifications internal constructor(private val context: Context, 
             .setContentTitle("MeetSpace").setContentText(text).setContentIntent(open).setAutoCancel(true)
             // The system channel owns sound, volume, vibration and DND policy in foreground too.
             // New events may alert again; a duplicate event is rejected by the scoped journal.
-            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE).setOnlyAlertOnce(false).build()
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE).setOnlyAlertOnce(false)
+            .setSilent(!soundSettings.enabled(scope)).build()
         if (identity() != scope) return
         runCatching {
             manager.notify(TAG, 707, notification)
@@ -50,7 +52,7 @@ class MessagingNotifications internal constructor(private val context: Context, 
     fun clear() { manager.cancel(TAG, 707) }
     companion object {
         const val OPEN_INBOX = "com.meetspace.app.OPEN_INBOX"
-        private const val CHANNEL = "meetspace-messaging"
+        internal const val CHANNEL = "meetspace-messaging"
         private const val TAG = "meetspace-messaging"
     }
 }

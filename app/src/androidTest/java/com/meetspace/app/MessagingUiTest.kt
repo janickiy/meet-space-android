@@ -340,7 +340,7 @@ class MessagingUiTest {
         var saved: NotificationPreferences? = null
         val event = InboxNotification("n1", "conference.reminder", now, conferenceId = "meeting", scheduledAt = now)
         val prefs = NotificationPreferences(email = true, push = true)
-        compose.setContent { Screen(ready.copy(notifications = MessagingLoad(listOf(event)), notificationUnread = 1, notificationPreferences = MessagingLoad(prefs)), MessagingActions(readNotification = { read = it }, openNotification = { opened = it }, saveNotificationPreferences = { saved = it }), 1000) }
+        compose.setContent { Screen(ready.copy(notifications = MessagingLoad(listOf(event)), notificationUnread = 1, notificationPreferences = MessagingLoad(prefs)), MessagingActions(readNotification = { read = it }, openNotification = { opened = it }, saveNotificationPreferences = { value, done -> saved = value; done() }), 1000) }
         compose.onNodeWithTag("chat-folder-filter").performScrollTo().performClick()
         compose.onNodeWithTag("messaging-notifications").performClick()
         compose.onNodeWithTag("notification-read-${event.id}").performClick()

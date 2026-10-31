@@ -39,12 +39,14 @@ data class AppSettingsUiState(
     val pushConfigured: Boolean,
     val pushEnabled: Boolean,
     val devicePreferences: AccountDevicePreferences = AccountDevicePreferences(),
+    val notificationSoundEnabled: Boolean = true,
 )
 
 data class AppSettingsActions(
     val openNotifications: () -> Unit = {},
     val openSystemSettings: () -> Unit = {},
     val updateDevicePreferences: (AccountDevicePreferences) -> Unit = {},
+    val updateNotificationSound: (Boolean) -> Unit = {},
 )
 
 /** App settings use real account notification preferences and Android permission controls. */

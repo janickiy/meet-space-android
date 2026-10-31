@@ -1,0 +1,9 @@
+{
+  "jvmTests": 588,
+  "jvmSkipped": 12,
+  "jvmFailures": 0,
+  "jvmErrors": 0,
+  "jvmPassed": 576,
+  "lintErrors": 0,
+  "lintWarnings": 64
+}

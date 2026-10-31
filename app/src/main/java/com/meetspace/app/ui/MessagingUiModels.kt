@@ -137,7 +137,7 @@ data class MessagingActions(
     val readNotification: (String) -> Unit = {},
     val readAllNotifications: () -> Unit = {},
     val openNotification: (InboxNotification) -> Unit = {},
-    val saveNotificationPreferences: (NotificationPreferences) -> Unit = {},
+    val saveNotificationPreferences: (NotificationPreferences, onSaved: () -> Unit) -> Unit = { _, _ -> },
     val requestSystemNotifications: () -> Unit = {},
     val enablePush: () -> Unit = {},
     val disablePush: () -> Unit = {},

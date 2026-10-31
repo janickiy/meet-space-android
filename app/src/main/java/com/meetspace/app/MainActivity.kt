@@ -314,7 +314,7 @@ class MainActivity : ComponentActivity() {
                                 newChatRequested = newChatRequested.value, foldersRequested = foldersRequested.value,
                                 consumeWorkspaceRequest = { newChatRequested.value = false; foldersRequested.value = false },
                                 )
-                            else if (tab == com.meetspace.app.ui.WorkspaceTab.PROFILE) SettingsHost(pushState, content = { settings, settingsActions ->
+                            else if (tab == com.meetspace.app.ui.WorkspaceTab.PROFILE) SettingsHost(pushState, notificationScope = notificationDeliveryIdentity, content = { settings, settingsActions ->
                                 val changeAccount: (() -> Unit) -> Unit = { action ->
                                     when {
                                         directSession.active -> directCalls.message("Сначала завершите личный звонок, чтобы изменить аккаунт.")

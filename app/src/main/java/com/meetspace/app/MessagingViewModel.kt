@@ -642,9 +642,20 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
     private fun invalidNotificationCursor() = AppFailure(FailureKind.INVALID_RESPONSE, "Сервер повторил страницу уведомлений или вернул слишком длинный список. Обновите список.")
     private fun loadPreferences() = request("preferences", { repository.notificationPreferences() },
         { prefs -> mutable.update { it.copy(notificationPreferences = MessagingLoad(prefs)) } },
-        { e -> mutable.update { it.copy(notificationPreferences = MessagingLoad(error = e.message)) } })
-    fun saveNotificationPreferences(prefs: NotificationPreferences) = mutate({ repository.saveNotificationPreferences(prefs) }, false) {
-        result -> mutable.update { it.copy(notificationPreferences = MessagingLoad(result), notice = "Настройки уведомлений сохранены.") }
+        { e -> mutable.update { it.copy(notificationPreferences = it.notificationPreferences.copy(loading = false, error = e.message)) } })
+    fun saveNotificationPreferences(prefs: NotificationPreferences, onSaved: () -> Unit = {}) {
+        if (scope() == null || state.value.busy) return
+        cancel("preferences")
+        mutable.update { it.copy(busy = true, error = null, notice = null) }
+        request("mutation", {
+            repository.saveNotificationPreferences(prefs).also {
+                if (it != prefs) throw AppFailure(FailureKind.INVALID_RESPONSE, "Сервер не подтвердил настройки уведомлений. Повторите сохранение.")
+            }
+        }, { result ->
+            cancel("preferences")
+            mutable.update { it.copy(busy = false, notificationPreferences = MessagingLoad(result), notice = "Настройки уведомлений сохранены.") }
+            onSaved()
+        }, { e -> mutable.update { it.copy(busy = false, error = e.message) } })
     }
     private fun startEvents() {
         if (eventJob?.isActive == true || scope() == null) return
