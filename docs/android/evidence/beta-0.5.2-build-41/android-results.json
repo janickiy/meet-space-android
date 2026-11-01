@@ -1,0 +1,19 @@
+{
+  "success": true,
+  "passed": 15,
+  "skipped": 0,
+  "failed": 0,
+  "physicalDevice": false,
+  "classes": [
+    "NavigationAvatarUiTest",
+    "AvatarImagesTest",
+    "ProfileAvatarUiTest",
+    "FoundationUiTest#compactWindowUsesBottomNavigation",
+    "FoundationUiTest#mediumWindowKeepsThreeBottomDestinations",
+    "FoundationUiTest#expandedWindowKeepsThreeBottomDestinations",
+    "CallUiTest#prejoinUsesSideBySideTabletAndStackedPhoneWithoutAutomaticCapture",
+    "CallUiTest#activeCallKeepsThreeWorkspaceDestinationsWithoutInvokingLeave",
+    "RecordingsUiTest#recordingsKeepCallsSelectedAndNavigationUsesTheRequestedDestination",
+    "MeetingsUiTest#meetingDetailIconsKeepAccessibleLabelsAndWorkingActionsAtLargeText"
+  ]
+}

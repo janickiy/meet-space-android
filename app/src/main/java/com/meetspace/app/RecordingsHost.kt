@@ -12,9 +12,10 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.meetspace.app.ui.WorkspaceTab
 import com.meetspace.app.ui.RecordingsUiState
 import com.meetspace.app.ui.RecordingsWorkspace
+import com.meetspace.core.model.User
 
 @Composable
-fun RecordingsHost(model: RecordingsViewModel, state: RecordingsUiState, playback: RecordingPlayback?, onWorkspaceTab: ((WorkspaceTab) -> Unit)? = null, profileLabel: String = "") {
+fun RecordingsHost(model: RecordingsViewModel, state: RecordingsUiState, playback: RecordingPlayback?, onWorkspaceTab: ((WorkspaceTab) -> Unit)? = null, profileLabel: String = "", profileUser: User? = null) {
     val resolver = LocalContext.current.applicationContext.contentResolver
     val previewIdentity = model.previewIdentity
     var previewGeneration by remember(model) { mutableIntStateOf(0) }
@@ -46,7 +47,7 @@ fun RecordingsHost(model: RecordingsViewModel, state: RecordingsUiState, playbac
                     .setType(request.file.mimeType).putExtra(Intent.EXTRA_TITLE, MessagingFiles.safeName(request.file.filename))) }
                 catch (_: Exception) { model.discardExport(); model.exportError() }
             }
-        }), onWorkspaceTab = onWorkspaceTab, profileLabel = profileLabel,
+        }), onWorkspaceTab = onWorkspaceTab, profileLabel = profileLabel, profileUser = profileUser,
             playingFileId = playback?.access?.file?.id, inlinePlayer = playback?.let { current ->
                 { RecordingPlayer(current, model::closePlayback, retry = {
                     val recording = state.detail.data

@@ -67,17 +67,19 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.meetspace.app.CallPermissionRequest
+import com.meetspace.app.AvatarImage
 import com.meetspace.app.ScreenShareService
 import com.meetspace.app.CallJoinDevices
 import com.meetspace.app.preferredAudioRoute
 import com.meetspace.app.preferredJoinDevices
 import com.meetspace.app.rememberAccountDevicePreferences
 import com.meetspace.core.media.*
+import com.meetspace.core.model.User
 import org.webrtc.RendererCommon
 import org.webrtc.SurfaceViewRenderer
 
 @Composable
-fun CallHost(engine: CallEngine, state: CallState, onWorkspaceTab: ((WorkspaceTab) -> Unit)? = null, profileLabel: String = "", details: CallUiDetails = CallUiDetails(), panelActions: CallPanelActions = CallPanelActions(), recordingActions: CallRecordingActions = CallRecordingActions(), authScope: String = "") {
+fun CallHost(engine: CallEngine, state: CallState, onWorkspaceTab: ((WorkspaceTab) -> Unit)? = null, profileLabel: String = "", details: CallUiDetails = CallUiDetails(), panelActions: CallPanelActions = CallPanelActions(), recordingActions: CallRecordingActions = CallRecordingActions(), authScope: String = "", profileUser: User? = null) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val currentAuthScope by rememberUpdatedState(authScope)
@@ -175,7 +177,7 @@ fun CallHost(engine: CallEngine, state: CallState, onWorkspaceTab: ((WorkspaceTa
         if (notificationRequest.consume(currentAuthScope, current, foreground())) startProjection(current)
         else requestingProjection = false
     }
-    CallScreen(state, onWorkspaceTab = onWorkspaceTab, profileLabel = profileLabel, devicePreferences = preferences, joinPending = pendingJoin, details = details, panelActions = panelActions, recordingActions = recordingActions,
+    CallScreen(state, onWorkspaceTab = onWorkspaceTab, profileLabel = profileLabel, profileUser = profileUser, devicePreferences = preferences, joinPending = pendingJoin, details = details, panelActions = panelActions, recordingActions = recordingActions,
         microphone = {
             microphoneEdited = true
             if (state.microphone) engine.microphone(false)
@@ -243,6 +245,7 @@ fun CallScreen(
     details: CallUiDetails = CallUiDetails(), panelActions: CallPanelActions = CallPanelActions(), recordingActions: CallRecordingActions = CallRecordingActions(),
     // Deterministic screenshot content is supplied only by androidTest; production uses VideoFeed.
     stageContentOverride: (@Composable () -> Unit)? = null, sharePreviewName: String? = null,
+    profileUser: User? = null,
 ) {
     var selectedPanel by rememberSaveable(state.conferenceId) { mutableStateOf<CallPanel?>(null) }
     var audio by remember { mutableStateOf(false) }
@@ -269,7 +272,7 @@ fun CallScreen(
             val compactControls = phone || shortHeight
             val viewportWidth = maxWidth
             val viewportHeight = maxHeight
-            if (prejoin) Prejoin(state, widePrejoin, !phone, maxWidth >= 780.dp, microphone, camera, connect, leave, switchCamera, onWorkspaceTab, profileLabel, joinPending, { devices = true })
+            if (prejoin) Prejoin(state, widePrejoin, !phone, maxWidth >= 780.dp, microphone, camera, connect, leave, switchCamera, onWorkspaceTab, profileLabel, joinPending, { devices = true }, profileUser)
             else Column(Modifier.fillMaxSize()) {
                 CallHeader(state, details, compactControls, menu, { menu = it }, share, switchCamera, { refreshRoutes(); audio = true }, openSystemSettings, { recordingDialog = true }, shortHeight)
                 if (!shortHeight && details.room.self != null) Row(Modifier.fillMaxWidth().padding(horizontal = if (phone) 14.dp else 24.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -297,7 +300,7 @@ fun CallScreen(
                     }
                 }
                 CallToolbar(state, compactControls, microphone, camera, share, leave, selectedPanel, ::openPanel, shortHeight)
-                CallNavigation(onWorkspaceTab, selfName(state, profileLabel), phone, viewportHeight < 400.dp)
+                CallNavigation(onWorkspaceTab, selfName(state, profileLabel), phone, viewportHeight < 400.dp, profileUser)
             }
         }
     }
@@ -359,7 +362,7 @@ private fun CallPanelContent(panel: CallPanel, state: CallState, details: CallUi
 }
 
 @Composable
-private fun Prejoin(state: CallState, wide: Boolean, medium: Boolean, tabletShell: Boolean, microphone: () -> Unit, camera: () -> Unit, connect: () -> Unit, leave: () -> Unit, switchCamera: () -> Unit, onWorkspaceTab: ((WorkspaceTab) -> Unit)?, profileLabel: String, joinPending: Boolean, openDevices: () -> Unit) {
+private fun Prejoin(state: CallState, wide: Boolean, medium: Boolean, tabletShell: Boolean, microphone: () -> Unit, camera: () -> Unit, connect: () -> Unit, leave: () -> Unit, switchCamera: () -> Unit, onWorkspaceTab: ((WorkspaceTab) -> Unit)?, profileLabel: String, joinPending: Boolean, openDevices: () -> Unit, profileUser: User?) {
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().heightIn(min = if (tabletShell) 84.dp else 77.dp).padding(horizontal = if (tabletShell) 30.dp else 20.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
             if (tabletShell) { Brand(compact = true); Spacer(Modifier.width(24.dp)) }
@@ -378,7 +381,7 @@ private fun Prejoin(state: CallState, wide: Boolean, medium: Boolean, tabletShel
                 }
             }
         }
-        onWorkspaceTab?.let { WorkspaceNavigation(WorkspaceTab.CALLS, it, selfName(state, profileLabel), tabletShell) }
+        onWorkspaceTab?.let { WorkspaceNavigation(WorkspaceTab.CALLS, it, selfName(state, profileLabel), tabletShell, profileUser) }
     }
 }
 
@@ -561,7 +564,7 @@ private fun CallSharingLabel(label: String, phone: Boolean, compact: Boolean, mo
 }
 
 @Composable
-private fun CallNavigation(onSelect: ((WorkspaceTab) -> Unit)?, profileLabel: String, phone: Boolean, short: Boolean) {
+private fun CallNavigation(onSelect: ((WorkspaceTab) -> Unit)?, profileLabel: String, phone: Boolean, short: Boolean, profileUser: User?) {
     val tabs = listOf(WorkspaceTab.CALLS, WorkspaceTab.MESSAGES, WorkspaceTab.PROFILE)
     Column(Modifier.fillMaxWidth().background(Color(0xFF1E2838)).testTag("bottom-navigation").navigationBarsPadding()) {
         HorizontalDivider(color = Color(0xFF344056))
@@ -574,14 +577,14 @@ private fun CallNavigation(onSelect: ((WorkspaceTab) -> Unit)?, profileLabel: St
                     .selectable(selected, enabled = onSelect != null, role = Role.Tab, onClick = { onSelect?.invoke(tab) })
                     .testTag("tab-${tab.tag}").semantics { contentDescription = tab.title }.padding(horizontal = 4.dp, vertical = 2.dp)
                 val icon: @Composable () -> Unit = {
-                    if (tab == WorkspaceTab.PROFILE) {
-                        Box(Modifier.size(27.dp).clip(CircleShape).background(Color(0xFF344765)), contentAlignment = Alignment.Center) {
-                            val initials = profileLabel.trim().split(Regex("\\s+")).filter(String::isNotBlank).take(2).mapNotNull { it.firstOrNull()?.uppercaseChar() }.joinToString("")
-                            Text(initials, color = Color(0xFFB5CAFF), fontSize = 9.sp, lineHeight = 12.sp, fontWeight = FontWeight.SemiBold)
-                        }
-                    } else Icon(if (tab == WorkspaceTab.CALLS) CallIcons.Video else CallIcons.MessagesSquare, null, Modifier.size(25.dp), tint = color)
+                    Box(Modifier.size(27.dp).testTag("tab-${tab.tag}-icon"), contentAlignment = Alignment.Center) {
+                        if (tab == WorkspaceTab.PROFILE) {
+                            AvatarImage(profileUser?.displayLabel ?: profileLabel, profileUser?.id, profileUser?.avatarVersion,
+                                size = 27.dp, modifier = Modifier.testTag("navigation-profile-avatar"))
+                        } else Icon(if (tab == WorkspaceTab.CALLS) CallIcons.Video else CallIcons.MessagesSquare, null, Modifier.size(25.dp), tint = color)
+                    }
                 }
-                val label: @Composable () -> Unit = { Text(tab.title, color = color, fontSize = 10.sp, lineHeight = 15.sp, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                val label: @Composable () -> Unit = { Text(tab.title, color = color, fontSize = 10.sp, lineHeight = 15.sp, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.testTag("tab-${tab.tag}-label")) }
                 if (short) Row(actionModifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp, Alignment.CenterHorizontally)) { icon(); label() }
                 else Column(actionModifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(5.dp)) { icon(); label() }
             }

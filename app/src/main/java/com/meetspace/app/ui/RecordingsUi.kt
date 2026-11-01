@@ -49,7 +49,7 @@ import java.util.Locale
 /** Bounded workspace; playback and Storage Access Framework effects belong to the host. */
 @Composable
 fun RecordingsWorkspace(state: RecordingsUiState, actions: RecordingsActions, onWorkspaceTab: ((WorkspaceTab) -> Unit)? = null, profileLabel: String = "",
-    playingFileId: String? = null, inlinePlayer: (@Composable () -> Unit)? = null) {
+    playingFileId: String? = null, inlinePlayer: (@Composable () -> Unit)? = null, profileUser: User? = null) {
     BackHandler(onBack = actions.back)
     Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize().testTag("recordings-workspace")) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -73,7 +73,7 @@ fun RecordingsWorkspace(state: RecordingsUiState, actions: RecordingsActions, on
                         }
                     }
                 }
-                onWorkspaceTab?.let { WorkspaceNavigation(WorkspaceTab.CALLS, it, profileLabel, tablet) }
+                onWorkspaceTab?.let { WorkspaceNavigation(WorkspaceTab.CALLS, it, profileLabel, tablet, profileUser) }
             }
         }
     }

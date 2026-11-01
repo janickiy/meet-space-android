@@ -1,0 +1,10 @@
+{
+  "fromVersionCode": 40,
+  "toVersionCode": 41,
+  "compatibleSignature": true,
+  "privateDataMarkerPreserved": true,
+  "audioPreferencesPreserved": true,
+  "launchSucceeded": true,
+  "physicalDevice": false,
+  "actualAccountMigrationTested": false
+}

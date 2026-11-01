@@ -123,9 +123,11 @@ internal fun AvatarImage(
     shape: Shape = if (group) RoundedCornerShape(14.dp) else CircleShape,
 ) {
     val loader = LocalAvatarImages.current
-    val bitmap by produceState<Bitmap?>(null, loader, id, version, group) {
-        value = null
-        if (loader != null && !id.isNullOrBlank() && !version.isNullOrBlank()) value = loader.load(id, version, group)
+    val bitmap by key(loader, id, version, group) {
+        // Clear the preceding account or revision before its replacement starts loading.
+        produceState<Bitmap?>(null) {
+            if (loader != null && !id.isNullOrBlank() && !version.isNullOrBlank()) value = loader.load(id, version, group)
+        }
     }
     val label = if (name.isBlank()) "Аватар" else "Аватар $name"
     Box(modifier.size(size).clip(shape).background(MaterialTheme.colorScheme.primaryContainer)

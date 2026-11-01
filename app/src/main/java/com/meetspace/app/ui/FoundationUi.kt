@@ -126,11 +126,13 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.window.core.layout.WindowSizeClass
 import com.meetspace.app.R
+import com.meetspace.app.AvatarImage
 import com.meetspace.core.designsystem.MeetSpaceTokens
 import com.meetspace.core.model.Capabilities
 import com.meetspace.core.model.RepositoryState
 import com.meetspace.core.model.ServerProfile
 import com.meetspace.core.model.ThemeMode
+import com.meetspace.core.model.User
 import com.meetspace.core.model.RegistrationValidation
 import com.meetspace.core.model.RegistrationValidationError
 import com.meetspace.core.model.RegistrationField
@@ -690,6 +692,7 @@ private fun Workspace(
                     onSelect = { selectedTab = it },
                     profileLabel = state.repository.session?.user?.displayLabel.orEmpty(),
                     tablet = tablet,
+                    profileUser = state.repository.session?.user,
                 )
             },
         ) { padding ->
@@ -761,7 +764,7 @@ private fun WorkspaceHeader(tab: WorkspaceTab, tablet: Boolean, onNotifications:
 }
 
 @Composable
-internal fun WorkspaceNavigation(selectedTab: WorkspaceTab, onSelect: (WorkspaceTab) -> Unit, profileLabel: String, tablet: Boolean) {
+internal fun WorkspaceNavigation(selectedTab: WorkspaceTab, onSelect: (WorkspaceTab) -> Unit, profileLabel: String, tablet: Boolean, profileUser: User? = null) {
     val activeTab = if (selectedTab == WorkspaceTab.CALENDAR) WorkspaceTab.CALLS else selectedTab
     Surface(color = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp, modifier = Modifier.testTag("bottom-navigation")) {
         Column(Modifier.fillMaxWidth().navigationBarsPadding()) {
@@ -782,19 +785,16 @@ internal fun WorkspaceNavigation(selectedTab: WorkspaceTab, onSelect: (Workspace
                         verticalArrangement = Arrangement.spacedBy(5.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        if (tab == WorkspaceTab.PROFILE) {
-                            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer,
-                                border = if (selected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
-                                modifier = Modifier.size(29.dp)) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Text(initials(profileLabel), fontSize = 9.sp, lineHeight = 11.sp,
-                                        color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
-                                }
-                            }
-                        } else Icon(tab.icon, contentDescription = null, tint = color, modifier = Modifier.size(35.dp).background(if (selected) MaterialTheme.colorScheme.primaryContainer else androidx.compose.ui.graphics.Color.Transparent, RoundedCornerShape(9.dp)).padding(4.dp))
+                        Box(Modifier.size(35.dp).testTag("tab-${tab.tag}-icon"), contentAlignment = Alignment.Center) {
+                            if (tab == WorkspaceTab.PROFILE) {
+                                AvatarImage(profileUser?.displayLabel ?: profileLabel, profileUser?.id, profileUser?.avatarVersion,
+                                    size = 29.dp, modifier = Modifier.testTag("navigation-profile-avatar")
+                                        .then(if (selected) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, CircleShape) else Modifier))
+                            } else Icon(tab.icon, contentDescription = null, tint = color, modifier = Modifier.size(35.dp).background(if (selected) MaterialTheme.colorScheme.primaryContainer else androidx.compose.ui.graphics.Color.Transparent, RoundedCornerShape(9.dp)).padding(4.dp))
+                        }
                         Text(tab.title, fontSize = 11.sp, lineHeight = 15.sp,
                             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                            color = color, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            color = color, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.testTag("tab-${tab.tag}-label"))
                     }
                 }
             }

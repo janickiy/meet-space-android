@@ -1,0 +1,26 @@
+{
+  "core/data": {
+    "tests": 204,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 18
+  },
+  "core/media": {
+    "tests": 42,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "core/ssh": {
+    "tests": 71,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "app": {
+    "tests": 284,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  }
+}

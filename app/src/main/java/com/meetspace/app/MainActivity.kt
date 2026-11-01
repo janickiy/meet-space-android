@@ -266,8 +266,9 @@ class MainActivity : ComponentActivity() {
                 else if (meetingVisible && !callMinimized.value) MeetingCallHost(meetSpace.callEngine, callState, callDiscussion, callDetails,
                     authScope = listOf(state.repository.selectedProfile?.id, state.repository.selectedProfile?.origin, state.repository.session?.user?.id).joinToString("|"),
                     profileLabel = state.repository.session?.user?.displayLabel.orEmpty(),
+                    profileUser = state.repository.session?.user,
                     onWorkspaceTab = if (state.repository.session?.guestMeeting != null) null else { tab -> callDiscussion.actions.open(null); recordingsModel.close(); callMinimized.value = true; workspaceRequest.value = tab })
-                else if (recordingsState.visible) RecordingsHost(recordingsModel, recordingsState, recordingPlayback, onWorkspaceTab = { recordingsModel.close(); workspaceRequest.value = it }, profileLabel = state.repository.session?.user?.displayLabel.orEmpty())
+                else if (recordingsState.visible) RecordingsHost(recordingsModel, recordingsState, recordingPlayback, onWorkspaceTab = { recordingsModel.close(); workspaceRequest.value = it }, profileLabel = state.repository.session?.user?.displayLabel.orEmpty(), profileUser = state.repository.session?.user)
                 else if (state.repository.session?.guestMeeting != null) GuestMeetingLobby(state,
                     join = { state.repository.session?.guestMeeting?.let(meetSpace.callEngine::prepare) }, refresh = model::refreshGuest, leave = model::logout)
                 else foundationHolder.SaveableStateProvider("foundation") { FoundationUi(

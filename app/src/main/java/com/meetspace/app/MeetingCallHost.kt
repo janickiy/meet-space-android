@@ -11,6 +11,7 @@ import androidx.lifecycle.withResumed
 import com.meetspace.app.ui.*
 import com.meetspace.core.media.CallEngine
 import com.meetspace.core.media.CallState
+import com.meetspace.core.model.User
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
@@ -19,7 +20,7 @@ import kotlinx.coroutines.withContext
 /** Native document pickers belong to the current account and conference; no persisted URI grants. */
 @Composable
 fun MeetingCallHost(engine: CallEngine, state: CallState, model: CallDiscussionViewModel, details: CallUiDetails,
-    authScope: String, profileLabel: String, onWorkspaceTab: ((WorkspaceTab) -> Unit)?) {
+    authScope: String, profileLabel: String, onWorkspaceTab: ((WorkspaceTab) -> Unit)?, profileUser: User? = null) {
     val context = LocalContext.current
     val resolver = context.applicationContext.contentResolver
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -69,5 +70,5 @@ fun MeetingCallHost(engine: CallEngine, state: CallState, model: CallDiscussionV
             exporting = Export(identity, message, attachment); save.launch(MessagingFiles.safeName(it.filename))
         } },
     )
-    CallHost(engine, state, onWorkspaceTab, profileLabel, details, actions, recordingActions = model.recordingActions, authScope = authScope)
+    CallHost(engine, state, onWorkspaceTab, profileLabel, details, actions, recordingActions = model.recordingActions, authScope = authScope, profileUser = profileUser)
 }
