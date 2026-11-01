@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.meetspace.core.data.CurrentApiMutationTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-11-01T04:19:00.089Z" hostname="MacBook-Air-janickiy.local" time="0.713">
+  <properties/>
+  <testcase name="meetingsCommentsFilesRecordingMetadataAndCatalogue" classname="com.meetspace.core.data.CurrentApiMutationTest" time="0.284"/>
+  <testcase name="directCallCreateAcceptHeartbeatEndAndMessageHistory" classname="com.meetspace.core.data.CurrentApiMutationTest" time="0.111"/>
+  <testcase name="registrationProfileAvatarsRestoreAndDeletion" classname="com.meetspace.core.data.CurrentApiMutationTest" time="0.261"/>
+  <testcase name="guestInvitationAdmissionAndConferenceDiscussion" classname="com.meetspace.core.data.CurrentApiMutationTest" time="0.056"/>
+  <system-out><![CDATA[Current API: conference create and schedule
+Current API: conference start and join
+Current API: conference comments and read marker
+Current API: conference file upload and download
+Current API: recording start
+Current API: recording read and catalogue
+Current API: recording stop and conference finish
+Current API: guest join
+Current API: guest session established
+Current API: guest comment sent
+Current API: guest left
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

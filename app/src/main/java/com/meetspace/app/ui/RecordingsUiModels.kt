@@ -28,6 +28,7 @@ data class RecordingLibrary(
 
 data class RecordingsUiState(
     val selfId: String = "",
+    val capabilities: com.meetspace.core.model.Capabilities = com.meetspace.core.model.Capabilities(),
     val deleting: Boolean = false,
     val visible: Boolean = false,
     val library: RecordingLibrary = RecordingLibrary(),

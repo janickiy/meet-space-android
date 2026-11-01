@@ -407,15 +407,26 @@ class MeetingsRepositoryTest {
 
     @Test fun `guest session is conference scoped and never persists credentials or identity`() = runBlocking {
         server.enqueue(json("""{"version":"dev","commit":"unknown","buildTime":"unknown"}""")); repository.addServer(origin); take()
-        server.enqueue(json("""{"status":"success","accessToken":"guest-access","tokenType":"Bearer","expiresIn":3600,"user":{"id":"$OTHER_USER","email":"guest@guest.invalid","displayName":"Visitor","guestConferenceId":"$ID"}}"""))
+        for ((email, role) in listOf("" to "participant", "guest@guest.invalid" to "guest")) {
+            server.enqueue(json("""{"status":"success","accessToken":"guest-access","tokenType":"Bearer","expiresIn":3600,"user":{"id":"$OTHER_USER","email":"$email","displayName":"Visitor","guestConferenceId":"$ID"}}"""))
+            server.enqueue(json("""{"status":"success","item":${meeting("active")}}"""))
+            server.enqueue(json(participantBody(userId = OTHER_USER).replace("\"role\":\"participant\"", "\"role\":\"$role\"")))
+            repository.joinGuest(CODE, "Visitor")
+            val joined = take(); assertEquals("/api/v1/conference-invites/$CODE/guest", joined.path); assertNull(joined.getHeader("Authorization")); assertNull(joined.getHeader("Cookie"))
+            repeat(2) { assertEquals("Bearer guest-access", take().getHeader("Authorization")) }
+            assertEquals(ID, repository.state.value.session!!.guestMeeting!!.id); assertFalse(repository.state.value.session!!.supportsPersistentSession)
+            assertEquals(email, repository.state.value.session!!.user.email)
+            assertTrue(credentials.values.isEmpty()); assertNull(profiles.value.profiles.single().accountId)
+            server.enqueue(json("""{"status":"success"}""")); repository.logout(); take()
+            assertNull(repository.state.value.session); assertTrue(credentials.values.isEmpty())
+        }
+    }
+    @Test fun `guest session cannot acquire an owner role from a malformed response`() = runBlocking {
+        server.enqueue(json("""{"version":"dev","commit":"unknown","buildTime":"unknown"}""")); repository.addServer(origin); take()
+        server.enqueue(json("""{"status":"success","accessToken":"guest-access","tokenType":"Bearer","expiresIn":3600,"user":{"id":"$OTHER_USER","email":"","displayName":"Visitor","guestConferenceId":"$ID"}}"""))
         server.enqueue(json("""{"status":"success","item":${meeting("active")}}"""))
-        server.enqueue(json(participantBody(userId = OTHER_USER).replace("\"role\":\"participant\"", "\"role\":\"guest\"")))
-        repository.joinGuest(CODE, "Visitor")
-        val joined = take(); assertEquals("/api/v1/conference-invites/$CODE/guest", joined.path); assertNull(joined.getHeader("Authorization")); assertNull(joined.getHeader("Cookie"))
-        repeat(2) { assertEquals("Bearer guest-access", take().getHeader("Authorization")) }
-        assertEquals(ID, repository.state.value.session!!.guestMeeting!!.id); assertFalse(repository.state.value.session!!.supportsPersistentSession)
-        assertTrue(credentials.values.isEmpty()); assertNull(profiles.value.profiles.single().accountId)
-        server.enqueue(json("""{"status":"success"}""")); repository.logout(); take()
+        server.enqueue(json(participantBody(userId = OTHER_USER).replace("\"role\":\"participant\"", "\"role\":\"owner\"")))
+        assertEquals(FailureKind.INVALID_RESPONSE, failure { repository.joinGuest(CODE, "Visitor") }.kind)
         assertNull(repository.state.value.session); assertTrue(credentials.values.isEmpty())
     }
     @Test fun `guest join cannot replace a signed in account or send credentials to foreign origin`() = runBlocking {

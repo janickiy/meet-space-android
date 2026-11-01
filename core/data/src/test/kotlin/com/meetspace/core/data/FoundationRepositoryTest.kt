@@ -214,6 +214,13 @@ class FoundationRepositoryTest {
         assertEquals(listOf("composite", "individual_tracks"), restored.state.value.session!!.capabilities.recordingModes)
     }
 
+    @Test fun `registered login still rejects an empty email in the server response`() = runBlocking {
+        enqueueVersion(); repository.addServer(origin)
+        server.enqueue(json(loginBody("first-access").replace("test@example.com", "")))
+        assertEquals(FailureKind.INVALID_RESPONSE, failure { repository.login("test@example.com", "synthetic-password") }.kind)
+        assertNull(repository.state.value.session)
+        assertTrue(credentials.values.isEmpty())
+    }
     @Test fun `explicit legacy capability values and unknown future fields remain supported`() = runBlocking {
         enqueueVersion(); repository.addServer(origin)
         enqueueLogin("first-access", "first-cookie"); enqueueMe()

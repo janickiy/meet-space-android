@@ -347,11 +347,24 @@ class MessagingUiTest {
         compose.runOnIdle { assertEquals(event.id, read); assertNull(opened) }
         compose.onNodeWithTag("notifications-settings").performClick()
         compose.onNodeWithText("Системные уведомления приходят, пока приложение открыто.").assertExists()
+        compose.onNodeWithTag("notification-pref-summary").assertDoesNotExist()
         compose.onNodeWithTag("notification-pref-reminder").performScrollTo().performClick()
         compose.runOnIdle { assertEquals(prefs.copy(reminder = false), saved) }
         compose.onNodeWithTag("notifications-settings").performClick()
         compose.onNodeWithTag("notification-open-${event.id}").performClick()
         compose.runOnIdle { assertEquals(event, opened) }
+    }
+
+    @Test fun notificationSettingsKeepLegacySummaryControlOnlyWhenSupported() {
+        var saved: NotificationPreferences? = null
+        val prefs = NotificationPreferences(summary = false, email = true, push = true)
+        compose.setContent { Screen(ready.copy(notificationPreferences = MessagingLoad(prefs)),
+            MessagingActions(saveNotificationPreferences = { value, done -> saved = value; done() }), 1000) }
+        compose.onNodeWithTag("chat-folder-filter").performScrollTo().performClick()
+        compose.onNodeWithTag("messaging-notifications").performClick()
+        compose.onNodeWithTag("notifications-settings").performClick()
+        compose.onNodeWithTag("notification-pref-summary").performScrollTo().assertIsOff().performClick()
+        compose.runOnIdle { assertEquals(prefs.copy(summary = true), saved) }
     }
 
     @Test fun compactNotificationRowsKeepActualDatesPagingAndChatsActionAtLargeText() {

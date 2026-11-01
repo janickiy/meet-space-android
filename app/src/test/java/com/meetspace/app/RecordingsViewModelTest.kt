@@ -15,6 +15,17 @@ class RecordingsViewModelTest {
     private val dispatcher = StandardTestDispatcher()
     @Before fun before() { Dispatchers.setMain(dispatcher) }
     @After fun after() { Dispatchers.resetMain() }
+    @Test fun retiredSpeechFeaturesNeverRequestRemovedEndpointsEvenFromAnOldNotification() = runTest {
+        val foundation = Foundation().apply { state.value = state.value.copy(session = state.value.session!!.copy(capabilities = Capabilities())) }
+        val records = Records(); val model = RecordingsViewModel(foundation, Meetings(), records)
+        model.openNotification("room", "record", summary = true); runCurrent()
+        model.actions.loadTranscript(); model.actions.loadSummary(); model.actions.moreSegments(); runCurrent()
+        assertNotNull(model.state.value.detail.data)
+        assertFalse(model.state.value.initialSummary)
+        assertEquals(0, records.summaryCalls); assertEquals(0, records.transcriptCalls)
+        assertNull(model.state.value.transcript.error); assertNull(model.state.value.summary.error)
+        model.close()
+    }
     @Test fun transcriptSeekReusesLeaseAndArchiveCanBeExportedWithoutPlayableVideo() = runTest {
         val r = Records(); val m = RecordingsViewModel(Foundation(), Meetings(), r)
         m.show("room"); runCurrent(); m.openRecording("record"); runCurrent()
@@ -627,6 +638,7 @@ class RecordingsViewModelTest {
         override suspend fun startRecording(conferenceId: String, mode: String): Recording = error("unused")
         override suspend fun stopRecording(conferenceId: String, recordingId: String): Recording = error("unused")
         var transcriptEnabled = true
+        var transcriptCalls = 0
         val leases = mutableListOf<Access>(); val offsets = mutableListOf<Int>()
         var list: suspend (String) -> RecordingPage = { RecordingPage(listOf(record()), null) }
         var page: (suspend (String, Int, Int) -> RecordingPage)? = null
@@ -648,7 +660,10 @@ class RecordingsViewModelTest {
         }
         override suspend fun recording(conferenceId: String, recordingId: String): Recording { details += conferenceId to recordingId; return detail() }
         override suspend fun recordingAccess(conferenceId: String, recordingId: String, fileId: String) = access()
-        override suspend fun recordingTranscript(conferenceId: String, recordingId: String) = RecordingTranscriptState(transcriptEnabled, RecordingTranscript("transcript", recordingId, "ru", "ready"))
+        override suspend fun recordingTranscript(conferenceId: String, recordingId: String): RecordingTranscriptState {
+            transcriptCalls++
+            return RecordingTranscriptState(transcriptEnabled, RecordingTranscript("transcript", recordingId, "ru", "ready"))
+        }
         override suspend fun recordingSegments(conferenceId: String, recordingId: String, offset: Int, limit: Int): RecordingSegmentPage {
             offsets += offset
             val ids = when (offset) { 0 -> listOf("0", "1"); 2 -> listOf("1", "2"); else -> listOf("4") }
@@ -657,7 +672,7 @@ class RecordingsViewModelTest {
         override suspend fun recordingSummary(conferenceId: String, recordingId: String): RecordingSummaryState { summaryCalls++; return summary() }
     }
     private class Foundation : FoundationRepository {
-        override val state = MutableStateFlow(RepositoryState(listOf(ServerProfile("p", "https://fixture.example.test")), "p", session = AccountSession(User("user", "member@example.test"), Capabilities(), true)))
+        override val state = MutableStateFlow(RepositoryState(listOf(ServerProfile("p", "https://fixture.example.test")), "p", session = AccountSession(User("user", "member@example.test"), Capabilities(transcription = true, aiSummary = true), true)))
         override suspend fun addServer(rawUrl: String) = state.value.selectedProfile!!
         override suspend fun selectServer(profileId: String) = Unit
         override suspend fun removeServer(profileId: String) = Unit

@@ -641,7 +641,9 @@ internal class DefaultFoundationRepository(
             val guest = api.joinGuest(profile.origin, code, name)
             val meeting = meetingsApi.conference(profile.origin, guest.token, guest.conferenceId)
             val member = meetingsApi.membership(profile.origin, guest.token, guest.conferenceId) ?: throw InvalidContract()
-            if (member.userId != guest.user.id || member.role != "guest" || meeting.isClosed) throw InvalidContract()
+            // Current API represents guests as scoped users with participant membership;
+            // older servers used the guest role. Neither may gain owner/co-host privileges.
+            if (member.userId != guest.user.id || member.role !in setOf("guest", "participant") || meeting.isClosed) throw InvalidContract()
             clearMemory()
             active = AuthContext(SessionScope(profile.origin, guest.user.id), guest.token, SessionCookieJar(profile.origin))
             // Guest credentials and identity are deliberately never written to either store.

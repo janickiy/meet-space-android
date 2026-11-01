@@ -31,6 +31,26 @@ class AccountNotificationSettingsTest {
     private val initial = AppSettingsUiState("test", 0, true, false, false, false, false)
     private val original = NotificationPreferences(summary = false, email = true, push = true)
 
+    @Test fun currentApiPreferencesRenderAndSaveWithoutInventingALegacyFlag() {
+        val current = NotificationPreferences(email = true, push = true)
+        var state by mutableStateOf(MessagingUiState(notificationPreferences = MessagingLoad(current)))
+        var saved: NotificationPreferences? = null
+        compose.setContent { Frame { AccountNotificationPanel(state, MessagingActions(saveNotificationPreferences = { prefs, done ->
+            saved = prefs; state = state.copy(notificationPreferences = MessagingLoad(prefs)); done()
+        }), initial, AppSettingsActions(), false) } }
+        compose.onNodeWithText("Ответ сервера не соответствует API MeetSpace.").assertDoesNotExist()
+        compose.onNodeWithTag("account-notification-form").assertExists()
+        for (kind in listOf("invitation", "reminder", "recording")) {
+            compose.onNodeWithTag("notification-pref-$kind").performScrollTo().assertIsOn().performClick()
+        }
+        compose.onNodeWithTag("account-notification-save").performScrollTo().performClick()
+        compose.runOnIdle {
+            assertEquals(current.copy(invitation = false, reminder = false, recording = false), saved)
+            assertNull(checkNotNull(saved).summary)
+        }
+        compose.onNodeWithTag("account-notification-saved").assertIsDisplayed()
+    }
+
     @Test fun soundOnlyDraftIsSavedExplicitlyWithoutANetworkMutation() {
         var settings by mutableStateOf(initial); var requests = 0; var saves = 0
         compose.setContent { Frame { AccountNotificationPanel(MessagingUiState(notificationPreferences = MessagingLoad(original)),

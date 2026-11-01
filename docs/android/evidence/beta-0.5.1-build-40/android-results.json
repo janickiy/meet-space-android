@@ -1,0 +1,17 @@
+{
+  "success": true,
+  "passed": 69,
+  "skipped": 1,
+  "failed": 0,
+  "physicalDevice": false,
+  "classes": [
+    "AccountMediaPanelsTest",
+    "AccountMediaDesignTest",
+    "AccountDevicePreferencesTest",
+    "AccountNotificationSettingsTest",
+    "RecordingsUiTest",
+    "MessagingUiTest",
+    "MicrophoneProcessingNativeTest",
+    "SpeakingStatsNativeTest"
+  ]
+}

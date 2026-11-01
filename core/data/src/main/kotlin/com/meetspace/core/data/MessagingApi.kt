@@ -130,8 +130,10 @@ internal class MessagingApi(private val api: MeetSpaceApi) {
         val response = request(origin, token, listOf("notifications", "preferences"), if (value == null) "GET" else "PUT",
             value?.let { fields("invitation" to it.invitation, "reminder" to it.reminder, "recording" to it.recording,
                 "summary" to it.summary, "email" to it.email, "push" to it.push) })
-        return NotificationPreferences(response.bool("invitation"), response.bool("reminder"), response.bool("recording"),
-            response.bool("summary"), response.bool("email"), response.bool("push"))
+        fun flag(name: String): Boolean = (response[name] as? JsonPrimitive)?.takeUnless { it.isString }?.booleanOrNull
+            ?: throw InvalidContract()
+        return NotificationPreferences(flag("invitation"), flag("reminder"), flag("recording"),
+            if ("summary" in response) flag("summary") else null, flag("email"), flag("push"))
     }
 
     companion object {

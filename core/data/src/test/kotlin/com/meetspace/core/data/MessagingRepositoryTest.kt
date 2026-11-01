@@ -188,6 +188,56 @@ class MessagingRepositoryTest {
         server.enqueue(json(raw)); assertEquals(prefs, repository.saveNotificationPreferences(prefs))
         take(); val request = take(); assertEquals("PUT", request.method); assertEquals(wireJson.parseToJsonElement(raw), wireJson.parseToJsonElement(request.body.readUtf8()))
     }
+    @Test fun `current notification preferences load and save without removed summary field`() = runBlocking {
+        login()
+        val raw = """{"invitation":true,"reminder":false,"recording":true,"email":true,"push":true}"""
+        server.enqueue(json(raw))
+        val loaded = repository.notificationPreferences()
+        assertNull(loaded.summary)
+        assertTrue(loaded.email); assertTrue(loaded.push)
+        assertEquals("GET", take().method)
+        val changed = loaded.copy(invitation = false, reminder = true, recording = false)
+        val savedRaw = """{"invitation":false,"reminder":true,"recording":false,"email":true,"push":true}"""
+        server.enqueue(json(savedRaw))
+        assertEquals(changed, repository.saveNotificationPreferences(changed))
+        val request = take()
+        assertEquals("PUT", request.method)
+        assertEquals("/api/v1/notifications/preferences", request.path)
+        assertEquals(wireJson.parseToJsonElement(savedRaw), wireJson.parseToJsonElement(request.body.readUtf8()))
+        server.enqueue(json(savedRaw))
+        assertEquals(changed, repository.notificationPreferences())
+    }
+    @Test fun `legacy summary preference is retained when supported by server`() = runBlocking {
+        login()
+        for (enabled in listOf(false, true)) {
+            val raw = """{"invitation":true,"reminder":false,"recording":true,"summary":$enabled,"email":false,"push":true}"""
+            server.enqueue(json(raw))
+            val loaded = repository.notificationPreferences()
+            assertEquals(enabled, loaded.summary)
+            take()
+            server.enqueue(json(raw))
+            assertEquals(loaded, repository.saveNotificationPreferences(loaded))
+            assertEquals(wireJson.parseToJsonElement(raw), wireJson.parseToJsonElement(take().body.readUtf8()))
+        }
+    }
+    @Test fun `notification preferences still reject missing or malformed supported flags`() = runBlocking {
+        login()
+        val base = """{"invitation":true,"reminder":true,"recording":true,"email":false,"push":false}"""
+        val keys = listOf("invitation", "reminder", "recording", "email", "push")
+        for (key in keys) {
+            val fields = wireJson.parseToJsonElement(base).jsonObject
+            val absent = kotlinx.serialization.json.JsonObject(fields - key)
+            server.enqueue(json(absent.toString()))
+            assertFailure(FailureKind.INVALID_RESPONSE) { repository.notificationPreferences() }; take()
+            for (invalid in listOf("null", "\"true\"", "1", "{}")) {
+                val malformed = kotlinx.serialization.json.JsonObject(fields + (key to wireJson.parseToJsonElement(invalid)))
+                server.enqueue(json(malformed.toString()))
+                assertFailure(FailureKind.INVALID_RESPONSE) { repository.notificationPreferences() }; take()
+            }
+        }
+        server.enqueue(json(base.dropLast(1) + ",\"summary\":null}"))
+        assertFailure(FailureKind.INVALID_RESPONSE) { repository.notificationPreferences() }
+    }
     @Test fun `notifications are account bound and cursor uses its own parameter`() = runBlocking {
         login(); val notification = """{"id":"$MESSAGE","userId":"$USER","type":"conference.soon","createdAt":"$AT","readAt":null,"payload":{"conferenceId":"$OTHER"}}"""
         server.enqueue(json("""{"items":[$notification],"unreadCount":1,"nextCursor":null}"""))

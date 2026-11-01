@@ -1,0 +1,154 @@
+{
+  "pid": 3161,
+  "restoredPreferences": {
+    "microphoneVolume": 65,
+    "speakerVolume": 25,
+    "signalVolume": 35,
+    "noiseSuppression": false
+  },
+  "measurements": [
+    {
+      "label": "restored-65-25-noise-off",
+      "decodedRms": 3231.673774189704,
+      "playoutRms": 801.5612085584837,
+      "decodedSamples": 120480,
+      "playoutSamples": 20080,
+      "noiseRequested": false,
+      "noiseEffective": "DISABLED",
+      "noiseSoftwareActive": false,
+      "noisePlatformActive": false
+    },
+    {
+      "label": "microphone-100",
+      "decodedRms": 4970.488629902505,
+      "playoutRms": 4934.195532322415,
+      "decodedSamples": 120960,
+      "playoutSamples": 20160,
+      "noiseRequested": false,
+      "noiseEffective": "DISABLED",
+      "noiseSoftwareActive": false,
+      "noisePlatformActive": false
+    },
+    {
+      "label": "microphone-50",
+      "decodedRms": 2486.9979415295015,
+      "playoutRms": 2468.721767895458,
+      "decodedSamples": 120480,
+      "playoutSamples": 20080,
+      "noiseRequested": false,
+      "noiseEffective": "DISABLED",
+      "noiseSoftwareActive": false,
+      "noisePlatformActive": false
+    },
+    {
+      "label": "microphone-0",
+      "decodedRms": 0.10446386175466811,
+      "playoutRms": 0,
+      "decodedSamples": 120960,
+      "playoutSamples": 20160,
+      "noiseRequested": false,
+      "noiseEffective": "DISABLED",
+      "noiseSoftwareActive": false,
+      "noisePlatformActive": false
+    },
+    {
+      "label": "microphone-100-again",
+      "decodedRms": 5014.8291809718885,
+      "playoutRms": 4977.966158904741,
+      "decodedSamples": 117120,
+      "playoutSamples": 19520,
+      "noiseRequested": false,
+      "noiseEffective": "DISABLED",
+      "noiseSoftwareActive": false,
+      "noisePlatformActive": false
+    },
+    {
+      "label": "speaker-25",
+      "decodedRms": 5013.703932626967,
+      "playoutRms": 1243.827814076944,
+      "decodedSamples": 117600,
+      "playoutSamples": 19600,
+      "noiseRequested": false,
+      "noiseEffective": "DISABLED",
+      "noiseSoftwareActive": false,
+      "noisePlatformActive": false
+    },
+    {
+      "label": "speaker-0",
+      "decodedRms": 5013.18531346602,
+      "playoutRms": 0,
+      "decodedSamples": 120480,
+      "playoutSamples": 20080,
+      "noiseRequested": false,
+      "noiseEffective": "DISABLED",
+      "noiseSoftwareActive": false,
+      "noisePlatformActive": false
+    },
+    {
+      "label": "speaker-100-again",
+      "decodedRms": 5013.411324728998,
+      "playoutRms": 4976.646315821306,
+      "decodedSamples": 120960,
+      "playoutSamples": 20160,
+      "noiseRequested": false,
+      "noiseEffective": "DISABLED",
+      "noiseSoftwareActive": false,
+      "noisePlatformActive": false
+    },
+    {
+      "label": "noise-off",
+      "decodedRms": 2160.767971251595,
+      "playoutRms": 1926.6900529410643,
+      "decodedSamples": 117600,
+      "playoutSamples": 19600,
+      "noiseRequested": false,
+      "noiseEffective": "DISABLED",
+      "noiseSoftwareActive": false,
+      "noisePlatformActive": false
+    },
+    {
+      "label": "noise-on",
+      "decodedRms": 268.1740718960384,
+      "playoutRms": 240.31637536351357,
+      "decodedSamples": 120960,
+      "playoutSamples": 20160,
+      "noiseRequested": true,
+      "noiseEffective": "SOFTWARE",
+      "noiseSoftwareActive": true,
+      "noisePlatformActive": false
+    },
+    {
+      "label": "noise-off-again",
+      "decodedRms": 2194.9373545494973,
+      "playoutRms": 1966.152106672753,
+      "decodedSamples": 120480,
+      "playoutSamples": 20080,
+      "noiseRequested": false,
+      "noiseEffective": "DISABLED",
+      "noiseSoftwareActive": false,
+      "noisePlatformActive": false
+    },
+    {
+      "label": "recreated-microphone-65-25-noise-on",
+      "decodedRms": 600.7695576709762,
+      "playoutRms": 148.678054305157,
+      "decodedSamples": 117120,
+      "playoutSamples": 19520,
+      "noiseRequested": true,
+      "noiseEffective": "SOFTWARE",
+      "noiseSoftwareActive": true,
+      "noisePlatformActive": false
+    }
+  ],
+  "microphoneHalfRatio": 0.49813095359289733,
+  "speakerQuarterRatio": 0.2480856131098334,
+  "noiseAmplitudeRatio": 0.12313692127311958,
+  "noiseReductionDb": 18.192234180849876,
+  "passed": true,
+  "finalPreferences": {
+    "microphoneVolume": 65,
+    "speakerVolume": 25,
+    "signalVolume": 35,
+    "noiseSuppression": true
+  }
+}

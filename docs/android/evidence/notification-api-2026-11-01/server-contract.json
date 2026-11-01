@@ -1,0 +1,20 @@
+{
+  "origin": "https://chat.stage.org.ru",
+  "loginStatus": 200,
+  "preferencesStatus": 200,
+  "keys": [
+    "email",
+    "invitation",
+    "push",
+    "recording",
+    "reminder"
+  ],
+  "preferences": {
+    "invitation": true,
+    "reminder": true,
+    "recording": true,
+    "email": false,
+    "push": false
+  },
+  "logoutStatus": 200
+}

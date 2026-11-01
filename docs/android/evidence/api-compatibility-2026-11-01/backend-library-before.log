@@ -1,0 +1,5 @@
+--- FAIL: TestRecordingLibraryRouteIsAuthenticatedAndHasExplicitEndCursor (0.00s)
+    recording_library_test.go:65: unauthorized: 404 404 page not found
+FAIL
+FAIL	github.com/janickiy/meet-space/internal/transport/http	0.316s
+FAIL

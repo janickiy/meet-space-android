@@ -217,7 +217,7 @@ internal class MeetSpaceApi(
         if (!MessagingApi.validId(conferenceId)) throw InvalidContract()
         if (response.status != "success" || !response.tokenType.equals("Bearer", true) || response.expiresIn !in 1..86400 ||
             response.accessToken.isBlank() || response.accessToken.length > 16384 || response.accessToken.any { it.isWhitespace() || it.isISOControl() } || response.user.isAdmin) throw InvalidContract()
-        return GuestCredentials(response.accessToken, response.user.copy(guestConferenceId = null).asAccount(), conferenceId)
+        return GuestCredentials(response.accessToken, response.user.asGuest(conferenceId), conferenceId)
     }
 
     private fun loginResponse(body: String): LoginCredentials {
@@ -333,9 +333,14 @@ private data class UserDto(
     val createdAt: String? = null,
     val avatarVersion: String? = null,
 ) {
-    fun asAccount(): User {
-        if (id.isBlank() || id.length > 128 || id.any(Char::isISOControl) || email.isBlank() ||
-            email.length > 254 || email.any(Char::isISOControl) || guestConferenceId != null ||
+    fun asAccount(): User = asUser(null)
+    fun asGuest(conferenceId: String): User {
+        if (!MessagingApi.validId(id) || !MessagingApi.validId(conferenceId) || isAdmin) throw InvalidContract()
+        return asUser(conferenceId)
+    }
+    private fun asUser(guestScope: String?): User {
+        if (id.isBlank() || id.length > 128 || id.any(Char::isISOControl) || (email.isBlank() && guestScope == null) ||
+            email.length > 254 || email.any(Char::isISOControl) || guestConferenceId != guestScope ||
             (displayName?.length ?: 0) > 256 || displayName?.any(Char::isISOControl) == true ||
             avatarVersion?.let { !MessagingApi.validId(it) } == true) throw InvalidContract()
         return User(id, email, displayName, isAdmin,

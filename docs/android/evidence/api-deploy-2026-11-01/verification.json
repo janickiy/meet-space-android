@@ -1,0 +1,72 @@
+{
+  "completedAt": "2026-11-01T05:57:06.855638+00:00",
+  "host": "chat.stage.org.ru",
+  "ip": "78.17.198.175",
+  "action": "A new API image containing the catalogue fix was already installed on arrival. Validated it and restarted only the api Compose service with --no-deps.",
+  "apiImage": "meetspace-update/api:20261101-715e8b6-recordings-3cbff661",
+  "imageId": "sha256:fa36f3155882391563af51964ee332514516c3fbbe89a0f26affbe29424485e2",
+  "apiHealthy": true,
+  "startedAt": "2026-11-01T05:55:23.322061458Z",
+  "otherContainersUnchanged": true,
+  "vpnUnchanged": true,
+  "protectedVpnContainers": [
+    "amnezia-awg2",
+    "amnezia-socks5proxy",
+    "amnezia-telemt",
+    "amnezia-xray",
+    "amnezia-awg",
+    "amnezia-dns"
+  ],
+  "http": {
+    "checkedAt": "2026-11-01T05:56:38.826589+00:00",
+    "origin": "https://chat.stage.org.ru",
+    "checks": [
+      {
+        "path": "/api/v1/recordings",
+        "authenticated": false,
+        "status": 401,
+        "keys": [
+          "message",
+          "status"
+        ],
+        "items": null,
+        "cacheControl": null,
+        "noSniff": "nosniff"
+      },
+      {
+        "path": "/api/v1/recordings",
+        "authenticated": true,
+        "status": 200,
+        "keys": [
+          "items",
+          "nextCursor",
+          "status"
+        ],
+        "items": 0,
+        "cacheControl": "private, no-store",
+        "noSniff": "nosniff"
+      }
+    ],
+    "version": {
+      "version": "20261101-715e8b6-recordings-3cbff661",
+      "commit": "715e8b658bf14920ea3d5f92b69f9b812357e592",
+      "buildTime": "2026-11-01T04:24:25Z"
+    }
+  },
+  "androidRepositoryVerification": [
+    {
+      "account": 0,
+      "catalogue": "PASS",
+      "items": 0,
+      "allReadChecksPassed": 30
+    },
+    {
+      "account": 1,
+      "catalogue": "PASS",
+      "items": 0,
+      "allReadChecksPassed": 47
+    }
+  ],
+  "limit": "Both authorized account catalogues are empty; existing recording detail/playback could not be verified from them.",
+  "result": "PASS: authenticated GET /api/v1/recordings is 200, unauthenticated is 401, both Android repository checks pass."
+}

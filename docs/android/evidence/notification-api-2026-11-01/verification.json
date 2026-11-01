@@ -1,0 +1,72 @@
+{
+  "date": "2026-11-01",
+  "completedAt": "2026-11-01T04:02:16.585612+00:00",
+  "problem": "Notifications account settings showed Ответ сервера не соответствует API MeetSpace.",
+  "rootCause": "Android required the removed summary Boolean on GET /api/v1/notifications/preferences and always sent it on PUT. The current API returns and accepts only invitation, reminder, recording, email, push.",
+  "backend": {
+    "repository": "https://github.com/janickiy/meet-space",
+    "verifiedMainCommit": "715e8b658bf14920ea3d5f92b69f9b812357e592",
+    "contractSource": "internal/domain/integrations/integration.go",
+    "handlerSource": "internal/app/integrations/handler.go",
+    "liveOrigin": "https://chat.stage.org.ru"
+  },
+  "fix": [
+    "Treat summary as an absent legacy-only preference when the response has no such field; never send it in that case.",
+    "Preserve both true and false summary values when an older server exposes them.",
+    "Only show the legacy summary toggle in the notification dialog when the server supports it.",
+    "Keep all five supported Boolean flags mandatory and reject missing/null/string/number/object values. Preserve email and push when changing event categories."
+  ],
+  "checks": {
+    "originalFailureReproducedBeforeFix": true,
+    "jvm": {
+      "core/data": {
+        "tests": 197,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 13
+      },
+      "app": {
+        "tests": 283,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    "jvmPassed": 467,
+    "jvmSkipped": 13,
+    "androidUiPassed": 8,
+    "androidUiMethods": [
+      "accountSwitchDiscardsThePreviousAccountsUnsavedSoundAndEventDrafts",
+      "combinedDraftRetainsHiddenPreferencesAndWaitsForTheServerBeforeSavingSound",
+      "currentApiPreferencesRenderAndSaveWithoutInventingALegacyFlag",
+      "failedSaveKeepsDraftsAndLocalOnlyRetryClearsTheOldError",
+      "notificationPreferencesPreserveTransportFlagsAndOpenResourceIsSeparateFromRead",
+      "notificationSettingsKeepLegacySummaryControlOnlyWhenSupported",
+      "prototypeLayoutHasExactlyFiveSwitchesAndRemainsReadableOnPhonesTabletsAndLargeFonts",
+      "soundOnlyDraftIsSavedExplicitlyWithoutANetworkMutation"
+    ],
+    "liveAndroidRepository": {
+      "origin": "https://chat.stage.org.ru",
+      "get": true,
+      "putUnchanged": true,
+      "reload": true,
+      "summaryAbsent": true,
+      "preferencesUnchanged": true
+    },
+    "debugApkBuild": "PASS",
+    "androidTestApkBuild": "PASS",
+    "lintErrors": 0,
+    "gitDiffCheck": "PASS"
+  },
+  "liveTestSafety": "Saved the existing notification settings unchanged, re-read them, and logged out. No account preference changes or server deployment required.",
+  "limits": [
+    "UI exercised on a disposable API 36 arm64 emulator; no physical Android device connected.",
+    "Live HTTPS repository validation and emulator UI validation run separately."
+  ],
+  "changedProductionFiles": [
+    "core/model/src/main/kotlin/com/meetspace/core/model/MessagingModels.kt",
+    "core/data/src/main/kotlin/com/meetspace/core/data/MessagingApi.kt",
+    "app/src/main/java/com/meetspace/app/ui/MessagingUi.kt"
+  ],
+  "result": "PASS"
+}

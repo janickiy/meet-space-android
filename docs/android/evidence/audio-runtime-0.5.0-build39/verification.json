@@ -1,0 +1,70 @@
+{
+  "verifiedAt": "2026-10-31T17:52:12.638328+00:00",
+  "application": {
+    "versionName": "0.5.0-beta",
+    "versionCode": 39,
+    "apk": "dist/MeetSpace-0.5.0-beta.apk",
+    "sha256": "04f9e0418c25da3372ddf443a05d736758a677705ab8b355544dc729acbccde3",
+    "publishedApkUnchanged": true,
+    "productionCommit": "7a77c3fe653160e4bf99d6c4ceb27fc7c0a72227"
+  },
+  "environment": {
+    "device": "disposable Android 16/API 36 arm64 emulator",
+    "fingerprint": "Android/sdk_phone64_arm64/emu64a:16/BE2A.250530.026.D1/13818094:userdebug/test-keys",
+    "emulatorAudioDisabled": true,
+    "physicalDevice": false
+  },
+  "method": {
+    "ui": "Production AccountAudioPanel + SettingsHost. Volume changes use Slider SetProgress semantics; noise uses the Switch click.",
+    "settingsPath": "UI -> SharedPreferences.apply -> production Application listener -> CallEngine.configureDevices",
+    "media": "Local ICE/DTLS/SRTP Opus between two native PeerConnections. Production CallEngine factory, microphone track, APM and gain. Separate receiving APM prevents synthetic loopback being mistaken for acoustic echo.",
+    "input": "Synthetic 440 Hz tone and deterministic stationary noise overwrite every capture buffer. No microphone samples or audio recordings stored.",
+    "measurement": "Decoded remote PCM RMS and ADM playback PCM RMS (before hardware/system output volume), not just parameter readback.",
+    "noise": "Measured with production echo cancellation, AGC, high-pass filter and toggleable software NS. No processing options overridden by the test.",
+    "persistence": "Two host am force-stop operations, three different process IDs, no app-data clearing between stages. Observe normal asynchronous disk write completion; never force commit/flush. Verify restored engine configuration and controls.",
+    "lifecycle": "Microphone stop/start with restored volume and noise suppression; native owners checked null on call teardown.",
+    "testSource": "app/src/androidTest/java/com/meetspace/app/CallAudioRuntimeTest.kt",
+    "testSourceSha256": "9a5dab006b684e4cbf940320902596b9c4d42fd4b4cfff07b0813120ae9cde82"
+  },
+  "checks": {
+    "instrumentationTestsPassed": 3,
+    "testApkBuild": "PASS",
+    "uiChangesApplyDuringMediaTransmission": "PASS",
+    "microphoneHalfAmplitudeRatio": 0.49813095359289733,
+    "speakerQuarterAmplitudeRatio": 0.2480856131098334,
+    "noiseAmplitudeRatio": 0.12313692127311958,
+    "stationaryNoiseReductionDb": 18.192234180849876,
+    "microphoneZero": "Near-zero decoded PCM, zero playback PCM",
+    "speakerZero": "Zero playback PCM while received PCM remains present",
+    "restoredVolumes": {
+      "microphone": 65,
+      "speaker": 25,
+      "signal": 35
+    },
+    "noiseRestoredBothOffAndOn": true,
+    "processIds": [
+      3082,
+      3161,
+      3251
+    ]
+  },
+  "reproduce": {
+    "target": "An owned disposable emulator only, started with -no-audio; install published APK and a matching-signature androidTest APK.",
+    "runner": "com.meetspace.app.test/com.meetspace.app.MeetSpaceTestRunner",
+    "arguments": "-w -r -e audioRuntime true -e class com.meetspace.app.CallAudioRuntimeTest#<method>",
+    "orderedMethods": [
+      "saveSettingsForRestart",
+      "restoredSettingsDriveLiveAudio",
+      "verifyLastSettingsAfterRestart"
+    ],
+    "betweenMethods": "adb shell am force-stop com.meetspace.app (do not clear data)",
+    "output": "/sdcard/Android/data/com.meetspace.app/files/audio-runtime/"
+  },
+  "limitations": [
+    "No physical phone/tablet, hardware noise suppressor, Bluetooth/headset routing, real acoustic background or subjective voice-quality measurement.",
+    "No hosted MeetSpace conference / server signaling or network reconnect exercised by this local transport test.",
+    "Signal/ringtone volume persistence is checked; its acoustic output level is not measured.",
+    "Playback PCM measurement precedes Android system volume and physical loudspeaker; it is not a sound-pressure measurement."
+  ],
+  "result": "PASS for tested software audio path and process-restart persistence; no production-code change required."
+}

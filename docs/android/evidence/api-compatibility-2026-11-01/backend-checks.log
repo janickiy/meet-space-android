@@ -1,0 +1,3 @@
+ok  	github.com/janickiy/meet-space/internal/transport/http	0.718s
+?   	github.com/janickiy/meet-space/internal/app/recordings	[no test files]
+ok  	github.com/janickiy/meet-space/internal/usecase/recordings	0.573s

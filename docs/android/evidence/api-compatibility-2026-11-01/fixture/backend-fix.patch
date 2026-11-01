@@ -1,0 +1,21 @@
+diff --git a/internal/app/recordings/library.go b/internal/app/recordings/library.go
+index 608e0c3..89253e3 100644
+--- a/internal/app/recordings/library.go
++++ b/internal/app/recordings/library.go
+@@ -16,0 +17,2 @@ func (h *Handler) Library(c *gin.Context) {
++	c.Header("Cache-Control", "private, no-store")
++	c.Header("X-Content-Type-Options", "nosniff")
+diff --git a/internal/transport/http/conference_recording_routes.go b/internal/transport/http/conference_recording_routes.go
+index ef1056e..0c6efd7 100644
+--- a/internal/transport/http/conference_recording_routes.go
++++ b/internal/transport/http/conference_recording_routes.go
+@@ -25,0 +26 @@ func RegisterConferenceRecordingRoutes(router gin.IRouter, handler *recordingsap
++	router.GET(APIV1Prefix+"/recordings", authentication, handler.Library)
+diff --git a/internal/transport/http/recording_library_test.go b/internal/transport/http/recording_library_test.go
+index cc324ef..8016439 100644
+--- a/internal/transport/http/recording_library_test.go
++++ b/internal/transport/http/recording_library_test.go
+@@ -67,0 +68,3 @@ func TestRecordingLibraryRouteIsAuthenticatedAndHasExplicitEndCursor(t *testing.
++	if got.Header().Get("Cache-Control") != "private, no-store" || got.Header().Get("X-Content-Type-Options") != "nosniff" {
++		t.Fatal("recording catalogue must not be publicly cached")
++	}

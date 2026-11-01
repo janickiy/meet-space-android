@@ -1,0 +1,36 @@
+{
+  "checkedAt": "2026-11-01T05:56:38.826589+00:00",
+  "origin": "https://chat.stage.org.ru",
+  "checks": [
+    {
+      "path": "/api/v1/recordings",
+      "authenticated": false,
+      "status": 401,
+      "keys": [
+        "message",
+        "status"
+      ],
+      "items": null,
+      "cacheControl": null,
+      "noSniff": "nosniff"
+    },
+    {
+      "path": "/api/v1/recordings",
+      "authenticated": true,
+      "status": 200,
+      "keys": [
+        "items",
+        "nextCursor",
+        "status"
+      ],
+      "items": 0,
+      "cacheControl": "private, no-store",
+      "noSniff": "nosniff"
+    }
+  ],
+  "version": {
+    "version": "20261101-715e8b6-recordings-3cbff661",
+    "commit": "715e8b658bf14920ea3d5f92b69f9b812357e592",
+    "buildTime": "2026-11-01T04:24:25Z"
+  }
+}

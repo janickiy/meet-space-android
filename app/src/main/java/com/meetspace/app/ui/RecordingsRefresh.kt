@@ -236,7 +236,9 @@ private fun RecordingRetention() { Surface(shape = RoundedCornerShape(12.dp), co
 @Composable
 internal fun RecordingDetails(state: RecordingsUiState, actions: RecordingsActions, modifier: Modifier, compact: Boolean, playingFileId: String?, inlinePlayer: (@Composable () -> Unit)?) {
     val record = state.detail.data
-    var summary by remember(state.detailId, state.initialSummary) { mutableStateOf(state.initialSummary) }
+    var summary by remember(state.detailId, state.initialSummary, state.capabilities) {
+        mutableStateOf(state.capabilities.aiSummary && (state.initialSummary || !state.capabilities.transcription))
+    }
     var deleting by remember { mutableStateOf(false) }
     BoxWithConstraints(modifier.fillMaxHeight()) {
         val wide = maxWidth / LocalDensity.current.fontScale >= 850.dp
@@ -300,10 +302,11 @@ private fun RecordingInfo(record: Recording, state: RecordingsUiState, actions: 
 
 @Composable
 private fun RecordingMaterials(state: RecordingsUiState, actions: RecordingsActions, summary: Boolean, choose: (Boolean) -> Unit) {
+    if (!state.capabilities.transcription && !state.capabilities.aiSummary) return
     RecordingCard {
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(!summary, { choose(false); if (state.transcript.data == null) actions.loadTranscript() }, label = { Text("Расшифровка") }, modifier = Modifier.testTag("recording-tab-transcript"))
-            FilterChip(summary, { choose(true); if (state.summary.data == null) actions.loadSummary() }, label = { Text("Итоги ИИ") }, modifier = Modifier.testTag("recording-tab-summary"))
+            if (state.capabilities.transcription) FilterChip(!summary, { choose(false); if (state.transcript.data == null) actions.loadTranscript() }, label = { Text("Расшифровка") }, modifier = Modifier.testTag("recording-tab-transcript"))
+            if (state.capabilities.aiSummary) FilterChip(summary, { choose(true); if (state.summary.data == null) actions.loadSummary() }, label = { Text("Итоги ИИ") }, modifier = Modifier.testTag("recording-tab-summary"))
         }
         if (!summary) {
             RecordingLoad(state.transcript, actions.loadTranscript); RecordingLoad(state.segments, actions.loadTranscript)

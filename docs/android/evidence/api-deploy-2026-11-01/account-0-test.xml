@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.meetspace.core.data.LiveApiCompatibilityTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-11-01T05:55:56.816Z" hostname="MacBook-Air-janickiy.local" time="5.299">
+  <properties/>
+  <testcase name="publicServerReadContracts" classname="com.meetspace.core.data.LiveApiCompatibilityTest" time="5.299"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

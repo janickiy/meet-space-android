@@ -382,8 +382,8 @@ private fun ConversationDetail(state: MessagingUiState, actions: MessagingAction
                 DropdownMenu(expanded = options, onDismissRequest = { options = false }) {
                     DropdownMenuItem(text = { Text("Закреплённые сообщения") }, leadingIcon = { Icon(Icons.Outlined.PushPin, null) }, onClick = { options = false; actions.loadPins(); historyDialog = "pins" })
                     if (conversation?.type == "direct") {
-                        DropdownMenuItem(text = { Text("Очистить историю") }, onClick = { options = false; clearHistory = false })
-                        DropdownMenuItem(text = { Text("Удалить чат") }, onClick = { options = false; clearHistory = true })
+                        DropdownMenuItem(text = { Text("Очистить историю") }, leadingIcon = { Icon(Icons.Outlined.DeleteSweep, null) }, onClick = { options = false; clearHistory = false })
+                        DropdownMenuItem(text = { Text("Удалить чат") }, leadingIcon = { Icon(Icons.Outlined.DeleteOutline, null) }, onClick = { options = false; clearHistory = true })
                     }
                     DropdownMenuItem(text = { Text("Обновить сообщения") }, leadingIcon = { Icon(Icons.Outlined.Refresh, null) }, enabled = !state.messages.loading,
                         onClick = { options = false; actions.refreshMessages() }, modifier = Modifier.testTag("messages-refresh"))
@@ -945,7 +945,9 @@ private fun NotificationsDialog(state: MessagingUiState, actions: MessagingActio
                             PreferenceToggle("Приглашения на встречи", preferences.invitation, !state.busy, "notification-pref-invitation") { actions.saveNotificationPreferences(preferences.copy(invitation = it)) {} }
                             PreferenceToggle("Напоминания о встречах", preferences.reminder, !state.busy, "notification-pref-reminder") { actions.saveNotificationPreferences(preferences.copy(reminder = it)) {} }
                             PreferenceToggle("Готовность записи", preferences.recording, !state.busy, "notification-pref-recording") { actions.saveNotificationPreferences(preferences.copy(recording = it)) {} }
-                            PreferenceToggle("Итоги встречи", preferences.summary, !state.busy, "notification-pref-summary") { actions.saveNotificationPreferences(preferences.copy(summary = it)) {} }
+                            preferences.summary?.let { summary ->
+                                PreferenceToggle("Итоги встречи", summary, !state.busy, "notification-pref-summary") { actions.saveNotificationPreferences(preferences.copy(summary = it)) {} }
+                            }
                         }
                         state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                     } else {

@@ -51,7 +51,9 @@ data class InboxNotification(val id: String, val type: String, val createdAt: In
     val recordingId: String? = null, val transcriptId: String? = null, val summaryId: String? = null)
 data class NotificationPage(val items: List<InboxNotification>, val nextCursor: String? = null, val unreadCount: Long = 0)
 data class NotificationPreferences(val invitation: Boolean = true, val reminder: Boolean = true,
-    val recording: Boolean = true, val summary: Boolean = true, val email: Boolean = false, val push: Boolean = false)
+    val recording: Boolean = true,
+    // Only older servers expose this flag. Null means unsupported; omit it from PUT.
+    val summary: Boolean? = null, val email: Boolean = false, val push: Boolean = false)
 data class IntegrationCapabilities(val push: String, val email: String = "noop", val calendar: String = "noop")
 data class PushDevice(val id: String, val platform: String, val provider: String)
 /** Minimal invalidation event: authoritative contents are always read with current REST permissions. */

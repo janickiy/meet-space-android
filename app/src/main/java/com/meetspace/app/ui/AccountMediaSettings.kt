@@ -150,7 +150,7 @@ private fun AudioSelectRow(wide: Boolean, select: @Composable () -> Unit, test: 
     if (wide) Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.weight(1f)) { select() }; test()
     } else Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        select(); Box(Modifier.fillMaxWidth(), propagateMinConstraints = true) { test() }
+        select(); Box(Modifier.fillMaxWidth()) { test() }
     }
 }
 

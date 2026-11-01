@@ -1,0 +1,99 @@
+{
+  "completedAt": "2026-11-01T04:20:39.711746+00:00",
+  "backendBaseCommit": "715e8b658bf14920ea3d5f92b69f9b812357e592",
+  "scope": [
+    "Authentication, registration, refresh/restore, account switching/deletion",
+    "User and group avatars, profile editing",
+    "Meeting timeline filters, scheduling, membership, participants, history",
+    "Personal/group chats, replies/editing, read markers, context/search/pins, ownership and roles",
+    "Conference discussion, idempotent sends and attachments",
+    "Folders, mixed contents and candidate lists",
+    "Recording list, catalogue, metadata and recording start/stop control",
+    "Notification preferences/events and account WebSocket",
+    "Direct call create/accept/heartbeat/end and message history"
+  ],
+  "fixes": [
+    {
+      "component": "Android guest login",
+      "cause": "Guest API intentionally returns an empty email and participant membership role. Android used registered-account validation and required the legacy guest role.",
+      "change": "Guest-specific validation permits no email while retaining validated conference/user IDs and rejecting privileged member roles; legacy guest format remains supported. Ordinary account email remains required.",
+      "verified": "Unit fixtures for current/legacy responses and privileged-role rejection; real isolated guest join, comment and leave."
+    },
+    {
+      "component": "Android recording details",
+      "cause": "Removed transcript/summary actions were shown regardless of capabilities and old summary notifications could trigger removed routes.",
+      "change": "Pass capabilities into recording state, hide retired material controls and guard all retired requests, including notification entry.",
+      "verified": "ViewModel regression test, legacy UI tests and current no-speech UI test."
+    },
+    {
+      "component": "Backend recording catalogue",
+      "cause": "GET /api/v1/recordings was no longer registered despite existing service and regression test; both live accounts received 404.",
+      "change": "Restore authenticated route, keep guest scope enforcement and add private/no-store + nosniff headers.",
+      "verified": "Existing backend test failed before fix, backend HTTP/usecase tests pass after fix, actual isolated catalogue includes active and finished meeting recordings.",
+      "deployment": "VERIFIED LIVE on chat.stage.org.ru; see deploymentFollowUp."
+    }
+  ],
+  "checks": {
+    "jvm": {
+      "core/data": {
+        "tests": 204,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 18
+      },
+      "core/media": {
+        "tests": 42,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "core/ssh": {
+        "tests": 71,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "app": {
+        "tests": 284,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    "jvmPassed": 583,
+    "jvmSkipped": 18,
+    "emulatorUiPassed": 25,
+    "realIsolatedMutationScenariosPassed": 7,
+    "localReadChecksPassed": 60,
+    "liveReadChecksPassed": 75,
+    "liveKnownFailures": "Two 404 responses from the missing catalogue route; same cause on two accounts.",
+    "buildDebug": "PASS",
+    "buildAndroidTest": "PASS",
+    "lintErrors": 0,
+    "backendPackages": "internal/transport/http, internal/app/recordings, internal/usecase/recordings: PASS"
+  },
+  "safety": "Live server checks used reads and short-lived authentication/events connections only. Mutations, messages, uploads, account deletion and call state changes ran only on marked private localhost fixtures. No VPS/Amnezia/VPN changes.",
+  "limits": [
+    "No physical Android device or acoustic/Bluetooth tests.",
+    "Actual Pion/SFU media transport and encoded recording processing were not exercised by this API fixture; call state and recording control metadata were verified.",
+    "Live accounts have sparse data; NO_SAMPLE entries identify unavailable live resources. Isolated fixtures supplied mutations and richer data.",
+    "Local fixture has actual current Go services, PostgreSQL, Redis and S3 but no recording worker; recordings remain control-plane metadata."
+  ],
+  "additionalFindingOutsideHttpApiAudit": {
+    "component": "Signed SSH installer",
+    "file": "installer/v1/runner.py",
+    "finding": "Hard-coded worker/live-worker service names remain, while current backend uses record-worker.",
+    "status": "Not changed; installer/container migration and signed-bundle publication are outside the HTTP/WebSocket API verification."
+  },
+  "reproduce": {
+    "assembly": "fixture/fixture.py + main.go + explicit backend-fix.patch; no production business handlers mocked",
+    "start": "python3 docs/android/evidence/api-compatibility-2026-11-01/fixture/fixture.py start --home \"$PWD/.audit/ac1\" --backend-source /Users/aleksandranickij/htdocs/go-recorder --lan-address 127.0.0.1",
+    "tests": "MEETSPACE_CURRENT_API_FIXTURE points to the marked fixture home. MEETSPACE_STAGE07_LIVE=1 and MEETSPACE_STAGE07_FIXTURE point to its live.properties. Execute CurrentApiMutationTest and LiveMessagingRepositoryTest. LiveApiCompatibilityTest supports explicit origin/credentials and a fixture CA restricted to localhost."
+  },
+  "result": "Compatibility fixes remain in local Android source; backend recording catalogue is now verified live on chat.stage.org.ru. See deploymentFollowUp for current deployment status.",
+  "deploymentFollowUp": {
+    "verifiedAt": "2026-11-01T05:57:06.855638+00:00",
+    "result": "Recording catalogue now responds 200 on chat.stage.org.ru and passes Android repository validation on two accounts.",
+    "evidence": "../api-deploy-2026-11-01/verification.json"
+  }
+}

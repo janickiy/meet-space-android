@@ -35,6 +35,14 @@ import org.junit.Test
 /** Presentation fixtures remain test-only; callbacks assert requests, not successful server effects. */
 @OptIn(ExperimentalTestApi::class)
 class RecordingsUiTest {
+    @Test fun removedSpeechCapabilitiesHideMaterialsButKeepRecordingPlayback() {
+        compose.setContent { Screen(materials.copy(capabilities = Capabilities()), RecordingsActions()) }
+        compose.onNodeWithTag("recording-tab-transcript").assertDoesNotExist()
+        compose.onNodeWithTag("recording-tab-summary").assertDoesNotExist()
+        compose.onNodeWithTag("recording-load-transcript").assertDoesNotExist()
+        compose.onNodeWithTag("recording-load-summary").assertDoesNotExist()
+        compose.onNodeWithTag("recording-play-${file.id}").assertExists()
+    }
     @get:Rule val compose = createComposeRule()
 
     @Test fun globalEntryShowsRealRecordingsAcrossMeetingsWithoutRequiringSelection() {
@@ -234,7 +242,7 @@ class RecordingsUiTest {
     }
 
     @Test fun unavailableMaterialsExplainServerSupportAndNeverExposePipelineStates() {
-        val state = detail.copy(transcript = RecordingsLoad(RecordingTranscriptState(false, null)), summary = RecordingsLoad(RecordingSummaryState(true, RecordingSummary("sum", "trans", "processing", "private incomplete", emptyList(), emptyList(), emptyList()))))
+        val state = detail.copy(capabilities = Capabilities(transcription = true, aiSummary = true), transcript = RecordingsLoad(RecordingTranscriptState(false, null)), summary = RecordingsLoad(RecordingSummaryState(true, RecordingSummary("sum", "trans", "processing", "private incomplete", emptyList(), emptyList(), emptyList()))))
         compose.setContent { Screen(state) }
         compose.onNodeWithTag("recording-detail").performScrollToNode(hasText("Расшифровки отключены на сервере."))
         compose.onNodeWithText("Расшифровки отключены на сервере.").assertIsDisplayed()
@@ -329,6 +337,6 @@ class RecordingsUiTest {
         private val selector = RecordingsUiState(visible = true, meetingPicker = true, meetings = RecordingsLoad(MeetingPage(listOf(meeting), "next")))
         private val list = selector.copy(meetingId = meeting.id, meeting = RecordingsLoad(meeting), recordings = RecordingsLoad(RecordingPage(listOf(record), null)))
         private val detail = list.copy(detailId = record.id, detail = RecordingsLoad(record))
-        private val materials = detail.copy(transcript = RecordingsLoad(RecordingTranscriptState(true, RecordingTranscript("trans", record.id, "ru", "ready"))), segments = RecordingsLoad(RecordingSegmentPage(listOf(RecordingSegment("segment", "trans", 1000, 2000, "Анна", "Обсудили следующий выпуск.")), 2, 0, 1)), summary = RecordingsLoad(RecordingSummaryState(true, RecordingSummary("sum", "trans", "ready", "Команда согласовала план.", listOf("Подготовить выпуск"), listOf(RecordingActionItem("Обновить документацию", "Анна", null)), listOf("Релиз")))))
+        private val materials = detail.copy(capabilities = Capabilities(transcription = true, aiSummary = true), transcript = RecordingsLoad(RecordingTranscriptState(true, RecordingTranscript("trans", record.id, "ru", "ready"))), segments = RecordingsLoad(RecordingSegmentPage(listOf(RecordingSegment("segment", "trans", 1000, 2000, "Анна", "Обсудили следующий выпуск.")), 2, 0, 1)), summary = RecordingsLoad(RecordingSummaryState(true, RecordingSummary("sum", "trans", "ready", "Команда согласовала план.", listOf("Подготовить выпуск"), listOf(RecordingActionItem("Обновить документацию", "Анна", null)), listOf("Релиз")))))
     }
 }

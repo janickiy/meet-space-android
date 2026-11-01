@@ -52,7 +52,8 @@ class RecordingsViewModel(
     fun show(meetingId: String? = null) {
         if (scope() == null) return
         close()
-        mutableState.value = RecordingsUiState(visible = true, selfId = foundation.state.value.session?.user?.id.orEmpty())
+        mutableState.value = RecordingsUiState(visible = true, selfId = foundation.state.value.session?.user?.id.orEmpty(),
+            capabilities = foundation.state.value.session?.capabilities ?: com.meetspace.core.model.Capabilities())
         if (meetingId == null) loadLibrary() else openMeeting(meetingId)
     }
     /** Notification IDs identify a route; access and metadata still come from the current account's API. */
@@ -61,8 +62,9 @@ class RecordingsViewModel(
         if (recordingId.isNullOrBlank()) { show(meetingId); return }
         close()
         mutableState.value = RecordingsUiState(visible = true, selfId = foundation.state.value.session?.user?.id.orEmpty(),
+            capabilities = foundation.state.value.session?.capabilities ?: com.meetspace.core.model.Capabilities(),
             meetingId = meetingId, meeting = RecordingsLoad(loading = true), detailId = recordingId,
-            detail = RecordingsLoad(loading = true), initialSummary = summary)
+            detail = RecordingsLoad(loading = true), initialSummary = summary && foundation.state.value.session?.capabilities?.aiSummary == true)
         request("meeting", { failure -> mutableState.update {
             it.copy(meeting = RecordingsLoad(error = failure.message), detail = RecordingsLoad(error = failure.message))
         } }) {
@@ -355,6 +357,7 @@ class RecordingsViewModel(
         }
     }
     private fun loadTranscript() {
+        if (!state.value.capabilities.transcription) return
         val cid = state.value.meetingId ?: return; val rid = state.value.detailId ?: return
         val old = state.value.transcript
         cancel("segments")
@@ -366,6 +369,7 @@ class RecordingsViewModel(
         }
     }
     private fun loadSegments(append: Boolean = false) {
+        if (!state.value.capabilities.transcription) return
         val cid = state.value.meetingId ?: return; val rid = state.value.detailId ?: return
         val old = state.value.segments
         if (append && old.loading) return
@@ -384,6 +388,7 @@ class RecordingsViewModel(
     }
     private var segmentOffset: Int? = null
     private fun loadSummary() {
+        if (!state.value.capabilities.aiSummary) return
         val cid = state.value.meetingId ?: return; val rid = state.value.detailId ?: return
         val old = state.value.summary
         mutableState.update { it.copy(summary = old.copy(loading = true, error = null)) }

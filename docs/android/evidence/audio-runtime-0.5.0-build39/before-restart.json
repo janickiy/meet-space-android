@@ -1,0 +1,9 @@
+{
+  "pid": 3082,
+  "preferences": {
+    "microphoneVolume": 65,
+    "speakerVolume": 25,
+    "signalVolume": 35,
+    "noiseSuppression": false
+  }
+}

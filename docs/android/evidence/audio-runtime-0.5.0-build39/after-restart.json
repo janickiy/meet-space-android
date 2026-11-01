@@ -1,0 +1,10 @@
+{
+  "pid": 3251,
+  "preferences": {
+    "microphoneVolume": 65,
+    "speakerVolume": 25,
+    "signalVolume": 35,
+    "noiseSuppression": true
+  },
+  "passed": true
+}
