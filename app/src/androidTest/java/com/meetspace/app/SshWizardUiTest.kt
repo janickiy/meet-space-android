@@ -29,11 +29,12 @@ class SshWizardUiTest {
         compose.onNodeWithTag("ssh-host").performScrollTo().performTextInput("vps.example.test")
         compose.onNodeWithTag("ssh-user").performScrollTo().performTextClearance()
         compose.onNodeWithTag("ssh-user").performTextInput("admin")
-        compose.onNodeWithTag("ssh-domain").performScrollTo().performTextInput("meet.example.test")
+        compose.onNodeWithTag("ssh-domain").performScrollTo().performTextInput("https://MEET.EXAMPLE.TEST/")
         compose.onNodeWithTag("ssh-password").assertDoesNotExist()
         compose.onNodeWithTag("ssh-import-key").assertDoesNotExist()
         compose.settleFormEditorForClick(editor, compose.onNodeWithTag("ssh-probe")).performClick()
         compose.runOnIdle { assertEquals(listOf("vps.example.test", "22", "admin", "meet.example.test"), values) }
+        compose.onNodeWithTag("ssh-domain").assertTextContains("meet.example.test")
     }
 
     @Test fun independentFingerprintComparisonIsRequiredForNewTrust() {

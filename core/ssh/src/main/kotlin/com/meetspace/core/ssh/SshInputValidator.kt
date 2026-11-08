@@ -24,7 +24,10 @@ object SshInputValidator {
     )
 
     fun normalizeDomain(raw: String): String {
-        val result = dnsName(raw.trim(), "Укажите домен без HTTPS, пути и порта.")
+        val input = raw.trim()
+        // Accept a pasted HTTPS origin, but never discard a path, port or credentials.
+        val name = if (input.startsWith("https://", ignoreCase = true)) input.substring(8).removeSuffix("/") else input
+        val result = dnsName(name, "Укажите домен или HTTPS-адрес без пути, порта и параметров.")
         if (!result.contains('.') || result.matches(Regex("[0-9.]+"))) fail("Укажите полное доменное имя для HTTPS.")
         return result
     }

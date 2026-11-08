@@ -19,7 +19,7 @@ android {
         targetSdk = 36
         buildConfigField("boolean", "FCM_CONFIGURED", firebaseConfigured.toString())
         manifestPlaceholders["fcmConfigured"] = firebaseConfigured.toString()
-        versionCode = 42
+        versionCode = 43
         versionName = "0.6.0-beta"
         testInstrumentationRunner = "com.meetspace.app.MeetSpaceTestRunner"
     }

@@ -23,6 +23,22 @@ class SshWizardViewModelTest {
     @Before fun setup() { Dispatchers.setMain(dispatcher) }
     @After fun teardown() { Dispatchers.resetMain() }
 
+    @Test fun pastedHttpsDomainKeepsCanonicalIdentityThroughPreflightAndAccessTransfer() = runTest(dispatcher) {
+        val repository = FakeSshRepository().apply { identity = trustedIdentity; blocked = false }
+        val model = SshWizardViewModel(repository)
+        model.probe(endpoint.host, "22", endpoint.user, "https://CHAT.STAGE.ORG.RU/")
+        runCurrent()
+        assertNull(model.state.value.error)
+        assertEquals(SshWizardStep.AUTH, model.state.value.step)
+        assertEquals("chat.stage.org.ru", model.state.value.request?.domain)
+        model.preflightPassword("test-only"); runCurrent()
+        assertEquals("chat.stage.org.ru", model.state.value.report?.domain)
+        val access = requireNotNull(model.takeInstallationAccess()).take(SshRequest(endpoint, "chat.stage.org.ru"))
+        assertNotNull(access)
+        access!!.credentials.destroy()
+        model.reset()
+    }
+
     @Test fun firstHostRequiresExplicitTrustBeforeCredentials() = runTest(dispatcher) {
         val repository = FakeSshRepository()
         val model = SshWizardViewModel(repository)

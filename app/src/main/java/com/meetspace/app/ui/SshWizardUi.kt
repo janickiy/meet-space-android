@@ -42,6 +42,7 @@ import com.meetspace.app.SshWizardStep
 import com.meetspace.app.SshWizardUiState
 import com.meetspace.core.designsystem.MeetSpaceTokens
 import com.meetspace.core.model.*
+import com.meetspace.core.ssh.SshInputValidator
 
 @Composable
 fun SshWizardUi(
@@ -125,8 +126,13 @@ private fun SshDetails(state: SshWizardUiState, onProbe: (String, String, String
         }
         SshField(user, { user = it }, "Пользователь SSH", "ssh-user", state.busy)
         SshField(domain, { domain = it }, "Домен будущего MeetSpace", "ssh-domain", state.busy, KeyboardType.Uri)
-        Text("Укажите только имя или IP без https://, пути и команд. Пользователь SSH может отличаться от аккаунта MeetSpace.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
-        Button(shape = RoundedCornerShape(10.dp), onClick = { keyboard?.hide(); onProbe(host, port, user, domain) }, enabled = !state.busy,
+        Text("Для VPS укажите IP или имя сервера. Для MeetSpace — домен, например chat.stage.org.ru, или https://chat.stage.org.ru. Пользователь SSH может отличаться от аккаунта MeetSpace.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+        Button(shape = RoundedCornerShape(10.dp), onClick = {
+            keyboard?.hide()
+            // Show the same canonical domain that will be bound to the verified SSH access.
+            domain = runCatching { SshInputValidator.normalizeDomain(domain) }.getOrDefault(domain)
+            onProbe(host, port, user, domain)
+        }, enabled = !state.busy,
             modifier = Modifier.fillMaxWidth().heightIn(min = 49.dp).testTag("ssh-probe")) { Text("Проверить ключ сервера") }
         Text("На этом шаге пароль и приватный ключ не передаются. Сначала подтвердите публичный ключ сервера по независимому источнику.", style = MaterialTheme.typography.bodyMedium)
     }

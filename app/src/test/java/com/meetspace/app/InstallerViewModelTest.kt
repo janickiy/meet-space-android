@@ -26,6 +26,17 @@ class InstallerViewModelTest {
     private fun verified(target: SshEndpoint = endpoint, domain: String = options.domain, bytes: ByteArray = "test-only".toByteArray()) =
         VerifiedInstallationAccess(SshRequest(target, domain), hostKey, SshCredentials.Password(bytes), 0) { 0 }
     private fun setupModel(repo: Fake): InstallerViewModel = InstallerViewModel(repo).also { it.foreground(true); it.start(endpoint,options.domain); it.authenticate(options,"test-only",false) }
+    @Test fun pastedHttpsAddressUsesVerifiedDomainWithoutRequestingAnotherSshPassword() = runTest(dispatcher) {
+        val repo = Fake()
+        val model = InstallerViewModel(repo)
+        model.start(endpoint, options.domain, verified()); runCurrent()
+        model.authenticate(options.copy(domain = "https://MEET.EXAMPLE.COM/"), "", false); runCurrent()
+        assertNull(model.state.value.error)
+        assertFalse(model.state.value.needsAccess)
+        assertEquals(options.domain, model.state.value.plan?.options?.domain)
+        assertEquals(InstallScreen.PLAN, model.state.value.screen)
+        model.detach()
+    }
     @Test fun noApplyWithoutEachConsent() = runTest(dispatcher) {
         val repo=Fake();val model=setupModel(repo);runCurrent()
         model.apply(false,true,true);model.apply(true,false,true);model.apply(true,true,false);runCurrent()

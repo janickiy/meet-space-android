@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.meetspace.core.model.*
 import com.meetspace.core.ssh.SshInstallerRepository
+import com.meetspace.core.ssh.SshInputValidator
 import java.io.InputStream
 import java.util.UUID
 import kotlinx.coroutines.*
@@ -118,13 +119,15 @@ class InstallerViewModel(private val repository: SshInstallerRepository) : ViewM
     fun authenticate(options: InstallOptions, password: String, useKey: Boolean) {
         if (state.value.busy) return
         if (state.value.endpoint == null) return
+        val normalized = try { options.copy(domain = SshInputValidator.normalizeDomain(options.domain)) }
+            catch (error: SshFailure) { failure(error); return }
         if (!state.value.needsAccess && credentials != null && state.value.ticket == null) {
-            if (options.domain != state.value.options.domain) {
+            if (normalized.domain != state.value.options.domain) {
                 failure(SshFailure(SshFailureKind.INPUT, "Домен изменился. Повторите проверку сервера для нового домена."))
                 return
             }
-            mutableState.update { it.copy(options = options, screen = InstallScreen.PLAN) }
-            prepare(options)
+            mutableState.update { it.copy(options = normalized, screen = InstallScreen.PLAN) }
+            prepare(normalized)
             return
         }
         val access = if (useKey) {
@@ -135,9 +138,9 @@ class InstallerViewModel(private val repository: SshInstallerRepository) : ViewM
             SshCredentials.Password(password.toByteArray())
         }
         clearAccess(); credentials = access
-        mutableState.update { it.copy(options = if (it.ticket == null) options else it.options, keyLoaded = false,
+        mutableState.update { it.copy(options = if (it.ticket == null) normalized else it.options, keyLoaded = false,
             credentialReset = it.credentialReset + 1, needsAccess = false) }
-        prepare(options)
+        prepare(normalized)
     }
     fun editOptions() {
         if (state.value.busy || state.value.ticket != null) return

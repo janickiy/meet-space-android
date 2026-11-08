@@ -20,7 +20,29 @@ class SshInputValidatorTest {
     @Test fun invalidPortUserAndDomainRejected() {
         for (port in listOf("0", "65536", "22;id", "-1", "abc")) assertThrows(SshFailure::class.java) { SshInputValidator.validate("example.org", port, "root", "meet.example.org") }
         for (user in listOf("-root", "a b", "a;id", "a\nroot", "root@x")) assertThrows(SshFailure::class.java) { SshInputValidator.validate("example.org", "22", user, "meet.example.org") }
-        for (domain in listOf("https://meet.example.org", "localhost", "203.0.113.1", "example.org:443", "example.org?x", "a'$(id).org")) assertThrows(SshFailure::class.java) { SshInputValidator.validate("example.org", "22", "root", domain) }
+        for (domain in listOf("localhost", "203.0.113.1", "example.org:443", "example.org?x", "a'$(id).org")) assertThrows(SshFailure::class.java) { SshInputValidator.validate("example.org", "22", "root", domain) }
+    }
+    @Test fun pastedHttpsDomainMatchesBareDomainIncludingCaseSlashAndIdn() {
+        for ((input, expected) in listOf(
+            "https://chat.stage.org.ru" to "chat.stage.org.ru",
+            " HTTPS://CHAT.STAGE.ORG.RU/ " to "chat.stage.org.ru",
+            "https://ПРИМЕР.РФ/" to "xn--e1afmkfd.xn--p1ai",
+        )) {
+            val request = SshInputValidator.validate("78.17.198.175", "22", "root", input)
+            assertEquals(SshInputValidator.validate("78.17.198.175", "22", "root", expected), request)
+            assertEquals(expected, SshInputValidator.normalizeDomain(request.domain))
+        }
+    }
+    @Test fun pastedHttpsAddressCannotHideUnsupportedUrlParts() {
+        for (domain in listOf("http://meet.example.org", "https://", "https:///meet.example.org", "//meet.example.org",
+            "https://meet.example.org:443/", "https://user:password@meet.example.org/", "https://meet.example.org/path",
+            "https://meet.example.org//", "https://meet.example.org/?q=x", "https://meet.example.org/#fragment",
+            "https://meet.example.org%2fpath", "https://meet.example.org\\path", "https://meet.example.org\nother.org",
+            "https://meet.example.org;id", "https://203.0.113.1/", "https://localhost/")) {
+            assertEquals(domain, SshFailureKind.INPUT, assertThrows(SshFailure::class.java) {
+                SshInputValidator.normalizeDomain(domain)
+            }.kind)
+        }
     }
     @Test fun probeCommandOnlyHasValidatedArguments() {
         assertEquals("LC_ALL=C sh -s -- 'meet.example.org' '203.0.113.10'", PreflightProbe.command("meet.example.org", "203.0.113.10"))
