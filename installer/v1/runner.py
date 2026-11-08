@@ -37,11 +37,11 @@ PROJECT = "meetspace"
 MAX_JSON = 256 * 1024
 TERMINAL = {"completed", "cancelled", "failed", "needs_recovery"}
 PHASES = ("docker", "source", "images", "configuration", "dependencies", "backup", "migrations", "https", "services", "readiness")
-APP_SERVICES = ("api", "media-worker", "worker", "product-worker", "live-worker", "frontend", "minio")
+APP_SERVICES = ("api", "media-worker", "record-worker", "product-worker", "frontend", "minio", "proxy")
 PORTS = {"tcp": [80, 443, 3478, 5349, 50010], "udp": [3478, 50010] + list(range(49160, 49260))}
-SOURCE_POLICY = "github-latest-stable-v1"
+SOURCE_POLICY = "github-default-branch-v1"
 PREBUILT_POLICY = "github-prebuilt-v1"
-PREBUILT_SERVICES = (*APP_SERVICES, "postgres", "redis", "rabbitmq", "coturn", "proxy", "prometheus")
+PREBUILT_SERVICES = (*APP_SERVICES, "postgres", "redis", "rabbitmq", "coturn", "prometheus")
 MAX_IMAGE_ARCHIVE = 2 * 1024 ** 3
 UBUNTU_SUITES = {"22.04": "jammy", "24.04": "noble"}
 SUPPORTED_ARCHES = {"amd64", "arm64"}
@@ -186,7 +186,7 @@ def verify_bundle(source, pem, raw, signature, docker_key):
         fail("RELEASE_CHECKSUM")
     if not re.fullmatch(r"[a-f0-9]{40}", manifest.get("commit", "")):
         fail("RELEASE_INVALID")
-    if not re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9.-]+)?", manifest.get("version", "")):
+    if not re.fullmatch(r"v?[0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9.-]+)?", manifest.get("version", "")):
         fail("RELEASE_INVALID")
     expected_url = "https://codeload.github.com/janickiy/meet-space/tar.gz/" + manifest["commit"]
     if manifest.get("sourceUrl") != expected_url or not re.fullmatch(r"[a-f0-9]{64}", manifest.get("sourceSha256", "")):
@@ -288,18 +288,13 @@ def source_snapshot(commit, recipe, *, building=True):
             fail("SOURCE_LOOKUP_FAILED")
 
 
+def source_version(recipe, commit):
+    return recipe["version"].split("-source.", 1)[0].lstrip("v") + "-source." + commit[:12]
+
+
 def resolve_source(recipe):
-    release = github_json("/releases/latest", missing_ok=True)
-    if release is None:
-        ref = github_json("").get("default_branch")
-        channel, version = "default-branch", None
-    else:
-        if release.get("draft") is not False or release.get("prerelease") is not False:
-            fail("SOURCE_INVALID")
-        ref = release.get("tag_name")
-        channel, version = "release", ref
-        if not isinstance(version, str) or not re.fullmatch(r"v?[0-9]+\.[0-9]+\.[0-9]+(?:[+-][A-Za-z0-9.-]+)?", version) or len(version) > 64:
-            fail("SOURCE_INCOMPATIBLE")
+    ref = github_json("").get("default_branch")
+    channel = "default-branch"
     if not isinstance(ref, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._/+-]{0,199}", ref):
         fail("SOURCE_INVALID")
     # List one commit from the selected ref. Unlike /commits/{ref}, this endpoint
@@ -317,7 +312,7 @@ def resolve_source(recipe):
         fail("SOURCE_INVALID")
     checksum, files = source_snapshot(commit, recipe)
     lock = {"repository": REPOSITORY, "channel": channel, "ref": ref,
-            "version": version or "0.0.0-source." + commit[:12], "commit": commit,
+            "version": source_version(recipe, commit), "commit": commit,
             "builtAt": committed_at, "sourceUrl": source_url(commit), "sourceSha256": checksum, "sourceFiles": files}
     locked_manifest(recipe, lock)  # Validate before a plan can be presented.
     return lock
@@ -329,11 +324,11 @@ def locked_manifest(recipe, lock):
         fail("PLAN_CHANGED")
     def matches(pattern, value):
         return isinstance(value, str) and re.fullmatch(pattern, value)
-    if lock["repository"] != REPOSITORY or lock["channel"] not in ("release", "default-branch", "prebuilt") or not matches(r"[a-f0-9]{40}", lock["commit"]) or not matches(r"[a-f0-9]{64}", lock["sourceSha256"]) or lock["sourceUrl"] != source_url(lock["commit"]):
+    if lock["repository"] != REPOSITORY or lock["channel"] not in ("default-branch", "prebuilt") or not matches(r"[a-f0-9]{40}", lock["commit"]) or not matches(r"[a-f0-9]{64}", lock["sourceSha256"]) or lock["sourceUrl"] != source_url(lock["commit"]):
         fail("PLAN_CHANGED")
     if not matches(r"[A-Za-z0-9][A-Za-z0-9._/+-]{0,199}", lock["ref"]) or not matches(r"v?[0-9]+\.[0-9]+\.[0-9]+(?:[+-][A-Za-z0-9.-]+)?", lock["version"]) or len(lock["version"]) > 64 or not matches(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z", lock["builtAt"]):
         fail("PLAN_CHANGED")
-    if (lock["channel"] in ("release", "prebuilt") and lock["version"] != lock["ref"]) or (lock["channel"] == "default-branch" and lock["version"] != "0.0.0-source." + lock["commit"][:12]):
+    if (lock["channel"] in ("release", "prebuilt") and lock["version"] != lock["ref"]) or (lock["channel"] == "default-branch" and lock["version"] != source_version(recipe, lock["commit"])):
         fail("PLAN_CHANGED")
     files = lock["sourceFiles"]
     if not isinstance(files, dict) or set(files) != set(recipe["sourceFiles"]) or not all(matches(r"[a-f0-9]{64}", value) for value in files.values()):
@@ -402,7 +397,7 @@ def image_mode(options):
 
 def valid_prebuilt_version(value, *, latest=False):
     return isinstance(value, str) and len(value) <= 64 and (latest and value == "latest" or
-        re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9.-]+)?", value))
+        re.fullmatch(r"v?[0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9.-]+)?", value))
 
 
 class AssetRedirect(urllib.request.HTTPRedirectHandler):
@@ -482,6 +477,22 @@ def validate_image_lock(lock, recipe, source, arch, *, requested="latest"):
         fail("PLAN_CHANGED")
 
 
+def require_compatible_prebuilt_commit(recipe, commit):
+    """Reject images predating the reviewed unified-email LDAP/admin baseline."""
+    minimum = recipe["commit"]
+    if commit == minimum:
+        return
+    # GitHub returns changed-file patches only on page 1. Page 2 keeps ancestry
+    # metadata bounded even when a release changes thousands of source lines.
+    # https://docs.github.com/en/rest/commits/commits#compare-two-commits
+    comparison = github_json("/compare/" + minimum + "..." + commit + "?per_page=1&page=2")
+    base, ancestor = comparison.get("base_commit"), comparison.get("merge_base_commit")
+    if (comparison.get("status") != "ahead" or not isinstance(base, dict) or base.get("sha") != minimum
+            or not isinstance(ancestor, dict) or ancestor.get("sha") != minimum
+            or comparison.get("behind_by") != 0 or type(comparison.get("ahead_by")) is not int or comparison["ahead_by"] < 1):
+        fail("SOURCE_INCOMPATIBLE")
+
+
 def resolve_prebuilt(recipe, arch, requested="latest"):
     """Resolve once from published platform packages, including prereleases. No source fallback."""
     if recipe.get("prebuiltPolicy") != PREBUILT_POLICY or arch not in SUPPORTED_ARCHES or not valid_prebuilt_version(requested, latest=True):
@@ -527,6 +538,7 @@ def resolve_prebuilt(recipe, arch, requested="latest"):
             commits = github_json("/commits?sha=" + lock["commit"] + "&per_page=1", expected_type=list)
             if len(commits) != 1 or commits[0].get("sha") != lock["commit"]:
                 fail("PREBUILT_INVALID")
+            require_compatible_prebuilt_commit(recipe, lock["commit"])
             built_at = build_timestamp_utc(commits[0].get("commit", {}).get("committer", {}).get("date"))
             checksum, files = source_snapshot(lock["commit"], recipe, building=False)
             source.update(repository=REPOSITORY, ref=tag, builtAt=built_at, sourceUrl=source_url(lock["commit"]), sourceSha256=checksum, sourceFiles=files)
@@ -712,7 +724,7 @@ def plan_resource_profile(plan):
 
 def validate_options(options, manifest):
     if (not isinstance(options, dict) or not {"domain", "publicIpv4"}.issubset(options)
-            or set(options) - {"domain", "publicIpv4", "acmeEmail", "smtp", "imageMode", "imageRelease"}):
+            or set(options) - {"domain", "publicIpv4", "acmeEmail", "smtp", "admin", "imageMode", "imageRelease"}):
         fail("INVALID_REQUEST")
     domain = options["domain"]
     if not isinstance(domain, str) or len(domain) > 253 or domain != domain.lower() or not re.fullmatch(r"[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?", domain):
@@ -745,7 +757,34 @@ def validate_options(options, manifest):
         normalized["imageRelease"] = release
     if "smtp" in options:
         normalized["smtp"] = validate_smtp(options["smtp"])
+    if "admin" in options:
+        normalized["admin"] = validate_admin(options["admin"])
     return normalized
+
+
+def validate_admin(options):
+    """Public administrator identity only. The initial password is apply-only."""
+    if not isinstance(options, dict) or set(options) != {"username", "httpsPort"}:
+        fail("INVALID_ADMIN")
+    username, port = options["username"], options["httpsPort"]
+    if (not isinstance(username, str) or not re.fullmatch(r"[a-z0-9][a-z0-9.@+_-]{2,39}", username)
+            or not isinstance(port, int) or isinstance(port, bool) or not 1024 <= port <= 65535
+            or port in (8082, 3478, 5349, 50010) or 49160 <= port <= 49259):
+        fail("INVALID_ADMIN")
+    return dict(options)
+
+
+def validate_admin_password(password):
+    if (not isinstance(password, str) or not 8 <= len(password) <= 128
+            or any(0xD800 <= ord(char) <= 0xDFFF for char in password)
+            or len(password.encode("utf-8", errors="replace")) > 512
+            or any(char in password for char in "\r\n\x00")):
+        fail("ADMIN_PASSWORD_REQUIRED")
+    return password
+
+
+def planned_ports(options):
+    return dict(tcp=PORTS["tcp"] + ([options["admin"]["httpsPort"]] if "admin" in options else []), udp=PORTS["udp"])
 
 
 def validate_smtp(options):
@@ -926,10 +965,10 @@ def dns_check(options):
     return sorted(addresses)
 
 
-def check_ports():
+def check_ports(options=None):
     if not shutil.which("ss"):
         fail("PORT_CHECK_UNAVAILABLE")
-    for protocol, ports in PORTS.items():
+    for protocol, ports in planned_ports(options or {}).items():
         output = run(["ss", "-H", "-ln" + ("t" if protocol == "tcp" else "u")], capture=True, code="PORT_CHECK_UNAVAILABLE")
         for line in output.decode("ascii", "replace").splitlines():
             parts = line.split()
@@ -1027,7 +1066,7 @@ def create_plan(options, manifest, *, issued_at=None, source_lock=None, image_lo
         for path in ("/opt/meetrix", "/etc/meetrix", "/etc/meetspace"):
             if pathlib.Path(path).exists():
                 fail("EXISTING_INSTALLATION")
-        check_ports()
+        check_ports(options)
         if docker["installed"]:
             for kind in ("container", "volume", "network"):
                 args = ["docker", kind, "ls", "--format", "{{.Name}}"] if kind != "container" else ["docker", "ps", "-a", "--format", "{{.Names}}"]
@@ -1044,8 +1083,11 @@ def create_plan(options, manifest, *, issued_at=None, source_lock=None, image_lo
             "existingPlanHash": previous["hash"] if marker else None,
             "issuedAt": created, "expiresAt": created + 900,
             "actions": [*docker_actions(docker), "fetch-verified-source", "build-and-pin-images", "generate-secrets", "private-volumes", "backup-and-migrate", "acme-https-wss", "authenticated-turn", "readiness"],
-            "ports": {"tcp": PORTS["tcp"], "udp": ["3478", "50010", "49160-49259"]},
+            "ports": {"tcp": planned_ports(options)["tcp"], "udp": ["3478", "50010", "49160-49259"]},
             "warnings": ["source-build-not-hermetic", "docker-firewall-bypass", "external-ports-must-be-open", "no-automatic-data-rollback", "local-backup-not-offsite", "no-upstream-release-tag", "turn-restarts-on-certificate-renewal"]}
+    if "admin" in options:
+        plan["actions"].insert(-1, "bootstrap-admin")
+        plan["warnings"].append("admin-firewall-access")
     if source_lock is not None:
         plan.update(sourceLock=source_lock, recipeSha256=digest(canonical(recipe)))
     if prebuilt:
@@ -1131,7 +1173,7 @@ def start_unit(value):
          "/usr/bin/python3", str(ROOT / "installer" / "v1" / "runner.py"), "worker", value], code="WORKER_START")
 
 
-def initialize_layout(value, plan, manifest, bundle, smtp_password=None):
+def initialize_layout(value, plan, manifest, bundle, smtp_password=None, admin_password=None):
     # Publish the complete journal and bundle together. An interrupted preparation must
     # not turn the final root into an unknown installation that status/resume cannot read.
     no_symlink(ROOT.parent)
@@ -1144,6 +1186,8 @@ def initialize_layout(value, plan, manifest, bundle, smtp_password=None):
             write_atomic(prepared / "installer" / "v1" / name, data)
         if "smtp" in plan["options"]:
             write_atomic(prepared / "config" / "smtp.env", smtp_environment(plan["options"]["smtp"], smtp_password))
+        if "admin" in plan["options"]:
+            write_atomic(prepared / "config" / "admin-bootstrap.json", canonical({"username": plan["options"]["admin"]["username"], "password": validate_admin_password(admin_password)}))
         write_atomic(directory / "plan.json", canonical(plan))
         if "sourceLock" in plan:
             write_atomic(directory / "source-lock.json", canonical(plan["sourceLock"]))
@@ -1154,7 +1198,7 @@ def initialize_layout(value, plan, manifest, bundle, smtp_password=None):
         # File writes fsync their direct parent. Persist every newly created directory
         # entry as well before making the complete tree visible at its final location.
         folders = [directory, prepared / "jobs", prepared / "installer" / "v1", prepared / "installer", prepared]
-        if "smtp" in plan["options"]:
+        if "smtp" in plan["options"] or "admin" in plan["options"]:
             folders.insert(0, prepared / "config")
         for folder in folders:
             descriptor = os.open(folder, os.O_DIRECTORY)
@@ -1210,7 +1254,12 @@ def apply(request, manifest, bundle):
             validate_smtp_password(smtp_password)
         elif smtp_password not in (None, ""):
             fail("INVALID_SMTP")
-        initialize_layout(value, plan, manifest, bundle, smtp_password)
+        admin_password = request.get("adminPassword")
+        if "admin" in fresh["options"]:
+            validate_admin_password(admin_password)
+        elif admin_password not in (None, ""):
+            fail("INVALID_ADMIN")
+        initialize_layout(value, plan, manifest, bundle, smtp_password, admin_password)
         directory = job_directory(value)
         try:
             start_unit(value)
@@ -1615,8 +1664,13 @@ class Worker:
         return {"GOMAXPROCS": "2", "GOMEMLIMIT": "96MiB", "DB_MAX_OPEN": "3", "DB_MAX_IDLE": "1",
                 "RECORDING_MAX_ACTIVE": "1", "RECORDING_FFMPEG_CONCURRENCY": "1", "RECORDING_DISK_RESERVE_MIB": "2048",
                 "PRODUCT_DELIVERY_CONCURRENCY": "1", "PRODUCT_CALENDAR_CONCURRENCY": "1", "TRANSCRIPTION_CONCURRENCY": "1",
-                "AI_JOB_CONCURRENCY": "1", "AI_CHUNK_CONCURRENCY": "1", "EMBEDDING_CONCURRENCY": "1",
-                "LIVE_MAX_CONFERENCES": "1", "LIVE_MAX_SESSIONS": "10"}
+                "AI_JOB_CONCURRENCY": "1", "AI_CHUNK_CONCURRENCY": "1", "EMBEDDING_CONCURRENCY": "1"}
+
+    def admin_environment(self):
+        admin = getattr(self, "options", {}).get("admin")
+        return {"ADMIN_ENABLED": "true" if admin else "false", "ADMIN_HTTP_PORT": "8082",
+                "ADMIN_HTTPS_PORT": str(admin["httpsPort"] if admin else 8081),
+                "ADMIN_PUBLIC_URL": "https://" + self.options["domain"] + ":" + str(admin["httpsPort"] if admin else 8081)}
 
     def phase_configuration(self):
         self.config.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -1660,12 +1714,18 @@ class Worker:
                 "RECORDER_STORAGE_DIR": str(ROOT / "recordings"), "TLS_CERT_DIR": str(ROOT / "tls"), "TURN_TLS_CERT_DIR": str(ROOT / "tls"),
                 "DB_MAX_OPEN": "10", "DB_MAX_IDLE": "5", "MEDIA_MAX_ROOMS": "10", "MEDIA_MAX_PEERS": "10",
                 "REMINDER_OFFSETS": "3h"})
+            values.update(self.admin_environment())
             values.update(self.compact_environment())
             write_atomic(self.env_file, ("\n".join(key + "=" + value for key, value in sorted(values.items())) + "\n").encode())
         values = self.environment()
-        if any(values.get(key) != value for key, value in self.compact_environment().items()):
+        if any(values.get(key) != value for key, value in {**self.compact_environment(), **self.admin_environment()}.items()):
             fail("CONFIG_CHANGED")
         if values.get("PUBLIC_FRONTEND_URL") != "https://" + self.options["domain"] or values.get("HTTP_TRUSTED_PROXIES") != subnet:
+            fail("CONFIG_CHANGED")
+        try:
+            if len(base64.b64decode(values.get("PROVIDER_TOKEN_ENCRYPTION_KEY", ""), validate=True)) != 32:
+                fail("CONFIG_CHANGED")
+        except (ValueError, TypeError):
             fail("CONFIG_CHANGED")
         route_source = self.release / "dockers/production/routes.conf"
         (self.config / "proxy").mkdir(mode=0o755, exist_ok=True)
@@ -1698,6 +1758,16 @@ server {
  include /etc/nginx/conf.d/routes.inc;
 }
 '''.replace("DOMAIN", self.options["domain"])
+        # Own the read-only proxy configuration. The upstream startup script would
+        # try to write here before the ACME certificate exists, so Compose runs nginx directly.
+        admin_path = self.config / "proxy" / "meetspace-admin.conf"
+        if tls and "admin" in self.options:
+            template = (self.release / "dockers/production/admin.conf.template").read_text()
+            content = template.replace("@@ADMIN_TLS_CERT@@", "/run/certs/fullchain.pem").replace("@@ADMIN_TLS_KEY@@", "/run/certs/privkey.pem")
+            write_atomic(admin_path, content.encode(), 0o644)
+        else:
+            no_symlink(admin_path)
+            admin_path.unlink(missing_ok=True)
         write_atomic(self.config / "proxy" / "default.conf", challenge.encode(), 0o644)
 
     def write_compose(self, values, images):
@@ -1706,8 +1776,8 @@ server {
                   "cap_drop": ["ALL"], "security_opt": ["no-new-privileges:true"], "pids_limit": 512, "networks": private,
                   "labels": {"io.meetspace.installer": self.directory.name}, "logging": {"driver": "json-file", "options": {"max-size": "10m", "max-file": "3"}}}
         services = {}
-        ports = {"api": 8085, "media-worker": 8091, "worker": 8090, "product-worker": 8092, "live-worker": 8093}
-        memory = {"api": "512m", "media-worker": "1g", "worker": "2g", "product-worker": "1g", "live-worker": "512m"}
+        ports = {"api": 8085, "media-worker": 8091, "record-worker": 8090, "product-worker": 8092}
+        memory = {"api": "512m", "media-worker": "1g", "record-worker": "2g", "product-worker": "1g"}
         for name, port in ports.items():
             services[name] = dict(common, image=images[name], read_only=True, mem_limit=memory[name], cpus=2,
                 healthcheck={"test": ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:" + str(port) + "/health/ready"], "interval": "5s", "timeout": "3s", "retries": 18, "start_period": "30s"})
@@ -1716,16 +1786,17 @@ server {
                 services[name].update(env_file=[str(self.env_file), str(self.config / "smtp.env")],
                                       environment={"EMAIL_PROVIDER_MODE": "smtp"})
         services["media-worker"]["ports"] = ["50010:50010/udp", "50010:50010/tcp"]
-        services["worker"].update(user="1000:1000", entrypoint="/app/go-recorder-worker", read_only=False,
+        services["record-worker"].update(user="1000:1000", entrypoint="/app/record-worker", read_only=False,
             volumes=[str(ROOT / "recordings") + ":/storage"], environment={"WEBRTC_UDP_PORT": "0", "WEBRTC_TCP_PORT": "0"})
         services["product-worker"]["tmpfs"] = ["/tmp:size=512m,mode=1777"]
-        services["live-worker"]["tmpfs"] = ["/tmp:size=16m,mode=1777"]
         services["frontend"] = {"image": images["frontend"], "restart": "unless-stopped", "networks": private, "mem_limit": "128m",
             "environment": {key: values[key] for key in ("APP_ENV", "PUBLIC_FRONTEND_URL", "MINIO_PUBLIC_ENDPOINT")},
             "labels": common["labels"], "logging": common["logging"]}
-        services["proxy"] = {"image": images["proxy"], "restart": "unless-stopped", "networks": private, "mem_limit": "128m", "ports": ["80:80", "443:443"],
+        services["proxy"] = {"image": images["proxy"], "entrypoint": ["nginx", "-g", "daemon off;"], "restart": "unless-stopped", "networks": private, "mem_limit": "128m", "ports": ["80:80", "443:443"],
             "volumes": [str(self.config / "proxy") + ":/etc/nginx/conf.d:ro",
                         str(ROOT / "tls") + ":/run/certs:ro", str(ROOT / "challenge") + ":/var/www/certbot:ro"], "labels": common["labels"], "logging": common["logging"]}
+        if "admin" in getattr(self, "options", {}):
+            services["proxy"]["ports"].append(str(self.options["admin"]["httpsPort"]) + ":8081")
         services["postgres"] = {"image": images["postgres"], "restart": "unless-stopped", "env_file": [str(self.env_file)], "networks": private,
             "volumes": ["postgres:/var/lib/postgresql/data"], "mem_limit": "512m", "command": ["postgres", "-c", "max_connections=80", "-c", "shared_buffers=128MB"],
             "healthcheck": {"test": ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"], "interval": "5s", "timeout": "3s", "retries": 24}, "labels": common["labels"]}
@@ -1746,13 +1817,13 @@ server {
             "ports": ["3478:3478/udp", "3478:3478/tcp", "5349:5349/tcp", "49160-49259:49160-49259/udp"], "labels": common["labels"], "logging": common["logging"]}
         services["migrate"] = dict(common, image=images["api"] , profiles=["migration"], restart="no", read_only=True, entrypoint=["/app/recorder-migrate", "migrate"])
         if self.compact:
-            # 2128 MiB total for long-running services leaves at least 944 MiB
+            # 2032 MiB total for long-running services leaves at least 1040 MiB
             # for the host at this profile's minimum 3 GiB of usable RAM.
-            memory = {"api": 160, "media-worker": 256, "worker": 512, "product-worker": 256, "live-worker": 96,
+            memory = {"api": 160, "media-worker": 256, "record-worker": 512, "product-worker": 256,
                       "frontend": 48, "proxy": 48, "postgres": 160, "redis": 64, "rabbitmq": 224, "minio": 224, "coturn": 80, "migrate": 160}
-            heaps = {"api": 96, "media-worker": 160, "worker": 80, "product-worker": 128, "live-worker": 64, "minio": 128, "migrate": 96}
+            heaps = {"api": 96, "media-worker": 160, "record-worker": 80, "product-worker": 128, "minio": 128, "migrate": 96}
             for name, budget in memory.items():
-                services[name].update(mem_limit=str(budget) + "m", memswap_limit=str(budget) + "m", cpus=1.25 if name == "worker" else 1 if name == "media-worker" else 0.5)
+                services[name].update(mem_limit=str(budget) + "m", memswap_limit=str(budget) + "m", cpus=1.25 if name == "record-worker" else 1 if name == "media-worker" else 0.5)
                 if name in heaps:
                     services[name]["environment"] = dict(services[name].get("environment", {}), GOMAXPROCS="2", GOMEMLIMIT=str(heaps[name]) + "MiB")
             # Transcription can download a 1 GiB input plus audio into /tmp.
@@ -1839,6 +1910,48 @@ server {
         # Backend uses a transaction + advisory lock + checksum ledger, so a replay cannot
         # blindly apply a previously committed migration after a lost client checkpoint.
         self.compose("--profile", "migration", "run", "--rm", "--no-deps", "--name", name, "migrate", timeout=420, code="MIGRATION_FAILED")
+        self.bootstrap_administrator()
+
+    def administrator_command(self, command, data=None):
+        result = strict_json(self.compose("run", "--rm", "--no-deps", "-T", "--entrypoint",
+            "/app/meetspace-admin", "api", command, capture=True, data=data, code="ADMIN_BOOTSTRAP_FAILED"))
+        return result
+
+    def bootstrap_administrator(self):
+        if "admin" not in self.options:
+            return
+        secret_path = self.config / "admin-bootstrap.json"
+        no_symlink(secret_path)
+        current = self.administrator_command("status")
+        if current.get("exists") is True:
+            if current.get("username") != self.options["admin"]["username"]:
+                fail("ADMIN_ACCOUNT_MISMATCH")
+            secret_path.unlink(missing_ok=True)
+            return
+        if current.get("exists") is not False:
+            fail("ADMIN_BOOTSTRAP_FAILED")
+        try:
+            info = secret_path.stat()
+            if not stat.S_ISREG(info.st_mode) or info.st_uid != 0 or info.st_mode & 0o077 or info.st_size > 4096:
+                fail("ADMIN_CONFIG_INVALID")
+            raw = secret_path.read_bytes()
+            value = strict_json(raw, maximum=4096)
+            if set(value) != {"username", "password"} or value["username"] != self.options["admin"]["username"]:
+                fail("ADMIN_CONFIG_INVALID")
+            validate_admin_password(value["password"])
+            result = self.administrator_command("bootstrap", data=raw)
+            if result.get("username") != value["username"]:
+                fail("ADMIN_BOOTSTRAP_FAILED")
+            # Confirm in the database before deleting the only recovery copy. A lost
+            # bootstrap response keeps it; the next status reconciles without a reset.
+            current = self.administrator_command("status")
+            if current.get("exists") is not True or current.get("username") != value["username"]:
+                fail("ADMIN_BOOTSTRAP_FAILED")
+            secret_path.unlink()
+        except OSError:
+            fail("ADMIN_CONFIG_INVALID")
+        finally:
+            raw = value = None
 
     def certbot(self, *args):
         image = read_json(self.images_file)["certbot"]
@@ -1886,8 +1999,8 @@ server {
     def phase_services(self):
         self.compose("up", "-d", "--no-build", "--no-deps", "media-worker")
         self.wait_healthy(("media-worker",))
-        self.compose("up", "-d", "--no-build", "--no-deps", "api", "worker", "product-worker", "live-worker", "frontend", "coturn")
-        self.wait_healthy(("api", "worker", "product-worker", "live-worker", "frontend"))
+        self.compose("up", "-d", "--no-build", "--no-deps", "api", "record-worker", "product-worker", "frontend", "coturn")
+        self.wait_healthy(("api", "record-worker", "product-worker", "frontend"))
 
     def https_json(self, path):
         request = urllib.request.Request("https://" + self.options["domain"] + path, headers={"User-Agent": "MeetSpace-Installer/1"})
@@ -1901,8 +2014,35 @@ server {
         except (OSError, urllib.error.URLError, ValueError):
             fail("HTTPS_READINESS")
 
+    def verify_administrator_https(self):
+        if "admin" not in self.options:
+            return
+        # A loopback connection with hostname verification/SNI checks this proxy,
+        # not an unrelated upstream host. It does not claim external firewall access.
+        context = ssl.create_default_context()
+        for port, path, expected in ((self.options["admin"]["httpsPort"], "/", 200),
+                                     (self.options["admin"]["httpsPort"], "/api/v1/admin/auth/me", 401),
+                                     (443, "/api/v1/admin/auth/me", 404)):
+            connection = http.client.HTTPSConnection(self.options["domain"], port, timeout=15, context=context)
+            try:
+                raw = socket.create_connection(("127.0.0.1", port), timeout=15)
+                try:
+                    connection.sock = context.wrap_socket(raw, server_hostname=self.options["domain"])
+                except BaseException:
+                    raw.close()
+                    raise
+                connection.request("GET", path)
+                response = connection.getresponse()
+                if response.status != expected:
+                    fail("ADMIN_HTTPS_READINESS")
+                response.read(4096)
+            except (OSError, http.client.HTTPException):
+                fail("ADMIN_HTTPS_READINESS")
+            finally:
+                connection.close()
+
     def phase_readiness(self):
-        self.wait_healthy(("postgres", "redis", "rabbitmq", "minio", "media-worker", "api", "worker", "product-worker", "live-worker", "frontend"))
+        self.wait_healthy(("postgres", "redis", "rabbitmq", "minio", "media-worker", "api", "record-worker", "product-worker", "frontend"))
         images = read_json(self.images_file)
         document = read_json(self.compose_file)
         for name in document["services"]:
@@ -1947,6 +2087,12 @@ server {
                     "checks": ["service-health", "image-ids", "private-ports", "https-system-trust", "api-version", "frontend-version", "wss-unauthenticated-denied", "turn-tls", "turn-auth", "turn-private-peer-denied"],
                     "externalCloudFirewallVerified": False, "mediaEndToEndVerified": False,
                     "publicCaIssuance": self.manifest["profile"] == "source-v1"}
+        if "admin" in self.options:
+            self.verify_administrator_https()
+            evidence["checks"].extend(["admin-https", "admin-auth-required", "public-admin-denied", "admin-bootstrapped"])
+            evidence["adminUrl"] = self.admin_environment()["ADMIN_PUBLIC_URL"]
+            evidence["adminUsername"] = self.options["admin"]["username"]
+            evidence["ldapConfigured"] = False
         if "imageLock" in self.plan:
             evidence["imageLock"] = self.plan["imageLock"]
         write_atomic(self.directory / "evidence.json", canonical(evidence))
@@ -2050,7 +2196,7 @@ def main(action, request):
     if os.geteuid() != 0:
         fail("ROOT_REQUIRED")
     os.umask(0o077)
-    if action != "apply" and isinstance(request, dict) and "smtpPassword" in request:
+    if action != "apply" and isinstance(request, dict) and ({"smtpPassword", "adminPassword"} & request.keys()):
         fail("INVALID_REQUEST")
     manifest, bundle = load_bundle()
     if action == "plan":

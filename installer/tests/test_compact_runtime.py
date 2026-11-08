@@ -50,7 +50,7 @@ class CompactRuntimeTests(unittest.TestCase):
             self.assertIn("--maxmemory 32mb", services["redis"]["command"][-1])
             self.assertIn("max_connections=40", services["postgres"]["command"])
             self.assertEqual("+S 1:1 +A 2", services["rabbitmq"]["environment"]["RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS"])
-            for name in ("api", "media-worker", "worker", "product-worker", "live-worker", "minio", "migrate"):
+            for name in ("api", "media-worker", "record-worker", "product-worker", "minio", "migrate"):
                 self.assertEqual("2", services[name]["environment"]["GOMAXPROCS"])
                 self.assertLess(int(services[name]["environment"]["GOMEMLIMIT"].removesuffix("MiB")), int(services[name]["mem_limit"].removesuffix("m")))
             self.assertNotIn("tmpfs", services["product-worker"])
@@ -77,7 +77,7 @@ class CompactRuntimeTests(unittest.TestCase):
             root = pathlib.Path(directory)
             worker = self.worker(root, "standard")
             document, values = self.configure(root, worker)
-            self.assertEqual("2g", document["services"]["worker"]["mem_limit"])
+            self.assertEqual("2g", document["services"]["record-worker"]["mem_limit"])
             self.assertEqual("512m", document["services"]["postgres"]["mem_limit"])
             self.assertEqual(["/tmp:size=512m,mode=1777"], document["services"]["product-worker"]["tmpfs"])
             self.assertNotIn("user", document["services"]["product-worker"])

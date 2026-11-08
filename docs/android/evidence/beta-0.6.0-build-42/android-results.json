@@ -1,0 +1,13 @@
+{
+  "success": true,
+  "passed": 30,
+  "skipped": 0,
+  "failed": 0,
+  "physicalDevice": false,
+  "classes": [
+    "InstallerUiTest",
+    "SshWizardUiTest",
+    "NavigationAvatarUiTest",
+    "NativeLibrariesSmokeTest"
+  ]
+}

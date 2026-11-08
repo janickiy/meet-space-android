@@ -17,7 +17,7 @@ import kotlinx.serialization.json.*
 
 interface SshInstallerRepository {
     suspend fun plan(endpoint: SshEndpoint, credentials: SshCredentials, options: InstallOptions, expectedHostKey: SshHostKey? = null): InstallPlan
-    suspend fun apply(ticket: InstallTicket, credentials: SshCredentials, dockerConsent: Boolean, acmeConsent: Boolean, expectedHostKey: SshHostKey? = null, smtpPassword: ByteArray? = null): InstallStatus
+    suspend fun apply(ticket: InstallTicket, credentials: SshCredentials, dockerConsent: Boolean, acmeConsent: Boolean, expectedHostKey: SshHostKey? = null, smtpPassword: ByteArray? = null, adminPassword: ByteArray? = null): InstallStatus
     suspend fun control(action: String, ticket: InstallTicket, credentials: SshCredentials, expectedHostKey: SshHostKey? = null): InstallStatus
     suspend fun pending(): InstallTicket?
     suspend fun remember(ticket: InstallTicket)
@@ -33,15 +33,20 @@ internal class AndroidSshInstallerRepository(private val context: Context, priva
     private val pins = AndroidHostPinStore(context)
     private val transport = JschSshTransport()
     private val bundle by lazy { testBundle ?: InstallerBundle(InstallerBundle.names.associateWith { name -> context.assets.open(name).use { it.readBytes() } }) }
+    private val bundles by lazy {
+        if (testBundle != null) InstallerBundles(bundle) else InstallerBundles(bundle, listOf(
+            InstallerBundle(InstallerBundle.names.associateWith { name -> context.assets.open("0.5.2/$name").use { it.readBytes() } })
+        ))
+    }
     private val storageKey = stringPreferencesKey("public_ticket_v1")
 
-    private suspend fun request(endpoint: SshEndpoint, credentials: SshCredentials, action: String, data: JsonObject, expectedHostKey: SshHostKey?): JsonObject = try {
+    private suspend fun request(endpoint: SshEndpoint, credentials: SshCredentials, action: String, data: JsonObject, expectedHostKey: SshHostKey?, executionBundle: InstallerBundle = bundle): JsonObject = try {
         boundedInstallerRequest(timeoutMillis = if (action == "plan") 180_000 else 60_000) {
             val valid = SshInputValidator.validate(endpoint.host, endpoint.port.toString(), endpoint.user, "example.com").endpoint
             require(valid == endpoint)
             val pin = pins.read(endpoint) ?: throw SshFailure(SshFailureKind.UNTRUSTED_HOST, "Сначала подтвердите ключ SSH-сервера.")
             requireInstallerHostKey(pin, expectedHostKey)
-            val payload = withContext(Dispatchers.IO) { bundle.payload(action, data) }
+            val payload = withContext(Dispatchers.IO) { executionBundle.payload(action, data) }
             try { parseInstallerReply(transport.executeInstaller(endpoint, credentials, pin, payload)) }
             finally { payload.fill(0) }
         }
@@ -55,6 +60,10 @@ internal class AndroidSshInstallerRepository(private val context: Context, priva
                 require(validImageRelease(options.imageRelease))
                 put("imageRelease", options.imageRelease)
             }
+            options.admin?.let { admin ->
+                require(admin.isValid())
+                put("admin", buildJsonObject { put("username", admin.username); put("httpsPort", admin.httpsPort) })
+            }
             options.smtp?.let { smtp ->
                 require(smtp.isValid())
                 put("smtp", buildJsonObject {
@@ -63,23 +72,31 @@ internal class AndroidSshInstallerRepository(private val context: Context, priva
                 })
             }
         }) }, expectedHostKey)
-        bundle.parsePlan(result)
+        bundles.parse(result, allowHistorical = result.optional("existingJobId") != null)
     } finally { credentials.destroy() }
-    override suspend fun apply(ticket: InstallTicket, credentials: SshCredentials, dockerConsent: Boolean, acmeConsent: Boolean, expectedHostKey: SshHostKey?, smtpPassword: ByteArray?): InstallStatus = try {
+    override suspend fun apply(ticket: InstallTicket, credentials: SshCredentials, dockerConsent: Boolean, acmeConsent: Boolean, expectedHostKey: SshHostKey?, smtpPassword: ByteArray?, adminPassword: ByteArray?): InstallStatus = try {
         if (ticket.plan.options.smtp != null) require(smtpPassword != null && smtpPassword.isNotEmpty() && smtpPassword.size <= 4096 && smtpPassword.none { it == 0.toByte() || it == 10.toByte() || it == 13.toByte() })
+        if (ticket.plan.options.admin != null) {
+            requireNotNull(adminPassword)
+            val decoded = adminPassword.toString(Charsets.UTF_8)
+            val encoded = decoded.toByteArray(Charsets.UTF_8)
+            try { require(isValidInstallAdminPassword(decoded) && adminPassword.contentEquals(encoded)) }
+            finally { encoded.fill(0) }
+        }
         parseInstallStatus(request(ticket.endpoint, credentials, "apply", buildJsonObject {
             put("plan", jsonObject(ticket.plan.json)); put("jobId", ticket.jobId); put("confirmedPlanHash", ticket.plan.hash)
             put("confirmDockerInstall", dockerConsent); put("acceptAcmeTerms", acmeConsent)
             if (ticket.plan.options.smtp != null) put("smtpPassword", requireNotNull(smtpPassword).toString(Charsets.UTF_8))
-        }, expectedHostKey), ticket)
-    } finally { smtpPassword?.fill(0); credentials.destroy() }
-    override suspend fun control(action: String, ticket: InstallTicket, credentials: SshCredentials, expectedHostKey: SshHostKey?): InstallStatus {
+            if (ticket.plan.options.admin != null) put("adminPassword", requireNotNull(adminPassword).toString(Charsets.UTF_8))
+        }, expectedHostKey, bundles.forPlan(jsonObject(ticket.plan.json), allowHistorical = true)), ticket)
+    } finally { smtpPassword?.fill(0); adminPassword?.fill(0); credentials.destroy() }
+    override suspend fun control(action: String, ticket: InstallTicket, credentials: SshCredentials, expectedHostKey: SshHostKey?): InstallStatus = try {
         require(action in setOf("status", "cancel", "resume"))
-        return parseInstallStatus(request(ticket.endpoint, credentials, action, buildJsonObject {
+        parseInstallStatus(request(ticket.endpoint, credentials, action, buildJsonObject {
             put("jobId", ticket.jobId); put("planHash", ticket.planHash)
             if (action == "resume") put("confirmedPlanHash", ticket.planHash)
-        }, expectedHostKey), ticket)
-    }
+        }, expectedHostKey, bundles.forPlan(jsonObject(ticket.plan.json), allowHistorical = true)), ticket)
+    } finally { credentials.destroy() }
     override suspend fun remember(ticket: InstallTicket) {
         require(UUID.fromString(ticket.jobId).toString() == ticket.jobId)
         val raw = buildJsonObject {
@@ -92,7 +109,7 @@ internal class AndroidSshInstallerRepository(private val context: Context, priva
         val raw = context.installPreferences.data.first()[storageKey] ?: return null
         val data = jsonObject(raw)
         val endpoint = SshInputValidator.validate(data.string("host"), data.string("port"), data.string("user"), "example.com").endpoint
-        return InstallTicket(endpoint, withContext(Dispatchers.IO) { bundle.parsePlan(data.getValue("plan").jsonObject) }, data.string("jobId"))
+        return InstallTicket(endpoint, withContext(Dispatchers.IO) { bundles.parse(data.getValue("plan").jsonObject, allowHistorical = true) }, data.string("jobId"))
     }
     override suspend fun forget() { context.installPreferences.edit { it.remove(storageKey) } }
 }

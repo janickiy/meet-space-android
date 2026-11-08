@@ -2,6 +2,8 @@ package com.meetspace.app
 
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.StateRestorationTester
+import androidx.compose.ui.semantics.SemanticsProperties
 import com.meetspace.app.ui.InstallerUi
 import com.meetspace.core.designsystem.MeetSpaceTheme
 import com.meetspace.core.model.*
@@ -19,7 +21,7 @@ class InstallerUiTest {
     private val ticket=InstallTicket(endpoint,plan,"6f0f7f66-ea40-406e-a582-98bb9df557ca")
     private fun render(state:InstallerUiState,apply:(Boolean,Boolean,Boolean)->Unit={_,_,_->},detach:()->Unit={},control:(String)->Unit={},
         onConnect:(String)->Unit={},onCreateAccount:((String)->Unit)?=null,onAuthenticate:(InstallOptions,String,Boolean)->Unit={_,_,_->}) {
-        compose.setContent { editor.Observe(); MeetSpaceTheme { InstallerUi(state,{}, onAuthenticate,{ a,b,c,_ -> apply(a,b,c) },control,detach,{}, onConnect,
+        compose.setContent { editor.Observe(); MeetSpaceTheme { InstallerUi(state,{}, onAuthenticate,{ a,b,c,_,_ -> apply(a,b,c) },control,detach,{}, onConnect,
             onCreateAccount=onCreateAccount) } }
     }
     @Test fun planAllowsAnOptionalCertificateEmail() {
@@ -89,7 +91,7 @@ class InstallerUiTest {
         var submitted:String?=null
         compose.setContent { editor.Observe(); MeetSpaceTheme { InstallerUi(
             InstallerUiState(active=true,screen=InstallScreen.PLAN,endpoint=endpoint,plan=smtpPlan,needsAccess=false),
-            {},{_,_,_->},{_,_,_,password->submitted=password},{},{},{},{}) } }
+            {},{_,_,_->},{_,_,_,password,_->submitted=password},{},{},{},{}) } }
         compose.onNodeWithTag("install-confirm").performScrollTo().performClick()
         compose.onNodeWithTag("install-acme-consent").performScrollTo().performClick()
         compose.onNodeWithTag("install-apply").performScrollTo().assertIsNotEnabled()
@@ -97,6 +99,65 @@ class InstallerUiTest {
         compose.settleFormEditorForClick(editor, compose.onNodeWithTag("install-apply")).assertIsEnabled().performClick()
         compose.runOnIdle { assertEquals("smtp-test-only",submitted) }
         compose.onNodeWithTag("install-apply").assertIsNotEnabled()
+    }
+    @Test fun adminAccessNormalizesLoginAndRejectsConflictingPortWithoutSshPrompt() {
+        var submitted: InstallOptions? = null
+        render(InstallerUiState(active = true, screen = InstallScreen.ACCESS, endpoint = endpoint,
+            options = plan.options.copy(admin = InstallAdminOptions()), needsAccess = false),
+            onAuthenticate = { options, _, _ -> submitted = options })
+        compose.onNodeWithTag("install-password").assertDoesNotExist()
+        compose.onNodeWithTag("install-admin-password").assertDoesNotExist()
+        compose.onNodeWithTag("install-admin-username").performScrollTo().performTextReplacement("Owner+Admin@example.com")
+        compose.onNodeWithTag("install-admin-port").performScrollTo().performTextReplacement("8082")
+        compose.settleFormEditorForClick(editor, compose.onNodeWithTag("install-plan")).assertIsNotEnabled()
+        compose.onNodeWithTag("install-admin-port").performScrollTo().performTextReplacement("9443")
+        compose.settleFormEditorForClick(editor, compose.onNodeWithTag("install-plan")).assertIsEnabled().performClick()
+        compose.runOnIdle { assertEquals(InstallAdminOptions("owner+admin@example.com", 9443), submitted?.admin) }
+    }
+    @Test fun adminPasswordNeedsMatchingConfirmationAndIsClearedAfterSubmit() {
+        val adminPlan = plan.copy(installDocker = false, options = plan.options.copy(admin = InstallAdminOptions()))
+        var submitted: String? = null
+        compose.setContent { editor.Observe(); MeetSpaceTheme { InstallerUi(
+            InstallerUiState(active = true, screen = InstallScreen.PLAN, endpoint = endpoint, plan = adminPlan, needsAccess = false),
+            {}, { _, _, _ -> }, { _, _, _, _, password -> submitted = password }, {}, {}, {}, {}) } }
+        compose.onNodeWithTag("install-confirm").performScrollTo().performClick()
+        compose.onNodeWithTag("install-acme-consent").performScrollTo().performClick()
+        compose.onNodeWithTag("install-apply").performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithTag("install-admin-password").performScrollTo().performTextInput("test-admin-password")
+        compose.onNodeWithTag("install-admin-confirmation").performScrollTo().performTextInput("wrong-password")
+        compose.settleFormEditorForClick(editor, compose.onNodeWithTag("install-apply")).assertIsNotEnabled()
+        compose.onNodeWithTag("install-admin-confirmation").performScrollTo().performTextReplacement("test-admin-password")
+        compose.settleFormEditorForClick(editor, compose.onNodeWithTag("install-apply")).assertIsEnabled().performClick()
+        compose.runOnIdle { assertEquals("test-admin-password", submitted) }
+        compose.onNodeWithTag("install-apply").assertIsNotEnabled()
+        compose.onNodeWithTag("install-admin-password").performScrollTo().assert(
+            SemanticsMatcher.expectValue(SemanticsProperties.EditableText, androidx.compose.ui.text.AnnotatedString("")))
+    }
+    @Test fun adminPasswordsDoNotSurviveSavedStateRestoration() {
+        val restoration = StateRestorationTester(compose)
+        val adminPlan = plan.copy(installDocker = false, options = plan.options.copy(admin = InstallAdminOptions()))
+        restoration.setContent { editor.Observe(); MeetSpaceTheme { InstallerUi(
+            InstallerUiState(active = true, screen = InstallScreen.PLAN, endpoint = endpoint, plan = adminPlan, needsAccess = false),
+            {}, { _, _, _ -> }, { _, _, _, _, _ -> }, {}, {}, {}, {}) } }
+        compose.onNodeWithTag("install-admin-password").performScrollTo().performTextInput("test-admin-password")
+        compose.onNodeWithTag("install-admin-confirmation").performScrollTo().performTextInput("test-admin-password")
+        restoration.emulateSavedInstanceStateRestore()
+        for (tag in listOf("install-admin-password", "install-admin-confirmation")) {
+            compose.onNodeWithTag(tag).performScrollTo().assert(
+                SemanticsMatcher.expectValue(SemanticsProperties.EditableText, androidx.compose.ui.text.AnnotatedString("")))
+        }
+    }
+    @Test fun completedAdminProvidesSeparateAddressAndLdapSetupGuidance() {
+        val adminPlan = plan.copy(options = plan.options.copy(admin = InstallAdminOptions("owner", 9443)))
+        val adminTicket = ticket.copy(plan = adminPlan)
+        render(InstallerUiState(active = true, screen = InstallScreen.PROGRESS, endpoint = endpoint,
+            plan = adminPlan, ticket = adminTicket, needsAccess = false,
+            status = InstallStatus(ticket.jobId, "completed", "readiness", installPhases, emptyList(), null)))
+        compose.onNodeWithTag("install-admin-url").performScrollTo().assertTextEquals("https://meet.example.com:9443")
+        compose.onNodeWithText("LDAP / Active Directory настраивается", substring = true).assertExists()
+        compose.onNodeWithTag("install-admin-open").performScrollTo().assertIsEnabled()
+        compose.onNodeWithTag("install-admin-copy").performScrollTo().assertIsEnabled()
+        compose.onNodeWithTag("install-admin-password").assertDoesNotExist()
     }
     @Test fun verifiedHostnameAccessReviewsOptionsWithoutRepeatingSshCredentials() {
         var submitted:InstallOptions?=null; var secret:String?=null; var useKey=true

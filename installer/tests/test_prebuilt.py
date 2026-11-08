@@ -39,6 +39,25 @@ class PrebuiltTests(unittest.TestCase):
             function(*args, **kwargs)
         self.assertEqual(code, caught.exception.code)
 
+    def test_only_descendants_of_unified_ldap_baseline_are_accepted(self):
+        minimum = self.recipe['commit']
+        with patch.object(r, 'github_json') as lookup:
+            r.require_compatible_prebuilt_commit(self.recipe, minimum)
+            lookup.assert_not_called()
+        valid = dict(status='ahead', base_commit={'sha': minimum}, merge_base_commit={'sha': minimum}, behind_by=0, ahead_by=3)
+        with patch.object(r, 'github_json', return_value=valid) as lookup:
+            r.require_compatible_prebuilt_commit(self.recipe, self.commit)
+        self.assertEqual('/compare/' + minimum + '...' + self.commit + '?per_page=1&page=2', lookup.call_args.args[0])
+        for changed in (dict(status='behind'), dict(status='diverged'), dict(base_commit={'sha': self.commit}),
+                        dict(merge_base_commit={'sha': self.commit}), dict(base_commit=None), dict(merge_base_commit=[]), dict(behind_by=1), dict(ahead_by=False)):
+            with patch.object(r, 'github_json', return_value=dict(valid, **changed)):
+                self.rejected('SOURCE_INCOMPATIBLE', r.require_compatible_prebuilt_commit, self.recipe, self.commit)
+
+    def test_prebuilt_versions_support_current_unprefixed_release_tags(self):
+        self.assertTrue(r.valid_prebuilt_version('0.6.1'))
+        self.assertTrue(r.valid_prebuilt_version('v0.6.1'))
+        self.assertFalse(r.valid_prebuilt_version('0.6.1;id'))
+
     def test_modes_keep_legacy_source_default_and_reject_unknown_inputs(self):
         self.assertEqual('source', r.image_mode({}))
         for mode in ('source', 'images'):
@@ -66,7 +85,8 @@ class PrebuiltTests(unittest.TestCase):
         responses = [(releases if releases is not None else [self.release], 'e' * 64),
                      (self.index if index is None else index, self.lock['indexSha256'])]
         commits = [{'sha': self.commit, 'commit': {'committer': {'date': self.source['builtAt']}}}]
-        with patch.object(r, 'asset_json', side_effect=responses), patch.object(r, 'github_json', return_value=commits), \
+        comparison = dict(status='ahead', base_commit={'sha': self.recipe['commit']}, merge_base_commit={'sha': self.recipe['commit']}, behind_by=0, ahead_by=3)
+        with patch.object(r, 'asset_json', side_effect=responses), patch.object(r, 'github_json', side_effect=[commits, comparison]), \
              patch.object(r, 'source_snapshot', return_value=(self.source['sourceSha256'], self.source['sourceFiles'])) as snapshot:
             result = r.resolve_prebuilt(self.recipe, self.arch)
             snapshot.assert_called_once_with(self.commit, self.recipe, building=False)
@@ -234,7 +254,7 @@ class PrebuiltTests(unittest.TestCase):
                  patch.object(worker, 'image_details', side_effect=inspect), patch.object(r, 'resolve_prebuilt') as resolve:
                 worker.phase_images()
                 self.assertEqual(['load', 'pull'], [call.args[0][1] for call in execute.call_args_list])
-                self.assertEqual(13, len(r.read_json(worker.images_file)))  # 12 deployed + certbot
+                self.assertEqual(12, len(r.read_json(worker.images_file)))  # 11 deployed + certbot
                 execute.reset_mock()
                 worker.phase_images()
                 execute.assert_not_called(); resolve.assert_not_called()

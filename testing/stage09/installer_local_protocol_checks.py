@@ -24,7 +24,8 @@ with tempfile.TemporaryDirectory(prefix='meetspace-stage09-protocol-') as d,patc
  state=r.read_json(directory/'state.json');assert state['sequence']==100 and len(state['events'])==64
  checks['journal100WritesKeeps64EventsAndCompletedPhases']=True
  manifest=json.loads((root/'installer/v1/release.json').read_text())
- plan={'hash':'f'*64,'options':{'domain':'fixture.example.invalid'},'commit':manifest['commit'],'releaseVersion':manifest['version'],'releaseSha256':r.digest(r.canonical(manifest))}
+ plan={'options':{'domain':'fixture.example.invalid'},'commit':manifest['commit'],'releaseVersion':manifest['version'],'releaseSha256':r.digest(r.canonical(manifest))}
+ plan['hash']=r.digest(r.canonical(plan))
  r.write_atomic(directory/'plan.json',r.canonical(plan));state['at']=int(time.time())-20;r.write_atomic(directory/'state.json',r.canonical(state))
  with patch.object(r,'ROOT',base),patch.object(r,'unit_active',return_value=False):
   assert r.status(job)['state']=='needs_recovery' and r.status(job)['errorCode']=='WORKER_INTERRUPTED'

@@ -31,10 +31,11 @@ class InstallerViewModelTest {
         model.apply(false,true,true);model.apply(true,false,true);model.apply(true,true,false);runCurrent()
         assertEquals(0,repo.applyCount); assertEquals(InstallScreen.PLAN,model.state.value.screen);model.detach()
     }
-    @Test fun newInstallDefaultsToImagesAndCanChangeModeBeforeApplyWithoutAnotherPassword() = runTest(dispatcher) {
+    @Test fun newInstallDefaultsToSourceWithAdminAndCanChangeModeWithoutAnotherSshPassword() = runTest(dispatcher) {
         val repo = Fake(); val model = InstallerViewModel(repo)
         model.start(endpoint, options.domain, verified()); runCurrent()
-        assertEquals(InstallImageMode.IMAGES, model.state.value.options.imageMode)
+        assertEquals(InstallImageMode.SOURCE, model.state.value.options.imageMode)
+        assertEquals(InstallAdminOptions(), model.state.value.options.admin)
         val images = options.copy(imageMode = InstallImageMode.IMAGES)
         model.authenticate(images, "", false); runCurrent()
         assertEquals(InstallImageMode.IMAGES, model.state.value.plan?.options?.imageMode)
@@ -69,6 +70,47 @@ class InstallerViewModelTest {
             assertFalse(repo.saved.toString().contains("smtp-test-only"))
             model.detach()
         }
+    }
+    @Test fun adminSecretIsApplyOnlyAndErasedAfterSuccessOrLostResponse() = runTest(dispatcher) {
+        val admin = InstallAdminOptions("owner+admin@example.com", 9443)
+        for (lostResponse in listOf(false, true)) {
+            val repo = Fake().apply { loseApply = lostResponse }
+            val model = InstallerViewModel(repo)
+            model.start(endpoint, options.domain, verified()); runCurrent()
+            model.authenticate(options.copy(admin = admin), "", false); runCurrent()
+            assertEquals(admin, model.state.value.plan?.options?.admin)
+            assertNull(repo.adminBuffer)
+            for (invalid in listOf("", "1234567", "😀".repeat(7), "a".repeat(129), "password\n")) {
+                model.apply(true, true, true, adminPassword = invalid); runCurrent()
+                assertEquals(0, repo.applyCount)
+            }
+            val password = "Пароль только для теста 123"
+            model.apply(true, true, true, adminPassword = password); runCurrent()
+            assertEquals(1, repo.applyCount); assertEquals(password, repo.adminReceived)
+            assertTrue(repo.adminBuffer!!.all { it == 0.toByte() })
+            assertFalse(repo.saved.toString().contains(password))
+            assertFalse(model.state.value.toString().contains(password))
+            assertTrue(repo.hostKeys.all { it == hostKey })
+            model.detach()
+        }
+    }
+    @Test fun adminSecretErasedWhenApplyIsCancelledAndResumeDoesNotAskForItAgain() = runTest(dispatcher) {
+        val repo = Fake().apply { applyGate = CompletableDeferred() }
+        val model = InstallerViewModel(repo)
+        model.start(endpoint, options.domain, verified()); runCurrent()
+        model.authenticate(options.copy(admin = InstallAdminOptions()), "", false); runCurrent()
+        model.apply(true, true, true, adminPassword = "test-only-admin"); runCurrent()
+        assertEquals(1, repo.applyCount)
+        val saved = repo.saved
+        model.detach(); runCurrent()
+        assertTrue(repo.adminBuffer!!.all { it == 0.toByte() })
+        model.reconnect(); runCurrent()
+        model.authenticate(options, "ssh-test-only", false); runCurrent()
+        model.control("resume"); runCurrent()
+        assertEquals(saved, model.state.value.ticket)
+        assertEquals("resume", repo.lastControl)
+        assertEquals(1, repo.applyCount)
+        model.detach()
     }
     @Test fun verifiedIpAccessReviewsSmtpWithoutSecondPasswordAndStillRequiresConsent() = runTest(dispatcher) {
         val target = endpoint.copy(host = "8.8.8.8")
@@ -358,6 +400,7 @@ class InstallerViewModelTest {
         var saved:InstallTicket?=null;var applyCount=0;var statusCalls=0;var loseApply=false;var missing=false;var expired=false;var lastControl:String?=null;var remoteState="running"
         var statusGate:CompletableDeferred<Unit>?=null;var applyGate:CompletableDeferred<Unit>?=null;var ignoreStatusCancellation=false;var planFailure:String?=null
         var smtpBuffer:ByteArray?=null;var smtpReceived:String?=null
+        var adminBuffer:ByteArray?=null;var adminReceived:String?=null
         var planGate:CompletableDeferred<Unit>?=null;var pendingGate:CompletableDeferred<Unit>?=null;var ignorePlanCancellation=false;var planCalls=0
         val mutations=mutableListOf<String>();val captured=mutableListOf<SshCredentials.Password>();val controls=mutableListOf<String>()
         val allCaptured=mutableListOf<SshCredentials>()
@@ -371,8 +414,9 @@ class InstallerViewModelTest {
                 planFailure?.let { throw InstallFailure(it) };return if(expired)plan.copy(expiresAt=0,options=options) else plan.copy(options=options)
             } finally { destroy(credentials) }
         }
-        override suspend fun apply(ticket:InstallTicket,credentials:SshCredentials,dockerConsent:Boolean,acmeConsent:Boolean,expectedHostKey:SshHostKey?,smtpPassword:ByteArray?):InstallStatus {
+        override suspend fun apply(ticket:InstallTicket,credentials:SshCredentials,dockerConsent:Boolean,acmeConsent:Boolean,expectedHostKey:SshHostKey?,smtpPassword:ByteArray?,adminPassword:ByteArray?):InstallStatus {
             smtpBuffer=smtpPassword;smtpReceived=smtpPassword?.toString(Charsets.UTF_8)
+            adminBuffer=adminPassword;adminReceived=adminPassword?.toString(Charsets.UTF_8)
             hostKeys+=expectedHostKey;destroy(credentials);applyCount++;mutations+="apply";check(saved==ticket);if(loseApply)throw java.io.IOException();applyGate?.await();return status(ticket)
         }
         override suspend fun control(action:String,ticket:InstallTicket,credentials:SshCredentials,expectedHostKey:SshHostKey?):InstallStatus {

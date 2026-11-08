@@ -20,6 +20,9 @@ dependencies {
 
 // InstallerProtocolTest reads these signed recipe files outside the module's source sets.
 tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
+    inputs.dir(rootProject.file("installer/legacy"))
+        .withPropertyName("historicalSignedInstallerBundles")
+        .withPathSensitivity(org.gradle.api.tasks.PathSensitivity.RELATIVE)
     inputs.files(listOf("runner.py", "release.json", "release.sig", "trust-root.pem", "docker.asc")
         .map { rootProject.file("installer/v1/$it") })
         .withPropertyName("signedInstallerBundle")

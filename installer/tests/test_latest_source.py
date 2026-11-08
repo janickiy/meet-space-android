@@ -10,11 +10,11 @@ class LatestSourceTests(unittest.TestCase):
         self.recipe['sourcePolicy'] = r.SOURCE_POLICY
         self.commit = 'a'*40
         self.files = {name:'b'*64 for name in self.recipe['sourceFiles']}
-        self.lock = dict(repository='janickiy/meet-space',channel='release',ref='0.3.2',version='0.3.2',commit=self.commit,
+        self.lock = dict(repository='janickiy/meet-space',channel='default-branch',ref='main',version=r.source_version(self.recipe,self.commit),commit=self.commit,
             builtAt='2026-10-16T02:23:09Z',sourceUrl=r.source_url(self.commit),sourceSha256='c'*64,sourceFiles=self.files)
         self.metadata = {'sha':self.commit,'commit':{'committer':{'date':self.lock['builtAt']}}}
         self.plan = dict(sourceLock=self.lock,recipeSha256=r.digest(r.canonical(self.recipe)),
-            releaseSha256=r.digest(r.canonical(r.locked_manifest(self.recipe,self.lock))),commit=self.commit,releaseVersion='0.3.2',
+            releaseSha256=r.digest(r.canonical(r.locked_manifest(self.recipe,self.lock))),commit=self.commit,releaseVersion=self.lock['version'],
             issuedAt=int(time.time()),expiresAt=int(time.time())+900,options={'domain':'meet.example.com','publicIpv4':'8.8.8.8','acmeEmail':'owner@example.com'},docker={'installed':True})
         self.rehash(self.plan)
     def rehash(self, plan):
@@ -22,31 +22,31 @@ class LatestSourceTests(unittest.TestCase):
     def rejected(self, code, fn, *args):
         with self.assertRaises(r.InstallError) as caught:fn(*args)
         self.assertEqual(code,caught.exception.code)
-    def test_latest_release_resolves_tag_to_commit_not_target_branch(self):
-        release={'tag_name':'0.3.2','target_commitish':'moving-main','draft':False,'prerelease':False}
+    def test_current_default_branch_is_frozen_without_selecting_older_stable_release(self):
+        release={'default_branch':'main'}
         with patch.object(r,'github_json',side_effect=[release,[self.metadata]]) as lookup,patch.object(r,'source_snapshot',return_value=('c'*64,self.files)):
             self.assertEqual(self.lock,r.resolve_source(self.recipe))
-            self.assertEqual(['/releases/latest','/commits?sha=0.3.2&per_page=1'],[x.args[0] for x in lookup.call_args_list])
+            self.assertEqual(['','/commits?sha=main&per_page=1'],[x.args[0] for x in lookup.call_args_list])
             self.assertEqual({'expected_type':list},lookup.call_args_list[-1].kwargs)
     def test_no_release_uses_repository_default_branch_and_exact_sha(self):
-        with patch.object(r,'github_json',side_effect=[None,{'default_branch':'stable/main'},[self.metadata]]) as lookup,patch.object(r,'source_snapshot',return_value=('c'*64,self.files)):
+        with patch.object(r,'github_json',side_effect=[{'default_branch':'stable/main'},[self.metadata]]) as lookup,patch.object(r,'source_snapshot',return_value=('c'*64,self.files)):
             selected=r.resolve_source(self.recipe)
-            self.assertEqual('default-branch',selected['channel']);self.assertEqual('0.0.0-source.'+self.commit[:12],selected['version'])
+            self.assertEqual('default-branch',selected['channel']);self.assertEqual(r.source_version(self.recipe,self.commit),selected['version'])
             self.assertEqual('/commits?sha=stable%2Fmain&per_page=1',lookup.call_args_list[-1].args[0])
     def test_large_release_diff_uses_compact_metadata_without_raising_request_limit(self):
-        release={'tag_name':'0.3.3','draft':False,'prerelease':False}
+        release={'default_branch':'main'}
         large=json.dumps(dict(self.metadata,files=[{'patch':'x'*(2*r.MAX_JSON)}])).encode()
         compact=json.dumps([self.metadata]).encode()
         self.assertGreater(len(large),r.MAX_JSON)
         self.assertEqual(256*1024,r.MAX_JSON)
-        replies={'/releases/latest':json.dumps(release).encode(),
-                 '/commits/0.3.3':large,'/commits?sha=0.3.3&per_page=1':compact}
+        replies={'':json.dumps(release).encode(),
+                 '/commits/main':large,'/commits?sha=main&per_page=1':compact}
         opener=Mock()
         opener.open.side_effect=lambda request,**kwargs:io.BytesIO(replies[request.full_url.removeprefix(r.GITHUB_API)])
         with patch.object(r.urllib.request,'build_opener',return_value=opener),patch.object(r,'source_snapshot',return_value=('c'*64,self.files)):
             selected=r.resolve_source(self.recipe)
-        self.assertEqual(self.commit,selected['commit']);self.assertEqual('0.3.3',selected['version'])
-        self.assertEqual([r.GITHUB_API+'/releases/latest',r.GITHUB_API+'/commits?sha=0.3.3&per_page=1'],
+        self.assertEqual(self.commit,selected['commit']);self.assertEqual(r.source_version(self.recipe,self.commit),selected['version'])
+        self.assertEqual([r.GITHUB_API,r.GITHUB_API+'/commits?sha=main&per_page=1'],
                          [call.args[0].full_url for call in opener.open.call_args_list])
         self.rejected('INVALID_REQUEST',r.strict_json,large)
     def test_malformed_and_oversized_github_json_are_source_errors(self):
@@ -60,7 +60,7 @@ class LatestSourceTests(unittest.TestCase):
             with patch.object(r.urllib.request,'build_opener',return_value=opener):
                 self.rejected('SOURCE_INVALID',lambda:r.github_json('/commits?sha=0.3.3&per_page=1',expected_type=list))
     def test_invalid_commit_list_and_metadata_are_rejected_before_archive_download(self):
-        release={'tag_name':'0.3.3','draft':False,'prerelease':False}
+        release={'default_branch':'main'}
         invalid=[{},[],[self.metadata,self.metadata],[None],[{'sha':None}],
                  [dict(self.metadata,commit=None)],[dict(self.metadata,commit={'committer':[]})],
                  [dict(self.metadata,commit={'committer':{'date':'invalid'}})]]
@@ -84,7 +84,7 @@ class LatestSourceTests(unittest.TestCase):
                 archive.assert_not_called()
     def test_fixed_snapshot_changes_only_source_fields(self):
         effective=r.manifest_for_plan(self.recipe,self.plan)
-        self.assertEqual(self.commit,effective['commit']);self.assertEqual('0.3.2',effective['version'])
+        self.assertEqual(self.commit,effective['commit']);self.assertEqual(self.lock['version'],effective['version'])
         for key in ('images','baseImages','dockerPackages','acmeDirectory','runnerSha256','profile'):
             self.assertEqual(self.recipe[key],effective[key])
     def test_tamper_rejected_even_when_outer_plan_hash_recomputed(self):
@@ -178,7 +178,8 @@ class LatestSourceTests(unittest.TestCase):
 class PinnedSourceTests(unittest.TestCase):
     def setUp(self):
         self.recipe = json.loads((ROOT/'installer/v1/release.json').read_bytes())
-        self.commit = 'a7d037ea9c228590bcd482d5eba410318029c4dd'
+        self.recipe.pop('sourcePolicy',None)  # Compatibility fixture for already pinned recipes.
+        self.commit = self.recipe['commit']
         self.options = {'domain':'meet.example.com','publicIpv4':'8.8.8.8','acmeEmail':''}
 
     def plan(self):
@@ -186,7 +187,7 @@ class PinnedSourceTests(unittest.TestCase):
         with patch.object(r,'platform_facts',return_value=facts),patch.object(r,'managed_marker',return_value=None),patch.object(r,'disk_free',return_value=40*1024**3),patch.object(r,'docker_facts',return_value={'installed':False,'version':None,'composeVersion':None}),patch.object(r,'check_ports'),patch.object(r,'dns_check',return_value=['8.8.8.8']),patch.object(r.pathlib.Path,'exists',return_value=False),patch.object(r,'resolve_source',side_effect=AssertionError('pinned recipes must not resolve latest')),patch.object(r,'github_json',side_effect=AssertionError('pinned plans need no GitHub metadata')),patch.object(r,'source_snapshot',side_effect=AssertionError('pinned plans need no archive lookup')):
             return r.plan_latest(self.options,self.recipe)
 
-    def test_current_bundle_pins_reviewed_backend_without_dynamic_source_lookup(self):
+    def test_legacy_pinned_recipe_does_not_perform_dynamic_lookup(self):
         self.assertNotIn('sourcePolicy',self.recipe)
         self.assertEqual(self.commit,self.recipe['commit'])
         self.assertEqual(r.source_url(self.commit),self.recipe['sourceUrl'])

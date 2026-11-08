@@ -54,7 +54,7 @@ class InstallerViewModel(private val repository: SshInstallerRepository) : ViewM
         }
         detach()
         mutableState.value = InstallerUiState(active = true, endpoint = endpoint,
-            options = InstallOptions(domain, endpoint.host.takeIf { it.matches(Regex("[0-9.]+")) } ?: "", "", imageMode = InstallImageMode.IMAGES),
+            options = InstallOptions(domain, endpoint.host.takeIf { it.matches(Regex("[0-9.]+")) } ?: "", "", imageMode = InstallImageMode.SOURCE, admin = InstallAdminOptions()),
             pending = state.value.pending, credentialReset = state.value.credentialReset)
         if (verified != null) {
             acceptVerifiedAccess(verified)
@@ -183,12 +183,16 @@ class InstallerViewModel(private val repository: SshInstallerRepository) : ViewM
         }
     }
     /** The same saved job ID is reused after an ambiguous SSH response. Never auto-apply. */
-    fun apply(confirmed: Boolean, dockerConsent: Boolean, acmeConsent: Boolean, smtpPassword: String = "") {
+    fun apply(confirmed: Boolean, dockerConsent: Boolean, acmeConsent: Boolean, smtpPassword: String = "", adminPassword: String = "") {
         if (state.value.busy || state.value.needsAccess || !confirmed || !acmeConsent) return
         val plan = state.value.plan ?: return
         if (plan.installDocker && !dockerConsent) return
         if (plan.options.smtp != null && !isValidInstallSmtpPassword(smtpPassword)) {
             mutableState.update { it.copy(error = "Введите пароль SMTP (до 4096 байт, без переноса строки).") }
+            return
+        }
+        if (plan.options.admin != null && !isValidInstallAdminPassword(adminPassword)) {
+            mutableState.update { it.copy(error = "Введите пароль администратора: от 8 до 128 символов, без переноса строки.") }
             return
         }
         if (System.currentTimeMillis() / 1000 > plan.expiresAt) {
@@ -200,8 +204,9 @@ class InstallerViewModel(private val repository: SshInstallerRepository) : ViewM
             currentCoroutineContext().ensureActive()
             mutableState.update { it.copy(ticket = ticket, pending = ticket, screen = InstallScreen.PROGRESS) }
             val secret = smtpPassword.takeIf { plan.options.smtp != null }?.toByteArray()
-            val status = try { withAccess { repository.apply(ticket, it, dockerConsent, acmeConsent, expectedHostKey, secret) } }
-                finally { secret?.fill(0) }
+            val adminSecret = adminPassword.takeIf { plan.options.admin != null }?.toByteArray()
+            val status = try { withAccess { repository.apply(ticket, it, dockerConsent, acmeConsent, expectedHostKey, secret, adminSecret) } }
+                finally { secret?.fill(0); adminSecret?.fill(0) }
             currentCoroutineContext().ensureActive()
             updateStatus(status)
             observe()
@@ -339,6 +344,12 @@ class InstallerViewModel(private val repository: SshInstallerRepository) : ViewM
 }
 
 fun installErrorMessage(code: String): String = when (code) {
+    "INVALID_ADMIN", "ADMIN_OPTIONS_INVALID", "ADMIN_PASSWORD_REQUIRED", "ADMIN_PASSWORD_INVALID" -> "Проверьте логин, HTTPS-порт и пароль администратора. Пароль должен содержать от 8 до 128 символов и вводится только при запуске установки."
+    "ADMIN_CONFIG_INVALID" -> "Не удалось проверить сохранённые данные создания администратора на сервере. Проверьте закрытый файл начальной настройки перед продолжением установки."
+    "ADMIN_ACCOUNT_MISMATCH" -> "На сервере уже есть другой администратор. Его учётная запись и пароль не изменены; проверьте существующий доступ к админке."
+    "ADMIN_BOOTSTRAP_FAILED", "ADMIN_BOOTSTRAP_INVALID" -> "Не удалось завершить создание администратора. Сохранённые данные не перезаписываются; подключитесь снова и продолжите установку."
+    "ADMIN_HTTPS_READINESS", "ADMIN_READINESS" -> "Административная панель не прошла проверку HTTPS или изоляции. Проверьте её порт и настройки сервера, затем продолжите установку."
+    "PREBUILT_INCOMPATIBLE" -> "Этот пакет образов не поддерживает текущую админку и LDAP. Выберите совместимый выпуск или режим «Сборка на сервере»."
     "INVALID_SMTP", "SMTP_OPTIONS_INVALID", "SMTP_PASSWORD_REQUIRED", "SMTP_PASSWORD_INVALID" -> "Проверьте адрес, порт, отправителя и учётные данные SMTP. Пароль вводится только при запуске установки."
     "SMTP_CONFIG_INVALID" -> "Не удалось проверить сохранённые настройки почты на сервере. Проверьте закрытый файл SMTP перед продолжением установки."
     "SMTP_CONNECTION_FAILED", "SMTP_AUTH_FAILED", "SMTP_TLS_FAILED" -> "Не удалось подключиться к почтовому серверу. Проверьте SMTP, пароль и защищённое соединение TLS."

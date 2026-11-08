@@ -99,7 +99,7 @@ class SMTPTests(unittest.TestCase):
             self.rejected("SMTP_PASSWORD_REQUIRED", r.apply, request, self.manifest, {})
             initialize.assert_not_called()
             r.apply(dict(request, smtpPassword=self.password), self.manifest, {})
-            self.assertEqual(self.password, initialize.call_args.args[-1])
+            self.assertEqual(self.password, initialize.call_args.args[4])
             self.assertNotIn(self.password, json.dumps(initialize.call_args.args[1]))
 
     def test_compose_exposes_smtp_only_to_api_and_product_worker(self):

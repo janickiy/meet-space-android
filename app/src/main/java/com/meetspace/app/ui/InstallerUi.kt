@@ -1,6 +1,10 @@
 package com.meetspace.app.ui
 
 import android.net.Uri
+import android.content.ClipData
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
+import kotlinx.coroutines.launch
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -17,6 +21,9 @@ import androidx.compose.material.icons.outlined.CheckCircleOutline
 import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.Build
+import androidx.compose.material.icons.outlined.AdminPanelSettings
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.Dns
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.ErrorOutline
@@ -51,7 +58,7 @@ import com.meetspace.core.ssh.installPhases
 fun InstallerUi(
     state: InstallerUiState, onImportKey: (Uri) -> Unit,
     onAuthenticate: (InstallOptions, String, Boolean) -> Unit,
-    onApply: (Boolean, Boolean, Boolean, String) -> Unit, onControl: (String) -> Unit,
+    onApply: (Boolean, Boolean, Boolean, String, String) -> Unit, onControl: (String) -> Unit,
     onDetach: () -> Unit, onReconnect: () -> Unit, onConnect: (String) -> Unit, onForgetCompleted: () -> Unit = {}, onRefreshPlan: () -> Unit = {},
     onCreateAccount: ((String) -> Unit)? = null,
     onEditOptions: () -> Unit = {},
@@ -90,6 +97,8 @@ fun InstallerUi(
                         if (status.state == "completed") {
                             val domain = (state.plan?.options?.domain ?: state.ticket?.plan?.options?.domain)?.takeIf { it.isNotBlank() }
                             val origin = domain?.let { "https://$it" }
+                            val admin = state.plan?.options?.admin ?: state.ticket?.plan?.options?.admin
+                            if (domain != null && admin != null) InstallAdministratorReady(admin, domain)
                             if (onCreateAccount != null) {
                                 Button(shape = RoundedCornerShape(10.dp), onClick = { origin?.let(onCreateAccount) },
                                     enabled = !state.busy && origin != null,
@@ -266,6 +275,10 @@ private fun InstallAccess(state: InstallerUiState, onImport: (Uri) -> Unit, onAu
     var acmeEmail by rememberSaveable(state.endpoint) { mutableStateOf(state.options.acmeEmail) }
     var imageMode by rememberSaveable(state.endpoint) { mutableStateOf(state.options.imageMode) }
     var imageRelease by rememberSaveable(state.endpoint) { mutableStateOf(state.options.imageRelease) }
+    var adminEnabled by rememberSaveable(state.endpoint) { mutableStateOf(state.options.admin != null) }
+    var adminUsername by rememberSaveable(state.endpoint) { mutableStateOf(state.options.admin?.username ?: "admin") }
+    var adminPort by rememberSaveable(state.endpoint) { mutableStateOf(state.options.admin?.httpsPort?.toString() ?: "8081") }
+    val admin = if (adminEnabled) InstallAdminOptions(adminUsername.trim().lowercase(java.util.Locale.ROOT), adminPort.toIntOrNull() ?: 0) else null
     var smtpEnabled by rememberSaveable(state.endpoint) { mutableStateOf(state.options.smtp != null) }
     var smtpHost by rememberSaveable(state.endpoint) { mutableStateOf(state.options.smtp?.host.orEmpty()) }
     var smtpPort by rememberSaveable(state.endpoint) { mutableStateOf(state.options.smtp?.port?.toString() ?: "465") }
@@ -290,8 +303,8 @@ private fun InstallAccess(state: InstallerUiState, onImport: (Uri) -> Unit, onAu
                         Icon(if (mode == InstallImageMode.IMAGES) Icons.Outlined.CloudDownload else Icons.Outlined.Build, null, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(if (mode == InstallImageMode.IMAGES) "Готовые образы" else "Сборка на сервере", fontWeight = FontWeight.SemiBold)
-                            Text(if (mode == InstallImageMode.IMAGES) "Скачать проверенный выпуск из GitHub. Быстрее и без компиляции на VPS."
-                                else "Скачать закреплённые исходники и собрать образы на вашем VPS. Требует больше времени и ресурсов.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(if (mode == InstallImageMode.IMAGES) "Использовать опубликованный пакет для вашего VPS, если он доступен. Без компиляции на сервере."
+                                else "Последний commit основной ветки GitHub: закрепить исходники и собрать образы на VPS. Включает актуальную админку и поддержку LDAP.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         RadioButton(selected, onClick = null, enabled = !state.busy)
                     }
@@ -310,6 +323,16 @@ private fun InstallAccess(state: InstallerUiState, onImport: (Uri) -> Unit, onAu
                 InstallOptionField(domain, { domain = it }, "Домен MeetSpace", "install-domain", !state.busy && state.needsAccess, KeyboardType.Uri)
                 InstallOptionField(ip, { ip = it }, "Публичный IPv4 VPS", "install-ip", !state.busy)
                 InstallOptionField(acmeEmail, { acmeEmail = it }, "Email для HTTPS-сертификата", "install-acme-email", !state.busy, KeyboardType.Email)
+            }
+            InstallFormSection("Административная панель") {
+                AccountToggle("Включить админку", adminEnabled, { adminEnabled = it }, enabled = !state.busy, tag = "install-admin-enabled")
+                if (adminEnabled) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    InstallOptionField(adminUsername, { adminUsername = it }, "Логин администратора", "install-admin-username", !state.busy)
+                    Text("3–40 символов: латинские буквы, цифры, . - _ @ +", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    InstallOptionField(adminPort, { adminPort = it }, "HTTPS-порт админки", "install-admin-port", !state.busy, KeyboardType.Number)
+                    Text("Отдельный вход для управления сервером. Пароль задаётся перед установкой. LDAP / Active Directory и почта настраиваются в админке.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                } else Text("Без админки настройка LDAP в браузере недоступна.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             InstallFormSection {
                 AccountToggle("Настроить отправку email", smtpEnabled, { smtpEnabled = it }, enabled = !state.busy, tag = "install-smtp-enabled")
@@ -332,9 +355,9 @@ private fun InstallAccess(state: InstallerUiState, onImport: (Uri) -> Unit, onAu
             if (useKey) OutlinedButton(shape = RoundedCornerShape(12.dp), onClick = { picker.launch(arrayOf("*/*")) }, enabled = !state.busy, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text(if (state.keyLoaded) "Ключ выбран · заменить" else "Выбрать приватный ключ") }
             OutlinedTextField(password, { password = it }, shape = RoundedCornerShape(12.dp), colors = onboardingFieldColors(), textStyle = onboardingInputStyle(), label = { Text(if (useKey) "Парольная фраза ключа" else "Пароль SSH", fontSize = 13.sp) }, visualTransformation = PasswordVisualTransformation(), singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password), enabled = !state.busy, modifier = Modifier.fillMaxWidth().testTag("install-password"))
-        } else Text("Доступ SSH уже проверен. Проверьте параметры установки и настройки почты.", modifier = Modifier.testTag("install-access-verified"))
-        Button(shape = RoundedCornerShape(12.dp), onClick = { onAuthenticate(InstallOptions(domain, ip, acmeEmail.trim(), smtp, imageMode, imageRelease), password, useKey); password = "" }, enabled = !state.busy && (!state.needsAccess || !useKey || state.keyLoaded) && (state.ticket != null ||
-            (smtp == null || smtp.isValid()) && (imageMode != InstallImageMode.IMAGES || validImageRelease(imageRelease))), modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("install-plan")) {
+        } else Text("Доступ SSH уже проверен. Проверьте параметры установки и учётную запись администратора.", modifier = Modifier.testTag("install-access-verified"))
+        Button(shape = RoundedCornerShape(12.dp), onClick = { onAuthenticate(InstallOptions(domain, ip, acmeEmail.trim(), smtp, imageMode, imageRelease, admin), password, useKey); password = "" }, enabled = !state.busy && (!state.needsAccess || !useKey || state.keyLoaded) && (state.ticket != null ||
+            (smtp == null || smtp.isValid()) && (admin == null || admin.isValid()) && (imageMode != InstallImageMode.IMAGES || validImageRelease(imageRelease))), modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("install-plan")) {
             Text(if (state.ticket == null) "Получить план без установки" else "Проверить состояние задания")
         }
     }
@@ -371,6 +394,7 @@ private fun InstallPlanCard(plan: InstallPlan) {
         if (compact) Text("Для небольшой нагрузки: 2 CPU, 4 ГБ RAM и около 20 ГБ свободного диска (18 ГиБ). Параллельные встречи и запись требуют больше ресурсов: рекомендуются 4 CPU, 8 ГБ RAM и 30 ГиБ свободного диска. Доступная нагрузка зависит от участников и качества видео.",
             style = MaterialTheme.typography.bodySmall, modifier = Modifier.testTag("install-resource-guidance"))
         Text("https://${plan.options.domain}\nIPv4: ${plan.options.publicIpv4}\nАрхитектура: ${plan.architecture}\nВерсия: ${plan.version}")
+        plan.options.admin?.let { admin -> Text("Админка: ${admin.url(plan.options.domain)}\nЛогин: ${admin.username}\nLDAP / Active Directory: настройка после установки в админке", modifier = Modifier.testTag("install-admin-plan")) }
         plan.options.smtp?.let { smtp -> Text("Почта: ${smtp.host}:${smtp.port} · ${smtp.tlsMode.uppercase()}\nОтправитель: ${smtp.from}\nНапоминание о встрече: за 3 часа") }
         SelectionContainer { Text("Commit: ${plan.commit}\nSHA-256 плана: ${plan.hash}", style = MaterialTheme.typography.bodySmall) }
         plan.sourceSelection?.let { Text("Источник GitHub: $it", style = MaterialTheme.typography.bodySmall) }
@@ -382,23 +406,41 @@ private fun InstallPlanCard(plan: InstallPlan) {
             else -> "Использовать Docker, Compose и Buildx на сервере"
         }
         val imageAction = if (images) "скачать пакет выпуска и файлы конфигурации; проверить контрольные суммы, архитектуру и отчёты безопасности; загрузить готовые образы в Docker"
-            else "скачать проверенный исходный код; собрать 7 образов"
+            else "скачать исходники выбранного commit основной ветки; собрать образы приложения и админки"
         Text("$dockerAction; $imageAction; создать /opt/meetspace, секреты и закрытые тома; сохранить копию БД; выполнить миграции; настроить HTTPS/WSS и TURN; проверить готовность.")
-        Text("Публичные порты: TCP 80, 443, 3478, 5349, 50010; UDP 3478, 50010, 49160–49259. Откройте их в firewall провайдера. Docker может обходить правила UFW. БД, Redis, RabbitMQ и S3 наружу не публикуются.")
+        val adminPort = plan.options.admin?.httpsPort?.let { ", $it (админка)" }.orEmpty()
+        Text("Публичные порты: TCP 80, 443, 3478, 5349, 50010$adminPort; UDP 3478, 50010, 49160–49259. Откройте их в firewall провайдера. Docker может обходить правила UFW. БД, Redis, RabbitMQ и S3 наружу не публикуются.")
         Text("Выбранные режим, версия и commit сохраняются на сервере; повторный запуск продолжает этот же план. Откат данных автоматически не выполняется. Копия БД локальная; внешние резервные копии настраиваются отдельно. Продление сертификата перезапускает TURN." +
             if (images) " Архив закреплён по SHA-256; переход к сборке требует отдельного выбора." else " Исходники и базовые образы закреплены, пакеты внутри сборки могут меняться.", style = MaterialTheme.typography.bodySmall)
     } }
 }
 
 @Composable
-private fun InstallConsent(plan: InstallPlan, disabled: Boolean, onApply: (Boolean, Boolean, Boolean, String) -> Unit) {
+private fun InstallConsent(plan: InstallPlan, disabled: Boolean, onApply: (Boolean, Boolean, Boolean, String, String) -> Unit) {
     var confirmed by remember(plan.hash) { mutableStateOf(false) }
     var docker by remember(plan.hash) { mutableStateOf(!plan.installDocker) }
     var terms by remember(plan.hash) { mutableStateOf(false) }
     // This secret never enters saved state, the public plan, or the persisted ticket.
     var smtpPassword by remember(plan.hash) { mutableStateOf("") }
+    var adminPassword by remember(plan.hash) { mutableStateOf("") }
+    var adminConfirmation by remember(plan.hash) { mutableStateOf("") }
+    val adminPasswordValid = plan.options.admin == null || isValidInstallAdminPassword(adminPassword) && adminPassword == adminConfirmation
     val smtpPasswordValid = plan.options.smtp == null || isValidInstallSmtpPassword(smtpPassword)
     val uri = LocalUriHandler.current
+    if (plan.options.admin != null) {
+        InstallFormSection("Пароль администратора") {
+            OutlinedTextField(adminPassword, { adminPassword = it }, shape = RoundedCornerShape(12.dp), colors = onboardingFieldColors(), textStyle = onboardingInputStyle(),
+                label = { Text("Пароль администратора", fontSize = 13.sp) }, singleLine = true, enabled = !disabled,
+                visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                modifier = Modifier.fillMaxWidth().testTag("install-admin-password"))
+            OutlinedTextField(adminConfirmation, { adminConfirmation = it }, shape = RoundedCornerShape(12.dp), colors = onboardingFieldColors(), textStyle = onboardingInputStyle(),
+                label = { Text("Повторите пароль", fontSize = 13.sp) }, singleLine = true, enabled = !disabled,
+                isError = adminConfirmation.isNotEmpty() && adminConfirmation != adminPassword,
+                visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                modifier = Modifier.fillMaxWidth().testTag("install-admin-confirmation"))
+            Text("От 8 до 128 символов. Это отдельная учётная запись админки. Пароль передаётся по SSH при установке и не сохраняется на устройстве.", style = MaterialTheme.typography.bodySmall)
+        }
+    }
     if (plan.options.smtp != null) {
         OutlinedTextField(smtpPassword, { smtpPassword = it }, shape = RoundedCornerShape(10.dp), colors = onboardingFieldColors(), textStyle = onboardingInputStyle(),
             label = { Text("Пароль SMTP / пароль приложения", fontSize = 11.sp) }, singleLine = true, enabled = !disabled,
@@ -411,9 +453,40 @@ private fun InstallConsent(plan: InstallPlan, disabled: Boolean, onApply: (Boole
     Text("Для выпуска HTTPS-сертификата домен передаётся Let's Encrypt.", style = MaterialTheme.typography.bodySmall)
     TextButton(onClick = { uri.openUri("https://letsencrypt.org/repository/") }) { Text("Условия Let's Encrypt") }
     Consent("Проверил план и разрешаю изменения на этом VPS", confirmed, !disabled, "install-confirm") { confirmed = it }
-    Button(shape = RoundedCornerShape(10.dp), onClick = { onApply(confirmed, docker, terms, smtpPassword); smtpPassword = "" }, enabled = !disabled && confirmed && docker && terms && smtpPasswordValid,
+    Button(shape = RoundedCornerShape(10.dp), onClick = { onApply(confirmed, docker, terms, smtpPassword, adminPassword); smtpPassword = ""; adminPassword = ""; adminConfirmation = "" }, enabled = !disabled && confirmed && docker && terms && smtpPasswordValid && adminPasswordValid,
         modifier = Modifier.fillMaxWidth().heightIn(min = 49.dp).testTag("install-apply")) { Text("Установить MeetSpace") }
 }
+@Composable
+private fun InstallAdministratorReady(admin: InstallAdminOptions, domain: String) {
+    val uri = LocalUriHandler.current
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
+    var actionError by remember { mutableStateOf(false) }
+    var copied by remember { mutableStateOf(false) }
+    val url = admin.url(domain)
+    InstallFormSection("Администрирование") {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Outlined.AdminPanelSettings, null, tint = MaterialTheme.colorScheme.primary)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                SelectionContainer { Text(url, modifier = Modifier.testTag("install-admin-url")) }
+                Text("Логин: ${admin.username}", style = MaterialTheme.typography.bodySmall)
+            }
+        }
+        Text("Откройте админку и войдите с заданным паролем. LDAP / Active Directory настраивается в разделе «Настройки». Пользовательские аккаунты создаются отдельно.", style = MaterialTheme.typography.bodySmall)
+        OutlinedButton(onClick = { actionError = runCatching { uri.openUri(url) }.isFailure },
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("install-admin-open")) {
+            Icon(Icons.Outlined.OpenInNew, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text("Открыть админку")
+        }
+        TextButton(onClick = { scope.launch {
+            runCatching { clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("Админка MeetSpace", url))) }
+                .onSuccess { copied = true; actionError = false }.onFailure { actionError = true }
+        } }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("install-admin-copy")) {
+            Icon(Icons.Outlined.ContentCopy, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text(if (copied) "Адрес скопирован" else "Скопировать адрес")
+        }
+        if (actionError) Text("Не удалось открыть или скопировать адрес. Выделите его и скопируйте вручную.", color = MaterialTheme.colorScheme.error)
+    }
+}
+
 private val InstallPlan.dockerPluginNames: String get() = missingDockerPlugins.joinToString("/").ifEmpty { "Compose/Buildx" }
 @Composable
 private fun Consent(label: String, checked: Boolean, enabled: Boolean, tag: String, onChange: (Boolean) -> Unit) {

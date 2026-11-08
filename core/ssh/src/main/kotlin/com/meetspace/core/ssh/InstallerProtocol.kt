@@ -24,6 +24,7 @@ internal fun jsonObject(raw: String): JsonObject {
 
 internal class InstallerBundle(private val files: Map<String, ByteArray>, allowTestProfile: Boolean = false) {
     val manifest: JsonObject
+    val trustRootSha256: String get() = sha256(files.getValue("trust-root.pem"))
     init {
         try {
             require(files.keys == names.toSet())
@@ -63,6 +64,7 @@ internal class InstallerBundle(private val files: Map<String, ByteArray>, allowT
             require(value.string("commit") == release.string("commit"))
             require(value.string("releaseVersion") == release.string("version"))
             val options = value.getValue("options").jsonObject
+            require(options.keys.all { it in setOf("domain", "publicIpv4", "acmeEmail", "smtp", "imageMode", "imageRelease", "admin") })
             val mode = options.optional("imageMode")?.let { wire -> InstallImageMode.entries.single { it.wire == wire } } ?: InstallImageMode.SOURCE
             val requestedRelease = options.optional("imageRelease") ?: "latest"
             require(validImageRelease(requestedRelease))
@@ -75,6 +77,10 @@ internal class InstallerBundle(private val files: Map<String, ByteArray>, allowT
                 InstallSmtpOptions(it.string("host"), it.getValue("port").jsonPrimitive.int,
                     it.string("from"), it.string("username"), it.string("tlsMode")).also { smtp -> require(smtp.isValid()) }
             }
+            val admin = options["admin"]?.jsonObject?.let {
+                require(it.keys == setOf("username", "httpsPort"))
+                InstallAdminOptions(it.string("username"), it.getValue("httpsPort").jsonPrimitive.int).also { admin -> require(admin.isValid()) }
+            }
             val resourceProfile = value.optional("resourceProfile")
             require(resourceProfile == null || resourceProfile in setOf("standard", "compact-test"))
             val docker = value.getValue("docker").jsonObject
@@ -86,7 +92,7 @@ internal class InstallerBundle(private val files: Map<String, ByteArray>, allowT
                 if (installBuildx) add("Buildx")
             }
             return InstallPlan(value.toString(), hash, value.string("releaseVersion"), value.string("commit"),
-                InstallOptions(options.string("domain"), options.string("publicIpv4"), options.string("acmeEmail"), smtp, mode, requestedRelease),
+                InstallOptions(options.string("domain"), options.string("publicIpv4"), options.string("acmeEmail"), smtp, mode, requestedRelease, admin),
                 value.getValue("platform").jsonObject.string("arch"), !dockerInstalled || missingDockerPlugins.isNotEmpty(),
                 value.getValue("expiresAt").jsonPrimitive.long, value.optional("existingJobId"), value.optional("existingPlanHash"),
                 value["sourceLock"]?.jsonObject?.let { "${it.string("channel")}: ${it.string("ref")}" }, release.string("sourceSha256"), resourceProfile,
@@ -98,7 +104,10 @@ internal class InstallerBundle(private val files: Map<String, ByteArray>, allowT
     private fun effectiveManifest(plan: JsonObject): JsonObject {
         val lock = plan["sourceLock"]?.jsonObject ?: return manifest
         require(if (lock.optional("channel") == "prebuilt") manifest.optional("prebuiltPolicy") == "github-prebuilt-v1"
-            else manifest.optional("sourcePolicy") == "github-latest-stable-v1")
+            else manifest.optional("sourcePolicy") in setOf("github-latest-stable-v1", "github-default-branch-v1"))
+        if (manifest.optional("sourcePolicy") == "github-default-branch-v1" && lock.optional("channel") != "prebuilt") {
+            require(lock.string("channel") == "default-branch")
+        }
         require(plan.string("recipeSha256") == sha256(canonicalJson(manifest).toByteArray()))
         require(lock.keys == setOf("repository", "channel", "ref", "version", "commit", "builtAt", "sourceUrl", "sourceSha256", "sourceFiles"))
         require(lock.string("repository") == "janickiy/meet-space")
@@ -111,7 +120,11 @@ internal class InstallerBundle(private val files: Map<String, ByteArray>, allowT
         require(lock.string("builtAt").matches(Regex("[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z")))
         val tag = when (lock.string("channel")) {
             "release", "prebuilt" -> { require(version == ref); JsonPrimitive(ref) }
-            "default-branch" -> { require(version == "0.0.0-source.${commit.take(12)}"); JsonNull }
+            "default-branch" -> {
+                val base = if (manifest.optional("sourcePolicy") == "github-default-branch-v1")
+                    manifest.string("version").substringBefore("-source.").removePrefix("v") else "0.0.0"
+                require(version == "$base-source.${commit.take(12)}"); JsonNull
+            }
             else -> error("Invalid selection")
         }
         val hashes = lock.getValue("sourceFiles").jsonObject
@@ -140,6 +153,22 @@ internal class InstallerBundle(private val files: Map<String, ByteArray>, allowT
         require(lock.getValue("sizeBytes").jsonPrimitive.long in 1..2L * 1024 * 1024 * 1024)
     }
     companion object { val names = listOf("runner.py", "trust-root.pem", "release.json", "release.sig", "docker.asc") }
+}
+
+/** Archived, signed recipes can resume saved jobs; new installations always use the current recipe. */
+internal class InstallerBundles(val current: InstallerBundle, historical: List<InstallerBundle> = emptyList()) {
+    private val trusted = listOf(current) + historical.also { bundles ->
+        require(bundles.all { it.trustRootSha256 == current.trustRootSha256 })
+    }
+    fun forPlan(value: JsonObject, allowHistorical: Boolean): InstallerBundle {
+        val recipeHash = if (value["sourceLock"] != null) value.optional("recipeSha256") else value.optional("releaseSha256")
+        val candidates = if (allowHistorical) trusted else listOf(current)
+        val bundle = candidates.firstOrNull { sha256(canonicalJson(it.manifest).toByteArray()) == recipeHash }
+            ?: throw InstallFailure("PLAN_INVALID")
+        bundle.parsePlan(value) // Check the full plan, including the frozen archive and source inventory.
+        return bundle
+    }
+    fun parse(value: JsonObject, allowHistorical: Boolean): InstallPlan = forPlan(value, allowHistorical).parsePlan(value)
 }
 
 internal fun parseInstallerReply(raw: String): JsonObject {

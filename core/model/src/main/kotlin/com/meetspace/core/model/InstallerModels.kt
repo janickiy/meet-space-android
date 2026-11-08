@@ -3,9 +3,22 @@ package com.meetspace.core.model
 /** Public deployment metadata only. Never contains SSH or application secrets. */
 enum class InstallImageMode(val wire: String) { IMAGES("images"), SOURCE("source") }
 data class InstallOptions(val domain: String, val publicIpv4: String, val acmeEmail: String = "", val smtp: InstallSmtpOptions? = null,
-    val imageMode: InstallImageMode = InstallImageMode.SOURCE, val imageRelease: String = "latest")
+    val imageMode: InstallImageMode = InstallImageMode.SOURCE, val imageRelease: String = "latest", val admin: InstallAdminOptions? = null)
 fun validImageRelease(value: String): Boolean = value == "latest" || value.length <= 64 &&
-    value.matches(Regex("v[0-9]+\\.[0-9]+\\.[0-9]+(?:-[A-Za-z0-9.-]+)?"))
+    value.matches(Regex("v?[0-9]+\\.[0-9]+\\.[0-9]+(?:-[A-Za-z0-9.-]+)?"))
+/** Public administrator identity only; bootstrap credentials are apply-only. */
+data class InstallAdminOptions(val username: String = "admin", val httpsPort: Int = 8081) {
+    fun isValid(): Boolean = username.matches(Regex("[a-z0-9][a-z0-9.@+_-]{2,39}")) &&
+        httpsPort in 1024..65535 && httpsPort !in setOf(8082, 3478, 5349, 50010) && httpsPort !in 49160..49259
+    fun url(domain: String): String = "https://$domain:$httpsPort"
+}
+/** Match the backend's Unicode length limit, without accepting invalid UTF-16 or control delimiters. */
+fun isValidInstallAdminPassword(password: String): Boolean {
+    val bytes = password.toByteArray(Charsets.UTF_8)
+    return try { password.codePointCount(0, password.length) in 8..128 && bytes.size <= 512 &&
+        bytes.toString(Charsets.UTF_8) == password && password.none { it in "\r\n\u0000" } }
+    finally { bytes.fill(0) }
+}
 /** SMTP routing and identity only; the password is supplied separately when applying a plan. */
 data class InstallSmtpOptions(val host: String, val port: Int, val from: String, val username: String, val tlsMode: String) {
     fun isValid(): Boolean = host.length in 1..253 && host.matches(Regex("[A-Za-z0-9.-]+")) &&

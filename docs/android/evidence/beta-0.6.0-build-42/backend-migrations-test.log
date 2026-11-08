@@ -1,0 +1,11 @@
+=== RUN   TestAuditTableBaselineMatchesHistoricalSchema
+    migration_baseline_test.go:94: identical PostgreSQL definitions: 1046
+--- PASS: TestAuditTableBaselineMatchesHistoricalSchema (1.02s)
+=== RUN   TestAuditTableBaselineUpgradePreservesDataAndHistory
+--- PASS: TestAuditTableBaselineUpgradePreservesDataAndHistory (0.64s)
+=== RUN   TestTableBaselineFilesAndPhases
+--- PASS: TestTableBaselineFilesAndPhases (0.03s)
+=== RUN   TestAuditTableBaselineFutureMigrationsAndGuards
+--- PASS: TestAuditTableBaselineFutureMigrationsAndGuards (0.47s)
+PASS
+ok  	github.com/janickiy/meet-space/internal/infrastructure/postgres	3.020s

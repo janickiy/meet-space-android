@@ -19,11 +19,11 @@ android {
         targetSdk = 36
         buildConfigField("boolean", "FCM_CONFIGURED", firebaseConfigured.toString())
         manifestPlaceholders["fcmConfigured"] = firebaseConfigured.toString()
-        versionCode = 41
-        versionName = "0.5.2-beta"
+        versionCode = 42
+        versionName = "0.6.0-beta"
         testInstrumentationRunner = "com.meetspace.app.MeetSpaceTestRunner"
     }
-    sourceSets["main"].assets.apply { srcDir(rootProject.file("installer/v1")); exclude("**/__pycache__/**") }
+    sourceSets["main"].assets.apply { srcDir(rootProject.file("installer/v1")); srcDir(rootProject.file("installer/legacy")); exclude("**/__pycache__/**") }
     signingConfigs {
         if (releaseSigningConfigured) create("meetspaceRelease") {
             storeFile = file(releaseSigningValues.getValue("MEETSPACE_KEYSTORE")!!)

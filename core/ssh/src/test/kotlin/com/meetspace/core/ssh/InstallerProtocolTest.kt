@@ -97,6 +97,32 @@ class InstallerProtocolTest {
         assertEquals(plan,bundle.parsePlan(jsonObject(plan.json)))
         failed("PLAN_INVALID") { bundle.parsePlan(withSmtp(JsonObject(smtp+("password" to JsonPrimitive("never-save-this"))))) }
     }
+    @Test fun adminParametersMatchBackendUnicodePasswordAndPortRules() {
+        assertTrue(InstallAdminOptions().isValid())
+        assertTrue(InstallAdminOptions("owner+admin@example.com", 9443).isValid())
+        for (name in listOf("ab", "Admin", " bad", "../admin", "аdmin", "a".repeat(41))) assertFalse(InstallAdminOptions(name).isValid())
+        for (port in listOf(0, 443, 1023, 8082, 3478, 5349, 50010, 49160, 49259, 65536)) assertFalse(InstallAdminOptions(httpsPort = port).isValid())
+        for (password in listOf("abcdefgh", "длинныйпароль", "😀".repeat(8), "😀".repeat(128), "a".repeat(128))) assertTrue(isValidInstallAdminPassword(password))
+        for (password in listOf("1234567", "😀".repeat(7), "a".repeat(129), "abcd\u0000efgh", "abcd\nefgh", "abcd\refgh", "abcdefgh\uD800")) assertFalse(isValidInstallAdminPassword(password))
+        assertTrue(validImageRelease("0.6.1")); assertTrue(validImageRelease("v0.6.1-beta"))
+    }
+    @Test fun adminPlanRetainsOnlyPublicFieldsAcrossReopenAndRejectsPasswordSmuggling() {
+        val bundle = bundle()
+        val admin = buildJsonObject { put("username", "admin"); put("httpsPort", 9443) }
+        fun withAdmin(value: JsonElement): JsonObject {
+            val plan = validPlan(bundle)
+            val options = JsonObject(plan.getValue("options").jsonObject + ("admin" to value))
+            val data = JsonObject(plan.filterKeys { it != "hash" } + ("options" to options))
+            return JsonObject(data + ("hash" to JsonPrimitive(sha256(canonicalJson(data).toByteArray()))))
+        }
+        val plan = bundle.parsePlan(withAdmin(admin))
+        assertEquals(InstallAdminOptions("admin", 9443), plan.options.admin)
+        assertEquals(plan, bundle.parsePlan(jsonObject(plan.json)))
+        assertNull(bundle.parsePlan(validPlan(bundle)).options.admin)
+        failed("PLAN_INVALID") { bundle.parsePlan(withAdmin(JsonObject(admin + ("password" to JsonPrimitive("never-save-this"))))) }
+        failed("PLAN_INVALID") { bundle.parsePlan(withAdmin(JsonObject(admin + ("httpsPort" to JsonPrimitive(443))))) }
+        failed("PLAN_INVALID") { bundle.parsePlan(withAdmin(JsonNull)) }
+    }
     @Test fun resourceProfileIsValidatedAndPreservedInSavedPlan() {
         val bundle = bundle()
         fun profile(value: String): JsonObject {
@@ -160,12 +186,46 @@ class InstallerProtocolTest {
         }
         failed("PLAN_INVALID") { bundle.parsePlan(hash(JsonObject(plan + ("recipeSha256" to JsonPrimitive("d".repeat(64)))))) }
     }
-    @Test fun pinnedProductionRecipeRejectsSourceSelectionOverrides() {
+    @Test fun defaultBranchRecipeRejectsUnboundSourceSelectionOverrides() {
         val bundle = bundle()
-        assertNull(bundle.manifest.optional("sourcePolicy"))
+        assertEquals("github-default-branch-v1", bundle.manifest.optional("sourcePolicy"))
         val data = JsonObject(validPlan(bundle).filterKeys { it != "hash" } + ("sourceLock" to buildJsonObject {}))
         val plan = JsonObject(data + ("hash" to JsonPrimitive(sha256(canonicalJson(data).toByteArray()))))
         failed("PLAN_INVALID") { bundle.parsePlan(plan) }
+    }
+    @Test fun currentBranchPlanKeepsBackendVersionAndCommitAndRejectsReleaseDowngrade() {
+        val bundle = bundle()
+        val commit = "a".repeat(40)
+        val version = bundle.manifest.string("version").substringBefore("-source.").removePrefix("v") + "-source." + commit.take(12)
+        val lock = buildJsonObject {
+            put("repository", "janickiy/meet-space"); put("channel", "default-branch"); put("ref", "main"); put("version", version)
+            put("commit", commit); put("builtAt", "2026-11-08T00:00:00Z")
+            put("sourceUrl", "https://codeload.github.com/janickiy/meet-space/tar.gz/$commit"); put("sourceSha256", "b".repeat(64))
+            put("sourceFiles", bundle.manifest.getValue("sourceFiles"))
+        }
+        val release = JsonObject(bundle.manifest + lock.filterKeys { it in setOf("version", "commit", "builtAt", "sourceUrl", "sourceSha256", "sourceFiles") } + ("backendTag" to JsonNull))
+        val data = JsonObject(validPlan(bundle).filterKeys { it != "hash" } + mapOf("sourceLock" to lock,
+            "recipeSha256" to JsonPrimitive(sha256(canonicalJson(bundle.manifest).toByteArray())),
+            "releaseSha256" to JsonPrimitive(sha256(canonicalJson(release).toByteArray())), "commit" to JsonPrimitive(commit), "releaseVersion" to JsonPrimitive(version)))
+        val plan = JsonObject(data + ("hash" to JsonPrimitive(sha256(canonicalJson(data).toByteArray()))))
+        assertEquals(version, bundle.parsePlan(plan).version)
+        val altered = JsonObject(data + ("sourceLock" to JsonObject(lock + ("channel" to JsonPrimitive("release")))))
+        failed("PLAN_INVALID") { bundle.parsePlan(JsonObject(altered + ("hash" to JsonPrimitive(sha256(canonicalJson(altered).toByteArray()))))) }
+    }
+    @Test fun archivedRecipeOnlyResumesAnExactlyMatchedSignedPlan() {
+        val current = bundle()
+        val previous = InstallerBundle(InstallerBundle.names.associateWith { File("../../installer/legacy/0.5.2/$it").readBytes() })
+        val registry = InstallerBundles(current, listOf(previous))
+        val oldPlan = validPlan(previous)
+        assertEquals(previous.parsePlan(oldPlan), registry.parse(oldPlan, allowHistorical = true))
+        assertSame(previous, registry.forPlan(oldPlan, allowHistorical = true))
+        assertSame(current, registry.forPlan(validPlan(current), allowHistorical = false))
+        failed("PLAN_INVALID") { registry.parse(oldPlan, allowHistorical = false) }
+        val tampered = JsonObject(oldPlan + ("commit" to JsonPrimitive("e".repeat(40))))
+        failed("PLAN_INVALID") { registry.parse(tampered, allowHistorical = true) }
+        val data = JsonObject(oldPlan.filterKeys { it != "hash" } + ("releaseSha256" to JsonPrimitive("f".repeat(64))))
+        failed("PLAN_INVALID") { registry.parse(JsonObject(data + ("hash" to JsonPrimitive(sha256(canonicalJson(data).toByteArray())))), allowHistorical = true) }
+        assertThrows(IllegalArgumentException::class.java) { InstallerBundles(current, listOf(legacySourcePolicyBundle())) }
     }
     @Test fun prebuiltPlanPreservesModeArtifactAndFrozenVersionAcrossReopen() {
         val bundle = bundle()

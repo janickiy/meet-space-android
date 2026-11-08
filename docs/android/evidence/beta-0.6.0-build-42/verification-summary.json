@@ -1,0 +1,13 @@
+{
+  "installerPythonTests": 147,
+  "installerPythonPassed": 147,
+  "stage09PythonTests": 16,
+  "stage09PythonPassed": 16,
+  "localProtocolChecks": 5,
+  "backendMigrationIntegrationTests": 4,
+  "lintErrors": 0,
+  "lintWarnings": 66,
+  "physicalDeviceTested": false,
+  "realVpsInstallationTested": false,
+  "realLdapDirectoryTested": false
+}

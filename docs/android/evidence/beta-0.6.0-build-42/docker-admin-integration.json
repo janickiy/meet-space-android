@@ -1,0 +1,38 @@
+{
+  "sourceCommit": "a8274df8e29be96fd13083202e9adaebe9c5f9b1",
+  "project": "ms-installer-060-audit",
+  "checks": {
+    "configuration_resume_preserves_all_secrets_and_32_byte_ldap_key": true,
+    "current_service_inventory_and_private_admin_listener": true,
+    "admin_disabled_until_tls": true,
+    "isolated_dependencies_healthy": true,
+    "actual_migration_cli_passed": true,
+    "actual_admin_status_empty": true,
+    "actual_admin_bootstrap_via_stdin": true,
+    "actual_migration_resume_keeps_admin_password": true,
+    "actual_generated_proxy_trusted_tls_sni_200_401_404": [
+      200,
+      401,
+      404
+    ],
+    "actual_admin_login_after_resume": true,
+    "actual_authenticated_admin_me_under_160MiB": true,
+    "actual_admin_spa_and_javascript_asset": {
+      "asset": "/assets/index-DNcWbGeh.js",
+      "javascriptBytes": 400561
+    },
+    "actual_api_compact_limit_no_oom": {
+      "memoryBytes": 167772160,
+      "restartCount": 0,
+      "oomKilled": false
+    },
+    "actual_public_providers_endpoint": 200
+  },
+  "limitations": [
+    "Focused admin installer integration, not a full installation/ACME/real LDAP/media rehearsal.",
+    "macOS sandbox file ownership checks bypassed; root-only checks covered by runner unit tests.",
+    "Only API and proxy rebuilt from exact source; independent PostgreSQL/Redis/RabbitMQ/MinIO instances use existing local infrastructure images. MinIO command/user/read-only adjusted for local fixture (production uses SeaweedFS). API capped at compact profile 160MiB and GOMEMLIMIT96MiB.",
+    "Host public HTTPS mapped to 18443, admin to 18081, HTTP to 18080; test CA explicitly trusted."
+  ],
+  "result": "passed"
+}
