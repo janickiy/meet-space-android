@@ -131,8 +131,8 @@ class SshWizardViewModelTest {
         credentials.destroy()
     }
 
-    @Test fun retainedAccessIsErasedOnBackResetAndTimeout() = runTest(dispatcher) {
-        for (cleanup in listOf<(SshWizardViewModel) -> Unit>({ it.back() }, { it.reset() }, { it.cancelOperation() })) {
+    @Test fun retainedAccessIsErasedOnResetCancelAndTimeout() = runTest(dispatcher) {
+        for (cleanup in listOf<(SshWizardViewModel) -> Unit>({ it.reset() }, { it.cancelOperation() })) {
             val repository = FakeSshRepository().apply { identity = trustedIdentity; blocked = false }
             val model = SshWizardViewModel(repository)
             probe(model); model.preflightPassword("test-only"); runCurrent()
@@ -147,6 +147,75 @@ class SshWizardViewModelTest {
         advanceTimeBy(VerifiedInstallationAccess.TTL_MILLIS); runCurrent()
         assertTrue(retained.all { it == 0.toByte() }); assertNull(model.takeInstallationAccess())
         model.reset()
+    }
+
+    @Test fun authSelectsUserAfterHostTrustAndRetainsAccessAcrossBothBackSteps() = runTest(dispatcher) {
+        val repository = FakeSshRepository().apply { identity = trustedIdentity; blocked = false }
+        val model = SshWizardViewModel(repository)
+        model.probe(endpoint.host, "22", "root", "meet.example.test"); runCurrent()
+        assertEquals(0, repository.preflightCalls)
+        model.preflightPassword("deploy", "test-only"); runCurrent()
+        val expected = SshRequest(endpoint.copy(user = "deploy"), "meet.example.test")
+        assertEquals(expected.endpoint, model.state.value.report?.endpoint)
+        val original = retainedPassword(model)
+        model.back()
+        assertEquals(SshWizardStep.AUTH, model.state.value.step); assertTrue(model.state.value.accessAvailable)
+        model.back()
+        assertEquals(SshWizardStep.DETAILS, model.state.value.step)
+        model.probe(endpoint.host, "22", "deploy", expected.domain); runCurrent()
+        assertTrue(model.state.value.accessAvailable)
+        model.retryPreflight(); runCurrent()
+        assertEquals(2, repository.preflightCalls)
+        val transferred = requireNotNull(model.takeInstallationAccess()).take(expected)!!
+        assertSame(original, (transferred.credentials as SshCredentials.Password).password)
+        transferred.credentials.destroy(); model.reset()
+    }
+
+    @Test fun temporaryPreflightFailuresReusePasswordAndKeyWithoutRestartingExpiry() = runTest(dispatcher) {
+        for (keyAuth in listOf(false, true)) {
+            val repository = FakeSshRepository().apply { identity = trustedIdentity; blocked = false
+                preflightFailure = SshFailure(SshFailureKind.TIMEOUT, "Временная ошибка сети.") }
+            val model = SshWizardViewModel(repository)
+            probe(model)
+            if (keyAuth) {
+                model.importPrivateKey { ByteArrayInputStream("fake-test-key".toByteArray()) }; model.state.first { !it.busy }
+                model.preflightKey("test-passphrase")
+            } else model.preflightPassword("test-only")
+            runCurrent()
+            assertTrue(model.state.value.accessAvailable); assertEquals(SshWizardStep.AUTH, model.state.value.step)
+            assertTrue((if (keyAuth) repository.lastKey else repository.lastPassword)!!.all { it == 0.toByte() })
+            advanceTimeBy(VerifiedInstallationAccess.TTL_MILLIS - 1_000); runCurrent()
+            repository.preflightFailure = null
+            model.retryPreflight(); runCurrent()
+            assertEquals(2, repository.preflightCalls); assertEquals(SshWizardStep.RESULTS, model.state.value.step)
+            advanceTimeBy(1_000); runCurrent()
+            assertFalse(model.state.value.accessAvailable); assertNull(model.takeInstallationAccess())
+            model.reset()
+        }
+    }
+
+    @Test fun failedAuthenticationCannotReuseRejectedCredentials() = runTest(dispatcher) {
+        val repository = FakeSshRepository().apply { identity = trustedIdentity
+            preflightFailure = SshFailure(SshFailureKind.AUTH, "Неверные данные доступа.") }
+        val model = SshWizardViewModel(repository); probe(model)
+        model.preflightPassword("test-only"); runCurrent()
+        assertFalse(model.state.value.accessAvailable)
+        model.retryPreflight(); runCurrent()
+        assertEquals(1, repository.preflightCalls); model.reset()
+    }
+
+    @Test fun changingServerOrAccountErasesPreviousSecret() = runTest(dispatcher) {
+        for (changeServer in listOf(false, true)) {
+            val repository = FakeSshRepository().apply { identity = trustedIdentity; blocked = false }
+            val model = SshWizardViewModel(repository); probe(model)
+            model.preflightPassword("test-only"); runCurrent()
+            val original = retainedPassword(model)
+            model.back()
+            if (changeServer) { model.back(); model.probe("other.example.test", "22", "admin", "meet.example.test") }
+            else model.preflightPassword("other", "replacement-test-only")
+            runCurrent()
+            assertTrue(original.all { it == 0.toByte() }); model.reset()
+        }
     }
 
     @Test fun closingViewModelErasesRetainedAccess() = runTest(dispatcher) {
@@ -310,7 +379,7 @@ class SshWizardViewModelTest {
             inspectCalls++
             if (preflightCalls > 0) inspectAfterAuthGate?.await()
             inspectFailure?.let { throw it }
-            return identity
+            return identity.copy(endpoint = endpoint)
         }
         override suspend fun trustHost(identity: SshHostIdentity) { trustCalls++ }
         override suspend fun forgetHost(endpoint: SshEndpoint) { identity = newIdentity }
@@ -323,7 +392,7 @@ class SshWizardViewModelTest {
             return try {
                 preflightGate?.let { gate -> if (ignorePreflightCancellation) withContext(NonCancellable) { gate.await() } else gate.await() }
                 preflightFailure?.let { throw it }
-                PreflightReport(endpoint, request.domain, newKey,
+                PreflightReport(request.endpoint, request.domain, newKey,
                     if (blocked) listOf(PreflightCheck("root", "Права", PreflightLevel.BLOCKED, "Нет прав")) else emptyList(), 0)
             } finally { credentials.destroy() }
         }

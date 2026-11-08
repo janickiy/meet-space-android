@@ -1,0 +1,15 @@
+{
+  "apk": "dist/MeetSpace-0.6.2.apk",
+  "versionCode": 47,
+  "versionName": "0.6.2",
+  "bytes": 53193011,
+  "sha256": "62dc6b6c831701652ff89fb31afc0ee0268e9f559238ae5960c3ff759a64a6ce",
+  "certificateSha256": "5472281448cf33dea7fe8a4b119683701cd43815d5e038bb34fad92e22b1e471",
+  "releaseBuild": true,
+  "debuggable": false,
+  "signatureVerified": true,
+  "zipAlignment16KiB": true,
+  "installerAssetFilesVerified": 25,
+  "currentAndHistoricalAssetsMatch": true,
+  "previousDistApkUnchanged": true
+}

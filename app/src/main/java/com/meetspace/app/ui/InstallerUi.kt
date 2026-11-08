@@ -63,7 +63,7 @@ fun InstallerUi(
     onCreateAccount: ((String) -> Unit)? = null,
     onEditOptions: () -> Unit = {},
 ) {
-    BackHandler(onBack = onDetach)
+    BackHandler { if (!state.busy && state.screen == InstallScreen.PLAN && state.ticket == null) onEditOptions() else onDetach() }
     var detailsExpanded by remember(state.ticket?.jobId) { mutableStateOf(false) }
     Scaffold(contentWindowInsets = WindowInsets.safeDrawing, containerColor = MaterialTheme.colorScheme.surface) { padding ->
         IntroFrame(message = listOf(state.screen.name, state.error).joinToString(), modifier = Modifier.padding(padding).imePadding().testTag("installer"), install = true) {
@@ -76,24 +76,24 @@ fun InstallerUi(
                 if (state.busy) { LinearProgressIndicator(Modifier.fillMaxWidth()); Text("Проверка ответа сервера…") }
                 if (state.screen == InstallScreen.ACCESS) {
                     InstallAccess(state, onImportKey, onAuthenticate)
-                } else if (state.needsAccess && state.status?.state != "completed" && state.screen != InstallScreen.PROGRESS) {
+                } else if ((state.needsAccess || state.error != null) && state.status?.state != "completed" && state.screen != InstallScreen.PROGRESS) {
                     OutlinedButton(shape = RoundedCornerShape(10.dp), onClick = onReconnect, enabled = !state.busy, modifier = Modifier.heightIn(min = 48.dp).testTag("install-reconnect")) { Text("Подключиться снова") }
                 }
                 if (state.screen == InstallScreen.PLAN) state.plan?.let { plan ->
                     InstallPlanCard(plan)
                     if (state.ticket == null) TextButton(onClick = onEditOptions, enabled = !state.busy,
                         modifier = Modifier.testTag("install-edit-options")) { Text("Изменить параметры") }
-                    InstallConsent(plan, state.busy || state.needsAccess, onApply)
+                    InstallConsent(plan, state.busy || state.needsAccess || state.error != null, onApply)
                 }
                 if (state.screen == InstallScreen.PROGRESS) {
                     val status = state.status
                     if (status == null) {
                         Text("Состояние пока неизвестно. Для проверки подключитесь снова.")
-                        if (state.needsAccess) OutlinedButton(shape = RoundedCornerShape(10.dp), onClick = onReconnect, enabled = !state.busy, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("install-reconnect")) { Text("Подключиться снова") }
+                        if (state.needsAccess || state.error != null) OutlinedButton(shape = RoundedCornerShape(10.dp), onClick = onReconnect, enabled = !state.busy, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("install-reconnect")) { Text("Подключиться снова") }
                     } else {
                         InstallationStatusCard(state, status)
                         status.errorCode?.let { Text(installErrorMessage(it), color = MaterialTheme.colorScheme.error) }
-                        if (state.needsAccess && status.state != "completed") OutlinedButton(shape = RoundedCornerShape(10.dp), onClick = onReconnect, enabled = !state.busy, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("install-reconnect")) { Text("Подключиться снова") }
+                        if ((state.needsAccess || state.error != null) && status.state != "completed") OutlinedButton(shape = RoundedCornerShape(10.dp), onClick = onReconnect, enabled = !state.busy, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("install-reconnect")) { Text("Подключиться снова") }
                         if (status.state == "completed") {
                             val domain = (state.plan?.options?.domain ?: state.ticket?.plan?.options?.domain)?.takeIf { it.isNotBlank() }
                             val origin = domain?.let { "https://$it" }
@@ -114,7 +114,7 @@ fun InstallerUi(
                                     modifier = Modifier.fillMaxWidth().heightIn(min = 49.dp).testTag("install-connect")) { Text("Подключить MeetSpace") }
                             }
                             TextButton(onClick = onForgetCompleted, enabled = !state.busy) { Text("Убрать завершённое задание с устройства") }
-                        } else if (!state.needsAccess) {
+                        } else if (!state.needsAccess && state.error == null) {
                             if (status.state in setOf("needs_recovery", "cancelled", "failed")) {
                                 Text("Продолжение использует прежний план и сохранённые секреты. Миграции защищены журналом; данные и тома не удаляются.")
                                 Button(shape = RoundedCornerShape(10.dp), onClick = { onControl("resume") }, enabled = !state.busy, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("install-resume")) { Text("Подтвердить продолжение") }
@@ -139,9 +139,9 @@ fun InstallerUi(
                             }
                             if (status != null) {
                                 if (status.state in setOf("needs_recovery", "failed", "cancelled")) InstallationProgressSummary(state, status)
-                                if (status.state in setOf("needs_recovery", "failed", "cancelled") || state.needsAccess && !status.terminal) {
+                                if (status.state in setOf("needs_recovery", "failed", "cancelled") || (state.needsAccess || state.error != null) && !status.terminal) {
                                     Text("Этапы установки", style = MaterialTheme.typography.titleMedium)
-                                    InstallationPhaseChecklist(status, state.needsAccess && !status.terminal)
+                                    InstallationPhaseChecklist(status, (state.needsAccess || state.error != null) && !status.terminal)
                                 }
                                 Text("Журнал этапов", style = MaterialTheme.typography.titleMedium)
                                 status.events.takeLast(12).forEach { event -> Text("${event.sequence}. ${phaseLabel(event.phase)} · ${event.state}${event.errorCode?.let { " · $it" } ?: ""}",
@@ -161,7 +161,7 @@ fun InstallerUi(
 /** Visual progress uses only acknowledged server phases; a detached connection is never shown as running. */
 @Composable
 private fun InstallationStatusCard(state: InstallerUiState, status: InstallStatus) {
-    val stale = state.needsAccess && !status.terminal
+    val stale = (state.needsAccess || state.error != null) && !status.terminal
     val complete = status.state == "completed"
     val recovery = status.state in setOf("needs_recovery", "failed", "cancelled")
     val statusText = if (stale) "Нет свежих данных о состоянии" else when (status.state) {

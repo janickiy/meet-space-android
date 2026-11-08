@@ -251,8 +251,11 @@ class InstallerProtocolTest {
             ("repository" to JsonPrimitive("janickiy/meetspace_docker_built"))))))
         failed("PLAN_INVALID") { registry.parse(changed, allowHistorical = true) }
     }
-    @Test fun archivedBuild45TicketStillAcceptsItsFrozenExactRelease() {
-        val previous = InstallerBundle(InstallerBundle.names.associateWith { File("../../installer/legacy/0.6.1-build45/$it").readBytes() })
+    @Test fun archivedBuild45TicketStillAcceptsItsFrozenExactRelease() = assertArchivedExactRelease("0.6.1-build45")
+    @Test fun archivedBuild46TicketStillAcceptsItsFrozenExactRelease() = assertArchivedExactRelease("0.6.1-build46")
+
+    private fun assertArchivedExactRelease(folder: String) {
+        val previous = InstallerBundle(InstallerBundle.names.associateWith { File("../../installer/legacy/$folder/$it").readBytes() })
         val original = prebuiltPlan(previous)
         val version = original.string("releaseVersion")
         val exact = rehashPlan(JsonObject(original + ("options" to JsonObject(original.getValue("options").jsonObject +

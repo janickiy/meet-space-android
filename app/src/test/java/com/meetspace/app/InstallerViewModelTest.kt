@@ -303,7 +303,6 @@ class InstallerViewModelTest {
     }
     @Test fun rejectedPlanStaysOnAccessClearsCredentialsAndExplainsRecovery() = runTest(dispatcher) {
         val guidance = mapOf(
-            "PREBUILT_SERVICE_UNAVAILABLE" to listOf("GitHub временно недоступен", "Повторите попытку позже"),
             "INVALID_REQUEST" to listOf("Обновите Android-приложение", "повторите получение плана"),
             "SOURCE_INVALID" to listOf("GitHub", "некорректные данные", "Повторите получение плана"),
             "SOURCE_INCOMPATIBLE" to listOf("несовместима", "Обновите Android-приложение"),
@@ -345,13 +344,57 @@ class InstallerViewModelTest {
             model.detach()
         }
     }
+    @Test fun transientPlanFailuresRetainAccessForRetryWithoutAnotherPassword() = runTest(dispatcher) {
+        for (failure in listOf<Exception>(SshFailure(SshFailureKind.NETWORK, "Временная ошибка сети"),
+            SshFailure(SshFailureKind.TIMEOUT, "Таймаут"), InstallFailure("PREBUILT_SERVICE_UNAVAILABLE"))) {
+            val original = "test-only".toByteArray()
+            val repo = Fake().apply { planException = failure }
+            val model = InstallerViewModel(repo)
+            model.start(endpoint, options.domain, verified(bytes = original)); runCurrent()
+            model.authenticate(options, "", false); runCurrent()
+            assertFalse(model.state.value.needsAccess); assertEquals(InstallScreen.ACCESS, model.state.value.screen)
+            assertTrue(original.any { it != 0.toByte() })
+            assertTrue(repo.captured.all { it.password.all { byte -> byte == 0.toByte() } })
+            if (failure is InstallFailure) assertTrue(model.state.value.error.orEmpty().contains("GitHub временно недоступен"))
+            repo.planException = null
+            model.authenticate(options, "", false); runCurrent()
+            assertEquals(2, repo.planCalls); assertFalse(model.state.value.needsAccess)
+            assertEquals(InstallScreen.PLAN, model.state.value.screen)
+            model.detach(); assertTrue(original.all { it == 0.toByte() })
+        }
+    }
+
+    @Test fun rejectedHostKeyOrAuthenticationCannotKeepInstallerCredentials() = runTest(dispatcher) {
+        for (kind in listOf(SshFailureKind.AUTH, SshFailureKind.HOST_KEY_CHANGED, SshFailureKind.UNTRUSTED_HOST)) {
+            val original = "test-only".toByteArray(); val repo = Fake().apply { planException = SshFailure(kind, "Доступ отклонён") }
+            val model = InstallerViewModel(repo)
+            model.start(endpoint, options.domain, verified(bytes = original)); runCurrent()
+            model.authenticate(options, "", false); runCurrent()
+            assertTrue(model.state.value.needsAccess); assertTrue(original.all { it == 0.toByte() })
+            model.authenticate(options, "", false); runCurrent(); assertEquals(1, repo.planCalls)
+            model.detach()
+        }
+    }
+
+    @Test fun activeInstallKeepsAccessBeyondHandoffDeadline() = runTest(dispatcher) {
+        val original = "test-only".toByteArray(); val repo = Fake(); val model = InstallerViewModel(repo)
+        model.start(endpoint, options.domain, verified(bytes = original)); runCurrent()
+        model.authenticate(options, "", false); runCurrent(); model.apply(true, true, true); runCurrent()
+        advanceTimeBy(VerifiedInstallationAccess.TTL_MILLIS * 2); runCurrent()
+        assertFalse(model.state.value.needsAccess); assertTrue(original.any { it != 0.toByte() })
+        model.reconnect(); runCurrent()
+        assertEquals("status", repo.lastControl); assertEquals(1, repo.applyCount)
+        model.detach(); assertTrue(original.all { it == 0.toByte() })
+    }
+
     @Test fun ticketPersistedBeforeApplyAndLostResponseDoesNotRetryAutomatically() = runTest(dispatcher) {
         val repo=Fake().apply { loseApply=true };val model=setupModel(repo);runCurrent()
         model.apply(true,true,true);runCurrent()
         assertEquals(listOf("remember","apply"),repo.mutations);assertNotNull(model.state.value.pending)
-        assertTrue(model.state.value.needsAccess);assertNull(model.state.value.status)
+        assertFalse(model.state.value.needsAccess);assertNull(model.state.value.status)
         assertTrue(repo.captured.all { it.password.all { byte -> byte==0.toByte() } })
-        model.reconnect();model.authenticate(options,"test-only",false);runCurrent()
+        advanceTimeBy(9_000); runCurrent(); assertTrue(repo.controls.isEmpty())
+        model.reconnect();runCurrent()
         assertEquals(1,repo.applyCount);assertEquals("status",repo.lastControl);model.detach()
     }
     @Test fun detachDoesNotCancelRemoteJob() = runTest(dispatcher) {
@@ -450,6 +493,7 @@ class InstallerViewModelTest {
     private inner class Fake : SshInstallerRepository {
         var saved:InstallTicket?=null;var applyCount=0;var statusCalls=0;var loseApply=false;var missing=false;var expired=false;var lastControl:String?=null;var remoteState="running"
         var statusGate:CompletableDeferred<Unit>?=null;var applyGate:CompletableDeferred<Unit>?=null;var ignoreStatusCancellation=false;var planFailure:String?=null
+        var planException:Exception?=null
         var smtpBuffer:ByteArray?=null;var smtpReceived:String?=null
         var adminBuffer:ByteArray?=null;var adminReceived:String?=null
         var planGate:CompletableDeferred<Unit>?=null;var pendingGate:CompletableDeferred<Unit>?=null;var ignorePlanCancellation=false;var planCalls=0
@@ -463,6 +507,7 @@ class InstallerViewModelTest {
             planCalls++;hostKeys+=expectedHostKey;plannedOptions+=options
             try {
                 planGate?.let { gate -> if(ignorePlanCancellation)withContext(NonCancellable) { gate.await() } else gate.await() }
+                planException?.let { throw it }
                 planFailure?.let { throw InstallFailure(it) };return if(expired)plan.copy(expiresAt=0,options=options) else plan.copy(options=options)
             } finally { destroy(credentials) }
         }

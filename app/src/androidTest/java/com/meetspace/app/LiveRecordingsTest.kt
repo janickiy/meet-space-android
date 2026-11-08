@@ -240,7 +240,7 @@ class LiveRecordingsTest {
             // Device-local closed port: a real TCP failure without contacting any external VPS.
             compose.onNodeWithTag("ssh-host").performScrollTo().performTextInput("127.0.0.1")
             compose.onNodeWithTag("ssh-port").performScrollTo().performTextReplacement("1")
-            compose.onNodeWithTag("ssh-user").performScrollTo().performTextReplacement("fixture")
+            compose.onNodeWithTag("ssh-user").assertDoesNotExist()
             compose.onNodeWithTag("ssh-domain").performScrollTo().performTextInput("meetspace.example.invalid")
             clickAfterEditor(scenario, "ssh-probe")
             await("actual SSH connection failure is actionable", 45_000) { !ssh.state.value.busy && ssh.state.value.request != null && ssh.state.value.error != null }

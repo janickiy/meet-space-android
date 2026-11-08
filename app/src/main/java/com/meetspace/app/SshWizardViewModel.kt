@@ -33,6 +33,7 @@ data class SshWizardUiState(
     val error: String? = null,
     val notice: String? = null,
     val credentialReset: Int = 0,
+    val accessAvailable: Boolean = false,
 )
 
 class SshWizardViewModel(
@@ -51,17 +52,18 @@ class SshWizardViewModel(
 
     fun probe(host: String, port: String, user: String, domain: String) {
         if (state.value.busy) return
-        clearInstallationAccess()
         val request = try {
             SshInputValidator.validate(host, port, user, domain)
         } catch (failure: SshFailure) {
             mutableState.value = state.value.copy(error = failure.message, notice = null)
             return
         }
+        if (request != state.value.request) clearInstallationAccess()
         clearKey()
         mutableState.value = state.value.copy(request = request, identity = null, report = null, keyLoaded = false)
         execute("Получение публичного ключа сервера…") {
             val identity = repository.inspectHost(request.endpoint)
+            if (identity.trust != SshTrust.TRUSTED || installationAccess?.isValidFor(request, identity.key) == false) clearInstallationAccess()
             publish(state.value.copy(identity = identity, step = if (identity.trust == SshTrust.TRUSTED) SshWizardStep.AUTH else SshWizardStep.VERIFY_HOST))
         }
     }
@@ -140,8 +142,11 @@ class SshWizardViewModel(
         mutableState.value = state.value.copy(keyLoaded = false)
     }
 
-    fun preflightPassword(password: String) {
+    fun preflightPassword(password: String) = preflightPassword(state.value.request?.endpoint?.user.orEmpty(), password)
+
+    fun preflightPassword(user: String, password: String) {
         if (!canPreflight()) return
+        if (!selectAuthUser(user)) return
         if (password.isEmpty()) {
             mutableState.value = state.value.copy(error = "Введите пароль SSH.")
             return
@@ -149,8 +154,11 @@ class SshWizardViewModel(
         startPreflight(SshCredentials.Password(password.toByteArray(Charsets.UTF_8)))
     }
 
-    fun preflightKey(passphrase: String) {
+    fun preflightKey(passphrase: String) = preflightKey(state.value.request?.endpoint?.user.orEmpty(), passphrase)
+
+    fun preflightKey(user: String, passphrase: String) {
         if (!canPreflight()) return
+        if (!selectAuthUser(user)) return
         val bytes = importedKey
         if (bytes == null) {
             mutableState.value = state.value.copy(error = "Выберите файл приватного ключа.")
@@ -162,38 +170,67 @@ class SshWizardViewModel(
 
     private fun canPreflight(): Boolean = !state.value.busy && state.value.step == SshWizardStep.AUTH && state.value.identity?.trust == SshTrust.TRUSTED
 
+    private fun selectAuthUser(user: String): Boolean {
+        val current = state.value.request ?: return false
+        val identity = state.value.identity ?: return false
+        return try {
+            val request = SshInputValidator.validateRequest(current.copy(endpoint = current.endpoint.copy(user = user)))
+            if (request.endpoint.pinId != identity.endpoint.pinId) throw SshFailure(SshFailureKind.UNTRUSTED_HOST, "Повторите проверку ключа SSH-сервера.")
+            if (request != current) clearInstallationAccess()
+            mutableState.value = state.value.copy(request = request, identity = identity.copy(endpoint = request.endpoint))
+            true
+        } catch (failure: SshFailure) {
+            clearInstallationAccess()
+            mutableState.value = state.value.copy(error = failure.message)
+            false
+        }
+    }
+
+    fun retryPreflight() {
+        if (!canPreflight()) return
+        val access = installationAccess ?: return
+        runPreflight(access)
+    }
+
     private fun startPreflight(credentials: SshCredentials) {
         val request = state.value.request ?: run { credentials.destroy(); return }
         val identity = state.value.identity ?: run { credentials.destroy(); return }
         clearInstallationAccess()
         clearKey()
-        activeCredentials = credentials
+        val access = VerifiedInstallationAccess(request, identity.key, credentials, clock(), clock)
+        installationAccess = access
+        accessExpiry = viewModelScope.launch {
+            delay(VerifiedInstallationAccess.TTL_MILLIS)
+            if (installationAccess === access) {
+                cancelOperation()
+                mutableState.value = state.value.copy(notice = "Срок хранения SSH-доступа истёк. Введите данные доступа снова.")
+            }
+        }
+        mutableState.value = state.value.copy(accessAvailable = true)
+        runPreflight(access)
+    }
+
+    private fun runPreflight(access: VerifiedInstallationAccess) {
+        val request = state.value.request ?: return
+        val identity = state.value.identity ?: return
+        val operationCredentials = access.copyCredentials(request, identity.key) ?: run {
+            clearInstallationAccess()
+            mutableState.value = state.value.copy(error = "Срок хранения SSH-доступа истёк. Введите данные доступа снова.")
+            return
+        }
+        activeCredentials = operationCredentials
         mutableState.value = state.value.copy(keyLoaded = false, report = null, credentialReset = state.value.credentialReset + 1)
         execute("Подключение и проверка сервера без изменений…") {
-            // Repository owns/destroys its copy. Only a successful trusted result may retain
-            // the original for the next step, so its finally cannot erase transferred access.
-            val operationCredentials = credentials.copyOwned()
-            var retained = false
             try {
                 val report = repository.preflight(request, operationCredentials)
                 currentCoroutineContext().ensureActive()
                 if (report.endpoint != request.endpoint || report.domain != request.domain || report.hostKey != identity.key) {
                     throw SshFailure(SshFailureKind.INVALID_RESPONSE, "Ответ проверки не соответствует проверенному SSH-серверу.")
                 }
-                if (!report.hasBlockers) {
-                    val access = VerifiedInstallationAccess(request, identity.key, credentials, clock(), clock)
-                    installationAccess = access
-                    retained = true
-                    accessExpiry = viewModelScope.launch {
-                        delay(VerifiedInstallationAccess.TTL_MILLIS)
-                        if (installationAccess === access) clearInstallationAccess()
-                    }
-                }
                 publish(state.value.copy(report = report, step = SshWizardStep.RESULTS))
             } finally {
                 operationCredentials.destroy()
-                if (!retained) credentials.destroy()
-                if (activeCredentials === credentials) activeCredentials = null
+                if (activeCredentials === operationCredentials) activeCredentials = null
             }
         }
     }
@@ -207,6 +244,7 @@ class SshWizardViewModel(
         }
         val access = installationAccess
         installationAccess = null
+        mutableState.value = state.value.copy(accessAvailable = false)
         accessExpiry?.cancel(); accessExpiry = null
         return access
     }
@@ -226,7 +264,9 @@ class SshWizardViewModel(
     }
 
     fun back() {
-        cancelOperation()
+        if (state.value.busy) { cancelOperation(); return }
+        clearKey()
+        mutableState.value = state.value.copy(keyLoaded = false, error = null, credentialReset = state.value.credentialReset + 1)
         val current = state.value
         mutableState.value = when (current.step) {
             SshWizardStep.RESULTS -> current.copy(step = SshWizardStep.AUTH, report = null, notice = null)
@@ -252,6 +292,7 @@ class SshWizardViewModel(
                 throw cancelled
             } catch (failure: SshFailure) {
                 if (operationGeneration == generation) {
+                    if (failure.kind !in setOf(SshFailureKind.NETWORK, SshFailureKind.TIMEOUT)) clearInstallationAccess()
                     mutableState.value = state.value.copy(error = failure.message, keyLoaded = false,
                         credentialReset = state.value.credentialReset + 1)
                     clearKey()
@@ -273,6 +314,7 @@ class SshWizardViewModel(
                 }
             } catch (_: Exception) {
                 if (operationGeneration == generation) {
+                    clearInstallationAccess()
                     mutableState.value = state.value.copy(error = "Не удалось выполнить SSH-проверку. Проверьте подключение и повторите попытку.", keyLoaded = false,
                         credentialReset = state.value.credentialReset + 1)
                     clearKey()
@@ -292,6 +334,7 @@ class SshWizardViewModel(
     private fun clearInstallationAccess() {
         accessExpiry?.cancel(); accessExpiry = null
         installationAccess?.destroy(); installationAccess = null
+        mutableState.value = state.value.copy(accessAvailable = false)
     }
     private fun closeImportStream() { try { importStream?.close() } catch (_: Exception) { }; importStream = null }
     override fun onCleared() { work?.cancel(); closeImportStream(); clearKey(); clearInstallationAccess(); activeCredentials?.destroy(); activeCredentials = null }

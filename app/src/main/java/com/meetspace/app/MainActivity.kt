@@ -378,6 +378,7 @@ class MainActivity : ComponentActivity() {
                             onClearKey = sshModel::clearImportedKey,
                             onPasswordPreflight = sshModel::preflightPassword,
                             onKeyPreflight = sshModel::preflightKey,
+                            onReuseAccess = sshModel::retryPreflight,
                             onCancel = sshModel::cancelOperation,
                             onBack = sshModel::back,
                             onExit = { sshModel.reset(); model.navigate(FoundationScreen.WELCOME) },

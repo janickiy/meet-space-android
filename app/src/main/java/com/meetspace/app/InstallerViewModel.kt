@@ -70,17 +70,33 @@ class InstallerViewModel(private val repository: SshInstallerRepository) : ViewM
         expectedHostKey = access.hostKey
         mutableState.update { it.copy(needsAccess = false, screen = if (it.ticket == null) InstallScreen.PLAN else InstallScreen.PROGRESS,
             credentialReset = it.credentialReset + 1) }
+        watchIdleAccess(access.credentials, access.remainingMillis)
+    }
+    private fun watchIdleAccess(owned: SshCredentials, firstCheckMillis: Long = VerifiedInstallationAccess.TTL_MILLIS) {
+        accessExpiry?.cancel()
         accessExpiry = viewModelScope.launch {
-            delay(access.remainingMillis)
-            if (credentials === access.credentials && state.value.screen == InstallScreen.ACCESS && !state.value.busy) {
-                clearAccess()
-                mutableState.update { it.copy(needsAccess = true, credentialReset = it.credentialReset + 1,
-                    error = "Срок хранения SSH-доступа истёк. Повторите проверку сервера или введите данные доступа снова.") }
+            delay(firstCheckMillis)
+            while (credentials === owned) {
+                if (state.value.screen == InstallScreen.ACCESS && !state.value.busy) {
+                    clearAccess()
+                    mutableState.update { it.copy(needsAccess = true, credentialReset = it.credentialReset + 1,
+                        error = "Срок хранения SSH-доступа истёк. Повторите проверку сервера или введите данные доступа снова.") }
+                    break
+                }
+                // Building/polling a remote install can take much longer than the idle form deadline.
+                delay(VerifiedInstallationAccess.TTL_MILLIS)
             }
         }
     }
     fun reconnect() {
+        if (state.value.busy) return
         val ticket = state.value.pending ?: state.value.ticket
+        if (state.value.active && !state.value.needsAccess && credentials != null &&
+            (ticket == null || ticket.endpoint == state.value.endpoint && ticket.plan.options.domain == state.value.options.domain)) {
+            mutableState.update { it.copy(error = null, errorCode = null) }
+            prepare(ticket?.plan?.options ?: state.value.options)
+            return
+        }
         if (ticket == null) {
             detach()
             mutableState.update { it.copy(active = true, screen = InstallScreen.ACCESS, plan = null, status = null, error = null, errorCode = null) }
@@ -138,6 +154,7 @@ class InstallerViewModel(private val repository: SshInstallerRepository) : ViewM
             SshCredentials.Password(password.toByteArray())
         }
         clearAccess(); credentials = access
+        watchIdleAccess(access)
         mutableState.update { it.copy(options = if (it.ticket == null) normalized else it.options, keyLoaded = false,
             credentialReset = it.credentialReset + 1, needsAccess = false) }
         prepare(normalized)
@@ -261,7 +278,7 @@ class InstallerViewModel(private val repository: SshInstallerRepository) : ViewM
     private fun observe() {
         val ticket = state.value.ticket ?: return
         if (!foreground || !state.value.active || state.value.busy || state.value.needsAccess ||
-            credentials == null || state.value.status?.terminal != false || poll?.isActive == true) return
+            credentials == null || state.value.error != null || state.value.status?.terminal != false || poll?.isActive == true) return
         val current = ++observationGeneration
         mutableState.update { it.copy(observing = true) }
         val observer = viewModelScope.launch(start = CoroutineStart.LAZY) {
@@ -303,8 +320,14 @@ class InstallerViewModel(private val repository: SshInstallerRepository) : ViewM
         }
     }
     private fun failure(error: Exception) {
-        clearAccess()
-        mutableState.update { it.copy(needsAccess = true, observing = false, keyLoaded = false,
+        val retainAccess = credentials != null && when (error) {
+            is SshFailure -> error.kind in setOf(SshFailureKind.NETWORK, SshFailureKind.TIMEOUT)
+            is InstallFailure -> error.code in setOf("PREBUILT_SERVICE_UNAVAILABLE", "PREBUILT_DOWNLOAD_FAILED", "SOURCE_LOOKUP_FAILED", "SOURCE_RATE_LIMIT")
+            is java.io.IOException -> true
+            else -> false
+        }
+        if (!retainAccess) clearAccess()
+        mutableState.update { it.copy(needsAccess = !retainAccess, observing = false, keyLoaded = false,
             screen = if (it.plan == null && it.ticket == null) InstallScreen.ACCESS else it.screen,
             credentialReset = it.credentialReset + 1, errorCode = (error as? InstallFailure)?.code,
             error = when (error) {

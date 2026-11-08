@@ -35,6 +35,7 @@ internal class AndroidSshInstallerRepository(private val context: Context, priva
     private val bundle by lazy { testBundle ?: InstallerBundle(InstallerBundle.names.associateWith { name -> context.assets.open(name).use { it.readBytes() } }) }
     private val bundles by lazy {
         if (testBundle != null) InstallerBundles(bundle) else InstallerBundles(bundle, listOf(
+            InstallerBundle(InstallerBundle.names.associateWith { name -> context.assets.open("0.6.1-build46/$name").use { it.readBytes() } }),
             InstallerBundle(InstallerBundle.names.associateWith { name -> context.assets.open("0.6.1-build45/$name").use { it.readBytes() } }),
             InstallerBundle(InstallerBundle.names.associateWith { name -> context.assets.open("0.6.0-build43/$name").use { it.readBytes() } }),
             InstallerBundle(InstallerBundle.names.associateWith { name -> context.assets.open("0.5.2/$name").use { it.readBytes() } })

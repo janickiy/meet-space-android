@@ -52,8 +52,8 @@ fun SshWizardUi(
     onForgetTrust: () -> Unit,
     onImportKey: (Uri) -> Unit,
     onClearKey: () -> Unit,
-    onPasswordPreflight: (String) -> Unit,
-    onKeyPreflight: (String) -> Unit,
+    onPasswordPreflight: (String, String) -> Unit,
+    onKeyPreflight: (String, String) -> Unit,
     onCancel: () -> Unit,
     onBack: () -> Unit,
     onExit: () -> Unit,
@@ -61,6 +61,7 @@ fun SshWizardUi(
     modifier: Modifier = Modifier,
     onInstall: (() -> Unit)? = null,
     onReconnectInstall: (() -> Unit)? = null,
+    onReuseAccess: () -> Unit = {},
 ) {
     val back = { if (state.busy) onCancel() else if (state.step == SshWizardStep.DETAILS) onExit() else onBack() }
     BackHandler(onBack = back)
@@ -97,7 +98,7 @@ fun SshWizardUi(
                 when (state.step) {
                     SshWizardStep.DETAILS -> SshDetails(state, onProbe)
                     SshWizardStep.VERIFY_HOST -> SshHostVerification(state, onConfirmTrust, onForgetTrust)
-                    SshWizardStep.AUTH -> SshAuth(state, onImportKey, onClearKey, onPasswordPreflight, onKeyPreflight)
+                    SshWizardStep.AUTH -> SshAuth(state, onImportKey, onClearKey, onPasswordPreflight, onKeyPreflight, onReuseAccess)
                     SshWizardStep.RESULTS -> SshResults(state)
                 }
                 HorizontalDivider()
@@ -113,7 +114,6 @@ fun SshWizardUi(
 private fun SshDetails(state: SshWizardUiState, onProbe: (String, String, String, String) -> Unit) {
     var host by rememberSaveable { mutableStateOf(state.request?.endpoint?.host ?: "") }
     var port by rememberSaveable { mutableStateOf(state.request?.endpoint?.port?.toString() ?: "22") }
-    var user by rememberSaveable { mutableStateOf(state.request?.endpoint?.user ?: "root") }
     var domain by rememberSaveable { mutableStateOf(state.request?.domain ?: "") }
     val keyboard = LocalSoftwareKeyboardController.current
     Column(Modifier.testTag("ssh-details"), verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -124,14 +124,14 @@ private fun SshDetails(state: SshWizardUiState, onProbe: (String, String, String
             SshField(host, { host = it }, "IP-адрес или имя VPS", "ssh-host", state.busy, KeyboardType.Uri)
             SshField(port, { port = it }, "SSH-порт", "ssh-port", state.busy, KeyboardType.Number)
         }
-        SshField(user, { user = it }, "Пользователь SSH", "ssh-user", state.busy)
         SshField(domain, { domain = it }, "Домен будущего MeetSpace", "ssh-domain", state.busy, KeyboardType.Uri)
-        Text("Для VPS укажите IP или имя сервера. Для MeetSpace — домен, например chat.stage.org.ru, или https://chat.stage.org.ru. Пользователь SSH может отличаться от аккаунта MeetSpace.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+        Text("Для VPS укажите IP или имя сервера. Для MeetSpace — домен, например chat.stage.org.ru, или https://chat.stage.org.ru.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
         Button(shape = RoundedCornerShape(10.dp), onClick = {
             keyboard?.hide()
             // Show the same canonical domain that will be bound to the verified SSH access.
             domain = runCatching { SshInputValidator.normalizeDomain(domain) }.getOrDefault(domain)
-            onProbe(host, port, user, domain)
+            // Host-key inspection stops before USERAUTH; the actual account is entered in AUTH.
+            onProbe(host, port, state.request?.endpoint?.user ?: "root", domain)
         }, enabled = !state.busy,
             modifier = Modifier.fillMaxWidth().heightIn(min = 49.dp).testTag("ssh-probe")) { Text("Проверить ключ сервера") }
         Text("На этом шаге пароль и приватный ключ не передаются. Сначала подтвердите публичный ключ сервера по независимому источнику.", style = MaterialTheme.typography.bodyMedium)
@@ -201,7 +201,8 @@ private fun SshFingerprint(title: String, key: SshHostKey, tag: String) {
 }
 
 @Composable
-private fun SshAuth(state: SshWizardUiState, onImport: (Uri) -> Unit, onClearKey: () -> Unit, onPassword: (String) -> Unit, onKey: (String) -> Unit) {
+private fun SshAuth(state: SshWizardUiState, onImport: (Uri) -> Unit, onClearKey: () -> Unit, onPassword: (String, String) -> Unit, onKey: (String, String) -> Unit, onReuseAccess: () -> Unit) {
+    var user by rememberSaveable(state.request?.endpoint?.pinId) { mutableStateOf(state.request?.endpoint?.user ?: "root") }
     var keyMode by rememberSaveable { mutableStateOf(false) }
     var password by remember(state.credentialReset) { mutableStateOf("") }
     var passphrase by remember(state.credentialReset) { mutableStateOf("") }
@@ -211,33 +212,43 @@ private fun SshAuth(state: SshWizardUiState, onImport: (Uri) -> Unit, onClearKey
     DisposableEffect(Unit) { onDispose { password = ""; passphrase = "" } }
     Column(Modifier.testTag("ssh-auth"), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text("Доступ к ${state.request?.endpoint?.host}", style = MaterialTheme.typography.titleLarge)
-        Text("Пользователь: ${state.request?.endpoint?.user} · порт ${state.request?.endpoint?.port}")
+        Text("SSH-порт: ${state.request?.endpoint?.port}")
         state.identity?.let { SshFingerprint("Проверенный ключ сервера", it.key, "ssh-trusted-fingerprint") }
-        Row(Modifier.fillMaxWidth().selectableGroup().background(onboardingTone(0xFFF0F3F8, 0xFF202A39), RoundedCornerShape(10.dp)).padding(4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            listOf(false to "Пароль SSH", true to "Приватный ключ").forEach { (mode, title) ->
-                Row(Modifier.weight(1f).heightIn(min = 48.dp).background(if (keyMode == mode) onboardingTone(0xFFFFFFFF, 0xFF384963) else androidx.compose.ui.graphics.Color.Transparent, RoundedCornerShape(7.dp)).selectable(keyMode == mode, enabled = !state.busy, role = Role.RadioButton,
-                    onClick = { keyMode = mode; password = ""; passphrase = ""; visible = false; onClearKey() }).testTag(if (mode) "ssh-method-key" else "ssh-method-password"), verticalAlignment = Alignment.CenterVertically) {
-                    Spacer(Modifier.width(8.dp))
-                    Icon(if (mode) Icons.Outlined.Key else Icons.Outlined.Lock, null, Modifier.size(16.dp), tint = if (keyMode == mode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(Modifier.width(7.dp)); Text(title, fontSize = 11.sp, lineHeight = 17.sp, color = if (keyMode == mode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+        if (state.accessAvailable) {
+            Text("Пользователь: ${state.request?.endpoint?.user}")
+            Text("Данные доступа сохранены в памяти открытого мастера.", modifier = Modifier.testTag("ssh-access-retained"))
+            TextButton(onClick = onClearKey, enabled = !state.busy, modifier = Modifier.testTag("ssh-change-access")) { Text("Изменить данные доступа") }
+            Button(onClick = onReuseAccess, enabled = !state.busy, shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 49.dp).testTag("ssh-preflight")) { Text("Проверить сервер без изменений") }
+        } else {
+            SshField(user, { user = it }, "Пользователь SSH", "ssh-user", state.busy)
+            Text("Учётная запись SSH может отличаться от аккаунта MeetSpace.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(Modifier.fillMaxWidth().selectableGroup().background(onboardingTone(0xFFF0F3F8, 0xFF202A39), RoundedCornerShape(10.dp)).padding(4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                listOf(false to "Пароль SSH", true to "Приватный ключ").forEach { (mode, title) ->
+                    Row(Modifier.weight(1f).heightIn(min = 48.dp).background(if (keyMode == mode) onboardingTone(0xFFFFFFFF, 0xFF384963) else androidx.compose.ui.graphics.Color.Transparent, RoundedCornerShape(7.dp)).selectable(keyMode == mode, enabled = !state.busy, role = Role.RadioButton,
+                        onClick = { keyMode = mode; password = ""; passphrase = ""; visible = false; onClearKey() }).testTag(if (mode) "ssh-method-key" else "ssh-method-password"), verticalAlignment = Alignment.CenterVertically) {
+                        Spacer(Modifier.width(8.dp))
+                        Icon(if (mode) Icons.Outlined.Key else Icons.Outlined.Lock, null, Modifier.size(16.dp), tint = if (keyMode == mode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(Modifier.width(7.dp)); Text(title, fontSize = 11.sp, lineHeight = 17.sp, color = if (keyMode == mode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
             }
+            if (keyMode) {
+                OutlinedButton(shape = RoundedCornerShape(10.dp), onClick = { picker.launch(arrayOf("*/*")) }, enabled = !state.busy,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 49.dp).testTag("ssh-import-key")) { Text(if (state.keyLoaded) "Выбрать другой ключ" else "Выбрать файл ключа") }
+                Text(if (state.keyLoaded) "Ключ загружен в память проверки" else "OpenSSH v1: без пароля или bcrypt до 64 раундов. RSA/EC PEM: только без шифрования. Зашифрованные PEM, PKCS#8 и PuTTY не поддерживаются. Максимум 256 КиБ; файл остаётся только в памяти.", modifier = Modifier.testTag("ssh-key-status"), style = MaterialTheme.typography.bodyMedium)
+                if (state.keyLoaded) TextButton(onClick = onClearKey, enabled = !state.busy, modifier = Modifier.heightIn(min = 48.dp).testTag("ssh-clear-key")) { Text("Удалить ключ из памяти") }
+                SshSecretField(passphrase, { passphrase = it }, "Passphrase ключа (если есть)", "ssh-passphrase", visible, { visible = !visible }, state.busy)
+            } else {
+                SshSecretField(password, { password = it }, "Пароль SSH", "ssh-password", visible, { visible = !visible }, state.busy)
+            }
+            Button(shape = RoundedCornerShape(10.dp), onClick = {
+                keyboard?.hide()
+                if (keyMode) { val value = passphrase; passphrase = ""; onKey(user, value) }
+                else { val value = password; password = ""; onPassword(user, value) }
+                visible = false
+            }, enabled = !state.busy && user.isNotBlank() && if (keyMode) state.keyLoaded else password.isNotEmpty(), modifier = Modifier.fillMaxWidth().heightIn(min = 49.dp).testTag("ssh-preflight")) { Text("Проверить сервер без изменений") }
         }
-        if (keyMode) {
-            OutlinedButton(shape = RoundedCornerShape(10.dp), onClick = { picker.launch(arrayOf("*/*")) }, enabled = !state.busy,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 49.dp).testTag("ssh-import-key")) { Text(if (state.keyLoaded) "Выбрать другой ключ" else "Выбрать файл ключа") }
-            Text(if (state.keyLoaded) "Ключ загружен в память проверки" else "OpenSSH v1: без пароля или bcrypt до 64 раундов. RSA/EC PEM: только без шифрования. Зашифрованные PEM, PKCS#8 и PuTTY не поддерживаются. Максимум 256 КиБ; файл остаётся только в памяти.", modifier = Modifier.testTag("ssh-key-status"), style = MaterialTheme.typography.bodyMedium)
-            if (state.keyLoaded) TextButton(onClick = onClearKey, enabled = !state.busy, modifier = Modifier.heightIn(min = 48.dp).testTag("ssh-clear-key")) { Text("Удалить ключ из памяти") }
-            SshSecretField(passphrase, { passphrase = it }, "Passphrase ключа (если есть)", "ssh-passphrase", visible, { visible = !visible }, state.busy)
-        } else {
-            SshSecretField(password, { password = it }, "Пароль SSH", "ssh-password", visible, { visible = !visible }, state.busy)
-        }
-        Button(shape = RoundedCornerShape(10.dp), onClick = {
-            keyboard?.hide()
-            if (keyMode) { val value = passphrase; passphrase = ""; onKey(value) }
-            else { val value = password; password = ""; onPassword(value) }
-            visible = false
-        }, enabled = !state.busy && if (keyMode) state.keyLoaded else password.isNotEmpty(), modifier = Modifier.fillMaxWidth().heightIn(min = 49.dp).testTag("ssh-preflight")) { Text("Проверить сервер без изменений") }
         Text("SSH используется только для диагностики. Пароль не передаётся в sudo. Установка, изменение firewall, пакетов и Docker на этом этапе не выполняются.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

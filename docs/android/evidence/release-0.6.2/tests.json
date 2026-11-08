@@ -1,0 +1,86 @@
+{
+  "unit": [
+    {
+      "name": "com.meetspace.app.InstallerViewModelTest",
+      "module": "app",
+      "tests": 37,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.meetspace.app.SshWizardViewModelTest",
+      "module": "app",
+      "tests": 20,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.meetspace.app.VerifiedInstallationAccessTest",
+      "module": "app",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.meetspace.core.ssh.InstallerHostKeyBindingTest",
+      "module": "core/ssh",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.meetspace.core.ssh.InstallerPlanRequestTest",
+      "module": "core/ssh",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.meetspace.core.ssh.InstallerProtocolTest",
+      "module": "core/ssh",
+      "tests": 30,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.meetspace.core.ssh.PreflightAnalyzerTest",
+      "module": "core/ssh",
+      "tests": 13,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.meetspace.core.ssh.PrivateKeyPolicyTest",
+      "module": "core/ssh",
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.meetspace.core.ssh.SshInputValidatorTest",
+      "module": "core/ssh",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.meetspace.core.ssh.SshTransportPolicyTest",
+      "module": "core/ssh",
+      "tests": 20,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "unitTotal": 146,
+  "pythonTotal": 173
+}

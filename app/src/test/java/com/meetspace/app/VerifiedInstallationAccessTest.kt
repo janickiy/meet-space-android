@@ -40,4 +40,22 @@ class VerifiedInstallationAccessTest {
         assertNull(transfer.take(request))
         assertTrue(bytes.all { it == 0.toByte() }); assertTrue(passphrase.all { it == 0.toByte() })
     }
+
+    @Test fun retryCopiesDoNotEraseOriginalOrExtendItsDeadline() {
+        var now = 0L
+        val bytes = "test-only".toByteArray()
+        val transfer = VerifiedInstallationAccess(request, key, SshCredentials.Password(bytes), 0) { now }
+        val retry = transfer.copyCredentials(request, key) as SshCredentials.Password
+        assertNotSame(bytes, retry.password); retry.destroy(); assertTrue(bytes.any { it != 0.toByte() })
+        now = VerifiedInstallationAccess.TTL_NANOS
+        assertNull(transfer.copyCredentials(request, key)); assertTrue(bytes.all { it == 0.toByte() })
+        assertNull(transfer.take(request))
+    }
+
+    @Test fun changedHostKeyCannotReuseRetainedPassword() {
+        val bytes = "test-only".toByteArray()
+        val transfer = VerifiedInstallationAccess(request, key, SshCredentials.Password(bytes), 0) { 0 }
+        assertNull(transfer.copyCredentials(request, key.copy(keyBase64 = "another-key")))
+        assertTrue(bytes.all { it == 0.toByte() }); assertNull(transfer.take(request))
+    }
 }

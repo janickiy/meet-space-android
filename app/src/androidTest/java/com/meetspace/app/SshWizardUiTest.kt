@@ -27,13 +27,12 @@ class SshWizardUiTest {
             TestWizard(SshWizardUiState(), onProbe = { h, p, u, d -> values = listOf(h, p, u, d) })
         }
         compose.onNodeWithTag("ssh-host").performScrollTo().performTextInput("vps.example.test")
-        compose.onNodeWithTag("ssh-user").performScrollTo().performTextClearance()
-        compose.onNodeWithTag("ssh-user").performTextInput("admin")
+        compose.onNodeWithTag("ssh-user").assertDoesNotExist()
         compose.onNodeWithTag("ssh-domain").performScrollTo().performTextInput("https://MEET.EXAMPLE.TEST/")
         compose.onNodeWithTag("ssh-password").assertDoesNotExist()
         compose.onNodeWithTag("ssh-import-key").assertDoesNotExist()
         compose.settleFormEditorForClick(editor, compose.onNodeWithTag("ssh-probe")).performClick()
-        compose.runOnIdle { assertEquals(listOf("vps.example.test", "22", "admin", "meet.example.test"), values) }
+        compose.runOnIdle { assertEquals(listOf("vps.example.test", "22", "root", "meet.example.test"), values) }
         compose.onNodeWithTag("ssh-domain").assertTextContains("meet.example.test")
     }
 
@@ -63,19 +62,21 @@ class SshWizardUiTest {
 
     @Test fun passwordIsClearedOnSubmitAndIsNotSavedDuringRecreation() {
         var submitted: String? = null
+        var submittedUser: String? = null
         val editor = FormEditorWindow()
         val restoration = StateRestorationTester(compose)
         restoration.setContent {
             editor.Observe()
-            TestWizard(auth, onPassword = { submitted = it })
+            TestWizard(auth, onPassword = { user, password -> submittedUser = user; submitted = password })
         }
+        compose.onNodeWithTag("ssh-user").performScrollTo().performTextReplacement("deploy")
         compose.onNodeWithTag("ssh-password").performScrollTo().performTextInput("test-only-password")
         restoration.emulateSavedInstanceStateRestore()
         compose.onNodeWithTag("ssh-password").assert(hasText(""))
         compose.onNodeWithTag("ssh-preflight").performScrollTo().assertIsNotEnabled()
         compose.onNodeWithTag("ssh-password").performScrollTo().performTextInput("second-test-only")
         compose.settleFormEditorForClick(editor, compose.onNodeWithTag("ssh-preflight")).performClick()
-        compose.runOnIdle { assertEquals("second-test-only", submitted) }
+        compose.runOnIdle { assertEquals("second-test-only", submitted); assertEquals("deploy", submittedUser) }
         compose.onNodeWithTag("ssh-password").assert(hasText(""))
     }
 
@@ -89,6 +90,17 @@ class SshWizardUiTest {
         compose.onNodeWithTag("ssh-cancel").performScrollTo().performClick()
         compose.onNodeWithTag("ssh-password").assert(hasText(""))
         compose.runOnIdle { assertEquals(1, cancellations) }
+    }
+
+    @Test fun retainedAccessRetriesWithoutShowingUsernameAndPasswordInputsAgain() {
+        var retries = 0
+        compose.setContent { TestWizard(auth.copy(accessAvailable = true), onReuse = { retries++ }) }
+        compose.onNodeWithTag("ssh-user").assertDoesNotExist()
+        compose.onNodeWithTag("ssh-password").assertDoesNotExist()
+        compose.onNodeWithTag("ssh-import-key").assertDoesNotExist()
+        compose.onNodeWithTag("ssh-access-retained").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("ssh-preflight").performScrollTo().assertIsEnabled().performClick()
+        compose.runOnIdle { assertEquals(1, retries) }
     }
 
     @Test fun structuredResultsExposeAllLevelsAndNoInstallAction() {
@@ -105,10 +117,10 @@ class SshWizardUiTest {
         state: SshWizardUiState,
         onProbe: (String, String, String, String) -> Unit = { _, _, _, _ -> },
         onTrust: () -> Unit = {}, onForget: () -> Unit = {}, onImport: (Uri) -> Unit = {},
-        onPassword: (String) -> Unit = {}, onCancel: () -> Unit = {},
+        onPassword: (String, String) -> Unit = { _, _ -> }, onCancel: () -> Unit = {}, onReuse: () -> Unit = {},
     ) {
         MeetSpaceTheme {
-            SshWizardUi(state, onProbe, onTrust, onForget, onImport, {}, onPassword, {}, onCancel, {}, {}, {})
+            SshWizardUi(state, onProbe, onTrust, onForget, onImport, {}, onPassword, { _, _ -> }, onCancel, {}, {}, {}, onReuseAccess = onReuse)
         }
     }
 

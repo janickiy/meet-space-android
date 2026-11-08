@@ -168,7 +168,7 @@ class ProfileDesignTest {
                     "welcome" -> FoundationScreen.WELCOME; "connect" -> FoundationScreen.CONNECT; "login" -> FoundationScreen.LOGIN; else -> FoundationScreen.WORKSPACE
                 }, repository.copy(theme = if (theme == "dark") ThemeMode.DARK else ThemeMode.LIGHT)), {}, {}, {}, {_,_->}, {}, {}, {}, {},
                     workspaceContent = { _, _ -> Profile(captureRepository.copy(theme = if (theme == "dark") ThemeMode.DARK else ThemeMode.LIGHT), section = screen.removePrefix("account-").takeIf { screen.startsWith("account-") }) })
-                "deploy", "hostkey", "sshauth", "preflight" -> SshWizardUi(sshFixture(screen), {_,_,_,_->}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
+                "deploy", "hostkey", "sshauth", "preflight" -> SshWizardUi(sshFixture(screen), {_,_,_,_->}, {}, {}, {}, {}, {_,_->}, {_,_->}, {}, {}, {}, {})
                 else -> InstallerUi(installFixture(screen), {}, {_,_,_->}, {_,_,_,_,_->}, {}, {}, {}, {})
             }
         } }

@@ -4,7 +4,7 @@ import com.meetspace.core.model.SshCredentials
 import com.meetspace.core.model.SshHostKey
 import com.meetspace.core.model.SshRequest
 
-/** A single-use, short-lived transfer between onboarding steps; never public/saved UI state. */
+/** Short-lived in-memory access with a single-use transfer; never public/saved UI state. */
 class VerifiedInstallationAccess internal constructor(
     private val request: SshRequest,
     private val hostKey: SshHostKey,
@@ -13,6 +13,19 @@ class VerifiedInstallationAccess internal constructor(
     private val clock: () -> Long = System::nanoTime,
 ) {
     private var credentials: SshCredentials? = credentials
+
+    /** Retry copies remain bound to the same account and verified host, without extending the deadline. */
+    internal fun isValidFor(expected: SshRequest, expectedHostKey: SshHostKey): Boolean {
+        val elapsed = clock() - createdAtNanos
+        if (credentials == null || expected != request || expectedHostKey != hostKey || elapsed < 0 || elapsed >= TTL_NANOS) {
+            destroy()
+            return false
+        }
+        return true
+    }
+
+    internal fun copyCredentials(expected: SshRequest, expectedHostKey: SshHostKey): SshCredentials? =
+        if (isValidFor(expected, expectedHostKey)) credentials?.copyOwned() else null
 
     internal fun take(expected: SshRequest): Access? {
         val owned = credentials ?: return null
