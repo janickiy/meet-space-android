@@ -1,0 +1,64 @@
+{
+  "versionName": "0.6.1",
+  "versionCode": 46,
+  "observedFailure": {
+    "environment": "target VPS",
+    "runner": "previous signed installer",
+    "stage": "GitHub release metadata lookup before image download",
+    "httpStatuses": [
+      503,
+      504
+    ],
+    "imageTransferStarted": false
+  },
+  "relatedGitHubIncident": {
+    "url": "https://www.githubstatus.com/incidents/pyynvrm1vskw",
+    "title": "Increase in timeouts for some unauthenticated users",
+    "startedAtUtc": "2026-11-08T10:36:00Z",
+    "startedAtMoscow": "2026-11-08T13:36:00+03:00",
+    "relationship": "Coincided with the observed metadata lookup failures; not a successful installation result."
+  },
+  "transportPolicy": {
+    "maximumAttempts": 3,
+    "sameResourcePerRetry": true,
+    "canonicalFrozenUrlUnchanged": true,
+    "freshRequestOnRetry": true,
+    "cacheControl": "no-cache",
+    "partialFileAndHashRestarted": true,
+    "sharedArchiveDeadlinePreserved": true,
+    "cancellationPreserved": true,
+    "partialFileCleanupPreserved": true,
+    "checksumBypass": false,
+    "sourceBuildFallback": false,
+    "temporaryHttpErrorCode": "PREBUILT_SERVICE_UNAVAILABLE"
+  },
+  "selectionPolicy": {
+    "newPlans": "latest",
+    "manualReleaseFieldRemoved": true,
+    "enforcedIn": [
+      "UI",
+      "ViewModel",
+      "SSH request"
+    ],
+    "artifactRepository": "janickiy/meetspace_docker_built",
+    "frozenFields": [
+      "version",
+      "backendCommit",
+      "url",
+      "sizeBytes",
+      "sha256"
+    ],
+    "historicalBuild45SignedBundleRetained": true
+  },
+  "pythonTests": {
+    "total": 170,
+    "existing": 150,
+    "newTransport": 20,
+    "failures": 0,
+    "errors": 0
+  },
+  "limitations": [
+    "A successful end-to-end VPS installation during the GitHub incident is not established.",
+    "APK build and Android/JVM verification results are recorded separately."
+  ]
+}

@@ -58,6 +58,45 @@ class InstallerViewModelTest {
         assertEquals(2, repo.planCalls); assertEquals(0, repo.applyCount)
         model.detach()
     }
+    @Test fun newPlansRequestLatestWithStaleOptionsForManualAndVerifiedAccess() = runTest(dispatcher) {
+        val stale = options.copy(imageMode = InstallImageMode.IMAGES, imageRelease = "v0.4.0-prebuilt.test.1")
+        for (verifiedAccess in listOf(false, true)) {
+            val repo = Fake(); val model = InstallerViewModel(repo)
+            model.start(endpoint, options.domain, if (verifiedAccess) verified() else null); runCurrent()
+            model.authenticate(stale, if (verifiedAccess) "" else "test-only", false); runCurrent()
+            assertEquals(stale.copy(imageRelease = "latest"), repo.plannedOptions.single())
+            assertEquals("latest", model.state.value.options.imageRelease)
+            assertEquals("latest", model.state.value.plan?.options?.imageRelease)
+            assertEquals("v0.4.0-prebuilt.test.1", stale.imageRelease)
+            model.detach()
+        }
+    }
+    @Test fun savedExactReleaseSurvivesReconnectAndResumeWithoutAnotherPlan() = runTest(dispatcher) {
+        val frozen = plan.copy(options = options.copy(imageMode = InstallImageMode.IMAGES, imageRelease = "v0.4.0-prebuilt.test.1"))
+        val ticket = InstallTicket(endpoint, frozen, "6f0f7f66-ea40-406e-a582-98bb9df557ca")
+        val repo = Fake().apply { saved = ticket; remoteState = "needs_recovery" }
+        val model = InstallerViewModel(repo); runCurrent()
+        model.reconnect(); model.authenticate(options, "test-only", false); runCurrent()
+        model.control("resume"); runCurrent()
+        assertEquals(0, repo.planCalls)
+        assertEquals(listOf("status", "resume"), repo.controls)
+        assertEquals(ticket, model.state.value.ticket)
+        assertEquals(frozen.options, model.state.value.options)
+        assertEquals(ticket, repo.saved)
+        model.detach()
+    }
+    @Test fun refreshingAbsentOldJobUsesLatestAndReplacesStaleFormOptions() = runTest(dispatcher) {
+        val frozen = plan.copy(expiresAt = 0, options = options.copy(imageMode = InstallImageMode.IMAGES, imageRelease = "v0.4.0-prebuilt.test.1"))
+        val repo = Fake().apply { saved = InstallTicket(endpoint, frozen, "6f0f7f66-ea40-406e-a582-98bb9df557ca"); missing = true }
+        val model = InstallerViewModel(repo); runCurrent()
+        model.reconnect(); model.authenticate(options, "test-only", false); runCurrent()
+        model.refreshMissingPlan(); runCurrent()
+        assertEquals(frozen.options.copy(imageRelease = "latest"), repo.plannedOptions.single())
+        assertEquals("latest", model.state.value.options.imageRelease)
+        assertEquals("latest", model.state.value.plan?.options?.imageRelease)
+        assertNull(model.state.value.ticket); assertNull(repo.saved); assertEquals(0, repo.applyCount)
+        model.detach()
+    }
     @Test fun runningJobCannotChangeItsImageMode() = runTest(dispatcher) {
         val repo = Fake(); val model = setupModel(repo); runCurrent()
         model.apply(true, true, true); runCurrent()
@@ -264,6 +303,7 @@ class InstallerViewModelTest {
     }
     @Test fun rejectedPlanStaysOnAccessClearsCredentialsAndExplainsRecovery() = runTest(dispatcher) {
         val guidance = mapOf(
+            "PREBUILT_SERVICE_UNAVAILABLE" to listOf("GitHub временно недоступен", "Повторите попытку позже"),
             "INVALID_REQUEST" to listOf("Обновите Android-приложение", "повторите получение плана"),
             "SOURCE_INVALID" to listOf("GitHub", "некорректные данные", "Повторите получение плана"),
             "SOURCE_INCOMPATIBLE" to listOf("несовместима", "Обновите Android-приложение"),
@@ -416,10 +456,11 @@ class InstallerViewModelTest {
         val mutations=mutableListOf<String>();val captured=mutableListOf<SshCredentials.Password>();val controls=mutableListOf<String>()
         val allCaptured=mutableListOf<SshCredentials>()
         val hostKeys=mutableListOf<SshHostKey?>()
+        val plannedOptions=mutableListOf<InstallOptions>()
         private fun destroy(credentials:SshCredentials) { allCaptured+=credentials;if(credentials is SshCredentials.Password)captured+=credentials;credentials.destroy() }
         private fun status(ticket:InstallTicket,state:String=remoteState)=InstallStatus(ticket.jobId,state,"images",emptyList(),emptyList(),null)
         override suspend fun plan(endpoint:SshEndpoint,credentials:SshCredentials,options:InstallOptions,expectedHostKey:SshHostKey?):InstallPlan {
-            planCalls++;hostKeys+=expectedHostKey
+            planCalls++;hostKeys+=expectedHostKey;plannedOptions+=options
             try {
                 planGate?.let { gate -> if(ignorePlanCancellation)withContext(NonCancellable) { gate.await() } else gate.await() }
                 planFailure?.let { throw InstallFailure(it) };return if(expired)plan.copy(expiresAt=0,options=options) else plan.copy(options=options)

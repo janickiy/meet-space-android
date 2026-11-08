@@ -156,7 +156,7 @@ class PrebuiltTests(unittest.TestCase):
             source.assert_not_called(); execute.assert_not_called()
 
     def test_network_failures_never_trigger_source_fallback(self):
-        for status, expected in ((403, 'SOURCE_RATE_LIMIT'), (429, 'SOURCE_RATE_LIMIT'), (500, 'PREBUILT_DOWNLOAD_FAILED')):
+        for status, expected in ((403, 'SOURCE_RATE_LIMIT'), (429, 'SOURCE_RATE_LIMIT'), (500, 'PREBUILT_SERVICE_UNAVAILABLE'), (503, 'PREBUILT_SERVICE_UNAVAILABLE'), (504, 'PREBUILT_SERVICE_UNAVAILABLE')):
             with patch.object(r, 'asset_json', side_effect=urllib.error.HTTPError(self.url, status, '', {}, None)), \
                  patch.object(r, 'resolve_source') as source:
                 self.rejected(expected, r.resolve_prebuilt, self.recipe, self.arch)
@@ -210,7 +210,7 @@ class PrebuiltTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp, patch.object(r, 'no_symlink'):
             path = pathlib.Path(temp) / 'images.tar.gz'
             for data in (b'bad', b'x' * 1025):
-                with patch.object(r, 'asset_response', return_value=io.BytesIO(data)), self.assertRaises(r.InstallError):
+                with patch.object(r, 'asset_response', side_effect=lambda *args: io.BytesIO(data)), self.assertRaises(r.InstallError):
                     r.download_prebuilt(self.lock, path)
                 self.assertFalse(path.exists()); self.assertFalse(path.with_suffix('.partial').exists())
             with patch.object(r, 'asset_response', return_value=io.BytesIO(b'payload')):

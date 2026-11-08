@@ -40,20 +40,22 @@ class InstallerUiTest {
             assertEquals("test-only",password);assertFalse(useKey)
         }
     }
-    @Test fun imageModeChoicePassesSelectedModeAndReleaseToPlan() {
+    @Test fun imageModeAlwaysUsesLatestWithoutEditableReleaseEvenWithStaleOptions() {
         var submitted: InstallOptions? = null
         render(InstallerUiState(active = true, screen = InstallScreen.ACCESS, endpoint = endpoint,
-            options = plan.options.copy(imageMode = InstallImageMode.IMAGES), needsAccess = false),
+            options = plan.options.copy(imageMode = InstallImageMode.IMAGES, imageRelease = "v0.4.0-prebuilt.test.1"), needsAccess = false),
             onAuthenticate = { options, _, _ -> submitted = options })
         compose.onNodeWithTag("install-mode-images").performScrollTo().assertIsSelected()
-        compose.onNodeWithTag("install-image-release").performScrollTo().performTextReplacement("v0.4.0-prebuilt.test.1")
+        compose.onNodeWithTag("install-image-release").assertDoesNotExist()
+        compose.onNodeWithTag("install-image-latest").performScrollTo().assertTextContains("выбирается автоматически", substring = true)
         compose.settleFormEditorForClick(editor, compose.onNodeWithTag("install-plan")).performClick()
         compose.runOnIdle {
             assertEquals(InstallImageMode.IMAGES, submitted?.imageMode)
-            assertEquals("v0.4.0-prebuilt.test.1", submitted?.imageRelease)
+            assertEquals("latest", submitted?.imageRelease)
         }
         compose.settleFormEditorForClick(editor, compose.onNodeWithTag("install-mode-source")).performClick().assertIsSelected()
         compose.onNodeWithTag("install-image-release").assertDoesNotExist()
+        compose.onNodeWithTag("install-image-latest").assertDoesNotExist()
         compose.settleFormEditorForClick(editor, compose.onNodeWithTag("install-plan")).performClick()
         compose.runOnIdle { assertEquals(InstallImageMode.SOURCE, submitted?.imageMode) }
     }

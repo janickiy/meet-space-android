@@ -251,6 +251,21 @@ class InstallerProtocolTest {
             ("repository" to JsonPrimitive("janickiy/meetspace_docker_built"))))))
         failed("PLAN_INVALID") { registry.parse(changed, allowHistorical = true) }
     }
+    @Test fun archivedBuild45TicketStillAcceptsItsFrozenExactRelease() {
+        val previous = InstallerBundle(InstallerBundle.names.associateWith { File("../../installer/legacy/0.6.1-build45/$it").readBytes() })
+        val original = prebuiltPlan(previous)
+        val version = original.string("releaseVersion")
+        val exact = rehashPlan(JsonObject(original + ("options" to JsonObject(original.getValue("options").jsonObject +
+            ("imageRelease" to JsonPrimitive(version))))))
+        val registry = InstallerBundles(bundle(), listOf(previous))
+        val parsed = registry.parse(exact, allowHistorical = true)
+        assertEquals(previous.manifest, registry.forPlan(exact, allowHistorical = true).manifest)
+        assertEquals(version, parsed.options.imageRelease)
+        assertEquals(version, parsed.version)
+        assertEquals(parsed, registry.parse(jsonObject(parsed.json), allowHistorical = true))
+        assertEquals("janickiy/meetspace_docker_built", exact.getValue("imageLock").jsonObject.string("repository"))
+        assertEquals("janickiy/meet-space", exact.getValue("sourceLock").jsonObject.string("repository"))
+    }
     @Test fun signedArtifactRepositoryRejectsUnknownHostsCredentialsAndNonStrings() {
         for (value in listOf<JsonElement>(JsonPrimitive("other/repository"), JsonPrimitive("https://github.com/janickiy/meetspace_docker_built"),
             JsonPrimitive("token@github.com/janickiy/meetspace_docker_built"), JsonPrimitive(true), JsonNull, JsonArray(emptyList()))) {

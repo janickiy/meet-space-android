@@ -274,7 +274,6 @@ private fun InstallAccess(state: InstallerUiState, onImport: (Uri) -> Unit, onAu
     var ip by rememberSaveable(state.endpoint) { mutableStateOf(state.options.publicIpv4) }
     var acmeEmail by rememberSaveable(state.endpoint) { mutableStateOf(state.options.acmeEmail) }
     var imageMode by rememberSaveable(state.endpoint) { mutableStateOf(state.options.imageMode) }
-    var imageRelease by rememberSaveable(state.endpoint) { mutableStateOf(state.options.imageRelease) }
     var adminEnabled by rememberSaveable(state.endpoint) { mutableStateOf(state.options.admin != null) }
     var adminUsername by rememberSaveable(state.endpoint) { mutableStateOf(state.options.admin?.username ?: "admin") }
     var adminPort by rememberSaveable(state.endpoint) { mutableStateOf(state.options.admin?.httpsPort?.toString() ?: "8081") }
@@ -303,7 +302,7 @@ private fun InstallAccess(state: InstallerUiState, onImport: (Uri) -> Unit, onAu
                         Icon(if (mode == InstallImageMode.IMAGES) Icons.Outlined.CloudDownload else Icons.Outlined.Build, null, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(if (mode == InstallImageMode.IMAGES) "Готовые образы" else "Сборка на сервере", fontWeight = FontWeight.SemiBold)
-                            Text(if (mode == InstallImageMode.IMAGES) "Использовать опубликованный пакет для вашего VPS, если он доступен. Без компиляции на сервере."
+                            Text(if (mode == InstallImageMode.IMAGES) "Установить последний опубликованный пакет для вашего VPS. Без компиляции на сервере."
                                 else "Последний commit основной ветки GitHub: закрепить исходники и собрать образы на VPS. Включает актуальную админку и поддержку LDAP.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         RadioButton(selected, onClick = null, enabled = !state.busy)
@@ -311,8 +310,8 @@ private fun InstallAccess(state: InstallerUiState, onImport: (Uri) -> Unit, onAu
                 }
             }
             if (imageMode == InstallImageMode.IMAGES) {
-                InstallOptionField(imageRelease, { imageRelease = it.trim() }, "Версия образов: latest или тег выпуска", "install-image-release", !state.busy)
-                Text("latest — последний опубликованный пакет для архитектуры VPS, включая beta. Версию, коммит и размер покажем перед установкой.", style = MaterialTheme.typography.bodySmall)
+                Text("Последний опубликованный выпуск выбирается автоматически, включая beta. Версию, коммит и размер покажем перед установкой.", style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("install-image-latest"))
             }
             InstallFormSection("Требования к VPS") {
                 Text("Новый выделенный VPS: Ubuntu 22.04 или 24.04 LTS, amd64 или arm64. Минимум: 2 CPU, 4 ГБ RAM и около 20 ГБ свободного диска (18 ГиБ). Рекомендуется: 4 CPU, 8 ГБ RAM и 30 ГиБ свободно.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.testTag("install-requirements"))
@@ -356,8 +355,8 @@ private fun InstallAccess(state: InstallerUiState, onImport: (Uri) -> Unit, onAu
             OutlinedTextField(password, { password = it }, shape = RoundedCornerShape(12.dp), colors = onboardingFieldColors(), textStyle = onboardingInputStyle(), label = { Text(if (useKey) "Парольная фраза ключа" else "Пароль SSH", fontSize = 13.sp) }, visualTransformation = PasswordVisualTransformation(), singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password), enabled = !state.busy, modifier = Modifier.fillMaxWidth().testTag("install-password"))
         } else Text("Доступ SSH уже проверен. Проверьте параметры установки и учётную запись администратора.", modifier = Modifier.testTag("install-access-verified"))
-        Button(shape = RoundedCornerShape(12.dp), onClick = { onAuthenticate(InstallOptions(domain, ip, acmeEmail.trim(), smtp, imageMode, imageRelease, admin), password, useKey); password = "" }, enabled = !state.busy && (!state.needsAccess || !useKey || state.keyLoaded) && (state.ticket != null ||
-            (smtp == null || smtp.isValid()) && (admin == null || admin.isValid()) && (imageMode != InstallImageMode.IMAGES || validImageRelease(imageRelease))), modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("install-plan")) {
+        Button(shape = RoundedCornerShape(12.dp), onClick = { onAuthenticate(InstallOptions(domain, ip, acmeEmail.trim(), smtp, imageMode, admin = admin), password, useKey); password = "" }, enabled = !state.busy && (!state.needsAccess || !useKey || state.keyLoaded) && (state.ticket != null ||
+            (smtp == null || smtp.isValid()) && (admin == null || admin.isValid())), modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("install-plan")) {
             Text(if (state.ticket == null) "Получить план без установки" else "Проверить состояние задания")
         }
     }

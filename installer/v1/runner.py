@@ -43,6 +43,7 @@ SOURCE_POLICY = "github-default-branch-v1"
 PREBUILT_POLICY = "github-prebuilt-v1"
 PREBUILT_SERVICES = (*APP_SERVICES, "postgres", "redis", "rabbitmq", "coturn", "prometheus")
 MAX_IMAGE_ARCHIVE = 2 * 1024 ** 3
+ASSET_ATTEMPTS = 3
 UBUNTU_SUITES = {"22.04": "jammy", "24.04": "noble"}
 SUPPORTED_ARCHES = {"amd64", "arm64"}
 DOCKER_PACKAGES = {"containerd.io", "docker-ce", "docker-ce-cli", "docker-buildx-plugin", "docker-compose-plugin"}
@@ -424,23 +425,45 @@ def check_asset_url(url):
         fail("PREBUILT_INVALID")
 
 
-def asset_response(url):
+def asset_response(url, attempt=0):
     check_asset_url(url)
-    request = urllib.request.Request(url, headers={"User-Agent": "MeetSpace-Installer/1", "Accept": "application/vnd.github+json"})
+    # Keep the canonical URL in the frozen plan. A retry obtains a fresh GitHub
+    # response instead of reusing a cached gateway error or signed CDN redirect.
+    if attempt:
+        parsed = urllib.parse.urlsplit(url)
+        query = parsed.query + ("&" if parsed.query else "") + "_meetspace_retry=" + secrets.token_hex(12)
+        url = urllib.parse.urlunsplit(parsed._replace(query=query))
+    request = urllib.request.Request(url, headers={"User-Agent": "MeetSpace-Installer/1", "Accept": "application/vnd.github+json",
+                                                 "Cache-Control": "no-cache", "Pragma": "no-cache"})
     return urllib.request.build_opener(AssetRedirect()).open(request, timeout=30)
 
 
+def retryable_asset_error(error):
+    if isinstance(error, urllib.error.HTTPError):
+        return error.code in (408, 500, 502, 503, 504)
+    if isinstance(error, urllib.error.URLError):
+        return not isinstance(error.reason, (ssl.SSLCertVerificationError, ssl.CertificateError))
+    return isinstance(error, (TimeoutError, ConnectionError, socket.gaierror, http.client.HTTPException))
+
+
 def asset_json(url):
-    try:
-        with asset_response(url) as response:
-            raw = response.read(4 * 1024 ** 2 + 1)
-        # Duplicate JSON members are rejected as in the SSH protocol.
-        value = strict_json(raw, 4 * 1024 ** 2, expected_type=(dict, list))
-        return value, digest(raw)
-    except InstallError as error:
-        if error.code == "INVALID_REQUEST":
-            fail("PREBUILT_INVALID")
-        raise
+    for attempt in range(ASSET_ATTEMPTS):
+        try:
+            with asset_response(url, attempt) as response:
+                raw = response.read(4 * 1024 ** 2 + 1)
+                length = getattr(response, "headers", {}).get("Content-Length")
+                if isinstance(length, str) and length.isdigit() and len(raw) < int(length) <= 4 * 1024 ** 2:
+                    raise http.client.IncompleteRead(raw, int(length) - len(raw))
+            # Duplicate JSON members are rejected as in the SSH protocol.
+            value = strict_json(raw, 4 * 1024 ** 2, expected_type=(dict, list))
+            return value, digest(raw)
+        except InstallError as error:
+            if error.code == "INVALID_REQUEST":
+                fail("PREBUILT_INVALID")
+            raise
+        except (OSError, urllib.error.URLError, http.client.HTTPException) as error:
+            if attempt + 1 == ASSET_ATTEMPTS or not retryable_asset_error(error):
+                raise
 
 
 def prebuilt_assets(release, arch, repository=REPOSITORY):
@@ -562,8 +585,9 @@ def resolve_prebuilt(recipe, arch, requested="latest"):
             return source, lock
         fail("PREBUILT_UNAVAILABLE")
     except urllib.error.HTTPError as error:
-        fail("PREBUILT_UNAVAILABLE" if error.code == 404 else "SOURCE_RATE_LIMIT" if error.code in (403, 429) else "PREBUILT_DOWNLOAD_FAILED")
-    except (OSError, urllib.error.URLError):
+        fail("PREBUILT_UNAVAILABLE" if error.code == 404 else "SOURCE_RATE_LIMIT" if error.code in (403, 429) else
+             "PREBUILT_SERVICE_UNAVAILABLE" if retryable_asset_error(error) else "PREBUILT_DOWNLOAD_FAILED")
+    except (OSError, urllib.error.URLError, http.client.HTTPException):
         fail("PREBUILT_DOWNLOAD_FAILED")
 
 
@@ -578,25 +602,38 @@ def file_digest(path):
 def download_prebuilt(lock, path, check_cancel=lambda: None):
     temporary = path.with_suffix(".partial")
     no_symlink(temporary)
-    total, checksum = 0, hashlib.sha256()
     deadline = time.monotonic() + 3600
     try:
-        with asset_response(lock["url"]) as stream, temporary.open("wb") as output:
-            for block in iter(lambda: stream.read(1024 ** 2), b""):
-                check_cancel()
-                total += len(block)
-                if total > lock["sizeBytes"] or time.monotonic() > deadline:
-                    fail("DOWNLOAD_LIMIT")
-                if disk_free() < len(block) + 2 * 1024 ** 3:
-                    fail("DISK_SPACE")
-                output.write(block)
-                checksum.update(block)
-            output.flush()
-            os.fsync(output.fileno())
-        if total != lock["sizeBytes"] or checksum.hexdigest() != lock["sha256"]:
-            fail("RELEASE_CHECKSUM")
-        os.replace(temporary, path)
-    except (OSError, urllib.error.URLError):
+        for attempt in range(ASSET_ATTEMPTS):
+            check_cancel()
+            if time.monotonic() > deadline:
+                fail("DOWNLOAD_LIMIT")
+            total, checksum = 0, hashlib.sha256()
+            try:
+                with asset_response(lock["url"], attempt) as stream, temporary.open("wb") as output:
+                    for block in iter(lambda: stream.read(1024 ** 2), b""):
+                        check_cancel()
+                        total += len(block)
+                        if total > lock["sizeBytes"] or time.monotonic() > deadline:
+                            fail("DOWNLOAD_LIMIT")
+                        if disk_free() < len(block) + 2 * 1024 ** 3:
+                            fail("DISK_SPACE")
+                        output.write(block)
+                        checksum.update(block)
+                    output.flush()
+                    os.fsync(output.fileno())
+                if total < lock["sizeBytes"]:
+                    raise http.client.IncompleteRead(b"", lock["sizeBytes"] - total)
+                if checksum.hexdigest() != lock["sha256"]:
+                    fail("RELEASE_CHECKSUM")
+                os.replace(temporary, path)
+                return
+            except (OSError, urllib.error.URLError, http.client.HTTPException) as error:
+                if attempt + 1 == ASSET_ATTEMPTS or not retryable_asset_error(error):
+                    raise
+    except urllib.error.HTTPError as error:
+        fail("PREBUILT_SERVICE_UNAVAILABLE" if retryable_asset_error(error) else "PREBUILT_DOWNLOAD_FAILED")
+    except (OSError, urllib.error.URLError, http.client.HTTPException):
         fail("PREBUILT_DOWNLOAD_FAILED")
     finally:
         temporary.unlink(missing_ok=True)

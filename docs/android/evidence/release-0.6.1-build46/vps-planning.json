@@ -1,0 +1,20 @@
+{
+  "signedRunnerSha256": "144333d90e2dff3de2ab16d9d69a4de2a5895a925edf9d2043ce35a60139143b",
+  "httpStatuses": [
+    503,
+    504,
+    503
+  ],
+  "attempts": 3,
+  "result": {
+    "attempt": "exact_resolve_amd64",
+    "code": "PREBUILT_SERVICE_UNAVAILABLE",
+    "elapsedSeconds": 22.147,
+    "errorType": "InstallError",
+    "event": "resolve",
+    "ok": false
+  },
+  "liveDownloadSucceeded": false,
+  "serverInstallationExecuted": false,
+  "reason": "GitHub unauthenticated requests incident pyynvrm1vskw"
+}

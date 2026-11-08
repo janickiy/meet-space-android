@@ -119,7 +119,7 @@ class InstallerViewModel(private val repository: SshInstallerRepository) : ViewM
     fun authenticate(options: InstallOptions, password: String, useKey: Boolean) {
         if (state.value.busy) return
         if (state.value.endpoint == null) return
-        val normalized = try { options.copy(domain = SshInputValidator.normalizeDomain(options.domain)) }
+        val normalized = try { options.copy(domain = SshInputValidator.normalizeDomain(options.domain), imageRelease = "latest") }
             catch (error: SshFailure) { failure(error); return }
         if (!state.value.needsAccess && credentials != null && state.value.ticket == null) {
             if (normalized.domain != state.value.options.domain) {
@@ -220,14 +220,14 @@ class InstallerViewModel(private val repository: SshInstallerRepository) : ViewM
         if (state.value.busy || state.value.needsAccess || state.value.errorCode != "STATE_UNAVAILABLE") return
         val previous = state.value.ticket ?: return
         execute {
-            val plan = withAccess { repository.plan(previous.endpoint, it, previous.plan.options, expectedHostKey) }
+            val plan = withAccess { repository.plan(previous.endpoint, it, previous.plan.options.copy(imageRelease = "latest"), expectedHostKey) }
             currentCoroutineContext().ensureActive()
             val existingId = plan.existingJobId
             if (existingId == null) {
                 // A fresh server plan has ruled out a managed or unknown installation.
                 repository.forget()
                 currentCoroutineContext().ensureActive()
-                mutableState.update { it.copy(plan = plan, ticket = null, pending = null, status = null, screen = InstallScreen.PLAN) }
+                mutableState.update { it.copy(options = plan.options, plan = plan, ticket = null, pending = null, status = null, screen = InstallScreen.PLAN) }
             } else {
                 val ticket = InstallTicket(previous.endpoint, plan, existingId)
                 repository.remember(ticket)
@@ -352,7 +352,7 @@ fun installErrorMessage(code: String): String = when (code) {
     "ADMIN_ACCOUNT_MISMATCH" -> "На сервере уже есть другой администратор. Его учётная запись и пароль не изменены; проверьте существующий доступ к админке."
     "ADMIN_BOOTSTRAP_FAILED", "ADMIN_BOOTSTRAP_INVALID" -> "Не удалось завершить создание администратора. Сохранённые данные не перезаписываются; подключитесь снова и продолжите установку."
     "ADMIN_HTTPS_READINESS", "ADMIN_READINESS" -> "Административная панель не прошла проверку HTTPS или изоляции. Проверьте её порт и настройки сервера, затем продолжите установку."
-    "PREBUILT_INCOMPATIBLE" -> "Этот пакет образов не поддерживает текущую админку и LDAP. Выберите совместимый выпуск или режим «Сборка на сервере»."
+    "PREBUILT_INCOMPATIBLE" -> "Этот пакет образов не поддерживает текущую админку и LDAP. Обновите Android-приложение и повторите получение плана или выберите режим «Сборка на сервере»."
     "INVALID_SMTP", "SMTP_OPTIONS_INVALID", "SMTP_PASSWORD_REQUIRED", "SMTP_PASSWORD_INVALID" -> "Проверьте адрес, порт, отправителя и учётные данные SMTP. Пароль вводится только при запуске установки."
     "SMTP_CONFIG_INVALID" -> "Не удалось проверить сохранённые настройки почты на сервере. Проверьте закрытый файл SMTP перед продолжением установки."
     "SMTP_CONNECTION_FAILED", "SMTP_AUTH_FAILED", "SMTP_TLS_FAILED" -> "Не удалось подключиться к почтовому серверу. Проверьте SMTP, пароль и защищённое соединение TLS."
@@ -369,10 +369,11 @@ fun installErrorMessage(code: String): String = when (code) {
     "RELEASE_INVALID", "RELEASE_SIGNATURE", "RELEASE_CHECKSUM" -> "Подпись или контрольная сумма установщика не совпала. Запуск заблокирован."
     "SOURCE_LOOKUP_FAILED", "SOURCE_RATE_LIMIT" -> "Не удалось получить актуальную версию из GitHub. Проверьте доступ сервера к GitHub и повторите получение плана."
     "SOURCE_INVALID" -> "GitHub вернул некорректные данные исходного кода. Повторите получение плана; если ошибка сохраняется, сообщите код SOURCE_INVALID."
-    "INVALID_IMAGE_MODE" -> "Выберите готовые образы или сборку на сервере. Для готовых образов укажите latest или точный тег выпуска."
-    "PREBUILT_UNAVAILABLE" -> "Для этой архитектуры нет опубликованного пакета готовых образов. Выберите другой выпуск или режим «Сборка на сервере»."
-    "PREBUILT_INVALID", "PREBUILT_SECURITY" -> "Пакет готовых образов не прошёл проверку происхождения, архитектуры или безопасности. Установка остановлена; выберите другой выпуск."
-    "PREBUILT_DOWNLOAD_FAILED" -> "Не удалось скачать готовые образы из GitHub. Проверьте подключение VPS и повторите попытку; режим сборки автоматически не меняется."
+    "INVALID_IMAGE_MODE" -> "Выберите готовые образы или сборку на сервере. Последний выпуск готовых образов выбирается автоматически."
+    "PREBUILT_UNAVAILABLE" -> "Готовый пакет для архитектуры VPS сейчас недоступен. Повторите получение плана позже или выберите режим «Сборка на сервере»."
+    "PREBUILT_INVALID", "PREBUILT_SECURITY" -> "Пакет готовых образов не прошёл проверку происхождения, архитектуры или безопасности. Установка остановлена; повторите получение плана."
+    "PREBUILT_SERVICE_UNAVAILABLE" -> "Сервис GitHub временно недоступен. Повторите попытку позже."
+    "PREBUILT_DOWNLOAD_FAILED" -> "Не удалось получить пакет готовых образов из GitHub. Проверьте доступ VPS к GitHub и повторите попытку."
     "IMAGE_LOAD_FAILED" -> "Docker не смог загрузить проверенные образы. Проверьте свободное место и состояние Docker, затем продолжите установку."
     "SOURCE_INCOMPATIBLE", "UNPINNED_BASE_IMAGE" -> "Новая версия бэкенда несовместима с этим установщиком. Обновите Android-приложение; старая версия автоматически не устанавливается."
     "ACME_FAILED", "HTTPS_READINESS" -> "Не удалось подтвердить HTTPS. Проверьте DNS и доступность портов 80/443, затем подключитесь и продолжите установку."

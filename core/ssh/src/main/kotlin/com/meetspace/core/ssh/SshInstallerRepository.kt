@@ -35,6 +35,7 @@ internal class AndroidSshInstallerRepository(private val context: Context, priva
     private val bundle by lazy { testBundle ?: InstallerBundle(InstallerBundle.names.associateWith { name -> context.assets.open(name).use { it.readBytes() } }) }
     private val bundles by lazy {
         if (testBundle != null) InstallerBundles(bundle) else InstallerBundles(bundle, listOf(
+            InstallerBundle(InstallerBundle.names.associateWith { name -> context.assets.open("0.6.1-build45/$name").use { it.readBytes() } }),
             InstallerBundle(InstallerBundle.names.associateWith { name -> context.assets.open("0.6.0-build43/$name").use { it.readBytes() } }),
             InstallerBundle(InstallerBundle.names.associateWith { name -> context.assets.open("0.5.2/$name").use { it.readBytes() } })
         ))
@@ -54,25 +55,7 @@ internal class AndroidSshInstallerRepository(private val context: Context, priva
     } finally { credentials.destroy() }
 
     override suspend fun plan(endpoint: SshEndpoint, credentials: SshCredentials, options: InstallOptions, expectedHostKey: SshHostKey?): InstallPlan = try {
-        val result = request(endpoint, credentials, "plan", buildJsonObject { put("options", buildJsonObject {
-            put("domain", SshInputValidator.normalizeDomain(options.domain)); put("publicIpv4", options.publicIpv4.trim()); put("acmeEmail", options.acmeEmail.trim())
-            put("imageMode", options.imageMode.wire)
-            if (options.imageMode == InstallImageMode.IMAGES) {
-                require(validImageRelease(options.imageRelease))
-                put("imageRelease", options.imageRelease)
-            }
-            options.admin?.let { admin ->
-                require(admin.isValid())
-                put("admin", buildJsonObject { put("username", admin.username); put("httpsPort", admin.httpsPort) })
-            }
-            options.smtp?.let { smtp ->
-                require(smtp.isValid())
-                put("smtp", buildJsonObject {
-                    put("host", smtp.host); put("port", smtp.port); put("from", smtp.from)
-                    put("username", smtp.username); put("tlsMode", smtp.tlsMode)
-                })
-            }
-        }) }, expectedHostKey)
+        val result = request(endpoint, credentials, "plan", installerPlanRequest(options), expectedHostKey)
         bundles.parse(result, allowHistorical = result.optional("existingJobId") != null)
     } finally { credentials.destroy() }
     override suspend fun apply(ticket: InstallTicket, credentials: SshCredentials, dockerConsent: Boolean, acmeConsent: Boolean, expectedHostKey: SshHostKey?, smtpPassword: ByteArray?, adminPassword: ByteArray?): InstallStatus = try {
@@ -113,6 +96,28 @@ internal class AndroidSshInstallerRepository(private val context: Context, priva
         return InstallTicket(endpoint, withContext(Dispatchers.IO) { bundles.parse(data.getValue("plan").jsonObject, allowHistorical = true) }, data.string("jobId"))
     }
     override suspend fun forget() { context.installPreferences.edit { it.remove(storageKey) } }
+}
+
+/** Fresh plans always resolve the latest release; saved plans keep their frozen version on apply/resume. */
+internal fun installerPlanRequest(options: InstallOptions): JsonObject = buildJsonObject {
+    put("options", buildJsonObject {
+        put("domain", SshInputValidator.normalizeDomain(options.domain))
+        put("publicIpv4", options.publicIpv4.trim())
+        put("acmeEmail", options.acmeEmail.trim())
+        put("imageMode", options.imageMode.wire)
+        if (options.imageMode == InstallImageMode.IMAGES) put("imageRelease", "latest")
+        options.admin?.let { admin ->
+            require(admin.isValid())
+            put("admin", buildJsonObject { put("username", admin.username); put("httpsPort", admin.httpsPort) })
+        }
+        options.smtp?.let { smtp ->
+            require(smtp.isValid())
+            put("smtp", buildJsonObject {
+                put("host", smtp.host); put("port", smtp.port); put("from", smtp.from)
+                put("username", smtp.username); put("tlsMode", smtp.tlsMode)
+            })
+        }
+    })
 }
 
 /** Compare before opening an authenticated connection; JSch also pins the actual handshake. */

@@ -1,0 +1,64 @@
+{
+  "suites": [
+    {
+      "name": "com.meetspace.app.InstallerViewModelTest",
+      "tests": "34",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.meetspace.core.ssh.PreflightAnalyzerTest",
+      "tests": "13",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.meetspace.core.ssh.InstallerPlanRequestTest",
+      "tests": "2",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.meetspace.core.ssh.PrivateKeyPolicyTest",
+      "tests": "10",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.meetspace.core.ssh.InstallerProtocolTest",
+      "tests": "29",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.meetspace.core.ssh.SshTransportPolicyTest",
+      "tests": "20",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.meetspace.core.ssh.InstallerHostKeyBindingTest",
+      "tests": "2",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.meetspace.core.ssh.SshInputValidatorTest",
+      "tests": "7",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    }
+  ],
+  "androidUiTestCompiled": true,
+  "uiInstrumentationExecuted": false,
+  "assembleRelease": true,
+  "lintVitalRelease": true
+}
