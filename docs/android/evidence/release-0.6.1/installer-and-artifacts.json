@@ -1,0 +1,62 @@
+{
+  "versionName": "0.6.1",
+  "versionCode": 45,
+  "installerTests": {
+    "python": {
+      "tests": 150,
+      "failures": 0,
+      "errors": 0
+    },
+    "coreSshJvm": {
+      "tests": 80,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "savedBuild43PlanJvm": {
+      "tests": 1,
+      "failures": 0,
+      "errors": 0
+    }
+  },
+  "artifactMetadataTests": {
+    "tests": 8,
+    "failures": 0,
+    "errors": 0
+  },
+  "signedBundleVerified": true,
+  "historicalBuild43BundleByteIdentical": true,
+  "artifactRepository": "janickiy/meetspace_docker_built",
+  "sourceRepository": "janickiy/meet-space",
+  "publicPackages": [
+    {
+      "architecture": "amd64",
+      "anonymousResolution": true,
+      "anonymousFullDownload": true,
+      "identicalToPreviouslyVerifiedPackage": true,
+      "sizeBytes": 720973303,
+      "version": "v0.6.1-prebuilt.20261108.4",
+      "backendCommit": "6dafb92e61827d14e8bc3745e48f5d01a1ef3cd6",
+      "url": "https://github.com/janickiy/meetspace_docker_built/releases/download/v0.6.1-prebuilt.20261108.4/meetspace-v0.6.1-prebuilt.20261108.4-linux-amd64.tar.gz",
+      "sha256": "9b5c06911c816815b881e246d6fc2a3601dd3e3f15bbd01dba0fb49fa2bd2cc1"
+    },
+    {
+      "architecture": "arm64",
+      "anonymousResolution": true,
+      "anonymousFullDownload": true,
+      "identicalToPreviouslyVerifiedPackage": true,
+      "sizeBytes": 681656871,
+      "version": "v0.6.1-prebuilt.20261108.4",
+      "backendCommit": "6dafb92e61827d14e8bc3745e48f5d01a1ef3cd6",
+      "url": "https://github.com/janickiy/meetspace_docker_built/releases/download/v0.6.1-prebuilt.20261108.4/meetspace-v0.6.1-prebuilt.20261108.4-linux-arm64.tar.gz",
+      "sha256": "4faeb0e2db9b8d6dc13bb7ac6929f6ed386d480d2bb70f3b2d8b782c7d996aa7"
+    }
+  ],
+  "limitations": [
+    "Docker build workflow was not run end to end in the new repository.",
+    "Previously built and verified archives were migrated unchanged.",
+    "No VPS reinstallation was performed for this migration.",
+    "This APK was not tested on a physical Android device."
+  ],
+  "vpsModified": false
+}

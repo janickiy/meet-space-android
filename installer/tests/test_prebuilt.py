@@ -16,21 +16,22 @@ from test_runner import ROOT, r
 class PrebuiltTests(unittest.TestCase):
     def setUp(self):
         self.recipe = json.loads((ROOT / 'installer/v1/release.json').read_bytes())
+        self.repository = r.prebuilt_repository(self.recipe)
         self.tag = 'v0.4.0-prebuilt.test.1'
         self.commit = 'd' * 40
         self.arch = 'arm64'
-        self.url = f'https://github.com/{r.REPOSITORY}/releases/download/{self.tag}/meetspace-{self.tag}-linux-{self.arch}.tar.gz'
+        self.url = f'https://github.com/{self.repository}/releases/download/{self.tag}/meetspace-{self.tag}-linux-{self.arch}.tar.gz'
         self.source = dict(repository=r.REPOSITORY, channel='prebuilt', ref=self.tag, version=self.tag,
                            commit=self.commit, builtAt='2026-10-23T00:00:00Z', sourceUrl=r.source_url(self.commit),
                            sourceSha256='c' * 64, sourceFiles=self.recipe['sourceFiles'])
-        self.lock = dict(repository=r.REPOSITORY, version=self.tag, commit=self.commit, platform='linux/' + self.arch,
+        self.lock = dict(repository=self.repository, version=self.tag, commit=self.commit, platform='linux/' + self.arch,
                          url=self.url, sha256='a' * 64, sizeBytes=1024, indexSha256='b' * 64)
         self.options = dict(domain='meet.example.com', publicIpv4='8.8.8.8', imageMode='images', imageRelease='latest')
-        self.index = dict(schemaVersion=1, installationMode='prebuilt', repository=r.REPOSITORY, version=self.tag,
+        self.index = dict(schemaVersion=1, installationMode='prebuilt', repository=self.repository, sourceRepository=r.REPOSITORY, version=self.tag,
                           commit=self.commit, platforms={'linux/' + self.arch: {k: self.lock[k] for k in ('url', 'sha256', 'sizeBytes')}})
         self.release = dict(tag_name=self.tag, draft=False, prerelease=True, published_at='2026-10-23T00:00:00Z', assets=[
             dict(name='prebuilt.json', state='uploaded', size=800,
-                 browser_download_url=f'https://github.com/{r.REPOSITORY}/releases/download/{self.tag}/prebuilt.json'),
+                 browser_download_url=f'https://github.com/{self.repository}/releases/download/{self.tag}/prebuilt.json'),
             dict(name=f'meetspace-{self.tag}-linux-{self.arch}.tar.gz', state='uploaded', size=1024,
                  browser_download_url=self.url, digest='sha256:' + 'a' * 64)])
 
@@ -76,19 +77,20 @@ class PrebuiltTests(unittest.TestCase):
         self.assertFalse(any('buildx' in call.args[0] for call in execute.call_args_list))
 
     def test_only_complete_published_architecture_packages_qualify(self):
-        self.assertIsNotNone(r.prebuilt_assets(self.release, 'arm64'))
-        self.assertIsNone(r.prebuilt_assets(self.release, 'amd64'))
+        self.assertIsNotNone(r.prebuilt_assets(self.release, 'arm64', self.repository))
+        self.assertIsNone(r.prebuilt_assets(self.release, 'amd64', self.repository))
         for change in (dict(draft=True), dict(assets=[]), dict(published_at='invalid'), dict(assets=self.release['assets'] * 2)):
-            self.assertIsNone(r.prebuilt_assets(dict(self.release, **change), self.arch))
+            self.assertIsNone(r.prebuilt_assets(dict(self.release, **change), self.arch, self.repository))
 
     def resolve(self, releases=None, index=None):
         responses = [(releases if releases is not None else [self.release], 'e' * 64),
                      (self.index if index is None else index, self.lock['indexSha256'])]
         commits = [{'sha': self.commit, 'commit': {'committer': {'date': self.source['builtAt']}}}]
         comparison = dict(status='ahead', base_commit={'sha': self.recipe['commit']}, merge_base_commit={'sha': self.recipe['commit']}, behind_by=0, ahead_by=3)
-        with patch.object(r, 'asset_json', side_effect=responses), patch.object(r, 'github_json', side_effect=[commits, comparison]), \
+        with patch.object(r, 'asset_json', side_effect=responses) as assets, patch.object(r, 'github_json', side_effect=[commits, comparison]), \
              patch.object(r, 'source_snapshot', return_value=(self.source['sourceSha256'], self.source['sourceFiles'])) as snapshot:
             result = r.resolve_prebuilt(self.recipe, self.arch)
+            self.assertEqual('https://api.github.com/repos/' + self.repository + '/releases?per_page=100&page=1', assets.call_args_list[0].args[0])
             snapshot.assert_called_once_with(self.commit, self.recipe, building=False)
             return result
 
@@ -97,6 +99,55 @@ class PrebuiltTests(unittest.TestCase):
         source, lock = self.resolve([newer, self.release])
         self.assertEqual(self.source, source)
         self.assertEqual(self.lock, lock)
+
+    def test_artifact_origin_is_signed_and_source_origin_remains_backend(self):
+        self.assertEqual('janickiy/meetspace_docker_built', self.repository)
+        source, lock = self.resolve()
+        self.assertEqual(r.PREBUILT_REPOSITORY, lock['repository'])
+        self.assertEqual(r.REPOSITORY, source['repository'])
+        self.assertEqual(r.source_url(self.commit), source['sourceUrl'])
+        for repository in ('attacker/images', '', None, [], True):
+            self.rejected('RELEASE_INVALID', r.prebuilt_repository, dict(self.recipe, prebuiltRepository=repository))
+        for changed in (dict(repository=r.REPOSITORY), dict(sourceRepository='attacker/source'), dict(sourceRepository=None)):
+            self.rejected('PREBUILT_INVALID', self.resolve, index=dict(self.index, **changed))
+        missing = dict(self.index); missing.pop('sourceRepository')
+        self.rejected('PREBUILT_INVALID', self.resolve, index=missing)
+        self.rejected('PLAN_CHANGED', r.validate_image_lock, dict(self.lock, repository=r.REPOSITORY),
+                      self.recipe, self.source, self.arch)
+        self.rejected('PLAN_CHANGED', r.validate_image_lock,
+                      dict(self.lock, url=self.url.replace(self.repository, r.REPOSITORY)),
+                      self.recipe, self.source, self.arch)
+
+    def test_exact_release_uses_artifact_api_but_commit_uses_source_api(self):
+        commits = [{'sha': self.commit, 'commit': {'committer': {'date': self.source['builtAt']}}}]
+        comparison = dict(status='ahead', base_commit={'sha': self.recipe['commit']},
+                          merge_base_commit={'sha': self.recipe['commit']}, behind_by=0, ahead_by=3)
+        with patch.object(r, 'asset_json', side_effect=[(self.release, 'e' * 64),
+                                                     (self.index, self.lock['indexSha256'])]) as assets, \
+             patch.object(r, 'github_json', side_effect=[commits, comparison]) as source_api, \
+             patch.object(r, 'source_snapshot', return_value=(self.source['sourceSha256'], self.source['sourceFiles'])):
+            source, lock = r.resolve_prebuilt(self.recipe, self.arch, self.tag)
+        self.assertEqual('https://api.github.com/repos/' + self.repository + '/releases/tags/' + self.tag,
+                         assets.call_args_list[0].args[0])
+        self.assertEqual('/commits?sha=' + self.commit + '&per_page=1', source_api.call_args_list[0].args[0])
+        self.assertEqual('https://api.github.com/repos/janickiy/meet-space', r.GITHUB_API)
+        self.assertEqual(self.source, source)
+        self.assertEqual(self.lock, lock)
+
+    def test_historical_recipe_keeps_original_artifact_repository(self):
+        self.recipe.pop('prebuiltRepository')
+        self.repository = r.REPOSITORY
+        self.url = self.url.replace(r.PREBUILT_REPOSITORY, r.REPOSITORY)
+        self.lock.update(repository=r.REPOSITORY, url=self.url)
+        self.index['repository'] = r.REPOSITORY
+        self.index.pop('sourceRepository')
+        self.index['platforms']['linux/' + self.arch]['url'] = self.url
+        for asset in self.release['assets']:
+            asset['browser_download_url'] = asset['browser_download_url'].replace(r.PREBUILT_REPOSITORY, r.REPOSITORY)
+        source, lock = self.resolve()
+        self.assertEqual(self.lock, lock)
+        self.assertEqual(self.source, source)
+        self.assertEqual(r.REPOSITORY, r.prebuilt_repository(self.recipe))
 
     def test_missing_platform_never_builds_or_uses_source_release(self):
         with patch.object(r, 'asset_json', return_value=([dict(self.release, assets=[])], 'e' * 64)), \

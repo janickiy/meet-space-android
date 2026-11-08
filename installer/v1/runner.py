@@ -51,6 +51,7 @@ RESOURCE_PROFILES = {
     "compact-test": {"cpus": 2, "memoryKiB": 3 * 1024 ** 2, "freshDiskBytes": 18 * 1024 ** 3},
 }
 REPOSITORY = "janickiy/meet-space"
+PREBUILT_REPOSITORY = "janickiy/meetspace_docker_built"
 GITHUB_API = "https://api.github.com/repos/" + REPOSITORY
 SAFE_ENV = {"PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin", "LANG": "C.UTF-8", "LC_ALL": "C.UTF-8", "HOME": "/root", "DEBIAN_FRONTEND": "noninteractive", "GIT_TERMINAL_PROMPT": "0"}
 DOCKER_PLUGINS = (("installCompose", "docker-compose-plugin", "install-compose", "COMPOSE_REQUIRED"),
@@ -198,6 +199,7 @@ def verify_bundle(source, pem, raw, signature, docker_key):
             fail("RELEASE_INVALID")
     if set(manifest.get("dockerfiles", {})) != set(APP_SERVICES):
         fail("RELEASE_INVALID")
+    prebuilt_repository(manifest)
     validate_docker_manifest(manifest)
     return manifest
 
@@ -400,6 +402,14 @@ def valid_prebuilt_version(value, *, latest=False):
         re.fullmatch(r"v?[0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9.-]+)?", value))
 
 
+def prebuilt_repository(recipe):
+    """Artifact origin is signed policy; omitted fields retain historical jobs."""
+    repository = recipe.get("prebuiltRepository", REPOSITORY)
+    if not isinstance(repository, str) or repository not in (REPOSITORY, PREBUILT_REPOSITORY):
+        fail("RELEASE_INVALID")
+    return repository
+
+
 class AssetRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         check_asset_url(newurl)
@@ -433,7 +443,9 @@ def asset_json(url):
         raise
 
 
-def prebuilt_assets(release, arch):
+def prebuilt_assets(release, arch, repository=REPOSITORY):
+    if repository not in (REPOSITORY, PREBUILT_REPOSITORY):
+        return None
     if not isinstance(release, dict) or release.get("draft") is not False or not valid_prebuilt_version(release.get("tag_name")):
         return None
     published = release.get("published_at")
@@ -455,25 +467,26 @@ def prebuilt_assets(release, arch):
         asset = matches[0]
         if (asset.get("state") != "uploaded" or type(asset.get("size")) is not int or
                 not 0 < asset["size"] <= (4 * 1024 ** 2 if name == "prebuilt.json" else MAX_IMAGE_ARCHIVE) or
-                asset.get("browser_download_url") != "https://github.com/" + REPOSITORY + "/releases/download/" + tag + "/" + name):
+                asset.get("browser_download_url") != "https://github.com/" + repository + "/releases/download/" + tag + "/" + name):
             return None
         result[name] = asset
     return result
 
 
 def validate_image_lock(lock, recipe, source, arch, *, requested="latest"):
+    repository = prebuilt_repository(recipe)
     if (recipe.get("prebuiltPolicy") != PREBUILT_POLICY or not isinstance(lock, dict) or
             set(lock) != {"repository", "version", "commit", "platform", "url", "sha256", "sizeBytes", "indexSha256"} or
             not isinstance(source, dict) or source.get("channel") != "prebuilt" or arch not in SUPPORTED_ARCHES):
         fail("PLAN_CHANGED")
     version = lock["version"]
     if (not valid_prebuilt_version(requested, latest=True) or requested not in ("latest", version) or
-            not valid_prebuilt_version(version) or lock["repository"] != REPOSITORY or
+            not valid_prebuilt_version(version) or lock["repository"] != repository or
             lock["version"] != source.get("version") or lock["commit"] != source.get("commit") or
             not isinstance(lock["commit"], str) or not re.fullmatch(r"[a-f0-9]{40}", lock["commit"]) or
             lock["platform"] != "linux/" + arch or type(lock["sizeBytes"]) is not int or not 0 < lock["sizeBytes"] <= MAX_IMAGE_ARCHIVE or
             any(not isinstance(lock[key], str) or not re.fullmatch(r"[a-f0-9]{64}", lock[key]) for key in ("sha256", "indexSha256")) or
-            lock["url"] != "https://github.com/" + REPOSITORY + "/releases/download/" + version + "/meetspace-" + version + "-linux-" + arch + ".tar.gz"):
+            lock["url"] != "https://github.com/" + repository + "/releases/download/" + version + "/meetspace-" + version + "-linux-" + arch + ".tar.gz"):
         fail("PLAN_CHANGED")
 
 
@@ -497,11 +510,13 @@ def resolve_prebuilt(recipe, arch, requested="latest"):
     """Resolve once from published platform packages, including prereleases. No source fallback."""
     if recipe.get("prebuiltPolicy") != PREBUILT_POLICY or arch not in SUPPORTED_ARCHES or not valid_prebuilt_version(requested, latest=True):
         fail("PREBUILT_UNAVAILABLE")
+    repository = prebuilt_repository(recipe)
+    release_api = "https://api.github.com/repos/" + repository
     try:
         if requested == "latest":
             releases = []
             for page in range(1, 11):
-                batch, _ = asset_json(GITHUB_API + "/releases?per_page=100&page=" + str(page))
+                batch, _ = asset_json(release_api + "/releases?per_page=100&page=" + str(page))
                 if not isinstance(batch, list) or len(batch) > 100:
                     fail("PREBUILT_INVALID")
                 releases.extend(batch)
@@ -510,9 +525,9 @@ def resolve_prebuilt(recipe, arch, requested="latest"):
             else:
                 fail("PREBUILT_UNAVAILABLE")
         else:
-            release, _ = asset_json(GITHUB_API + "/releases/tags/" + urllib.parse.quote(requested, safe=""))
+            release, _ = asset_json(release_api + "/releases/tags/" + urllib.parse.quote(requested, safe=""))
             releases = [release]
-        candidates = [(release, assets) for release in releases if (assets := prebuilt_assets(release, arch)) is not None]
+        candidates = [(release, assets) for release in releases if (assets := prebuilt_assets(release, arch, repository)) is not None]
         candidates.sort(key=lambda item: (item[0]["published_at"], item[0]["tag_name"]), reverse=True)
         for release, assets in candidates:
             tag = release["tag_name"]
@@ -523,13 +538,14 @@ def resolve_prebuilt(recipe, arch, requested="latest"):
                     continue
                 raise
             if (not isinstance(index, dict) or type(index.get("schemaVersion")) is not int or index["schemaVersion"] != 1 or
-                    index.get("installationMode") != "prebuilt" or index.get("repository") != REPOSITORY or index.get("version") != tag or
+                    index.get("installationMode") != "prebuilt" or index.get("repository") != repository or index.get("version") != tag or
+                    index.get("sourceRepository", REPOSITORY if repository == REPOSITORY else None) != REPOSITORY or
                     not isinstance(index.get("platforms"), dict)):
                 fail("PREBUILT_INVALID")
             artifact = index["platforms"].get("linux/" + arch)
             if not isinstance(artifact, dict) or set(artifact) != {"url", "sha256", "sizeBytes"}:
                 fail("PREBUILT_INVALID")
-            lock = dict(artifact, repository=REPOSITORY, version=tag, commit=index.get("commit"), platform="linux/" + arch, indexSha256=index_hash)
+            lock = dict(artifact, repository=repository, version=tag, commit=index.get("commit"), platform="linux/" + arch, indexSha256=index_hash)
             source = {"channel": "prebuilt", "version": tag, "commit": index.get("commit")}
             validate_image_lock(lock, recipe, source, arch, requested=requested)
             metadata = assets["meetspace-" + tag + "-linux-" + arch + ".tar.gz"]

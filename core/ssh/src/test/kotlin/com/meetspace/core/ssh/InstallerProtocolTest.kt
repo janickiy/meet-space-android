@@ -15,12 +15,11 @@ class InstallerProtocolTest {
     // External files are declared as signedInstallerBundle inputs in core/ssh/build.gradle.kts.
     private fun files() = InstallerBundle.names.associateWith { File("../../installer/v1/$it").readBytes() }
     private fun bundle() = InstallerBundle(files())
-    /** Exercise the legacy policy without changing or weakening the shipped signed recipe. */
-    private fun legacySourcePolicyBundle(): InstallerBundle {
+    /** Exercise signed policy variants without changing the shipped recipe or trust root. */
+    private fun signedRecipeBundle(transform: (JsonObject) -> JsonObject): InstallerBundle {
         val files = files().toMutableMap()
         val key = KeyPairGenerator.getInstance("RSA").apply { initialize(2048) }.generateKeyPair()
-        val manifest = JsonObject(jsonObject(files.getValue("release.json").toString(Charsets.UTF_8)) +
-            ("sourcePolicy" to JsonPrimitive("github-latest-stable-v1")))
+        val manifest = transform(jsonObject(files.getValue("release.json").toString(Charsets.UTF_8)))
         files["release.json"] = manifest.toString().toByteArray()
         files["trust-root.pem"] = ("-----BEGIN PUBLIC KEY-----\n" + Base64.getEncoder().encodeToString(key.public.encoded) +
             "\n-----END PUBLIC KEY-----\n").toByteArray()
@@ -28,6 +27,16 @@ class InstallerProtocolTest {
             initSign(key.private); update(files.getValue("release.json"))
         }.sign()
         return InstallerBundle(files)
+    }
+    private fun legacySourcePolicyBundle() = signedRecipeBundle {
+        JsonObject(it + ("sourcePolicy" to JsonPrimitive("github-latest-stable-v1")))
+    }
+    private fun artifactRepositoryBundle() = signedRecipeBundle {
+        JsonObject(it + ("prebuiltRepository" to JsonPrimitive("janickiy/meetspace_docker_built")))
+    }
+    private fun rehashPlan(value: JsonObject): JsonObject {
+        val data = JsonObject(value.filterKeys { it != "hash" })
+        return JsonObject(data + ("hash" to JsonPrimitive(sha256(canonicalJson(data).toByteArray()))))
     }
     private fun failed(code: String, action: () -> Unit) {
         try { action(); fail("Expected rejection") } catch (failure: InstallFailure) { assertEquals(code, failure.code) }
@@ -227,6 +236,59 @@ class InstallerProtocolTest {
         failed("PLAN_INVALID") { registry.parse(JsonObject(data + ("hash" to JsonPrimitive(sha256(canonicalJson(data).toByteArray())))), allowHistorical = true) }
         assertThrows(IllegalArgumentException::class.java) { InstallerBundles(current, listOf(legacySourcePolicyBundle())) }
     }
+    @Test fun archivedBuild43PrebuiltTicketKeepsItsOriginalRepository() {
+        val current = bundle()
+        val previous = InstallerBundle(InstallerBundle.names.associateWith { File("../../installer/legacy/0.6.0-build43/$it").readBytes() })
+        val registry = InstallerBundles(current, listOf(previous))
+        val oldPlan = prebuiltPlan(previous)
+        assertNull(previous.manifest.optional("prebuiltRepository"))
+        assertEquals("janickiy/meet-space", oldPlan.getValue("imageLock").jsonObject.string("repository"))
+        assertEquals(previous.parsePlan(oldPlan), registry.parse(oldPlan, allowHistorical = true))
+        assertSame(previous, registry.forPlan(oldPlan, allowHistorical = true))
+        failed("PLAN_INVALID") { registry.parse(oldPlan, allowHistorical = false) }
+        val image = oldPlan.getValue("imageLock").jsonObject
+        val changed = rehashPlan(JsonObject(oldPlan + ("imageLock" to JsonObject(image +
+            ("repository" to JsonPrimitive("janickiy/meetspace_docker_built"))))))
+        failed("PLAN_INVALID") { registry.parse(changed, allowHistorical = true) }
+    }
+    @Test fun signedArtifactRepositoryRejectsUnknownHostsCredentialsAndNonStrings() {
+        for (value in listOf<JsonElement>(JsonPrimitive("other/repository"), JsonPrimitive("https://github.com/janickiy/meetspace_docker_built"),
+            JsonPrimitive("token@github.com/janickiy/meetspace_docker_built"), JsonPrimitive(true), JsonNull, JsonArray(emptyList()))) {
+            failed("RELEASE_INVALID") { signedRecipeBundle { JsonObject(it + ("prebuiltRepository" to value)) } }
+        }
+        val unsigned = files().toMutableMap()
+        unsigned["release.json"] = JsonObject(jsonObject(unsigned.getValue("release.json").toString(Charsets.UTF_8)) +
+            ("prebuiltRepository" to JsonPrimitive("janickiy/meet-space"))).toString().toByteArray()
+        failed("RELEASE_INVALID") { InstallerBundle(unsigned) }
+    }
+    @Test fun artifactRepositoryDoesNotReplaceSourceIdentityOrConcreteReleaseVersion() {
+        val bundle = artifactRepositoryBundle()
+        val plan = prebuiltPlan(bundle)
+        val source = plan.getValue("sourceLock").jsonObject
+        val image = plan.getValue("imageLock").jsonObject
+        assertEquals("janickiy/meet-space", source.string("repository"))
+        assertTrue(source.string("sourceUrl").startsWith("https://codeload.github.com/janickiy/meet-space/"))
+        assertEquals("janickiy/meetspace_docker_built", image.string("repository"))
+        assertEquals("v0.4.0-prebuilt.test.1", image.string("version"))
+        assertEquals(source.string("commit"), image.string("commit"))
+        val parsed = bundle.parsePlan(plan)
+        assertEquals("latest", parsed.options.imageRelease)
+        assertEquals(parsed, bundle.parsePlan(jsonObject(parsed.json)))
+        val differentSource = JsonObject(source + ("repository" to JsonPrimitive("janickiy/meetspace_docker_built")))
+        failed("PLAN_INVALID") { bundle.parsePlan(rehashPlan(JsonObject(plan + ("sourceLock" to differentSource)))) }
+        val version = image.string("version")
+        val oldUrl = "https://github.com/janickiy/meet-space/releases/download/$version/meetspace-$version-linux-arm64.tar.gz"
+        val alterations = listOf(
+            mapOf("repository" to JsonPrimitive("janickiy/meet-space"), "url" to JsonPrimitive(oldUrl)),
+            mapOf("url" to JsonPrimitive(oldUrl)),
+            mapOf("url" to JsonPrimitive(image.string("url").replace("github.com/", "github.com.evil.test/"))),
+            mapOf("url" to JsonPrimitive(image.string("url").replace("/download/$version/", "/download/latest/"))),
+            mapOf("repository" to JsonPrimitive("other/repository")))
+        for (alteration in alterations) {
+            val changed = rehashPlan(JsonObject(plan + ("imageLock" to JsonObject(image + alteration))))
+            failed("PLAN_INVALID") { bundle.parsePlan(changed) }
+        }
+    }
     @Test fun prebuiltPlanPreservesModeArtifactAndFrozenVersionAcrossReopen() {
         val bundle = bundle()
         val plan = prebuiltPlan(bundle)
@@ -256,6 +318,7 @@ class InstallerProtocolTest {
     }
     private fun prebuiltPlan(bundle: InstallerBundle): JsonObject {
         val version = "v0.4.0-prebuilt.test.1"; val commit = "a".repeat(40)
+        val repository = bundle.manifest.optional("prebuiltRepository") ?: "janickiy/meet-space"
         val source = buildJsonObject {
             put("repository", "janickiy/meet-space"); put("channel", "prebuilt"); put("ref", version); put("version", version)
             put("commit", commit); put("builtAt", "2026-10-23T00:00:00Z")
@@ -264,8 +327,8 @@ class InstallerProtocolTest {
         }
         val release = JsonObject(bundle.manifest + source.filterKeys { it in setOf("version", "commit", "builtAt", "sourceUrl", "sourceSha256", "sourceFiles") } + ("backendTag" to JsonPrimitive(version)))
         val image = buildJsonObject {
-            put("repository", "janickiy/meet-space"); put("version", version); put("commit", commit); put("platform", "linux/arm64")
-            put("url", "https://github.com/janickiy/meet-space/releases/download/$version/meetspace-$version-linux-arm64.tar.gz")
+            put("repository", repository); put("version", version); put("commit", commit); put("platform", "linux/arm64")
+            put("url", "https://github.com/$repository/releases/download/$version/meetspace-$version-linux-arm64.tar.gz")
             put("sha256", "b".repeat(64)); put("indexSha256", "d".repeat(64)); put("sizeBytes", 1024)
         }
         val original = validPlan(bundle)

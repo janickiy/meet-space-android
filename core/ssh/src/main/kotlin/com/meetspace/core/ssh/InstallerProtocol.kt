@@ -39,6 +39,7 @@ internal class InstallerBundle(private val files: Map<String, ByteArray>, allowT
             require(manifest.string("profile") == "source-v1" || allowTestProfile && manifest.string("profile") == "integration-v1")
             require(manifest.string("runnerSha256") == sha256(files.getValue("runner.py")))
             require(manifest.string("dockerKeySha256") == sha256(files.getValue("docker.asc")))
+            prebuiltRepository()
         } catch (_: Exception) { throw InstallFailure("RELEASE_INVALID") }
     }
     fun payload(action: String, request: JsonObject): ByteArray {
@@ -137,8 +138,16 @@ internal class InstallerBundle(private val files: Map<String, ByteArray>, allowT
                 JsonObject(file + ("sha256" to hashes.getValue(file.string("path"))))
             })))
     }
+    /** Artifact hosting may change; source identity remains bound to the backend repository. */
+    private fun prebuiltRepository(): String {
+        if ("prebuiltRepository" !in manifest) return "janickiy/meet-space"
+        val repository = manifest.getValue("prebuiltRepository").jsonPrimitive
+        require(repository.isString && repository.content in setOf("janickiy/meet-space", "janickiy/meetspace_docker_built"))
+        return repository.content
+    }
     private fun validateImageLock(lock: JsonObject, plan: JsonObject, release: JsonObject) {
         require(manifest.optional("prebuiltPolicy") == "github-prebuilt-v1")
+        val repository = prebuiltRepository()
         require(lock.keys == setOf("repository", "version", "commit", "platform", "url", "sha256", "sizeBytes", "indexSha256"))
         require(plan.getValue("sourceLock").jsonObject.string("channel") == "prebuilt")
         val arch = plan.getValue("platform").jsonObject.string("arch")
@@ -146,9 +155,9 @@ internal class InstallerBundle(private val files: Map<String, ByteArray>, allowT
         val version = release.string("version")
         require(version != "latest" && validImageRelease(version))
         require((plan.getValue("options").jsonObject.optional("imageRelease") ?: "latest") in setOf("latest", version))
-        require(lock.string("repository") == "janickiy/meet-space" && lock.string("version") == version && lock.string("commit") == release.string("commit"))
+        require(lock.string("repository") == repository && lock.string("version") == version && lock.string("commit") == release.string("commit"))
         require(lock.string("platform") == "linux/$arch")
-        require(lock.string("url") == "https://github.com/janickiy/meet-space/releases/download/$version/meetspace-$version-linux-$arch.tar.gz")
+        require(lock.string("url") == "https://github.com/$repository/releases/download/$version/meetspace-$version-linux-$arch.tar.gz")
         require(listOf("sha256", "indexSha256").all { lock.string(it).matches(Regex("[a-f0-9]{64}")) })
         require(lock.getValue("sizeBytes").jsonPrimitive.long in 1..2L * 1024 * 1024 * 1024)
     }
