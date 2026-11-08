@@ -66,6 +66,30 @@ class CallUiTest {
         closeInfoMenuIfOpen()
         compose.onNodeWithTag("call-leave").assertIsEnabled()
     }
+    @Test fun activeMeetingBackArrowOpensMeetingsOnPhoneAndTabletWithoutLeaving() {
+        var width by mutableStateOf(360.dp)
+        val destinations = mutableListOf<WorkspaceTab>()
+        var leaves = 0
+        compose.setContent {
+            DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(width, 800.dp))) {
+                MeetSpaceTheme {
+                    CallScreen(CallState(CallPhase.CONNECTED, title = "Командная встреча"),
+                        onWorkspaceTab = { destinations.add(it) }, leave = { leaves++ })
+                }
+            }
+        }
+        for (screenWidth in listOf(360.dp, 1000.dp)) {
+            compose.runOnIdle { width = screenWidth }
+            val arrow = compose.onNodeWithTag("call-back-to-meetings").assertIsDisplayed().assertHasClickAction()
+            val title = compose.onNodeWithText("Командная встреча")
+            assertTrue(arrow.getUnclippedBoundsInRoot().right <= title.getUnclippedBoundsInRoot().left)
+            arrow.performClick()
+        }
+        compose.runOnIdle {
+            assertEquals(listOf(WorkspaceTab.CALLS, WorkspaceTab.CALLS), destinations)
+            assertEquals(0, leaves)
+        }
+    }
     @Test fun failedCallOffersRetryAndShowsActualFailure() {
         var retry = false
         compose.setContent { MeetSpaceTheme { CallScreen(CallState(CallPhase.FAILED, title = "Встреча", error = "Сервер недоступен"), connect = { retry = true }) } }

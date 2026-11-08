@@ -274,7 +274,8 @@ fun CallScreen(
             val viewportHeight = maxHeight
             if (prejoin) Prejoin(state, widePrejoin, !phone, maxWidth >= 780.dp, microphone, camera, connect, leave, switchCamera, onWorkspaceTab, profileLabel, joinPending, { devices = true }, profileUser)
             else Column(Modifier.fillMaxSize()) {
-                CallHeader(state, details, compactControls, menu, { menu = it }, share, switchCamera, { refreshRoutes(); audio = true }, openSystemSettings, { recordingDialog = true }, shortHeight)
+                CallHeader(state, details, compactControls, menu, { menu = it }, share, switchCamera, { refreshRoutes(); audio = true }, openSystemSettings, { recordingDialog = true }, shortHeight,
+                    backToMeetings = onWorkspaceTab?.let { navigate -> { navigate(WorkspaceTab.CALLS) } })
                 if (!shortHeight && details.room.self != null) Row(Modifier.fillMaxWidth().padding(horizontal = if (phone) 14.dp else 24.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("Вы — ${meetingRole(details.room.self?.role).lowercase()}", Modifier.weight(1f), color = CallMuted, fontSize = 11.sp)
                     TextButton({ openPanel(CallPanel.PARTICIPANTS) }) { Text(if (details.room.self?.role == "owner" && details.room.waiting.isNotEmpty()) "Зал ожидания · ${details.room.waiting.size}" else "Участники", color = Color(0xFFDFE6FF), fontSize = 11.sp) }
@@ -317,11 +318,17 @@ fun CallScreen(
 
 @Composable
 private fun CallHeader(state: CallState, details: CallUiDetails, phone: Boolean, menu: Boolean, setMenu: (Boolean) -> Unit,
-    share: () -> Unit, switchCamera: () -> Unit, audio: () -> Unit, openSystemSettings: (() -> Unit)?, recording: () -> Unit, shortHeight: Boolean) {
+    share: () -> Unit, switchCamera: () -> Unit, audio: () -> Unit, openSystemSettings: (() -> Unit)?, recording: () -> Unit, shortHeight: Boolean,
+    backToMeetings: (() -> Unit)?) {
     val canCapture = state.phase == CallPhase.CONNECTED
     // Short windows reserve height for the shared picture while retaining every 48dp action target.
     Column(Modifier.fillMaxWidth().padding(horizontal = if (phone) 14.dp else 24.dp, vertical = if (shortHeight) 4.dp else if (phone) 10.dp else 13.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (phone) 9.dp else 12.dp)) {
+            if (backToMeetings != null) {
+                IconButton(backToMeetings, modifier = Modifier.size(48.dp).testTag("call-back-to-meetings")) {
+                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, "К списку встреч", Modifier.size(20.dp), tint = Color(0xFFCAD4E4))
+                }
+            }
             Column(Modifier.weight(1f).heightIn(min = 48.dp).then(if (phone) Modifier.clickable(role = Role.Button, onClickLabel = "Информация о встрече", onClick = { setMenu(true) }).testTag("call-info").semantics { contentDescription = "Информация о встрече" } else Modifier), verticalArrangement = Arrangement.spacedBy(5.dp, Alignment.CenterVertically)) {
                 Text(state.title, fontSize = if (phone) 13.sp else 17.sp, lineHeight = if (phone) 20.sp else 24.sp, letterSpacing = (-.3).sp,
                     fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.semantics { heading() })
