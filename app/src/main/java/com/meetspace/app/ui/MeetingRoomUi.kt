@@ -12,6 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -31,14 +32,19 @@ data class MeetingRoomActions(val refresh: () -> Unit = {}, val admit: (String, 
 internal fun meetingRole(role: String?) = when (role) { "owner" -> "Организатор"; "co_host" -> "Соорганизатор"; "guest" -> "Гость"; else -> "Участник" }
 
 @Composable
-internal fun MeetingRoomPanel(call: CallState, room: MeetingRoomUiState, actions: MeetingRoomActions, modifier: Modifier, close: () -> Unit) {
+internal fun MeetingRoomPanel(call: CallState, room: MeetingRoomUiState, actions: MeetingRoomActions, modifier: Modifier,
+    close: () -> Unit, embedded: Boolean = false) {
     var target by remember { mutableStateOf<MeetingParticipant?>(null) }
     var invite by remember { mutableStateOf(false) }
     val participants = room.participants.ifEmpty { call.participants.map { MeetingParticipant(it.id, "", null, it.name, "participant", "joined") } }
     val roster = participants.filter { it.isAdmitted }.sortedBy { if (it.id == room.selfId) 1 else 0 }
-    Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), modifier = modifier.testTag("call-participants-panel")) {
-        Column(Modifier.padding(20.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+    Surface(shape = RoundedCornerShape(if (embedded) 0.dp else 24.dp),
+        color = if (embedded) Color.Transparent else MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        border = if (embedded) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        modifier = modifier.testTag("call-participants-panel")) {
+        Column(Modifier.padding(if (embedded) 12.dp else 20.dp)) {
+            if (!embedded) Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Участники · ${roster.size}", Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
                 IconButton(actions.refresh, enabled = !room.loading && !room.busy) { Icon(Icons.Outlined.Refresh, "Обновить участников") }
                 IconButton(close, Modifier.testTag("call-panel-close")) { Icon(Icons.Outlined.Close, "Закрыть участников") }

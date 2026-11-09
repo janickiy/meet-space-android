@@ -511,6 +511,25 @@ class MeetingsUiTest {
         compose.onNodeWithTag("calls").assertIsDisplayed()
     }
 
+    @Test fun activeMeetingTitleOpensPrejoinWhileOptionsKeepDetailsAvailable() {
+        val active = meeting.copy(status = "active", startedAt = at)
+        val state = ready.copy(listView = MeetingsView.ACTIVE, list = MeetingsLoad(MeetingPage(listOf(active), null)))
+        val joined = mutableListOf<Meeting>()
+        val opened = mutableListOf<String>()
+        compose.setContent { Screen(WorkspaceTab.CALLS, state, MeetingsActions(open = { opened += it }, call = { joined += it })) }
+
+        compose.onNodeWithTag("meeting-title-${active.id}").performScrollTo().performClick()
+        compose.runOnIdle {
+            assertEquals(listOf(active), joined)
+            assertTrue(opened.isEmpty())
+        }
+        compose.onNodeWithTag("meeting-options-${active.id}").performScrollTo().performClick()
+        compose.runOnIdle {
+            assertEquals(listOf(active), joined)
+            assertEquals(listOf(active.id), opened)
+        }
+    }
+
     @Test fun longMeetingTitleStaysReadableAndSeparateFromOptionsWithLargeText() {
         val title = "Обсуждение новой версии приложения и планирование работы команды"
         var fontScale by mutableStateOf(1.5f)

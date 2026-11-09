@@ -345,7 +345,10 @@ class MainActivity : ComponentActivity() {
                             else {
                                 MeetingsWorkspace(tab, meetingsState, state.repository, meetingsModel.actions.copy(call = { meeting ->
                                     if (directSession.active) { directCalls.resume(); directCalls.message("Сначала завершите личный звонок, чтобы подключиться к встрече.") }
-                                    else if (callState.visible) { callMinimized.value = false; meetSpace.callEngine.message("Сначала завершите текущую встречу, чтобы подключиться к другой.") }
+                                    else if (callState.visible) {
+                                        callMinimized.value = false
+                                        if (callState.conferenceId != meeting.id) meetSpace.callEngine.message("Сначала завершите текущую встречу, чтобы подключиться к другой.")
+                                    }
                                     else meetSpace.callEngine.prepare(meeting)
                                 }, recordings = recordingsModel::show), onTab,
                                     callsSearchVisible = callsSearchVisible.value,

@@ -179,7 +179,7 @@ private fun ProbeStatus(id: String, probe: AccountAudioProbe, fallback: String =
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
-private fun MediaVolume(label: String, value: Int, tag: String, change: (Int) -> Unit) {
+internal fun MediaVolume(label: String, value: Int, tag: String, change: (Int) -> Unit) {
     val accent = MaterialTheme.colorScheme.primary
     val rail = MaterialTheme.colorScheme.outlineVariant
     Column(Modifier.fillMaxWidth().padding(top = 20.dp)) {

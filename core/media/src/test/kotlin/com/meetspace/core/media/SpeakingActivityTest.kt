@@ -27,6 +27,17 @@ class SpeakingActivityTest {
         assertTrue(detector.expire(1050, allowed).isEmpty())
     }
 
+    @Test fun quietLocalSpeechMovesTheMeterWithoutChangingRemoteDetection() {
+        update(0, local(0, 0.0, 0.0), remote(0, 0.0, 0.0))
+        assertEquals(setOf("self"), update(200, local(200, .00008, .2), remote(200, .00008, .2))) // RMS .02
+        assertEquals(.02f, detector.audioLevels(200, allowed).getValue("self"), .00001f)
+        assertEquals(setOf("self"), update(400, local(400, .0001448, .4))) // RMS .018
+        assertEquals(.018f, detector.audioLevels(400, allowed).getValue("self"), .00001f)
+        assertEquals(setOf("self"), update(600, local(600, .0001448, .6)))
+        assertTrue(detector.audioLevels(600, allowed).isEmpty())
+        assertTrue(detector.expire(850, allowed).isEmpty())
+    }
+
     @Test fun frozenCountersAndLoudCachedAudioLevelCannotKeepAHighlightAlive() {
         update(0, remote(0, 0.0, 0.0))
         assertEquals(setOf("remote"), update(200, remote(200, .002, .2)))

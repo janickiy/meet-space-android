@@ -79,23 +79,21 @@ private val CallRecordingStatus.icon: ImageVector get() = when (this) {
 
 @Composable
 internal fun CallRecordingControl(state: CallRecordingUiState, phone: Boolean, open: () -> Unit) {
+    val active = state.status != CallRecordingStatus.UNKNOWN && state.status != CallRecordingStatus.STOPPED
     val tint = when (state.status) {
         CallRecordingStatus.PAUSED -> Color(0xFFEBC37D)
         CallRecordingStatus.RECORDING, CallRecordingStatus.STOPPING -> Color(0xFFFB8998)
-        else -> Color(0xFFADC1FF)
+        else -> CallForeground
     }
-    Box(Modifier.heightIn(min = 48.dp).testTag("call-recording-control")
+    val shape = RoundedCornerShape(9.dp)
+    Row(Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp).clip(shape).background(CallTileColor).border(1.dp, CallBorder, shape)
+        .testTag("call-recording-control")
         .clickable(role = Role.Button, onClickLabel = "Управление записью", onClick = open)
-        .semantics { contentDescription = "Управление записью: ${state.status.label}" }, contentAlignment = Alignment.Center) {
-        Row(Modifier.clip(RoundedCornerShape(12.dp)).background(Color(0xFF293346)).border(1.dp, Color(0xFF3A455A), RoundedCornerShape(12.dp))
-            .heightIn(min = if (phone) 36.dp else 40.dp).padding(horizontal = if (phone) 8.dp else 12.dp, vertical = if (phone) 8.dp else 9.dp),
-            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (phone) 6.dp else 8.dp)) {
-            Icon(state.status.icon, null, Modifier.size(if (phone) 14.dp else 17.dp), tint = tint)
-            Text(state.status.label, color = Color(0xFFDBE4F4), fontSize = if (phone) 9.sp else 11.sp, lineHeight = if (phone) 14.sp else 17.sp,
-                fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.testTag("call-recording-status"))
-            Icon(CallIcons.ChevronDown, null, Modifier.size(if (phone) 11.dp else 13.dp), tint = Color(0xFF8EA0BB))
-        }
+        .semantics { contentDescription = "Управление записью: ${state.status.label}" }.padding(horizontal = 10.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp, Alignment.CenterHorizontally)) {
+        Icon(state.status.icon, null, Modifier.size(18.dp), tint = tint)
+        if (active && !phone) Text(state.status.label, color = tint, fontSize = 11.sp, maxLines = 1,
+            overflow = TextOverflow.Ellipsis, modifier = Modifier.testTag("call-recording-status"))
     }
 }
 

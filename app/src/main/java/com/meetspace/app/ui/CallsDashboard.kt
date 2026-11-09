@@ -113,7 +113,7 @@ internal fun CallsDashboard(state: MeetingsUiState, repository: RepositoryState,
                 }
                 MeetingLoadStatus(state.list, actions.refreshList)
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    rows.forEach { MeetingListEntry(it, state, repository.session?.user?.id, actions.open, wide) }
+                    rows.forEach { MeetingListEntry(it, state, repository.session?.user?.id, actions.open, actions.call, wide) }
                 }
                 if (rows.isEmpty() && state.list.data != null && !state.list.loading && state.list.error == null) {
                     Column(Modifier.fillMaxWidth().padding(vertical = 28.dp).testTag("calls-empty"), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -297,13 +297,15 @@ private fun meetingZoneLabel(state: MeetingsUiState): String {
 }
 
 @Composable
-private fun MeetingListEntry(meeting: Meeting, state: MeetingsUiState, selfId: String?, open: (String) -> Unit, wide: Boolean) {
+private fun MeetingListEntry(meeting: Meeting, state: MeetingsUiState, selfId: String?, open: (String) -> Unit,
+    join: ((Meeting) -> Unit)?, wide: Boolean) {
     val at = meeting.scheduledAt ?: meeting.startedAt ?: meeting.finishedAt
     val duration = if (meeting.isClosed) {
         if (meeting.startedAt != null && meeting.finishedAt != null) Duration.between(meeting.startedAt, meeting.finishedAt).seconds.takeIf { it >= 0 }?.div(60) else null
     } else meeting.plannedDurationMin?.toLong()
     val owner = selfId != null && meeting.ownerId == selfId
     val showDetails = { open(meeting.id) }
+    val joinFromTitle = if (meeting.status == "active") join else null
     Surface(onClick = showDetails, shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, if (meeting.status == "active") MaterialTheme.colorScheme.primary.copy(alpha = .4f) else MaterialTheme.colorScheme.outlineVariant),
         modifier = Modifier.fillMaxWidth().testTag("meeting-row-${meeting.id}")) {
@@ -317,7 +319,9 @@ private fun MeetingListEntry(meeting: Meeting, state: MeetingsUiState, selfId: S
                 }
             }
             val title: @Composable () -> Unit = {
-                Text(meeting.title, Modifier.fillMaxWidth().clickable(role = Role.Button, onClickLabel = "Открыть встречу", onClick = showDetails)
+                Text(meeting.title, Modifier.fillMaxWidth().clickable(role = Role.Button,
+                    onClickLabel = if (joinFromTitle != null) "Перейти ко входу во встречу" else "Открыть встречу",
+                    onClick = { if (joinFromTitle != null) joinFromTitle(meeting) else showDetails() })
                     .testTag("meeting-title-${meeting.id}"), fontSize = if (wide) 16.sp else 15.sp, lineHeight = if (wide) 24.sp else 22.sp, fontWeight = FontWeight.SemiBold)
             }
             val metadata: @Composable () -> Unit = {

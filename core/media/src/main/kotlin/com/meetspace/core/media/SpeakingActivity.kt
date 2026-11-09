@@ -54,7 +54,11 @@ internal class SpeakingActivity {
                 val fresh = local || packets != null && packets > (old?.packets ?: 0.0)
                 if (fresh) number("audioLevel")?.takeIf { it <= 1.0 } ?: 0.0 else 0.0
             }
-            val threshold = if (participant in voicedAt && nowMs - voicedAt.getValue(participant) < HOLD_MS) .012 else .025
+            val threshold = when {
+                participant in voicedAt && nowMs - voicedAt.getValue(participant) < HOLD_MS -> .012
+                local -> .015 // Match the web meter's onset so quiet local speech can move the meter.
+                else -> .025
+            }
             if (level >= threshold) voicedAt[participant] = nowMs
             // Unlike the speaker hold, the meter follows each fresh interval, including silence.
             measuredLevels[key] = Level(participant, nowMs, level.toFloat())

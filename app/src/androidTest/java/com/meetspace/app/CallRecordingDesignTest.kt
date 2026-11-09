@@ -120,7 +120,11 @@ class CallRecordingDesignTest {
             }
         }
         compose.onNodeWithTag(tag).assertIsDisplayed()
-        if (!name.startsWith("call")) {
+        if (name.startsWith("call")) {
+            compose.onNodeWithTag("bottom-navigation").assertDoesNotExist()
+            compose.onNodeWithTag("call-back-to-meetings").assertIsDisplayed()
+            compose.onNodeWithTag("call-settings").assertIsDisplayed()
+        } else {
             compose.onNodeWithTag("bottom-navigation").assertIsDisplayed()
             compose.onNodeWithTag("tab-calls").assertIsSelected()
         }

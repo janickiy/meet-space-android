@@ -40,6 +40,9 @@ internal object CallIcons {
     val Square by lazy { icon("Square", "M5 3H19a2 2 0 0 1 2 2V19a2 2 0 0 1 -2 2H5a2 2 0 0 1 -2 -2V5a2 2 0 0 1 2 -2Z") }
     val ChevronDown by lazy { icon("ChevronDown", "m6 9 6 6 6-6") }
     val Paperclip by lazy { icon("Paperclip", "m16 6-8.414 8.586a2 2 0 0 0 2.829 2.829l8.414-8.586a4 4 0 1 0-5.657-5.657l-8.379 8.551a6 6 0 1 0 8.485 8.485l8.379-8.551") }
+    val Send by lazy { icon("Send", "M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z", "m21.854 2.147-10.94 10.939") }
+    val Smile by lazy { icon("Smile", "M15 10V9", "M16.472 15a6 6 0 01-8.943 0", "M9 10V9", "M2 12a10 10 0 1 0 20 0a10 10 0 1 0 -20 0") }
+    val Check by lazy { icon("Check", "M20 6 9 17l-5-5") }
     val FileImage by lazy { icon("FileImage", "M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z", "M14 2v5a1 1 0 0 0 1 1h5", "M8 12a2 2 0 1 0 4 0a2 2 0 1 0 -4 0", "m20 17-1.296-1.296a2.41 2.41 0 0 0-3.408 0L9 22") }
     val FileText by lazy { icon("FileText", "M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z", "M14 2v5a1 1 0 0 0 1 1h5", "M10 9H8", "M16 13H8", "M16 17H8") }
     val Download by lazy { icon("Download", "M12 15V3", "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4", "m7 10 5 5 5-5") }
