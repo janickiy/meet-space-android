@@ -75,6 +75,14 @@ jobs:
           ./gradlew --no-daemon --max-workers=2 testDebugUnitTest lintDebug lintRelease :app:assembleDebug :app:assembleDebugAndroidTest :app:assembleRelease :app:bundleRelease
           ./gradlew --no-daemon :app:dependencies --configuration releaseRuntimeClasspath > build/reports/stage09/release-dependencies.txt
 
+      - name: Verify WebRTC JNI classes in the minified APK
+        run: |
+          set -euo pipefail
+          apkanalyzer="$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer"
+          apk=app/build/outputs/apk/release/app-release-unsigned.apk
+          "$apkanalyzer" dex code --class org.jni_zero.JniInit --method 'init()[Ljava/lang/Object;' "$apk" > /dev/null
+          "$apkanalyzer" dex code --class org.jni_zero.JniUtil "$apk" > /dev/null
+
       - name: Installer and verification regression tests
         run: |
           set -euo pipefail
