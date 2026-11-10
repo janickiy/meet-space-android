@@ -7,7 +7,7 @@ import org.webrtc.RTCStatsReport
 
 class SpeakingActivityTest {
     private val detector = SpeakingActivity()
-    private val binding = CatalogTrack("remote-track", "peer", "remote", "microphone", "audio")
+    private val binding = ReceivedMicrophone("remote", "remote-track")
     private val microphones = mapOf("4" to binding)
     private val allowed = setOf("self", "remote")
 
@@ -63,15 +63,25 @@ class SpeakingActivityTest {
         assertEquals(setOf("remote"), update(1100, fallback(1100, 4, .05)))
     }
 
-    @Test fun screenAudioUnknownTracksAndConflictingMidNeverIdentifyASpeaker() {
+    @Test fun missingBindingUnknownTracksAndConflictingMidNeverIdentifyASpeaker() {
         val samples = arrayOf(
             remote(0, null, null, mapOf("audioLevel" to .8, "trackIdentifier" to "another-track")),
             remote(0, null, null, mapOf("audioLevel" to .8, "mid" to "missing")),
             local(0, null, null, mapOf("audioLevel" to .8, "trackIdentifier" to "old-local")))
         assertTrue(update(0, *samples).isEmpty())
-        val screen = microphones.mapValues { it.value.copy(source = "audio/screen") }
         assertTrue(detector.update(report(remote(200, null, null, mapOf("audioLevel" to .8))), 200,
-            "self", "local-track", screen, allowed).isEmpty())
+            "self", "local-track", emptyMap(), allowed).isEmpty())
+    }
+
+    @Test fun reusedReceiverOnlyAcceptsSamplesFromItsNewAdvertisedSource() {
+        val rebound = mapOf("4" to ReceivedMicrophone("remote", "native-receiver-id", setOf(73L)))
+        fun sample(at: Long, source: Long) = detector.update(report(remote(at, null, null, mapOf(
+            "trackIdentifier" to "native-receiver-id", "ssrc" to source, "audioLevel" to .12))),
+            at, "self", "local-track", rebound, allowed)
+
+        assertTrue(sample(200, 42).isEmpty())
+        assertEquals(setOf("remote"), sample(400, 73))
+        assertEquals(.12f, detector.audioLevels(400, allowed).getValue("remote"), .00001f)
     }
 
     @Test fun trackIdentifierFallbackRequiresAnUnambiguousCatalogBinding() {

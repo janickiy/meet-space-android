@@ -1,6 +1,7 @@
 package com.meetspace.core.media
 
-internal data class RemoteSdpTrack(val mid: String, val kind: String, val streamId: String, val trackId: String)
+internal data class RemoteSdpTrack(val mid: String, val kind: String, val streamId: String, val trackId: String,
+    val ssrcs: Set<Long> = emptySet())
 internal data class PreparedRemoteAnswer(val description: String, val tracksByMid: Map<String, RemoteSdpTrack>)
 
 /**
@@ -45,6 +46,7 @@ internal object RemoteSdpTracks {
             val direction = sectionDirections.singleOrNull() ?: inheritedDirection
             var association: Pair<String, String?>? = null
             var mediaMsid = false
+            val ssrcs = mutableSetOf<Long>()
             fun association(stream: String, track: String?) {
                 if (!token.matches(stream) || (track != null && !token.matches(track)) || (stream != "-" && track == null)) throw ProtocolFailure()
                 val next = stream to track
@@ -53,6 +55,10 @@ internal object RemoteSdpTracks {
             }
             for (index in start + 1 until end) {
                 val line = lines[index]
+                if (kind == "audio" && line.startsWith("a=ssrc:")) {
+                    line.removePrefix("a=ssrc:").substringBefore(' ').toLongOrNull()
+                        ?.takeIf { it in 0..0xFFFF_FFFFL }?.let(ssrcs::add)
+                }
                 if (line.startsWith("a=msid:")) {
                     val fields = line.removePrefix("a=msid:").split(' ')
                     if (fields.size !in 1..2) throw ProtocolFailure()
@@ -72,7 +78,7 @@ internal object RemoteSdpTracks {
                 lines.add(start + 1, "a=msid:-" + (original?.second?.let { " $it" } ?: ""))
             }
             if (original != null && original.first != "-" && port != 0 && direction in setOf("a=sendrecv", "a=sendonly")) {
-                bindings[mid] = RemoteSdpTrack(mid, kind, original.first, checkNotNull(original.second))
+                bindings[mid] = RemoteSdpTrack(mid, kind, original.first, checkNotNull(original.second), ssrcs.toSet())
             }
         }
         val description = lines.joinToString(newline)

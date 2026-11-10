@@ -3,6 +3,8 @@ package com.meetspace.core.media
 import org.webrtc.RTCStatsReport
 import kotlin.math.sqrt
 
+internal data class ReceivedMicrophone(val participantId: String, val nativeTrackId: String, val ssrcs: Set<Long> = emptySet())
+
 /** Audio activity only: no second recorder, PCM ownership, audio gain or server protocol changes. */
 internal class SpeakingActivity {
     private data class Previous(val participant: String, val timestamp: Double, val energy: Double?, val duration: Double?, val packets: Double?)
@@ -13,7 +15,7 @@ internal class SpeakingActivity {
 
     fun update(
         report: RTCStatsReport, nowMs: Long, localParticipant: String, localTrack: String?,
-        remoteMicrophones: Map<String, CatalogTrack>, allowed: Set<String>,
+        remoteMicrophones: Map<String, ReceivedMicrophone>, allowed: Set<String>,
     ): Set<String> {
         val seen = mutableSetOf<String>()
         for (stat in report.statsMap.values) {
@@ -27,9 +29,10 @@ internal class SpeakingActivity {
                 val mid = m["mid"] as? String
                 val track = m["trackIdentifier"] as? String
                 val binding = if (mid != null) remoteMicrophones[mid]
-                    else remoteMicrophones.values.singleOrNull { it.id == track }
-                if (binding == null || binding.source != "microphone" || binding.kind != "audio" ||
-                    track != null && binding.id != track) continue
+                    else remoteMicrophones.values.singleOrNull { it.nativeTrackId == track }
+                val ssrc = (m["ssrc"] as? Number)?.toLong()
+                if (binding == null || track != null && binding.nativeTrackId != track ||
+                    binding.ssrcs.isNotEmpty() && ssrc !in binding.ssrcs) continue
                 binding.participantId
             } else continue
             if (participant !in allowed) continue

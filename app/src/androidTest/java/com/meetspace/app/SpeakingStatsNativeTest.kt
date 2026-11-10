@@ -52,38 +52,57 @@ class SpeakingStatsNativeTest {
             adm.setSpeakerMute(true)
             factory = PeerConnectionFactory.builder().setAudioDeviceModule(adm).createPeerConnectionFactory()
             val config = PeerConnection.RTCConfiguration(emptyList()).apply { sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN }
-            sender = checkNotNull(factory.createPeerConnection(config, Observer()))
-            receiver = checkNotNull(factory.createPeerConnection(config, Observer()))
+            val sendingPeer = checkNotNull(factory.createPeerConnection(config, Observer())).also { sender = it }
+            val receivingPeer = checkNotNull(factory.createPeerConnection(config, Observer())).also { receiver = it }
             source = factory.createAudioSource(MediaConstraints().apply {
                 mandatory += MediaConstraints.KeyValuePair("googEchoCancellation", "false")
                 mandatory += MediaConstraints.KeyValuePair("googAutoGainControl", "false")
                 mandatory += MediaConstraints.KeyValuePair("googNoiseSuppression", "false")
             })
-            track = factory.createAudioTrack("synthetic-microphone", source)
-            checkNotNull(sender.addTrack(track, listOf("synthetic-stream")))
-            val offer = create(sender, offer = true)
-            set(sender, offer, local = true)
-            waitFor("offer ICE candidates") { sender.iceGatheringState() == PeerConnection.IceGatheringState.COMPLETE }
-            // Exercise the same streamless SDP adaptation as CallEngine, retaining MID/track identity.
+            // CallEngine creates receive slots before the SFU advertises a participant's track.
+            val receiveSlot = checkNotNull(receivingPeer.addTransceiver(MediaStreamTrack.MediaType.MEDIA_TYPE_AUDIO,
+                RtpTransceiver.RtpTransceiverInit(RtpTransceiver.RtpTransceiverDirection.RECV_ONLY)))
+            val nativeTrackId = checkNotNull(receiveSlot.receiver.track()).id()
             val sdpType = Class.forName("com.meetspace.core.media.RemoteSdpTracks")
-            val prepared = sdpType.getMethod("prepare", String::class.java).invoke(sdpType.getField("INSTANCE").get(null), sender.localDescription.description)
-            val description = prepared.javaClass.getMethod("getDescription").invoke(prepared) as String
-            set(receiver, SessionDescription(SessionDescription.Type.OFFER, description), local = false)
-            set(receiver, create(receiver, offer = false), local = true)
-            waitFor("answer ICE candidates") { receiver.iceGatheringState() == PeerConnection.IceGatheringState.COMPLETE }
-            set(sender, receiver.localDescription, local = false)
-            waitFor("local SRTP connection") { sender.connectionState() == PeerConnection.PeerConnectionState.CONNECTED && receiver.connectionState() == PeerConnection.PeerConnectionState.CONNECTED }
-            val transceiver = receiver.transceivers.single { it.mediaType == MediaStreamTrack.MediaType.MEDIA_TYPE_AUDIO }
-            val mid = checkNotNull(transceiver.mid)
-            assertEquals("synthetic-microphone", transceiver.receiver.track()?.id())
-            val playout = transceiver.receiver.track() as AudioTrack
+            fun negotiate(): Any {
+                set(receivingPeer, create(receivingPeer, offer = true), local = true)
+                waitFor("offer ICE candidates") { receivingPeer.iceGatheringState() == PeerConnection.IceGatheringState.COMPLETE }
+                set(sendingPeer, receivingPeer.localDescription, local = false)
+                set(sendingPeer, create(sendingPeer, offer = false), local = true)
+                waitFor("answer ICE candidates") { sendingPeer.iceGatheringState() == PeerConnection.IceGatheringState.COMPLETE }
+                val prepared = checkNotNull(sdpType.getMethod("prepare", String::class.java)
+                    .invoke(sdpType.getField("INSTANCE").get(null), sendingPeer.localDescription.description))
+                val description = prepared.javaClass.getMethod("getDescription").invoke(prepared) as String
+                set(receivingPeer, SessionDescription(SessionDescription.Type.ANSWER, description), local = false)
+                return prepared
+            }
+            negotiate()
+            val mid = checkNotNull(receiveSlot.mid)
+            track = factory.createAudioTrack("synthetic-microphone", source)
+            val sendSlot = sendingPeer.transceivers.single { it.mid == mid }
+            assertTrue(sendSlot.sender.setTrack(track, false))
+            sendSlot.sender.setStreams(listOf("synthetic-stream"))
+            sendSlot.direction = RtpTransceiver.RtpTransceiverDirection.SEND_ONLY
+            val prepared = negotiate()
+            waitFor("local SRTP connection") {
+                sendingPeer.connectionState() == PeerConnection.PeerConnectionState.CONNECTED && receivingPeer.connectionState() == PeerConnection.PeerConnectionState.CONNECTED
+            }
+            assertEquals(mid, receiveSlot.mid)
+            val playout = receiveSlot.receiver.track() as AudioTrack
+            assertEquals(nativeTrackId, playout.id())
+            val tracksByMid = prepared.javaClass.getMethod("getTracksByMid").invoke(prepared) as Map<*, *>
+            val remoteTrack = checkNotNull(tracksByMid[mid])
+            assertEquals("synthetic-stream", remoteTrack.javaClass.getMethod("getStreamId").invoke(remoteTrack))
+            val advertisedTrackId = remoteTrack.javaClass.getMethod("getTrackId").invoke(remoteTrack) as String
+            assertNotEquals("The receiving track keeps its locally generated ID", advertisedTrackId, nativeTrackId)
+            val advertisedSsrcs = remoteTrack.javaClass.getMethod("getSsrcs").invoke(remoteTrack) as Set<*>
             for (gain in listOf(0.0, .25, 1.0)) {
                 playout.setVolume(gain)
                 assertEquals("Received audio uses the local speaker gain", gain, playout.volume, .00001)
             }
-            val bindingClass = Class.forName("com.meetspace.core.media.CatalogTrack")
-            val binding = bindingClass.getConstructor(String::class.java, String::class.java, String::class.java, String::class.java, String::class.java)
-                .newInstance("synthetic-microphone", "synthetic-stream", "remote", "microphone", "audio")
+            val bindingClass = Class.forName("com.meetspace.core.media.ReceivedMicrophone")
+            val binding = bindingClass.getConstructor(String::class.java, String::class.java, Set::class.java)
+                .newInstance("remote", nativeTrackId, advertisedSsrcs)
             val activityClass = Class.forName("com.meetspace.core.media.SpeakingActivity")
             val localActivity = activityClass.getConstructor().newInstance()
             val remoteActivity = activityClass.getConstructor().newInstance()
@@ -96,25 +115,33 @@ class SpeakingStatsNativeTest {
                     if (local) "synthetic-microphone" else null, if (local) emptyMap<String, Any>() else mapOf(mid to binding),
                     setOf(if (local) "self" else "remote")) as Set<*>
             }
-            assertTrue(active(localActivity, sender, true).isEmpty())
-            assertTrue(active(remoteActivity, receiver, false).isEmpty())
+            assertTrue(active(localActivity, sendingPeer, true).isEmpty())
+            assertTrue(active(remoteActivity, receivingPeer, false).isEmpty())
             amplitude.set(3000)
+            waitFor("received stats report the native ID on the negotiated MID") {
+                stats(receivingPeer).statsMap.values.any {
+                    val ssrc = (it.members["ssrc"] as? Number)?.toLong()
+                    it.type == "inbound-rtp" && it.members["kind"] == "audio" &&
+                        it.members["mid"] == mid && it.members["trackIdentifier"] == nativeTrackId &&
+                        ssrc != null && (advertisedSsrcs.isEmpty() || ssrc in advertisedSsrcs)
+                }
+            }
             var quietLocal = 0f
             var quietRemote = 0f
             waitFor("native local and received tone") {
-                val local = active(localActivity, sender, true)
-                val remote = active(remoteActivity, receiver, false)
+                val local = active(localActivity, sendingPeer, true)
+                val remote = active(remoteActivity, receivingPeer, false)
                 quietLocal = level(localActivity, "self"); quietRemote = level(remoteActivity, "remote")
                 "self" in local && "remote" in remote && quietLocal > .025f && quietRemote > .025f
             }
             amplitude.set(12000)
             waitFor("louder tone raises measured local and received volume") {
-                active(localActivity, sender, true); active(remoteActivity, receiver, false)
+                active(localActivity, sendingPeer, true); active(remoteActivity, receivingPeer, false)
                 level(localActivity, "self") > quietLocal * 1.6f && level(remoteActivity, "remote") > quietRemote * 1.6f
             }
             amplitude.set(0)
             waitFor("native silence clears both highlights") {
-                active(localActivity, sender, true).isEmpty() && active(remoteActivity, receiver, false).isEmpty() &&
+                active(localActivity, sendingPeer, true).isEmpty() && active(remoteActivity, receivingPeer, false).isEmpty() &&
                     // Opus may retain inaudible comfort noise; it must remain below the UI floor.
                     level(localActivity, "self") < .012f && level(remoteActivity, "remote") < .012f
             }

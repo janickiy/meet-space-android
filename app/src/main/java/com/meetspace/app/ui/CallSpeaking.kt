@@ -28,7 +28,7 @@ internal fun microphoneFillFraction(rms: Float): Float {
 }
 
 @Composable
-private fun animatedMicrophoneFill(rms: Float, enabled: Boolean): Float {
+internal fun animatedMicrophoneFill(rms: Float, enabled: Boolean): Float {
     // Remove animation state on mute/disconnect so a quick re-enable cannot revive old levels.
     if (!enabled) return 0f
     val target = microphoneFillFraction(rms)
@@ -46,6 +46,11 @@ internal fun MicrophoneLevelIcon(rms: Float, enabled: Boolean, tint: Color, cont
         liveLevel != null -> microphoneFillFraction(liveLevel.collectAsStateWithLifecycle().value)
         else -> animatedMicrophoneFill(rms, true)
     }
+    MicrophoneFillIcon(fill, tint, contentDescription, modifier)
+}
+
+@Composable
+internal fun MicrophoneFillIcon(fill: Float, tint: Color, contentDescription: String?, modifier: Modifier = Modifier) {
     Box(modifier) {
         Icon(CallIcons.Mic, contentDescription, Modifier.matchParentSize(), tint = tint)
         Icon(CallIcons.MicFill, null, Modifier.matchParentSize().drawWithContent {

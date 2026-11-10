@@ -29,7 +29,8 @@ class RemoteSdpTracksTest {
 
     @Test fun `audio camera and screen bind only their original exact authoritative catalog identities`() {
         val prepared = RemoteSdpTracks.prepare(sdp(
-            section("audio", "4", "peer", "microphone") + section("video", "5", "peer", "camera") +
+            section("audio", "4", "peer", "microphone").replace("a=ssrc:42 msid:peer microphone\r\n", "") +
+                section("video", "5", "peer", "camera") +
                 section("video", "6", "peer-screen", "screen") + section("audio", "7", "peer-screen", "screen-audio")))
         val catalog = listOf(
             CatalogTrack("microphone", "peer", "participant", "microphone", "audio"),
@@ -38,6 +39,7 @@ class RemoteSdpTracksTest {
             CatalogTrack("screen-audio", "peer-screen", "participant", "audio/screen", "audio"))
         val bindings = RemoteSdpTracks.catalogBindings(prepared.tracksByMid, catalog)
         assertEquals(4, bindings.size)
+        assertEquals(setOf(42L), prepared.tracksByMid["4"]?.ssrcs)
         assertEquals("camera", bindings["5"]?.source); assertEquals("video/screen", bindings["6"]?.source)
         assertEquals("audio/screen", bindings["7"]?.source)
         assertTrue(RemoteSdpTracks.catalogBindings(prepared.tracksByMid,

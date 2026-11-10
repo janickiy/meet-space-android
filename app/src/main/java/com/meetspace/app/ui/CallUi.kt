@@ -43,6 +43,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
@@ -907,6 +908,14 @@ internal fun VideoTile(tile: VideoTileItem, state: CallState, phone: Boolean, mo
     val tag = "call-participant-${tile.id}"
     val speaking = state.isSpeaking(tile.participantId)
     val level = state.microphoneLevel(tile.participantId)
+    val remote = tile.id != "self"
+    val remoteFill = if (remote) animatedMicrophoneFill(level, speaking && tile.microphone) else 0f
+    val borderColor = when {
+        remoteFill > 0f -> lerp(CallBorder, SpeakingGreen, .5f + .5f * remoteFill)
+        !remote && speaking -> SpeakingGreen
+        else -> CallBorder
+    }
+    val borderWidth = if (!remote && speaking) 2.dp else 1.dp + remoteFill.dp
     val shape = RoundedCornerShape(when {
         gallery || compact && onSelect == null -> 15.dp
         fitVideo && !compact -> 13.dp
@@ -914,7 +923,7 @@ internal fun VideoTile(tile: VideoTileItem, state: CallState, phone: Boolean, mo
     })
     val action = if (onSelect == null) Modifier else Modifier.clickable(onClickLabel = "Показать крупно", role = Role.Button, onClick = onSelect)
     Box(modifier.testTag(tag).speakingStatus(speaking).clip(shape).background(if (speaking) SpeakingBackground else CallTileColor)
-        .border(if (speaking) 2.dp else 1.dp, if (speaking) SpeakingGreen else CallBorder, shape).then(action)) {
+        .border(borderWidth, borderColor, shape).then(action)) {
         if (tile.feed == null) {
             if (gallery) BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 val avatarSize = (maxWidth * .24f).coerceIn(36.dp, 76.dp).coerceAtMost(maxHeight * .7f)
@@ -947,9 +956,12 @@ internal fun VideoTile(tile: VideoTileItem, state: CallState, phone: Boolean, mo
             }
             val micModifier = Modifier.size(badgeSize).testTag("$tag-mic")
             val micTint = Color(0xFFC5B8CC)
-            if (tile.microphone) MicrophoneLevelIcon(level, state.phase == CallPhase.CONNECTED, micTint,
-                if (speaking) "Говорит" else "Микрофон включён", micModifier, liveLevel = liveLevel)
-            else Icon(CallIcons.MicOff, "Без звука", micModifier, tint = micTint)
+            val micLabel = if (speaking) "Говорит" else "Микрофон включён"
+            when {
+                !tile.microphone -> Icon(CallIcons.MicOff, "Без звука", micModifier, tint = micTint)
+                remote -> MicrophoneFillIcon(remoteFill, micTint, micLabel, micModifier)
+                else -> MicrophoneLevelIcon(level, state.phase == CallPhase.CONNECTED, micTint, micLabel, micModifier, liveLevel = liveLevel)
+            }
         }
     }
 }

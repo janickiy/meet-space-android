@@ -107,6 +107,7 @@ class CallEngine(
     private val slots = mutableMapOf<String, RtpTransceiver>()
     private var peerTransceivers = emptyList<RtpTransceiver>()
     private var remoteTracksByMid = emptyMap<String, RemoteSdpTrack>()
+    private var remoteMicrophones = emptyMap<String, ReceivedMicrophone>()
     private data class ReceivedVideo(val receiverId: String, val binding: RemoteSdpTrack, val feed: VideoFeed)
     private val received = mutableMapOf<String, ReceivedVideo>()
     private var captureWidth = 1280
@@ -863,8 +864,23 @@ class CallEngine(
         if (line !in 0..127 || !pc!!.addIceCandidate(IceCandidate(mid, line, c.string("candidate")))) throw ProtocolFailure()
     }
     private fun syncVideos() {
-        peerTransceivers.forEach { (it.receiver.track() as? AudioTrack)?.setVolume(deviceSettings.speakerVolume.coerceIn(0, 100) / 100.0) }
-        val live = RemoteSdpTracks.catalogBindings(remoteTracksByMid, catalog).filterValues { it.kind == "video" }
+        val bindings = RemoteSdpTracks.catalogBindings(remoteTracksByMid, catalog)
+        val microphones = buildMap {
+            peerTransceivers.forEach { transceiver ->
+                val audioTrack = transceiver.receiver.track() as? AudioTrack ?: return@forEach
+                audioTrack.setVolume(deviceSettings.speakerVolume.coerceIn(0, 100) / 100.0)
+                val mid = transceiver.mid ?: return@forEach
+                val metadata = bindings[mid]?.takeIf { it.kind == "audio" && it.source == "microphone" } ?: return@forEach
+                // A preallocated receiver can keep its native track ID after the SFU binds its MID.
+                put(mid, ReceivedMicrophone(metadata.participantId, audioTrack.id(), remoteTracksByMid.getValue(mid).ssrcs))
+            }
+        }
+        if (microphones != remoteMicrophones) {
+            remoteMicrophones.forEach { (mid, old) -> if (old != microphones[mid]) speaking.forget(old.participantId) }
+            remoteMicrophones = microphones
+            pruneSpeakers()
+        }
+        val live = bindings.filterValues { it.kind == "video" }
         (received.keys - live.keys).forEach { received.remove(it)?.feed?.close() }
         val videos = live.mapNotNull { (mid, metadata) ->
             val transceiver = peerTransceivers.singleOrNull { it.mid == mid } ?: return@mapNotNull null
@@ -936,14 +952,15 @@ class CallEngine(
         if (statsPending) return
         val diagnostics = now >= nextDiagnosticsMs
         if (diagnostics) nextDiagnosticsMs = now + 3_000
+        val microphones = remoteMicrophones
         statsPending = true
         pc?.getStats { report -> callback(epoch) {
             statsPending = false
             val sampledAt = android.os.SystemClock.elapsedRealtime()
             if (sampledAt - now > 1_000 || state.value.phase != CallPhase.CONNECTED ||
                 pc?.connectionState() != PeerConnection.PeerConnectionState.CONNECTED) return@callback
-            val microphones = RemoteSdpTracks.catalogBindings(remoteTracksByMid, catalog)
-                .filterValues { it.kind == "audio" && it.source == "microphone" }
+            // Do not apply an in-flight report to a receiver that was rebound during negotiation.
+            if (microphones !== remoteMicrophones) return@callback
             publishSpeakers(speaking.update(report, sampledAt, state.value.participantId, micTrack?.id(), microphones, eligibleSpeakers()), sampledAt)
             if (!diagnostics) return@callback
             var receivedBytes = 0L; var sent = 0L; var frames = 0L; var relay = false; var audioBytes = 0L; var videoBytes = 0L
@@ -1027,6 +1044,7 @@ class CallEngine(
         if (joinRequest.isNotEmpty()) runCatching { send("media.leave", if (peerId.isBlank()) buildJsonObject {} else peerData()) }
         signaling?.close(); signaling = null
         received.values.forEach { it.feed.close() }; received.clear(); remoteTracksByMid = emptyMap()
+        remoteMicrophones = emptyMap()
         peerTransceivers = emptyList(); slots.clear(); pc?.close(); pc?.dispose(); pc = null
         peerId = ""; connectionId = ""; joinRequest = ""; hasRemote = false; hasOffer = false
         remoteIce.clear(); localIce.clear(); seenIce.clear(); gate = NegotiationGate(); catalog = emptyList()

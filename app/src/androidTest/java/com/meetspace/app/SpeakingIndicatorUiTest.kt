@@ -9,6 +9,8 @@ import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.dp
 import androidx.test.platform.app.InstrumentationRegistry
 import com.meetspace.app.ui.*
 import com.meetspace.core.designsystem.MeetSpaceTheme
@@ -64,6 +66,58 @@ class SpeakingIndicatorUiTest {
         compose.runOnIdle { state = call.copy(phase = CallPhase.RECONNECTING, activeSpeakerIds = setOf("self", "peer")) }
         speaking("call-mic", false); speaking("call-participant-self", false); speaking("call-participant-peer", false)
         compose.onNodeWithTag("call-mic").assertIsNotEnabled()
+    }
+
+    @OptIn(ExperimentalTestApi::class)
+    @Test fun remoteVoicePulsesTheMicrophoneAndTileInGalleryAndSpeakerView() {
+        var state by mutableStateOf(call)
+        compose.setContent {
+            DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(1194.dp, 834.dp))) {
+                MeetSpaceTheme { CallScreen(state) }
+            }
+        }
+        val tileTag = "call-participant-peer"
+        val micTag = "$tileTag-mic"
+        fun borderGreen(): Float {
+            val color = buttonPixel(tileTag, 0f)
+            return color.green - maxOf(color.red, color.blue)
+        }
+        fun volume(rms: Float) = compose.runOnIdle {
+            state = state.copy(activeSpeakerIds = setOf("peer"), microphoneLevels = mapOf("peer" to rms))
+        }
+
+        compose.onNodeWithTag("call-layout-gallery").assertIsSelected()
+        val idleBorder = borderGreen()
+        assertEquals(0, meter(micTag).count)
+        volume(.04f)
+        val quietMeter = meter(micTag)
+        val quietBorder = borderGreen()
+        assertTrue("Quiet remote speech starts both indicators", quietMeter.count > 0 && quietBorder > idleBorder)
+        volume(.25f)
+        val loudMeter = meter(micTag)
+        assertTrue("Louder remote speech fills more of its microphone", loudMeter.count > quietMeter.count && loudMeter.top < quietMeter.top)
+        assertTrue("Louder remote speech makes the border greener", borderGreen() > quietBorder + .03f)
+        assertEquals("Remote speech must not fill the local microphone", 0, meter("call-mic-icon").count)
+
+        compose.onNodeWithTag("call-layout-speaker").performClick().assertIsSelected()
+        compose.onNode(hasTestTag(tileTag) and hasAnyAncestor(hasTestTag("call-featured-video")), useUnmergedTree = true)
+            .assertIsDisplayed()
+        assertTrue(meter(micTag).count > 0)
+        assertTrue(borderGreen() > quietBorder + .03f)
+        volume(0f)
+        speaking(tileTag, true) // The speaker hold may continue while the visual meters are idle.
+        assertEquals(0, meter(micTag).count)
+        assertEquals(idleBorder, borderGreen(), .02f)
+
+        volume(.25f)
+        assertTrue(meter(micTag).count > 0)
+        compose.runOnIdle {
+            state = state.copy(participants = state.participants.map { if (it.id == "peer") it.copy(microphone = false) else it })
+        }
+        speaking(tileTag, false)
+        compose.onNodeWithTag(micTag, useUnmergedTree = true).assertContentDescriptionEquals("Без звука")
+        assertEquals(0, meter(micTag).count)
+        assertEquals(idleBorder, borderGreen(), .02f)
     }
 
     @Test fun personalCallSeparatesLocalAndRemoteSpeechAndResetsItsGreenBackground() {
