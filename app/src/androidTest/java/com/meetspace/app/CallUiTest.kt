@@ -325,8 +325,10 @@ class CallUiTest {
         compose.runOnIdle {
             state = state.copy(participants = state.participants + CallParticipant("maxim", "Максим Петров", true, false, false))
         }
-        compose.onNodeWithTag("call-speaker-page-2").performClick().assertIsSelected()
-        participant("maxim").assertIsDisplayed()
+        val secondPage = compose.onNodeWithTag("call-speaker-page-2")
+        secondPage.performClick()
+        compose.waitUntil("local participant appears on the last page", 5_000) { participant("self").isDisplayed() }
+        secondPage.assertIsSelected()
         assertEquals(chatBounds, chat.getUnclippedBoundsInRoot())
         compose.onNodeWithTag("call-chat-draft").assertTextContains("Черновик")
     }
