@@ -69,7 +69,7 @@ class CallRecordingDesignTest {
 
     @Test fun captureApprovedCallChatScreenshot() = capture("call-chat", "call-screen", darkBars = true,
         afterRender = { compose.onNodeWithTag("call-chat").performClick(); compose.onNodeWithTag("call-chat-panel").assertIsDisplayed() }) {
-        FixtureCall()
+        CallScreen(call, onWorkspaceTab = {}, details = callDetails)
     }
 
     @Test fun captureApprovedCallRecordingScreenshot() = capture("call-recording", "call-screen", darkBars = true,

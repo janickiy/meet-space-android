@@ -178,12 +178,16 @@ class CallUiTest {
         compose.runOnIdle { assertEquals(1, leaves) }
     }
 
-    @Test fun loneParticipantFillsTheStageAndHasACenteredNameBadge() {
+    @Test fun loneParticipantFillsThePhoneStageAndHasACenteredNameBadge() {
         val self = CallParticipant("self", "Анна Кузнецова", true, true, false)
-        compose.setContent { MeetSpaceTheme {
-            CallScreen(CallState(CallPhase.CONNECTED, title = "Встреча", participantId = self.id,
-                microphone = true, participants = listOf(self)))
-        } }
+        compose.setContent {
+            DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(390.dp, 844.dp))) {
+                MeetSpaceTheme {
+                    CallScreen(CallState(CallPhase.CONNECTED, title = "Встреча", participantId = self.id,
+                        microphone = true, participants = listOf(self)))
+                }
+            }
+        }
         val stage = compose.onNodeWithTag("call-grid").getUnclippedBoundsInRoot()
         val tile = compose.onNodeWithTag("call-participant-self").getUnclippedBoundsInRoot()
         val badge = compose.onNodeWithTag("call-participant-self-badge", useUnmergedTree = true).getUnclippedBoundsInRoot()
@@ -193,13 +197,76 @@ class CallUiTest {
         compose.onNodeWithText("Анна Кузнецова · вы").assertIsDisplayed()
     }
 
+    @Test fun tabletCameraFrameKeepsSixteenByNineWithAndWithoutChat() {
+        val self = CallParticipant("self", "Александр Соколов", true, true, true)
+        val others = listOf(
+            CallParticipant("anna", "Анна Кузнецова", true, true, false),
+            CallParticipant("maria", "Мария Полякова", true, false, false),
+            CallParticipant("dmitry", "Дмитрий Волков", true, false, false),
+        )
+        var participants by mutableStateOf(listOf(self))
+        var viewport by mutableStateOf(DpSize(1194.dp, 834.dp))
+        compose.setContent {
+            DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(viewport)) {
+                MeetSpaceTheme {
+                    CallScreen(CallState(CallPhase.CONNECTED, title = "Встреча", participantId = self.id,
+                        microphone = true, camera = true, participants = participants),
+                        details = CallUiDetails(chat = CallTextPanelState(canSend = true)))
+                }
+            }
+        }
+
+        fun bounds(tag: String) = compose.onNodeWithTag(tag).assertIsDisplayed().getUnclippedBoundsInRoot()
+        fun cameraFrame(): DpRect {
+            val frame = bounds("call-featured-video")
+            val strip = bounds("call-grid")
+            assertEquals("Featured video uses a 16:9 frame", (frame.right - frame.left).value * 9f / 16f,
+                (frame.bottom - frame.top).value, 1.5f)
+            assertTrue("The participant strip sits below the featured video", frame.bottom < strip.top)
+            assertEquals("The featured video is centered over the strip", (strip.left + strip.right).value / 2,
+                (frame.left + frame.right).value / 2, 2f)
+            return frame
+        }
+
+        val closed = cameraFrame()
+        bounds("call-participant-self")
+        compose.onNodeWithTag("call-chat").performClick()
+        val chat = bounds("call-chat-panel")
+        val opened = cameraFrame()
+        val strip = bounds("call-grid")
+        assertTrue("Opening chat never widens the frame", opened.right - opened.left <= closed.right - closed.left)
+        assertTrue("Chat does not overlap the camera or participants", opened.right <= chat.left && strip.right <= chat.left)
+        assertTrue(opened.top >= chat.top && strip.bottom <= chat.bottom)
+        assertEquals(10f, (strip.top - opened.bottom).value, 1f)
+
+        compose.runOnIdle { participants = others + self }
+        val tiles = (others + self).map { bounds("call-participant-${it.id}") }
+        tiles.forEach { tile ->
+            assertEquals(126f, (tile.right - tile.left).value, 1f)
+            assertEquals(82f, (tile.bottom - tile.top).value, 1f)
+            assertEquals(tiles.first().top, tile.top)
+        }
+        tiles.zipWithNext().forEach { (previous, next) -> assertEquals(8f, (next.left - previous.right).value, 1f) }
+        compose.onNodeWithTag("call-participant-maria").performClick()
+        compose.onNode(hasText("Мария Полякова") and hasAnyAncestor(hasTestTag("call-featured-video")), useUnmergedTree = true)
+            .assertIsDisplayed()
+        assertEquals(chat, bounds("call-chat-panel"))
+
+        compose.runOnIdle { viewport = DpSize(1194.dp, 430.dp) }
+        val short = cameraFrame()
+        val shortChat = bounds("call-chat-panel")
+        assertTrue(short.right - short.left < opened.right - opened.left)
+        assertTrue(short.top >= shortChat.top && bounds("call-grid").bottom <= shortChat.bottom)
+    }
+
     @Test fun hidingParticipantVideoKeepsTheirActualRosterAndAudioControls() {
         compose.setContent { MeetSpaceTheme { CallScreen(CallState(CallPhase.CONNECTED, title = "Встреча", participantId = "self",
             participants = listOf(CallParticipant("other", "Реальный участник", true, true, true))),
             devicePreferences = AccountDevicePreferences(showSelf = false, hideParticipantVideo = true)) } }
         compose.onNodeWithTag("call-participant-self").assertDoesNotExist()
         compose.onNodeWithTag("call-participant-other").assertExists()
-        compose.onNodeWithText("Реальный участник").assertExists()
+        compose.onNode(hasText("Реальный участник") and hasAnyAncestor(hasTestTag("call-participant-other")), useUnmergedTree = true)
+            .assertExists()
         openCallSettings()
         compose.onNodeWithText("Обновить устройства").assertIsEnabled()
     }
