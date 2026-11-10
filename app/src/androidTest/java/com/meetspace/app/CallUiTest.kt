@@ -53,17 +53,20 @@ class CallUiTest {
         var clicked = 0
         compose.setContent { MeetSpaceTheme { CallScreen(CallState(CallPhase.CONNECTED, title = "Встреча", microphoneBlocked = true, cameraBlocked = true, screenBlocked = true), leave = { clicked++ }) } }
         compose.onNodeWithTag("call-mic").assertIsNotEnabled(); compose.onNodeWithTag("call-camera").assertIsNotEnabled()
-        compose.onNodeWithTag("call-share").assertIsDisplayed().assertIsNotEnabled()
+        openCallSettings()
+        compose.onNodeWithTag("call-screen-share-action").performScrollTo().assertIsDisplayed().assertIsNotEnabled()
+        compose.onNodeWithText("Закрыть").performClick()
         compose.onNodeWithTag("call-leave").performClick()
         assertEquals(1, clicked)
     }
     @Test fun reconnectNeverDisplaysConnectedAndDisablesCapture() {
         compose.setContent { MeetSpaceTheme { CallScreen(CallState(CallPhase.RECONNECTING, title = "Встреча", status = "Восстанавливаем связь…")) } }
-        compose.onNodeWithTag("call-status").assertTextContains("Восстанавливаем связь…", substring = true)
+        compose.onNodeWithTag("call-status", useUnmergedTree = true).assertTextContains("Восстанавливаем связь…", substring = true)
         compose.onNodeWithTag("call-camera").assertIsNotEnabled()
         compose.onNodeWithTag("call-reconnect").assertIsNotEnabled()
-        compose.onNodeWithTag("call-share").assertIsDisplayed().assertIsNotEnabled()
         compose.onNodeWithTag("call-leave").assertIsEnabled()
+        openCallSettings()
+        compose.onNodeWithTag("call-screen-share-action").performScrollTo().assertIsDisplayed().assertIsNotEnabled()
     }
 
     @Test fun meetingHeaderSharesTheActualLinkAndReconnectsOnBothLayouts() {
@@ -130,17 +133,23 @@ class CallUiTest {
         compose.onNodeWithText("Микрофон выключен").assertExists()
     }
     @Test fun prejoinUsesSideBySideTabletAndStackedPhoneWithoutAutomaticCapture() {
-        var width by mutableStateOf(1000.dp)
+        var width by mutableStateOf(1194.dp)
         var destination: WorkspaceTab? = null
         compose.setContent {
-            DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(width, 900.dp))) {
+            DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(width, 834.dp))) {
                 MeetSpaceTheme { CallScreen(CallState(CallPhase.PREJOIN, title = "Дизайн-ревью", status = "Перед входом"), onWorkspaceTab = { destination = it }, profileLabel = "Тестовый профиль") }
             }
         }
         compose.onNodeWithTag("call-prejoin-wide").assertExists()
         val preview = compose.onNodeWithTag("call-preview").getUnclippedBoundsInRoot()
+        val form = compose.onNodeWithTag("call-prejoin-info").getUnclippedBoundsInRoot()
         val join = compose.onNodeWithTag("call-connect").getUnclippedBoundsInRoot()
-        assertTrue(preview.right <= join.left)
+        assertEquals(592f, (preview.right - preview.left).value, 2f)
+        assertEquals(444f, (preview.bottom - preview.top).value, 2f)
+        assertEquals(32f, (form.left - preview.right).value, 2f)
+        assertEquals(474f, (form.right - form.left).value, 2f)
+        assertEquals((preview.top + preview.bottom).value / 2, (form.top + form.bottom).value / 2, 2f)
+        assertEquals(44f, (join.bottom - join.top).value, 2f)
         compose.onNodeWithText("Тестовый профиль").assertExists()
         compose.onNodeWithTag("call-mic").assertIsOff()
         compose.onNodeWithTag("call-camera").assertIsOff()
@@ -149,7 +158,8 @@ class CallUiTest {
         compose.runOnIdle { assertEquals(WorkspaceTab.PROFILE, destination); width = 839.dp }
         compose.onNodeWithTag("call-prejoin-compact").assertExists()
         val compactPreview = compose.onNodeWithTag("call-preview").getUnclippedBoundsInRoot()
-        assertTrue(compactPreview.right - compactPreview.left <= 520.dp)
+        assertEquals(520f, (compactPreview.right - compactPreview.left).value, 2f)
+        assertEquals(325f, (compactPreview.bottom - compactPreview.top).value, 2f)
         compose.runOnIdle { width = 841.dp }
         compose.onNodeWithTag("call-prejoin-wide").assertExists()
         compose.runOnIdle { width = 360.dp }
@@ -244,7 +254,7 @@ class CallUiTest {
         compose.onNodeWithTag("call-device-permissions").assertDoesNotExist()
     }
 
-    @Test fun phoneAndTabletShowTheSevenMeetingActionsInOrder() {
+    @Test fun phoneAndTabletShowTheFiveMeetingActionsInOrder() {
         var width by mutableStateOf(390.dp)
         compose.setContent {
             DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(width, 844.dp))) {
@@ -256,6 +266,8 @@ class CallUiTest {
         }
         for (screenWidth in listOf(390.dp, 1194.dp)) {
             compose.runOnIdle { width = screenWidth }
+            compose.onNodeWithTag("call-share").assertDoesNotExist()
+            compose.onNodeWithTag("call-settings").assertDoesNotExist()
             assertSingleLineLabels()
             val toolbar = compose.onNodeWithTag("call-toolbar").getUnclippedBoundsInRoot()
             val buttons = meetingControls.map { (tag, _) ->
@@ -291,7 +303,7 @@ class CallUiTest {
             routes = listOf(AudioRoute(17, "Тестовая гарнитура", true))), route = { chosen = it }, refreshRoutes = { refresh++ }) } }
         compose.onNodeWithTag("call-mic").assertIsOn()
         compose.onNodeWithTag("call-camera").assertIsOff()
-        compose.onNodeWithTag("call-settings").assertIsEnabled().performClick()
+        openCallSettings()
         compose.onNodeWithText("Настройки устройств").assertIsDisplayed()
         compose.onNodeWithText("Обновить устройства").performClick()
         compose.onNodeWithText("✓ Тестовая гарнитура").performClick()
@@ -311,9 +323,9 @@ class CallUiTest {
         meetingControls.forEach { (tag, _) ->
             compose.onNodeWithTag(tag).assertIsDisplayed().assertHeightIsAtLeast(48.dp).assertWidthIsAtLeast(48.dp)
         }
-        compose.onNodeWithTag("call-share").assertIsDisplayed().assertIsEnabled()
         openCallSettings()
-        compose.onNodeWithText("Обновить устройства").assertIsDisplayed().assertIsEnabled()
+        compose.onNodeWithText("Обновить устройства").performScrollTo().assertIsDisplayed().assertIsEnabled()
+        compose.onNodeWithTag("call-screen-share-action").performScrollTo().assertIsDisplayed().assertIsEnabled()
         compose.onNodeWithText("Закрыть").performClick()
         compose.onNodeWithTag("call-leave").performClick()
         compose.runOnIdle { assertEquals(1, leaves) }
@@ -343,7 +355,7 @@ class CallUiTest {
         }
         compose.onNodeWithTag("call-short-share-layout").assertIsDisplayed()
         compose.onNodeWithTag("bottom-navigation").assertDoesNotExist()
-        compose.onNodeWithTag("call-settings").assertIsDisplayed().assertHeightIsAtLeast(48.dp)
+        compose.onNodeWithTag("call-leave").assertIsDisplayed().assertHeightIsAtLeast(48.dp)
         compose.onNodeWithTag("call-share-content").assertHeightIsAtLeast(80.dp).assertWidthIsAtLeast(400.dp)
         assertReadableTextAtActualBounds(compose.onNodeWithTag("short-share-test-content"), "Содержимое демонстрации", singleLine = true)
         assertReadableTextAtActualBounds(compose.onNodeWithTag("call-sharing-label"), "Анна Кузнецова демонстрирует экран", singleLine = true)
@@ -514,16 +526,24 @@ class CallUiTest {
         compose.runOnIdle { assertEquals(1, sends); assertEquals(0, legacySends); assertEquals(listOf(confirmed), shared.entries) }
     }
 
-    @Test fun compactScreenSharingRequiresAnExplicitToolbarClick() {
+    @Test fun compactScreenSharingRequiresAnExplicitActionInMeetingOptions() {
         var shares = 0
+        var state by mutableStateOf(CallState(CallPhase.CONNECTED, title = "Встреча"))
         compose.setContent {
             DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(390.dp, 844.dp))) {
-                MeetSpaceTheme { CallScreen(CallState(CallPhase.CONNECTED, title = "Встреча"), share = { shares++ }) }
+                MeetSpaceTheme { CallScreen(state, share = { shares++; state = state.copy(sharing = !state.sharing) }) }
             }
         }
+        openCallSettings()
         compose.runOnIdle { assertEquals(0, shares) }
-        compose.onNodeWithTag("call-share").assertIsDisplayed().assertIsEnabled().performClick()
+        val shareAction = compose.onNodeWithTag("call-screen-share-action")
+        shareAction.performScrollTo().assertIsDisplayed().assertIsEnabled().assertTextContains("Демонстрация экрана").performClick()
         compose.runOnIdle { assertEquals(1, shares) }
+        shareAction.assertDoesNotExist()
+        openCallSettings()
+        shareAction.performScrollTo().assertIsDisplayed().assertIsEnabled().assertTextContains("Остановить демонстрацию").performClick()
+        compose.runOnIdle { assertEquals(2, shares) }
+        shareAction.assertDoesNotExist()
         compose.onNodeWithTag("call-leave").assertIsDisplayed()
     }
 
@@ -688,10 +708,10 @@ class CallUiTest {
         }
     }
 
-    private val meetingControls = listOf("call-mic" to "Микрофон", "call-camera" to "Камера", "call-share" to "Экран",
-        "call-settings" to "Настройки", "call-people" to "Участники", "call-chat" to "Чат", "call-leave" to "Выйти")
+    private val meetingControls = listOf("call-mic" to "Микрофон", "call-camera" to "Камера",
+        "call-people" to "Участники", "call-chat" to "Чат", "call-leave" to "Выйти")
 
-    private fun openCallSettings() = compose.onNodeWithTag("call-settings").performClick()
+    private fun openCallSettings() = compose.onNodeWithTag("call-meeting-options").assertIsDisplayed().assertIsEnabled().performClick()
 
     private fun revealPanelItem(panel: String, tag: String) {
         if (compose.onAllNodesWithTag(tag).fetchSemanticsNodes().isEmpty()) {

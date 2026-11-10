@@ -123,7 +123,8 @@ class CallRecordingDesignTest {
         if (name.startsWith("call")) {
             compose.onNodeWithTag("bottom-navigation").assertDoesNotExist()
             compose.onNodeWithTag("call-back-to-meetings").assertIsDisplayed()
-            compose.onNodeWithTag("call-settings").assertIsDisplayed()
+            compose.onNodeWithTag("call-share").assertDoesNotExist()
+            compose.onNodeWithTag("call-settings").assertDoesNotExist()
         } else {
             compose.onNodeWithTag("bottom-navigation").assertIsDisplayed()
             compose.onNodeWithTag("tab-calls").assertIsSelected()

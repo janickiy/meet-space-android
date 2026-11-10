@@ -51,7 +51,7 @@ class SpeakingIndicatorUiTest {
         compose.runOnIdle { state = state.copy(activeSpeakerIds = setOf("self", "peer", "muted"), microphoneLevels = mapOf("self" to 1f)) }
         speaking("call-mic", true); speaking("call-participant-self", true); speaking("call-participant-peer", true)
         speaking("call-participant-muted", false)
-        buttonColor("call-mic", Color(0xFF503A5B), .1f)
+        buttonColor("call-mic", Color(0xFF4C375B), .1f)
         assertTrue(meter("call-mic-icon").count > 0)
         assertTrue(meter("call-participant-self-mic").count > 0)
         tileColor("call-participant-self", SpeakingBackground)
@@ -91,34 +91,34 @@ class SpeakingIndicatorUiTest {
     @Test fun meetingMicrophoneFillsBottomUpWithVolumeAndKeepsItsButtonBackgroundFixed() {
         var state by mutableStateOf(call.copy(activeSpeakerIds = setOf("self", "peer")))
         compose.setContent { MeetSpaceTheme(ThemeMode.LIGHT) { CallScreen(state) } }
-        buttonColor("call-mic", Color(0xFF503A5B), .1f)
+        buttonColor("call-mic", Color(0xFF4C375B), .1f)
         assertEquals(0, meter("call-mic-icon").count)
         compose.runOnIdle { state = state.copy(microphoneLevels = mapOf("self" to .025f)) }
-        buttonColor("call-mic", Color(0xFF503A5B), .1f)
+        buttonColor("call-mic", Color(0xFF4C375B), .1f)
         val quiet = meter("call-mic-icon")
         assertTrue("Quiet speech fills the microphone", quiet.count > 0)
         capture("meeting-fill-quiet", "call-toolbar")
         compose.runOnIdle { state = state.copy(microphoneLevels = mapOf("self" to .25f)) }
-        buttonColor("call-mic", Color(0xFF503A5B), .1f)
+        buttonColor("call-mic", Color(0xFF4C375B), .1f)
         val loud = meter("call-mic-icon")
         assertTrue("Louder voice increases fill height", loud.count > quiet.count * 2 && loud.top < quiet.top)
         assertEquals("The fill grows upwards from the same bottom", quiet.bottom, loud.bottom)
         capture("meeting-fill-loud", "call-toolbar")
         compose.runOnIdle { state = state.copy(microphoneLevels = emptyMap()) }
-        buttonColor("call-mic", Color(0xFF503A5B), .1f)
+        buttonColor("call-mic", Color(0xFF4C375B), .1f)
         assertEquals(0, meter("call-mic-icon").count)
         // Tiles retain their existing speech hold, independently of the mic's level fill.
         speaking("call-participant-self", true); speaking("call-participant-peer", true)
         compose.runOnIdle { state = state.copy(microphoneLevels = mapOf("self" to 1f)) }
         assertTrue(meter("call-mic-icon").count > 0)
         compose.runOnIdle { state = state.copy(microphone = false) }
-        buttonColor("call-mic", Color(0xFF28232E), .1f)
+        buttonColor("call-mic", Color(0xFF282230), .1f)
         compose.onNodeWithTag("call-mic-icon", useUnmergedTree = true).assertDoesNotExist()
         compose.runOnIdle { state = state.copy(microphone = true, microphoneLevels = emptyMap()) }
         assertEquals(0, meter("call-mic-icon").count)
         compose.runOnIdle { state = call.copy(phase = CallPhase.RECONNECTING,
             activeSpeakerIds = setOf("self"), microphoneLevels = mapOf("self" to 1f)) }
-        buttonColor("call-mic", Color(0xFF28232E), .1f)
+        buttonColor("call-mic", Color(0xFF282230), .1f)
         assertEquals(0, meter("call-mic-icon").count)
     }
 

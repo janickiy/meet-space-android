@@ -95,9 +95,11 @@ class LiveCallTest {
             Thread.sleep(1500)
             engine.prepare(meeting); waitFor("screen prejoin") { engine.state.value.phase == CallPhase.PREJOIN }
             engine.connect(); waitFor("screen connected") { engine.state.value.phase == CallPhase.CONNECTED }
-            val shareControl = device.wait(Until.findObject(By.desc("Экран")), 1_500)
-                ?: device.wait(Until.findObject(By.text("Экран")), 5_000)
-            assertNotNull("Screen capture must remain an explicit toolbar action", shareControl)
+            val meetingOptions = device.wait(Until.findObject(By.textContains(meeting.title)), 5_000)
+            assertNotNull("The meeting title must open meeting options", meetingOptions)
+            meetingOptions!!.click()
+            val shareControl = device.wait(Until.findObject(By.text("Демонстрация экрана")), 5_000)
+            assertNotNull("Screen capture must remain an explicit action in meeting options", shareControl)
             shareControl!!.click()
             Thread.sleep(1000)
             device.dumpWindowHierarchy(File(context.cacheDir, "stage06-consent.xml"))
