@@ -178,7 +178,7 @@ class CallUiTest {
         compose.runOnIdle { assertEquals(1, leaves) }
     }
 
-    @Test fun loneParticipantFillsThePhoneStageAndHasACenteredNameBadge() {
+    @Test fun lonePhoneSpeakerKeepsTheNameBadgeCenteredInTheVideoFrame() {
         val self = CallParticipant("self", "Анна Кузнецова", true, true, false)
         compose.setContent {
             DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(390.dp, 844.dp))) {
@@ -188,10 +188,11 @@ class CallUiTest {
                 }
             }
         }
-        val stage = compose.onNodeWithTag("call-grid").getUnclippedBoundsInRoot()
+        val frame = compose.onNodeWithTag("call-featured-video").getUnclippedBoundsInRoot()
         val tile = compose.onNodeWithTag("call-participant-self").getUnclippedBoundsInRoot()
         val badge = compose.onNodeWithTag("call-participant-self-badge", useUnmergedTree = true).getUnclippedBoundsInRoot()
-        assertEquals(stage, tile)
+        assertEquals(frame, tile)
+        assertSixteenByNine(frame)
         assertTrue((badge.left - tile.left - (tile.right - badge.right)).value.absoluteValue < 2f)
         assertTrue(tile.bottom - badge.bottom <= 12.dp)
         compose.onNodeWithText("Анна Кузнецова · вы").assertIsDisplayed()
@@ -217,46 +218,122 @@ class CallUiTest {
         }
 
         fun bounds(tag: String) = compose.onNodeWithTag(tag).assertIsDisplayed().getUnclippedBoundsInRoot()
-        fun cameraFrame(): DpRect {
+        fun cameraFrame(hasRail: Boolean = false): DpRect {
             val frame = bounds("call-featured-video")
-            val strip = bounds("call-grid")
-            assertEquals("Featured video uses a 16:9 frame", (frame.right - frame.left).value * 9f / 16f,
-                (frame.bottom - frame.top).value, 1.5f)
-            assertTrue("The participant strip sits below the featured video", frame.bottom < strip.top)
-            assertEquals("The featured video is centered over the strip", (strip.left + strip.right).value / 2,
+            val stage = bounds("call-grid")
+            assertSixteenByNine(frame)
+            if (hasRail) assertTrue("The participant rail sits below the featured video", frame.bottom < bounds("call-speaker-rail").top)
+            else compose.onNodeWithTag("call-speaker-rail").assertDoesNotExist()
+            assertEquals("The featured video is centered within the stage", (stage.left + stage.right).value / 2,
                 (frame.left + frame.right).value / 2, 2f)
             return frame
         }
 
+        compose.onNodeWithTag("call-layout-speaker").performClick().assertIsSelected()
         val closed = cameraFrame()
         bounds("call-participant-self")
         compose.onNodeWithTag("call-chat").performClick()
         val chat = bounds("call-chat-panel")
         val opened = cameraFrame()
-        val strip = bounds("call-grid")
         assertTrue("Opening chat never widens the frame", opened.right - opened.left <= closed.right - closed.left)
-        assertTrue("Chat does not overlap the camera or participants", opened.right <= chat.left && strip.right <= chat.left)
-        assertTrue(opened.top >= chat.top && strip.bottom <= chat.bottom)
-        assertEquals(10f, (strip.top - opened.bottom).value, 1f)
+        assertTrue("Chat does not overlap the camera", opened.right <= chat.left)
+        assertTrue(opened.top >= chat.top && opened.bottom <= chat.bottom)
 
         compose.runOnIdle { participants = others + self }
-        val tiles = (others + self).map { bounds("call-participant-${it.id}") }
-        tiles.forEach { tile ->
-            assertEquals(126f, (tile.right - tile.left).value, 1f)
-            assertEquals(82f, (tile.bottom - tile.top).value, 1f)
-            assertEquals(tiles.first().top, tile.top)
-        }
-        tiles.zipWithNext().forEach { (previous, next) -> assertEquals(8f, (next.left - previous.right).value, 1f) }
-        compose.onNodeWithTag("call-participant-maria").performClick()
-        compose.onNode(hasText("Мария Полякова") and hasAnyAncestor(hasTestTag("call-featured-video")), useUnmergedTree = true)
-            .assertIsDisplayed()
+        val withRail = cameraFrame(hasRail = true)
+        val rail = bounds("call-speaker-rail")
+        assertTrue(withRail.right <= chat.left && rail.right <= chat.left && rail.bottom <= chat.bottom)
+        val thumbnails = compose.onAllNodes(hasAnyAncestor(hasTestTag("call-speaker-rail")) and
+            (hasTestTag("call-participant-anna") or hasTestTag("call-participant-maria") or
+                hasTestTag("call-participant-dmitry") or hasTestTag("call-participant-self")), useUnmergedTree = true)
+        thumbnails.assertCountEquals(3)
+        val tiles = (0..2).map { thumbnails[it].assertIsDisplayed().getUnclippedBoundsInRoot() }
+        assertEquals(1, tiles.map { it.top }.distinct().size)
         assertEquals(chat, bounds("call-chat-panel"))
 
         compose.runOnIdle { viewport = DpSize(1194.dp, 430.dp) }
-        val short = cameraFrame()
+        val short = cameraFrame(hasRail = true)
         val shortChat = bounds("call-chat-panel")
         assertTrue(short.right - short.left < opened.right - opened.left)
-        assertTrue(short.top >= shortChat.top && bounds("call-grid").bottom <= shortChat.bottom)
+        assertTrue(short.top >= shortChat.top && bounds("call-speaker-rail").bottom <= shortChat.bottom)
+    }
+
+    @Test fun tabletGalleryAndSpeakerFollowMediaWhileKeepingChatOpen() {
+        val roster = listOf(
+            CallParticipant("anna", "Анна Кузнецова", true, true, false),
+            CallParticipant("maria", "Мария Полякова", true, true, false),
+            CallParticipant("dmitry", "Дмитрий Волков", true, false, false),
+            CallParticipant("self", "Александр Соколов", true, true, false),
+        )
+        var state by mutableStateOf(CallState(CallPhase.CONNECTED, conferenceId = "layout-fixture", title = "Встреча",
+            participantId = "self", microphone = true, participants = roster, activeSpeakerIds = setOf("anna")))
+        compose.setContent {
+            DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(1194.dp, 834.dp))) {
+                MeetSpaceTheme { CallScreen(state, details = CallUiDetails(chat = CallTextPanelState(canSend = true, draft = "Черновик"))) }
+            }
+        }
+
+        val gallery = compose.onNodeWithTag("call-layout-gallery").assertIsDisplayed().assertIsSelected()
+        val speaker = compose.onNodeWithTag("call-layout-speaker").assertIsDisplayed().assertIsNotSelected()
+        compose.onNodeWithTag("call-chat").performClick()
+        val chat = compose.onNodeWithTag("call-chat-panel").assertIsDisplayed()
+        val chatBounds = chat.getUnclippedBoundsInRoot()
+        val galleryBounds = compose.onNodeWithTag("call-gallery").assertIsDisplayed().getUnclippedBoundsInRoot()
+        assertTrue(galleryBounds.right <= chatBounds.left)
+        compose.onNodeWithTag("call-featured-video").assertDoesNotExist()
+
+        fun participant(id: String) = compose.onNodeWithTag("call-participant-$id", useUnmergedTree = true)
+        fun microphone(id: String) = compose.onNodeWithTag("call-participant-$id-mic", useUnmergedTree = true)
+        fun assertFeatured(id: String) {
+            compose.onNode(hasTestTag("call-participant-$id") and hasAnyAncestor(hasTestTag("call-featured-video")),
+                useUnmergedTree = true).assertIsDisplayed()
+        }
+
+        val tiles = roster.map { participant(it.id).assertIsDisplayed().getUnclippedBoundsInRoot() }
+        assertEquals("Four participants should occupy two rows and columns", 2, tiles.map { it.top }.distinct().size)
+        assertEquals(2, tiles.map { it.left }.distinct().size)
+        tiles.forEach { tile ->
+            assertSixteenByNine(tile)
+            assertEquals((tiles.first().right - tiles.first().left).value, (tile.right - tile.left).value, 1f)
+            assertTrue(tile.right <= chatBounds.left)
+        }
+        microphone("dmitry").assertIsDisplayed().assertContentDescriptionEquals("Без звука")
+
+        speaker.performClick().assertIsSelected()
+        assertFeatured("anna")
+        compose.runOnIdle { state = state.copy(activeSpeakerIds = setOf("maria")) }
+        assertFeatured("maria")
+        compose.onNode(hasContentDescription("Говорит") and hasAnyAncestor(hasTestTag("call-participant-maria-mic")),
+            useUnmergedTree = true).assertIsDisplayed()
+        compose.runOnIdle { state = state.copy(activeSpeakerIds = emptySet()) }
+        assertFeatured("maria")
+        compose.runOnIdle {
+            state = state.copy(participants = roster.map { if (it.id == "maria") it.copy(microphone = false) else it },
+                activeSpeakerIds = setOf("maria", "anna"))
+        }
+        assertFeatured("anna")
+        microphone("maria").assertIsDisplayed().assertContentDescriptionEquals("Без звука")
+
+        gallery.performClick().assertIsSelected()
+        microphone("maria").assertIsDisplayed().assertContentDescriptionEquals("Без звука")
+        participant("dmitry").performClick()
+        speaker.assertIsSelected()
+        assertFeatured("dmitry")
+        microphone("dmitry").assertIsDisplayed().assertContentDescriptionEquals("Без звука")
+        compose.onNodeWithTag("call-unpin").performClick()
+        assertFeatured("anna")
+        compose.runOnIdle {
+            state = state.copy(participants = state.participants + CallParticipant("maxim", "Максим Петров", true, false, false))
+        }
+        compose.onNodeWithTag("call-speaker-page-2").performClick().assertIsSelected()
+        participant("maxim").assertIsDisplayed()
+        assertEquals(chatBounds, chat.getUnclippedBoundsInRoot())
+        compose.onNodeWithTag("call-chat-draft").assertTextContains("Черновик")
+    }
+
+    private fun assertSixteenByNine(bounds: DpRect) {
+        assertEquals("The video frame should keep 16:9 proportions", (bounds.right - bounds.left).value * 9f / 16f,
+            (bounds.bottom - bounds.top).value, 1.5f)
     }
 
     @Test fun hidingParticipantVideoKeepsTheirActualRosterAndAudioControls() {

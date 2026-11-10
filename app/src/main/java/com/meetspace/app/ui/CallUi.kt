@@ -19,10 +19,10 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -244,6 +244,8 @@ private val CallBorder = Color(0xFF605266)
 internal val CallHeaderSurface = Color(0xFF282230)
 internal val CallHeaderBorder = Color(0xFF494052)
 
+private enum class CallVideoLayout { GALLERY, SPEAKER }
+
 @Composable
 fun CallScreen(
     state: CallState, microphone: () -> Unit = {}, camera: () -> Unit = {}, share: () -> Unit = {},
@@ -266,6 +268,12 @@ fun CallScreen(
     var shareMeeting by rememberSaveable(state.conferenceId) { mutableStateOf(false) }
     var devices by remember { mutableStateOf(false) }
     var recordingDialog by rememberSaveable(state.conferenceId) { mutableStateOf(false) }
+    var chosenLayout by rememberSaveable(state.conferenceId) { mutableStateOf<CallVideoLayout?>(null) }
+    var pinnedParticipant by rememberSaveable(state.conferenceId) { mutableStateOf<String?>(null) }
+    fun pinParticipant(id: String?) {
+        pinnedParticipant = id
+        if (id != null) chosenLayout = CallVideoLayout.SPEAKER
+    }
     val prejoin = state.phase in setOf(CallPhase.PREJOIN, CallPhase.FAILED)
     val canInvite = details.room.self?.let { it.canParticipate && (it.role == "owner" || it.role == "co_host") } == true
     fun openPanel(panel: CallPanel?) {
@@ -289,6 +297,7 @@ fun CallScreen(
                     options = { settings = true },
                     onWorkspaceTab = onWorkspaceTab, compactActions = viewportWidth / LocalDensity.current.fontScale.coerceAtLeast(1f) < 600.dp)
                 val wide = viewportWidth >= 780.dp
+                val layout = chosenLayout ?: if (wide) CallVideoLayout.GALLERY else CallVideoLayout.SPEAKER
                 BoxWithConstraints(Modifier.fillMaxWidth().weight(1f).padding(horizontal = if (wide) 22.dp else if (phone) 12.dp else 20.dp)
                     .padding(top = if (shortHeight) 4.dp else if (wide) 16.dp else if (phone) 8.dp else 6.dp,
                         bottom = if (shortHeight) 4.dp else if (wide) 16.dp else if (phone) 8.dp else 12.dp).testTag("call-body")) {
@@ -299,7 +308,8 @@ fun CallScreen(
                         val columns = if (panel != null && viewportWidth <= 1050.dp) 2 else 4
                         Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                             CallStage(state, phone, columns, Modifier.weight(1f), devicePreferences, stageContentOverride, sharePreviewName,
-                                selfRole = details.room.self?.role, localMicrophoneLevel = localMicrophoneLevel)
+                                selfRole = details.room.self?.role, localMicrophoneLevel = localMicrophoneLevel, wide = true,
+                                layout = layout, selectLayout = { chosenLayout = it }, pinnedId = pinnedParticipant, pin = ::pinParticipant)
                             if (panel != null) CallPanelContent(panel, state, details, panelActions, close, ::openPanel,
                                 compact = false, modifier = Modifier.width(panelWidth).fillMaxHeight())
                         }
@@ -311,7 +321,8 @@ fun CallScreen(
                         Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             if (showStage) CallStage(state, phone, if (phone || panel != null) 2 else 4, Modifier.weight(stageWeight).fillMaxWidth(),
                                 devicePreferences, stageContentOverride, sharePreviewName, selfRole = details.room.self?.role,
-                                localMicrophoneLevel = localMicrophoneLevel)
+                                localMicrophoneLevel = localMicrophoneLevel, wide = false, layout = layout,
+                                selectLayout = { chosenLayout = it }, pinnedId = pinnedParticipant, pin = ::pinParticipant)
                             if (panel != null) CallPanelContent(panel, state, details, panelActions, close, ::openPanel,
                                 compact = true, modifier = Modifier.weight(1f - stageWeight).fillMaxWidth())
                         }
@@ -640,7 +651,8 @@ private fun CallError(state: CallState) {
 
 @Composable
 private fun CallStage(state: CallState, phone: Boolean, columns: Int, modifier: Modifier, preferences: AccountDevicePreferences,
-    stageContentOverride: (@Composable () -> Unit)?, sharePreviewName: String?, selfRole: String?, localMicrophoneLevel: StateFlow<Float>?) {
+    stageContentOverride: (@Composable () -> Unit)?, sharePreviewName: String?, selfRole: String?, localMicrophoneLevel: StateFlow<Float>?,
+    wide: Boolean, layout: CallVideoLayout, selectLayout: (CallVideoLayout) -> Unit, pinnedId: String?, pin: (String?) -> Unit) {
     val screen = if (preferences.hideParticipantVideo) null else state.videos.firstOrNull { it.screen }
     val sharedFeed = screen?.feed ?: state.localScreen
     val hasScreen = sharedFeed != null || stageContentOverride != null
@@ -654,7 +666,11 @@ private fun CallStage(state: CallState, phone: Boolean, columns: Int, modifier: 
         VideoTileItem("self", state.participantId, if (name == "Вы") name else "$name · вы", state.localVideo,
             state.microphone, 3, name, selfRole)
     } else null
-    // Keep the local participant in the first four visible tiles; additional participants remain scrollable.
+    if (!hasScreen) {
+        CallCameraStage(state, remoteTiles + listOfNotNull(self), modifier, wide, layout, selectLayout, pinnedId, pin, localMicrophoneLevel)
+        return
+    }
+    // Keep the local participant in the first four visible tiles during screen sharing.
     val tiles = if (self == null) remoteTiles else remoteTiles.take(3) + self + remoteTiles.drop(3)
     BoxWithConstraints(modifier.fillMaxHeight()) {
         val stageWidth = maxWidth
@@ -670,9 +686,7 @@ private fun CallStage(state: CallState, phone: Boolean, columns: Int, modifier: 
         }
         val sharingLabel = if (screen == null && stageContentOverride == null) "Вы демонстрируете экран"
             else if (name.isNullOrBlank()) "Демонстрация экрана" else "$name демонстрирует экран"
-        if (!hasScreen && !phone && tiles.isNotEmpty()) {
-            TabletCameraStage(state, tiles, stageWidth, stageHeight, localMicrophoneLevel)
-        } else if (hasScreen && maxHeight < 280.dp) {
+        if (maxHeight < 280.dp) {
             // In short windows, stacked tiles would consume the shared picture's entire height.
             Row(Modifier.fillMaxSize().testTag("call-short-share-layout"), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 CallSharedScene(sharedFeed, stageContentOverride, sharingLabel, phone, compact = true, Modifier.weight(1f).fillMaxHeight())
@@ -687,24 +701,14 @@ private fun CallStage(state: CallState, phone: Boolean, columns: Int, modifier: 
                 }
             }
         } else Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(if (phone) 11.dp else 12.dp)) {
-            if (hasScreen) CallSharedScene(sharedFeed, stageContentOverride, sharingLabel, phone, compact = false, Modifier.fillMaxWidth().weight(1f))
-            if (tiles.isEmpty() && !hasScreen) Column(Modifier.fillMaxWidth().weight(1f).testTag("call-no-visible-participants"), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(CallIcons.Users, null, Modifier.size(44.dp), tint = CallMuted)
-                Text("Ждём других участников", color = CallMuted, modifier = Modifier.padding(16.dp), textAlign = TextAlign.Center)
-            }
+            CallSharedScene(sharedFeed, stageContentOverride, sharingLabel, phone, compact = false, Modifier.fillMaxWidth().weight(1f))
             if (tiles.isNotEmpty()) {
-                val fillStage = !hasScreen && tiles.size == 1
-                val tileBounds = when {
-                    hasScreen -> Modifier.height(tileHeight)
-                    fillStage -> Modifier.height(stageHeight)
-                    else -> Modifier.aspectRatio(1.35f)
-                }
                 LazyVerticalGrid(columns = GridCells.Fixed(minOf(columns, tiles.size)),
-                    modifier = (if (hasScreen) Modifier.height(stripHeight) else Modifier.weight(1f)).fillMaxWidth().testTag("call-grid"),
+                    modifier = Modifier.height(stripHeight).fillMaxWidth().testTag("call-grid"),
                     horizontalArrangement = Arrangement.spacedBy(gap), verticalArrangement = Arrangement.spacedBy(gap)) {
                     items(tiles, key = { it.id }) { tile ->
-                        VideoTile(tile, state, phone, tileBounds.fillMaxWidth(),
-                            compact = hasScreen, fillStage = fillStage, liveLevel = localMicrophoneLevel.takeIf { tile.id == "self" })
+                        VideoTile(tile, state, phone, Modifier.height(tileHeight).fillMaxWidth(), compact = true,
+                            liveLevel = localMicrophoneLevel.takeIf { tile.id == "self" })
                     }
                 }
             }
@@ -713,29 +717,78 @@ private fun CallStage(state: CallState, phone: Boolean, columns: Int, modifier: 
 }
 
 @Composable
-private fun TabletCameraStage(state: CallState, tiles: List<VideoTileItem>, width: Dp, height: Dp, localMicrophoneLevel: StateFlow<Float>?) {
-    var focusedId by rememberSaveable(state.conferenceId) { mutableStateOf<String?>(null) }
-    val featured = tiles.firstOrNull { it.id == focusedId } ?: tiles.firstOrNull { it.feed != null } ?: tiles.first()
-    val tileHeight = 82.dp.coerceAtMost(height * .35f)
-    val gap = 10.dp
-    // Keep the participant strip below the frame, with room for touch scrolling.
-    val frameHeight = (height - tileHeight - gap - 14.dp).coerceAtLeast(0.dp)
-    val frameWidth = width.coerceAtMost(frameHeight * (16f / 9f))
-    Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-        if (frameWidth > 0.dp) {
-            VideoTile(featured, state, phone = false, Modifier.width(frameWidth).aspectRatio(16f / 9f),
-                fillStage = true, liveLevel = localMicrophoneLevel.takeIf { featured.id == "self" },
-                tag = "call-featured-video", fitVideo = true)
-            Spacer(Modifier.height(gap))
-        }
-        LazyRow(Modifier.fillMaxWidth().height(tileHeight).testTag("call-grid"),
-            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)) {
-            items(tiles, key = { it.id }) { tile ->
-                VideoTile(tile, state, phone = false, Modifier.width(126.dp).fillMaxHeight(), compact = true,
-                    liveLevel = localMicrophoneLevel.takeIf { tile.id == "self" },
-                    selected = tile.id == featured.id, onSelect = { focusedId = tile.id })
+private fun CallCameraStage(state: CallState, tiles: List<VideoTileItem>, modifier: Modifier, wide: Boolean, layout: CallVideoLayout,
+    selectLayout: (CallVideoLayout) -> Unit, pinnedId: String?, pin: (String?) -> Unit, localMicrophoneLevel: StateFlow<Float>?) {
+    var lastSpeakerId by remember(state.conferenceId) { mutableStateOf<String?>(null) }
+    val lastSpeaker = tiles.firstOrNull { it.id == lastSpeakerId && state.canSpeak(it.participantId) }
+    // Hold the current speaker while they are still talking, even if levels briefly cross.
+    val active = lastSpeaker?.takeIf { state.isSpeaking(it.participantId) }
+        ?: tiles.asSequence().filter { state.isSpeaking(it.participantId) }.maxByOrNull { state.microphoneLevel(it.participantId) }
+    LaunchedEffect(active?.id) { if (active != null) lastSpeakerId = active.id }
+    val pinned = tiles.firstOrNull { it.id == pinnedId }
+    LaunchedEffect(pinnedId, pinned?.id, state.phase) {
+        if (pinnedId != null && pinned == null && state.phase == CallPhase.CONNECTED) pin(null)
+    }
+    val featured = pinned ?: active ?: lastSpeaker ?: tiles.firstOrNull { it.id != "self" && it.feed != null }
+        ?: tiles.firstOrNull { it.id != "self" } ?: tiles.firstOrNull()
+    val onlineCount = state.participants.count { it.online }
+    val participantCount = if (state.participantId.isNotBlank() && state.participants.none { it.id == state.participantId && it.online })
+        onlineCount + 1 else onlineCount
+    Column(modifier.fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(if (wide) 12.dp else 8.dp)) {
+        CallCameraViewBar(layout, selectLayout, participantCount, wide)
+        BoxWithConstraints(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+            when {
+                featured == null -> Column(Modifier.testTag("call-no-visible-participants"), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(CallIcons.Users, null, Modifier.size(44.dp), tint = CallMuted)
+                    Text("Ждём других участников", color = CallMuted, modifier = Modifier.padding(16.dp), textAlign = TextAlign.Center)
+                }
+                layout == CallVideoLayout.GALLERY -> CallCameraGallery(state, tiles, maxWidth, maxHeight, wide, pin, localMicrophoneLevel)
+                else -> CallCameraSpeaker(state, featured, tiles.filter { it.id != featured.id }, maxWidth, maxHeight, wide,
+                    pin, if (pinned != null) ({ pin(null) }) else null, localMicrophoneLevel)
             }
         }
+    }
+}
+
+@Composable
+private fun CallCameraViewBar(layout: CallVideoLayout, select: (CallVideoLayout) -> Unit, participantCount: Int, wide: Boolean) {
+    BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        val showCount = maxWidth / LocalDensity.current.fontScale >= 340.dp
+        Row(Modifier.widthIn(max = if (wide) maxWidth else 540.dp).fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            val shape = RoundedCornerShape(11.dp)
+            Row(Modifier.weight(1f, fill = !wide).clip(shape).background(CallHeaderSurface)
+                .border(1.dp, CallHeaderBorder, shape).padding(4.dp).selectableGroup(),
+                horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                val option = if (wide) Modifier else Modifier.weight(1f)
+                CallCameraViewOption("Сетка", CallIcons.LayoutGrid, "call-layout-gallery", layout == CallVideoLayout.GALLERY, wide, option) {
+                    select(CallVideoLayout.GALLERY)
+                }
+                CallCameraViewOption("Выступающий", CallIcons.UserRound, "call-layout-speaker", layout == CallVideoLayout.SPEAKER,
+                    wide, if (wide) Modifier else Modifier.weight(1.35f)) { select(CallVideoLayout.SPEAKER) }
+            }
+            if (showCount) Row(Modifier.padding(start = 10.dp), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Icon(CallIcons.Users, null, Modifier.size(15.dp), tint = CallMuted)
+                Text(memberCountLabel(participantCount), color = CallMuted, fontSize = if (wide) 12.sp else 10.sp, maxLines = 1)
+            }
+        }
+    }
+}
+
+@Composable
+private fun CallCameraViewOption(label: String, icon: ImageVector, tag: String, selected: Boolean, wide: Boolean,
+    modifier: Modifier, onSelect: () -> Unit) {
+    val shape = RoundedCornerShape(8.dp)
+    val color = if (selected) CallForeground else CallMuted
+    Row(modifier.heightIn(min = if (wide) 34.dp else 40.dp).clip(shape)
+        .then(if (selected) Modifier.background(Color(0xFF3C3047)).border(1.dp, Color(0xFF635170), shape) else Modifier)
+        .selectable(selected, role = Role.Tab, onClick = onSelect).testTag(tag)
+        .padding(horizontal = if (wide) 10.dp else 4.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally)) {
+        Icon(icon, null, Modifier.size(15.dp), tint = color)
+        Text(label, color = color, fontSize = if (wide) 12.sp else 11.sp, fontWeight = FontWeight.SemiBold,
+            maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -845,33 +898,32 @@ private fun CallToolbarButton(label: String, icon: ImageVector, tag: String, mod
 }
 
 private fun selfName(state: CallState, profileLabel: String = ""): String = state.participants.find { it.id == state.participantId }?.name?.takeIf { it.isNotBlank() } ?: profileLabel.takeIf { it.isNotBlank() } ?: "Вы"
-private data class VideoTileItem(val id: String, val participantId: String, val name: String, val feed: VideoFeed?,
+internal data class VideoTileItem(val id: String, val participantId: String, val name: String, val feed: VideoFeed?,
     val microphone: Boolean, val tone: Int, val avatarName: String = name, val role: String? = null)
 
 @Composable
-private fun VideoTile(tile: VideoTileItem, state: CallState, phone: Boolean, modifier: Modifier, compact: Boolean = false, fillStage: Boolean = false,
-    liveLevel: StateFlow<Float>? = null, tag: String = "call-participant-${tile.id}", fitVideo: Boolean = false,
-    selected: Boolean = false, onSelect: (() -> Unit)? = null) {
+internal fun VideoTile(tile: VideoTileItem, state: CallState, phone: Boolean, modifier: Modifier, compact: Boolean = false, fillStage: Boolean = false,
+    liveLevel: StateFlow<Float>? = null, fitVideo: Boolean = false, gallery: Boolean = false, onSelect: (() -> Unit)? = null) {
+    val tag = "call-participant-${tile.id}"
     val speaking = state.isSpeaking(tile.participantId)
     val level = state.microphoneLevel(tile.participantId)
-    val shape = RoundedCornerShape(if (fitVideo) 13.dp else if (compact && onSelect == null) 15.dp else 10.dp)
-    val background = when {
-        speaking -> SpeakingBackground
-        selected -> Color(0xFF4C375B)
-        else -> CallTileColor
-    }
-    val border = when {
-        speaking -> SpeakingGreen
-        selected -> Color(0xFFA98BBD)
-        else -> CallBorder
-    }
-    Box(modifier.testTag(tag).speakingStatus(speaking).clip(shape).background(background)
-        .border(if (speaking || selected) 2.dp else 1.dp, border, shape)
-        .then(if (onSelect != null) Modifier.selectable(selected, role = Role.Button, onClick = onSelect) else Modifier)) {
+    val shape = RoundedCornerShape(when {
+        gallery || compact && onSelect == null -> 15.dp
+        fitVideo && !compact -> 13.dp
+        else -> 10.dp
+    })
+    val action = if (onSelect == null) Modifier else Modifier.clickable(onClickLabel = "Показать крупно", role = Role.Button, onClick = onSelect)
+    Box(modifier.testTag(tag).speakingStatus(speaking).clip(shape).background(if (speaking) SpeakingBackground else CallTileColor)
+        .border(if (speaking) 2.dp else 1.dp, if (speaking) SpeakingGreen else CallBorder, shape).then(action)) {
         if (tile.feed == null) {
-            val avatarSize = if (fillStage) { if (phone) 64.dp else 88.dp } else { if (phone) 36.dp else 46.dp }
-            val avatarFont = if (fillStage) { if (phone) 24.sp else 29.sp } else { if (phone) 12.sp else 14.sp }
-            CallAvatar(tile.avatarName, Modifier.align(Alignment.Center).size(avatarSize), avatarFont, tile.tone)
+            if (gallery) BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                val avatarSize = (maxWidth * .24f).coerceIn(36.dp, 76.dp).coerceAtMost(maxHeight * .7f)
+                CallAvatar(tile.avatarName, Modifier.size(avatarSize), (avatarSize.value / 3).coerceIn(12f, 26f).sp, tile.tone)
+            } else {
+                val avatarSize = if (fillStage) { if (phone) 64.dp else 88.dp } else { if (phone || onSelect != null) 36.dp else 46.dp }
+                val avatarFont = if (fillStage) { if (phone) 24.sp else 29.sp } else { if (phone || onSelect != null) 12.sp else 14.sp }
+                CallAvatar(tile.avatarName, Modifier.align(Alignment.Center).size(avatarSize), avatarFont, tile.tone)
+            }
         } else if (fitVideo) {
             VideoContent(tile.feed, fit = true, modifier = Modifier.align(Alignment.Center))
         } else VideoContent(tile.feed, false)
@@ -880,7 +932,8 @@ private fun VideoTile(tile: VideoTileItem, state: CallState, phone: Boolean, mod
         val caption = if (compact) Modifier.align(Alignment.BottomStart).fillMaxWidth()
             .then(if (tile.feed != null) Modifier.background(Color(0xD117131C)) else Modifier)
             .testTag(badgeTag).padding(start = 9.dp, end = 8.dp, top = 4.dp, bottom = 7.dp)
-        else Modifier.align(Alignment.BottomCenter).padding(horizontal = 8.dp).padding(bottom = if (phone) 5.dp else 10.dp)
+        else Modifier.align(if (gallery) Alignment.BottomStart else Alignment.BottomCenter)
+            .padding(horizontal = 8.dp).padding(bottom = if (phone) 5.dp else 9.dp)
             .widthIn(max = 320.dp).clip(RoundedCornerShape(7.dp)).background(Color(0xD117131C)).testTag(badgeTag)
             .padding(horizontal = 9.dp, vertical = 6.dp)
         Row(caption, verticalAlignment = Alignment.CenterVertically,

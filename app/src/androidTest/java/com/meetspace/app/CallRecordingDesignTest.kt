@@ -72,6 +72,18 @@ class CallRecordingDesignTest {
         CallScreen(call, onWorkspaceTab = {}, details = callDetails)
     }
 
+    @Test fun captureApprovedCallSpeakerScreenshot() {
+        assumeTrue("Tablet speaker layout", InstrumentationRegistry.getInstrumentation().targetContext.resources.configuration.screenWidthDp >= 780)
+        capture("call-speaker", "call-screen", darkBars = true, afterRender = {
+            compose.onNodeWithTag("call-layout-speaker").performClick().assertIsSelected()
+            compose.onNodeWithTag("call-chat").performClick()
+            compose.onNodeWithTag("call-featured-video").assertIsDisplayed()
+            compose.onNodeWithTag("call-chat-panel").assertIsDisplayed()
+        }) {
+            CallScreen(call, onWorkspaceTab = {}, details = callDetails)
+        }
+    }
+
     @Test fun captureApprovedCallRecordingScreenshot() = capture("call-recording", "call-screen", darkBars = true,
         afterRender = { compose.onNodeWithTag("call-recording-control").performClick(); compose.onNodeWithTag("call-recording-dialog").assertIsDisplayed() }) {
         FixtureCall()

@@ -1077,7 +1077,7 @@ private fun MoreButton(label: String, tag: String, loading: Boolean, more: () ->
 @Composable
 private fun EmptyChat(label: String) { Text(label, Modifier.fillMaxWidth().padding(20.dp), color = MaterialTheme.colorScheme.onSurfaceVariant) }
 private fun countLabel(value: Long): String = if (value > 99) "99+" else value.toString()
-private fun memberCountLabel(count: Int): String = "$count " + when {
+internal fun memberCountLabel(count: Int): String = "$count " + when {
     count % 100 in 11..14 -> "участников"
     count % 10 == 1 -> "участник"
     count % 10 in 2..4 -> "участника"
