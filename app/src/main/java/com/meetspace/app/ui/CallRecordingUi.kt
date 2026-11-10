@@ -78,22 +78,22 @@ private val CallRecordingStatus.icon: ImageVector get() = when (this) {
 }
 
 @Composable
-internal fun CallRecordingControl(state: CallRecordingUiState, phone: Boolean, open: () -> Unit) {
+internal fun CallRecordingControl(state: CallRecordingUiState, compact: Boolean, open: () -> Unit) {
     val active = state.status != CallRecordingStatus.UNKNOWN && state.status != CallRecordingStatus.STOPPED
     val tint = when (state.status) {
         CallRecordingStatus.PAUSED -> Color(0xFFEBC37D)
         CallRecordingStatus.RECORDING, CallRecordingStatus.STOPPING -> Color(0xFFFB8998)
         else -> CallForeground
     }
-    val shape = RoundedCornerShape(9.dp)
-    Row(Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp).clip(shape).background(CallTileColor).border(1.dp, CallBorder, shape)
+    val shape = RoundedCornerShape(10.dp)
+    Row(Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp).clip(shape).background(CallHeaderSurface).border(1.dp, CallHeaderBorder, shape)
         .testTag("call-recording-control")
         .clickable(role = Role.Button, onClickLabel = "Управление записью", onClick = open)
-        .semantics { contentDescription = "Управление записью: ${state.status.label}" }.padding(horizontal = 10.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp, Alignment.CenterHorizontally)) {
-        Icon(state.status.icon, null, Modifier.size(18.dp), tint = tint)
-        if (active && !phone) Text(state.status.label, color = tint, fontSize = 11.sp, maxLines = 1,
-            overflow = TextOverflow.Ellipsis, modifier = Modifier.testTag("call-recording-status"))
+        .semantics { contentDescription = "Управление записью: ${state.status.label}" }.padding(horizontal = if (compact) 0.dp else 12.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)) {
+        Icon(state.status.icon, null, Modifier.size(19.dp), tint = tint)
+        if (!compact) Text(if (active) state.status.label else "Запись", color = tint, fontSize = 12.sp, maxLines = 1,
+            overflow = TextOverflow.Ellipsis, modifier = if (active) Modifier.testTag("call-recording-status") else Modifier)
     }
 }
 

@@ -10,6 +10,30 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MicrophoneGainProcessorTest {
+    @Test fun localMeterTracksPostGainPcmAndConsumesPeaksOnce() {
+        val meter = LocalMicrophoneMeter()
+        var gain = .5f
+        val processor = MicrophoneGainProcessor({ meter }) { gain }
+        val buffer = ByteBuffer.allocateDirect(160 * Float.SIZE_BYTES).order(ByteOrder.nativeOrder())
+        fun capture(amplitude: Float) {
+            repeat(160) { buffer.putFloat(it * Float.SIZE_BYTES, if (it % 2 == 0) amplitude else -amplitude) }
+            processor.process(1, 160, buffer)
+        }
+
+        capture(8192f)
+        assertEquals(.125f, meter.takeLevel(), .00001f)
+        capture(16384f)
+        capture(4096f)
+        assertEquals(.25f, meter.takeLevel(), .00001f)
+        assertEquals(0f, meter.takeLevel(), 0f)
+
+        capture(0f)
+        assertEquals(0f, meter.takeLevel(), 0f)
+        gain = 0f
+        capture(16384f)
+        assertEquals(0f, meter.takeLevel(), 0f)
+    }
+
     @Test fun volumeChangesAffectTheNextBorrowedBufferWithoutRecreatingTheProcessor() {
         var gain = .8f
         val processor = MicrophoneGainProcessor { gain }

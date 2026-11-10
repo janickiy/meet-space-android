@@ -277,8 +277,15 @@ class CallDiscussionViewModel(
             startedAt = meeting.startedAt
             meetingOwner = meeting.ownerId
             activeMeeting = meeting.status == "active"
+            val repositoryState = foundation.state.value
+            val origin = repositoryState.selectedProfile?.origin
+            val invitation = meeting.inviteCode.ifBlank { meeting.inviteUrl }
+            val invitationLink = if (activeMeeting && access && origin != null && repositoryState.session?.guestMeeting == null) {
+                invitation.takeIf(String::isNotBlank)?.let { runCatching { MeetingInvites.shareUrl(origin, it) }.getOrNull() }
+            } else null
+            mutable.value = state.value.copy(invitationLink = invitationLink)
             tick(); updateAvailability()
-        }, { startedAt = null; tick() })
+        }, { startedAt = null; mutable.value = state.value.copy(invitationLink = null); tick() })
     }
 
     private fun updateRoom(edit: (MeetingRoomUiState) -> MeetingRoomUiState) { mutable.value = state.value.copy(room = edit(state.value.room)) }
@@ -514,7 +521,7 @@ class CallDiscussionViewModel(
         recordingBusy = false; recordingKnown = false; downloading = null
         upload?.let { it.status = CallAttachmentStatus.UNKNOWN; it.error = if (it.bytes == null) "Чтение файла прервано. Уберите файл и выберите его заново." else "Загрузка прервана. Повторите её или уберите файл." }
         if (upload != null) { publishAttachments(); editBoth { it.copy(error = upload?.error) } }
-        mutable.value = state.value.copy(recording = false, room = MeetingRoomUiState())
+        mutable.value = state.value.copy(recording = false, room = MeetingRoomUiState(), invitationLink = null)
         updateRecording()
     }
     fun clear() {

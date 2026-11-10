@@ -112,6 +112,7 @@ data class CallUiDetails(
     val commentCount: Int? = null,
     val room: MeetingRoomUiState = MeetingRoomUiState(),
     val recordingState: CallRecordingUiState = CallRecordingUiState(),
+    val invitationLink: String? = null,
 )
 
 data class CallPanelActions(

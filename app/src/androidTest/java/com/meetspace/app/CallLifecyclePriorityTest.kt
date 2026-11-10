@@ -29,6 +29,50 @@ import org.webrtc.VideoCapturer
 
 /** Cancellable control-plane gates; no backend, device capture or user projection consent. */
 class CallLifecyclePriorityTest {
+    @Test fun manualReconnectReopensSameMeetingOnceAndStopsDevices(): Unit = runBlocking {
+        val first = IdleSignaling()
+        val replacement = IdleSignaling()
+        val opened = Channel<String>(Channel.UNLIMITED)
+        val repository = object : CallRepository {
+            override suspend fun openCall(conferenceId: String): CallSignaling {
+                opened.send(conferenceId)
+                return replacement
+            }
+        }
+        val capture = OwnedCapture()
+        val projectionStopped = AtomicBoolean()
+        val engine = CallEngine(InstrumentationRegistry.getInstrumentation().targetContext,
+            repository, unavailable(MeetingsRepository::class.java)) { projectionStopped.set(true) }
+        try {
+            actor(engine) {
+                state(engine).value = CallState(phase = CallPhase.CONNECTED, conferenceId = meeting.id,
+                    title = meeting.title, microphone = true, camera = true, sharing = true, discussionRevision = 5)
+                setField(engine, "wanted", true)
+                setField(engine, "signaling", first)
+                setField(engine, "cameraCapture", capture)
+                setField(engine, "screenSessionActive", true)
+            }
+            engine.reconnectMeeting()
+            engine.reconnectMeeting()
+            assertEquals(meeting.id, withTimeout(10_000) { opened.receive() })
+            actor(engine) {
+                val call = engine.state.value
+                assertEquals(CallPhase.RECONNECTING, call.phase)
+                assertEquals(meeting.title, call.title)
+                assertEquals(5L, call.discussionRevision)
+                assertFalse(call.microphone)
+                assertFalse(call.camera)
+                assertFalse(call.sharing)
+                assertTrue(first.closed.get())
+                assertTrue(capture.stopped.get())
+                assertTrue(projectionStopped.get())
+                assertFalse(replacement.closed.get())
+                assertTrue(opened.tryReceive().isFailure)
+            }
+        } finally { finish(engine); opened.close() }
+        assertTrue(replacement.closed.get())
+    }
+
     @Test fun oldProjectionCallbackCannotInterruptANewerSessionInTheSameCall(): Unit = runBlocking {
         val started = CompletableDeferred<Unit>()
         val release = CompletableDeferred<Unit>()
@@ -248,6 +292,15 @@ class CallLifecyclePriorityTest {
         override fun changeCaptureFormat(width: Int, height: Int, framerate: Int) = Unit
         override fun dispose() { stopped.set(true) }
         override fun isScreencast() = false
+    }
+
+    private class IdleSignaling : CallSignaling {
+        val closed = AtomicBoolean()
+        override val iceConfiguration = """{"iceServers":[]}"""
+        override val messages = Channel<String>(1)
+        override fun send(envelope: String) = true
+        override suspend fun presence(connectionId: String, sequence: Long, microphone: Boolean, camera: Boolean, screen: Boolean) = Unit
+        override fun close() { closed.set(true); messages.close() }
     }
 
     private fun newEngine(meetings: MeetingsRepository) = CallEngine(

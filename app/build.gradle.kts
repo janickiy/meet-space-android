@@ -19,8 +19,8 @@ android {
         targetSdk = 36
         buildConfigField("boolean", "FCM_CONFIGURED", firebaseConfigured.toString())
         manifestPlaceholders["fcmConfigured"] = firebaseConfigured.toString()
-        versionCode = 50
-        versionName = "0.6.5"
+        versionCode = 51
+        versionName = "0.6.6"
         testInstrumentationRunner = "com.meetspace.app.MeetSpaceTestRunner"
     }
     sourceSets["main"].assets.apply { srcDir(rootProject.file("installer/v1")); srcDir(rootProject.file("installer/legacy")); exclude("**/__pycache__/**") }
@@ -52,6 +52,7 @@ dependencies {
     implementation("androidx.media3:media3-ui:1.11.1")
     implementation("com.google.firebase:firebase-messaging:25.0.1")
     implementation("androidx.work:work-runtime-ktx:2.10.5")
+    implementation("com.google.zxing:core:3.5.4")
     implementation(project(":core:model"))
     implementation(project(":core:data"))
     implementation(project(":core:media"))

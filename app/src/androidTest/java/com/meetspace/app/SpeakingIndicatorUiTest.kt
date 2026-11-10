@@ -15,12 +15,29 @@ import com.meetspace.core.designsystem.MeetSpaceTheme
 import com.meetspace.core.media.*
 import com.meetspace.core.model.ThemeMode
 import java.io.File
+import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
 
 class SpeakingIndicatorUiTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
+
+    @Test fun liveLocalMeterIgnoresStaleStatsAndClearsWithTheNextLevel() {
+        val live = MutableStateFlow(0f)
+        val delayed = call.copy(activeSpeakerIds = setOf("self"), microphoneLevels = mapOf("self" to 1f))
+        compose.setContent { MeetSpaceTheme { CallScreen(delayed, localMicrophoneLevel = live) } }
+        assertEquals(0, meter("call-mic-icon").count)
+        compose.runOnIdle { live.value = .035f }
+        val quiet = meter("call-mic-icon")
+        assertTrue(quiet.count > 0)
+        compose.runOnIdle { live.value = .2f }
+        assertTrue(meter("call-mic-icon").top < quiet.top)
+        assertTrue(meter("call-participant-self-mic").count > 0)
+        compose.runOnIdle { live.value = 0f }
+        assertEquals(0, meter("call-mic-icon").count)
+        assertEquals(0, meter("call-participant-self-mic").count)
+    }
 
     @Test fun meetingHighlightsOnlyTalkingMicrophonesAndClearsWhenMutedOrReconnecting() {
         var state by mutableStateOf(call)

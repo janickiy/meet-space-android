@@ -50,6 +50,11 @@ class CallEngine(
     private val activeDirectIntent = java.util.concurrent.atomic.AtomicReference<DirectIntent?>()
     private val mutable = MutableStateFlow(CallState())
     val state = mutable.asStateFlow()
+    private val mutableMicrophoneLevel = MutableStateFlow(0f)
+    /** Current local microphone level, separate from the slower speaking-state statistics. */
+    val localMicrophoneLevel = mutableMicrophoneLevel.asStateFlow()
+    private var localMeter: LocalMicrophoneMeter? = null
+    private var localMeterJob: Job? = null
     private var generation = 0L
     private var wanted = false
     private var membershipEntered = false
@@ -272,6 +277,18 @@ class CallEngine(
         open()
     } }
     fun retry() = connect()
+    fun reconnectMeeting() {
+        val intent = callIntent.get()
+        val target = state.value
+        if (target.phase != CallPhase.CONNECTED || target.directCallId != null) return
+        enqueue {
+            if (intent != callIntent.get() || !sameCall(target) || state.value.phase != CallPhase.CONNECTED || !wanted) return@enqueue
+            // Pending device actions belong to the media session that is about to close.
+            deviceIntent.incrementAndGet()
+            screenIntent.incrementAndGet()
+            reconnect()
+        }
+    }
     fun microphone(enabled: Boolean) { val intent = callIntent.get(); val devices = deviceIntent.get(); val target = state.value; enqueueForCall(target) {
         if (intent != callIntent.get() || devices != deviceIntent.get() || !sameCall(target)) return@enqueueForCall
         if (enabled && (state.value.microphoneBlocked || !permission(Manifest.permission.RECORD_AUDIO))) {
@@ -702,6 +719,7 @@ class CallEngine(
                 when (value) {
                     PeerConnection.PeerConnectionState.CONNECTED -> { if (gate.pending == null) connected() }
                     PeerConnection.PeerConnectionState.DISCONNECTED -> {
+                        stopLocalMicrophoneMeter()
                         speaking.clear()
                         mutable.value = state.value.copy(status = "Связь прервана…", activeSpeakerIds = emptySet(), microphoneLevels = emptyMap())
                         deadline(8_000, null)
@@ -766,6 +784,7 @@ class CallEngine(
         }
     }
     private fun replaceMic(enabled: Boolean) {
+        stopLocalMicrophoneMeter()
         val effective = enabled && permission(Manifest.permission.RECORD_AUDIO) && !state.value.microphoneBlocked
         setSource("microphone", null)
         micTrack?.dispose(); micTrack = null
@@ -779,6 +798,7 @@ class CallEngine(
         mutable.value = state.value.copy(microphone = effective)
         speaking.forget(state.value.participantId)
         pruneSpeakers()
+        startLocalMicrophoneMeter()
     }
     private fun replaceCamera(enabled: Boolean) {
         setSource("camera", null)
@@ -864,6 +884,7 @@ class CallEngine(
     private suspend fun connected() {
         timer?.cancel(); attempts = 0
         mutable.value = state.value.copy(phase = CallPhase.CONNECTED, status = "На связи")
+        startLocalMicrophoneMeter()
         updatePresence()
         if (statsJob == null) {
             val epoch = generation
@@ -882,6 +903,29 @@ class CallEngine(
         try { signaling?.presence(connectionId, ++presenceSequence, state.value.microphone, state.value.camera, state.value.sharing) }
         catch (_: Exception) { notice("Не удалось обновить состояние устройств на сервере.") }
     }
+
+    private fun startLocalMicrophoneMeter() {
+        if (localMeter != null || micTrack == null || state.value.phase != CallPhase.CONNECTED ||
+            pc?.connectionState() != PeerConnection.PeerConnectionState.CONNECTED) return
+        val meter = LocalMicrophoneMeter()
+        localMeter = meter
+        MicrophoneAudioProcessing.startMeter(meter)
+        localMeterJob = scope.launch {
+            while (isActive) {
+                delay(32)
+                mutableMicrophoneLevel.value = meter.takeLevel()
+            }
+        }
+    }
+
+    private fun stopLocalMicrophoneMeter() {
+        localMeterJob?.cancel()
+        localMeterJob = null
+        localMeter?.let { MicrophoneAudioProcessing.stopMeter(it) }
+        localMeter = null
+        mutableMicrophoneLevel.value = 0f
+    }
+
     private fun stats(epoch: Long) {
         val now = android.os.SystemClock.elapsedRealtime()
         pruneSpeakers(now)
@@ -974,6 +1018,7 @@ class CallEngine(
         }
     }
     private fun closeNetwork() {
+        stopLocalMicrophoneMeter()
         generation++
         timer?.cancel(); timer = null; reader?.cancel(); reader = null
         statsJob?.cancel(); statsJob = null; reconnectJob?.cancel(); reconnectJob = null

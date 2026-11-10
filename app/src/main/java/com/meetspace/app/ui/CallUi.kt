@@ -11,6 +11,8 @@ import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.background
@@ -36,6 +38,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -68,6 +71,7 @@ import com.meetspace.app.preferredJoinDevices
 import com.meetspace.app.rememberAccountDevicePreferences
 import com.meetspace.core.media.*
 import com.meetspace.core.model.User
+import kotlinx.coroutines.flow.StateFlow
 import org.webrtc.RendererCommon
 import org.webrtc.SurfaceViewRenderer
 
@@ -210,7 +214,8 @@ fun CallHost(engine: CallEngine, state: CallState, onWorkspaceTab: ((WorkspaceTa
                 pendingJoin = true; joinMicrophone = devices.microphone; joinCamera = devices.camera
                 joinPermissions.launch(permissions.toTypedArray())
             }
-        }, leave = leaveCall, switchCamera = engine::switchCamera,
+        }, leave = leaveCall, switchCamera = engine::switchCamera, reconnect = engine::reconnectMeeting,
+        localMicrophoneLevel = engine.localMicrophoneLevel,
         route = { routeChosen = true; engine.audioRoute(it) },
         refreshRoutes = {
             if (Build.VERSION.SDK_INT >= 31 && ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) bluetooth.launch(Manifest.permission.BLUETOOTH_CONNECT)
@@ -228,10 +233,12 @@ fun CallHost(engine: CallEngine, state: CallState, onWorkspaceTab: ((WorkspaceTa
 }
 
 private val CallBackground = Color(0xFF17131C)
-internal val CallTileColor = Color(0xFF28232E)
+private val CallTileColor = Color(0xFF28232E)
 internal val CallForeground = Color(0xFFF5F0F7)
 private val CallMuted = Color(0xFFC5B8CC)
-internal val CallBorder = Color(0xFF605266)
+private val CallBorder = Color(0xFF605266)
+internal val CallHeaderSurface = Color(0xFF282230)
+internal val CallHeaderBorder = Color(0xFF494052)
 
 @Composable
 fun CallScreen(
@@ -246,12 +253,14 @@ fun CallScreen(
     stageContentOverride: (@Composable () -> Unit)? = null, sharePreviewName: String? = null,
     profileUser: User? = null,
     updateDevicePreferences: ((AccountDevicePreferences) -> Unit)? = null,
+    reconnect: () -> Unit = {},
+    localMicrophoneLevel: StateFlow<Float>? = null,
 ) {
     var selectedPanel by rememberSaveable(state.conferenceId) { mutableStateOf<CallPanel?>(null) }
     var settings by rememberSaveable(state.conferenceId) { mutableStateOf(false) }
     var invite by rememberSaveable(state.conferenceId) { mutableStateOf(false) }
+    var shareMeeting by rememberSaveable(state.conferenceId) { mutableStateOf(false) }
     var devices by remember { mutableStateOf(false) }
-    var menu by remember { mutableStateOf(false) }
     var recordingDialog by rememberSaveable(state.conferenceId) { mutableStateOf(false) }
     val prejoin = state.phase in setOf(CallPhase.PREJOIN, CallPhase.FAILED)
     val canInvite = details.room.self?.let { it.canParticipate && (it.role == "owner" || it.role == "co_host") } == true
@@ -273,10 +282,9 @@ fun CallScreen(
             val singlePhoneToolbar = phone && maxWidth >= 386.dp && LocalDensity.current.fontScale <= 1.1f
             if (prejoin) Prejoin(state, widePrejoin, !phone, maxWidth >= 780.dp, microphone, camera, connect, leave, switchCamera, onWorkspaceTab, profileLabel, joinPending, { devices = true }, profileUser)
             else Column(Modifier.fillMaxSize()) {
-                CallHeader(state, details, phone, shortHeight, menu, { menu = it }, switchCamera,
-                    audio = { refreshRoutes(); settings = true }, openSystemSettings = openSystemSettings,
-                    recording = { recordingDialog = true }, invite = if (canInvite) ({ invite = true }) else null,
-                    onWorkspaceTab = onWorkspaceTab)
+                CallHeader(state, details, phone, shortHeight, recording = { recordingDialog = true },
+                    invite = if (canInvite) ({ shareMeeting = true }) else null, reconnect = reconnect,
+                    onWorkspaceTab = onWorkspaceTab, compactActions = viewportWidth / LocalDensity.current.fontScale.coerceAtLeast(1f) < 600.dp)
                 BoxWithConstraints(Modifier.fillMaxWidth().weight(1f).padding(horizontal = if (phone) 12.dp else 20.dp)
                     .padding(top = if (shortHeight) 4.dp else if (phone) 8.dp else 6.dp, bottom = if (shortHeight) 4.dp else if (phone) 8.dp else 12.dp).testTag("call-body")) {
                     val panel = selectedPanel
@@ -285,7 +293,8 @@ fun CallScreen(
                         val panelWidth = (maxWidth * .25f).coerceIn(260.dp, 350.dp)
                         val columns = if (panel != null && viewportWidth <= 1050.dp) 2 else 4
                         Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                            CallStage(state, phone, columns, Modifier.weight(1f), devicePreferences, stageContentOverride, sharePreviewName, selfRole = details.room.self?.role)
+                            CallStage(state, phone, columns, Modifier.weight(1f), devicePreferences, stageContentOverride, sharePreviewName,
+                                selfRole = details.room.self?.role, localMicrophoneLevel = localMicrophoneLevel)
                             if (panel != null) CallPanelContent(panel, state, details, panelActions, close, ::openPanel,
                                 compact = false, modifier = Modifier.width(panelWidth).fillMaxHeight())
                         }
@@ -296,29 +305,38 @@ fun CallScreen(
                         val stageWeight = if (keyboardVisible && panel != null) .22f else .5f
                         Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             if (showStage) CallStage(state, phone, if (phone || panel != null) 2 else 4, Modifier.weight(stageWeight).fillMaxWidth(),
-                                devicePreferences, stageContentOverride, sharePreviewName, selfRole = details.room.self?.role)
+                                devicePreferences, stageContentOverride, sharePreviewName, selfRole = details.room.self?.role,
+                                localMicrophoneLevel = localMicrophoneLevel)
                             if (panel != null) CallPanelContent(panel, state, details, panelActions, close, ::openPanel,
                                 compact = true, modifier = Modifier.weight(1f - stageWeight).fillMaxWidth())
                         }
                     }
                 }
                 CallToolbar(state, phone, shortHeight, singlePhoneToolbar, microphone, camera, share, { settings = true }, leave, selectedPanel, ::openPanel,
-                    waitingCount = if (details.room.self?.role == "owner") details.room.waiting.size else 0)
+                    waitingCount = if (details.room.self?.role == "owner") details.room.waiting.size else 0, localMicrophoneLevel = localMicrophoneLevel)
             }
         }
     }
     if (recordingDialog && !prejoin) CallRecordingDialog(state.title, details.recordingState, recordingActions, LocalConfiguration.current.screenWidthDp < 600) { recordingDialog = false }
     if (devices && prejoin) PrejoinDevices(state, joinPending, microphone, camera, route, openSystemSettings, { devices = false })
     if (settings && !prejoin) CallDeviceSettings(state, devicePreferences, updateDevicePreferences, route, refreshRoutes,
-        switchCamera, openSystemSettings) { settings = false }
+        switchCamera, openSystemSettings, onWorkspaceTab) { settings = false }
+    if (shareMeeting && canInvite && !prejoin) CallShareDialog(state.title, details.invitationLink,
+        onInviteParticipants = { shareMeeting = false; invite = true }, close = { shareMeeting = false })
     if (invite && canInvite && !prejoin) MeetingInvitationDialog(details.room, panelActions.room) { invite = false }
 }
 
 @Composable
-private fun CallHeader(state: CallState, details: CallUiDetails, phone: Boolean, shortHeight: Boolean, menu: Boolean,
-    setMenu: (Boolean) -> Unit, switchCamera: () -> Unit, audio: () -> Unit, openSystemSettings: (() -> Unit)?,
-    recording: () -> Unit, invite: (() -> Unit)?, onWorkspaceTab: ((WorkspaceTab) -> Unit)?) {
+private fun CallHeader(state: CallState, details: CallUiDetails, phone: Boolean, shortHeight: Boolean,
+    recording: () -> Unit, invite: (() -> Unit)?, reconnect: () -> Unit,
+    onWorkspaceTab: ((WorkspaceTab) -> Unit)?, compactActions: Boolean) {
     val connected = state.phase == CallPhase.CONNECTED
+    val reconnecting = state.phase == CallPhase.RECONNECTING
+    val reconnectRotation = remember { Animatable(0f) }
+    LaunchedEffect(reconnecting) {
+        reconnectRotation.snapTo(0f)
+        if (reconnecting) reconnectRotation.animateTo(360f, tween(900))
+    }
     Column(Modifier.fillMaxWidth().padding(horizontal = if (phone) 10.dp else 24.dp)) {
         Row(Modifier.fillMaxWidth().padding(vertical = if (shortHeight) 4.dp else 10.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (phone) 4.dp else 10.dp)) {
@@ -327,7 +345,7 @@ private fun CallHeader(state: CallState, details: CallUiDetails, phone: Boolean,
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(state.title, fontSize = if (phone) 14.sp else 18.sp, lineHeight = if (phone) 19.sp else 24.sp,
-                    fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.semantics { heading() })
+                    fontWeight = FontWeight.SemiBold, maxLines = if (phone) 2 else 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.semantics { heading() })
                 Text(if (connected) "Встреча в эфире" else state.status, fontSize = if (phone) 11.sp else 12.sp,
                     lineHeight = 16.sp, color = CallMuted, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.testTag("call-status"))
             }
@@ -336,36 +354,27 @@ private fun CallHeader(state: CallState, details: CallUiDetails, phone: Boolean,
                 Text("%02d:%02d:%02d".format(java.util.Locale.ROOT, elapsed / 3600, elapsed / 60 % 60, elapsed % 60),
                     color = CallMuted, fontSize = 13.sp, style = LocalTextStyle.current.copy(fontFeatureSettings = "tnum"), maxLines = 1, modifier = Modifier.testTag("call-elapsed"))
             }
-            CallRecordingControl(details.recordingState, phone, recording)
-            if (invite != null) CallHeaderButton(Icons.Outlined.Link, "Пригласить", "call-invite-header", invite)
-            Box {
-                CallHeaderButton(CallIcons.Ellipsis, "Информация о встрече", "call-info") { setMenu(true) }
-                DropdownMenu(menu, { setMenu(false) }, containerColor = CallTileColor) {
-                    DropdownMenuItem(text = { Text("Аудиоустройство", color = CallForeground) }, onClick = { setMenu(false); audio() },
-                        leadingIcon = { Icon(Icons.Outlined.Headphones, null, tint = CallMuted) }, modifier = Modifier.testTag("call-audio"))
-                    if (state.camera) DropdownMenuItem(text = { Text("Повернуть камеру", color = CallForeground) }, onClick = { setMenu(false); switchCamera() },
-                        enabled = connected, leadingIcon = { Icon(Icons.Outlined.Cameraswitch, null, tint = CallMuted) }, modifier = Modifier.testTag("call-switch-camera"))
-                    openSystemSettings?.let { open -> DropdownMenuItem(text = { Text("Разрешения приложения", color = CallForeground) }, onClick = { setMenu(false); open() }) }
-                    if (onWorkspaceTab != null) {
-                        HorizontalDivider(color = CallBorder)
-                        DropdownMenuItem(text = { Text("Чаты", color = CallForeground) }, onClick = { setMenu(false); onWorkspaceTab(WorkspaceTab.MESSAGES) },
-                            leadingIcon = { Icon(CallIcons.MessagesSquare, null, tint = CallMuted) }, modifier = Modifier.testTag("call-workspace-messages"))
-                        DropdownMenuItem(text = { Text("Профиль", color = CallForeground) }, onClick = { setMenu(false); onWorkspaceTab(WorkspaceTab.PROFILE) },
-                            leadingIcon = { Icon(Icons.Outlined.Person, null, tint = CallMuted) }, modifier = Modifier.testTag("call-workspace-profile"))
-                    }
-                }
-            }
+            CallRecordingControl(details.recordingState, compactActions, recording)
+            if (invite != null) CallHeaderButton(CallIcons.Link, "Пригласить", "call-invite-header", invite, showLabel = !compactActions)
+            CallHeaderButton(CallIcons.RefreshCw, "Переподключиться", "call-reconnect", reconnect, enabled = connected,
+                iconModifier = Modifier.rotate(reconnectRotation.value))
         }
-        HorizontalDivider(color = CallBorder)
+        HorizontalDivider(color = CallHeaderBorder)
         CallError(state)
     }
 }
 
 @Composable
-private fun CallHeaderButton(icon: ImageVector, label: String, tag: String, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(9.dp)
-    IconButton(onClick, Modifier.size(48.dp).clip(shape).background(CallTileColor).border(1.dp, CallBorder, shape).testTag(tag)) {
-        Icon(icon, label, Modifier.size(19.dp), tint = CallForeground)
+private fun CallHeaderButton(icon: ImageVector, label: String, tag: String, onClick: () -> Unit,
+    showLabel: Boolean = false, enabled: Boolean = true, iconModifier: Modifier = Modifier) {
+    val shape = RoundedCornerShape(10.dp)
+    val tint = if (enabled) CallForeground else CallMuted.copy(alpha = .65f)
+    Row(Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp).clip(shape).background(CallHeaderSurface)
+        .border(1.dp, CallHeaderBorder, shape).clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+        .testTag(tag).padding(horizontal = if (showLabel) 12.dp else 0.dp), verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)) {
+        Icon(icon, if (showLabel) null else label, iconModifier.size(19.dp), tint = tint)
+        if (showLabel) Text(label, color = tint, fontSize = 12.sp, maxLines = 1)
     }
 }
 
@@ -563,7 +572,8 @@ private fun PrejoinDevices(state: CallState, joinPending: Boolean, microphone: (
 
 @Composable
 private fun CallDeviceSettings(state: CallState, preferences: AccountDevicePreferences, update: ((AccountDevicePreferences) -> Unit)?,
-    route: (Int) -> Unit, refreshRoutes: () -> Unit, switchCamera: () -> Unit, openSystemSettings: (() -> Unit)?, dismiss: () -> Unit) {
+    route: (Int) -> Unit, refreshRoutes: () -> Unit, switchCamera: () -> Unit, openSystemSettings: (() -> Unit)?,
+    onWorkspaceTab: ((WorkspaceTab) -> Unit)?, dismiss: () -> Unit) {
     AlertDialog(onDismissRequest = dismiss, title = { Text("Настройки устройств") }, text = {
         Column(Modifier.verticalScroll(rememberScrollState()).testTag("call-settings-dialog")) {
             Text("Вывод звука", style = MaterialTheme.typography.titleSmall)
@@ -584,6 +594,12 @@ private fun CallDeviceSettings(state: CallState, preferences: AccountDevicePrefe
             if (openSystemSettings != null) TextButton({ dismiss(); openSystemSettings() }, Modifier.heightIn(min = 48.dp)) {
                 Text("Разрешения приложения в Android")
             }
+            if (onWorkspaceTab != null) {
+                HorizontalDivider(Modifier.padding(vertical = 8.dp))
+                Text("Рабочее пространство", style = MaterialTheme.typography.titleSmall)
+                TextButton({ dismiss(); onWorkspaceTab(WorkspaceTab.MESSAGES) }, Modifier.heightIn(min = 48.dp).testTag("call-workspace-messages")) { Text("Чаты") }
+                TextButton({ dismiss(); onWorkspaceTab(WorkspaceTab.PROFILE) }, Modifier.heightIn(min = 48.dp).testTag("call-workspace-profile")) { Text("Профиль") }
+            }
         }
     }, confirmButton = { TextButton(dismiss) { Text("Закрыть") } })
 }
@@ -596,7 +612,7 @@ private fun CallError(state: CallState) {
 
 @Composable
 private fun CallStage(state: CallState, phone: Boolean, columns: Int, modifier: Modifier, preferences: AccountDevicePreferences,
-    stageContentOverride: (@Composable () -> Unit)?, sharePreviewName: String?, selfRole: String? = null) {
+    stageContentOverride: (@Composable () -> Unit)?, sharePreviewName: String?, selfRole: String?, localMicrophoneLevel: StateFlow<Float>?) {
     val screen = if (preferences.hideParticipantVideo) null else state.videos.firstOrNull { it.screen }
     val sharedFeed = screen?.feed ?: state.localScreen
     val hasScreen = sharedFeed != null || stageContentOverride != null
@@ -635,7 +651,8 @@ private fun CallStage(state: CallState, phone: Boolean, columns: Int, modifier: 
                     verticalArrangement = Arrangement.spacedBy(gap)) {
                     items(tiles, key = { it.id }) { tile ->
                         VideoTile(tile, state, phone,
-                            Modifier.fillMaxWidth().height(tileHeight.coerceAtMost(stageHeight)).testTag("call-participant-${tile.id}"), compact = true)
+                            Modifier.fillMaxWidth().height(tileHeight.coerceAtMost(stageHeight)).testTag("call-participant-${tile.id}"), compact = true,
+                            liveLevel = localMicrophoneLevel.takeIf { tile.id == "self" })
                     }
                 }
             }
@@ -657,7 +674,7 @@ private fun CallStage(state: CallState, phone: Boolean, columns: Int, modifier: 
                     horizontalArrangement = Arrangement.spacedBy(gap), verticalArrangement = Arrangement.spacedBy(gap)) {
                     items(tiles, key = { it.id }) { tile ->
                         VideoTile(tile, state, phone, tileBounds.fillMaxWidth().testTag("call-participant-${tile.id}"),
-                            compact = hasScreen, fillStage = fillStage)
+                            compact = hasScreen, fillStage = fillStage, liveLevel = localMicrophoneLevel.takeIf { tile.id == "self" })
                     }
                 }
             }
@@ -697,7 +714,8 @@ private fun CallSharingLabel(label: String, phone: Boolean, compact: Boolean, mo
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun CallToolbar(state: CallState, phone: Boolean, shortHeight: Boolean, singlePhoneRow: Boolean, microphone: () -> Unit, camera: () -> Unit,
-    share: () -> Unit, settings: () -> Unit, leave: () -> Unit, panel: CallPanel?, openPanel: (CallPanel) -> Unit, waitingCount: Int) {
+    share: () -> Unit, settings: () -> Unit, leave: () -> Unit, panel: CallPanel?, openPanel: (CallPanel) -> Unit, waitingCount: Int,
+    localMicrophoneLevel: StateFlow<Float>?) {
     val connected = state.phase == CallPhase.CONNECTED
     val fontScale = LocalDensity.current.fontScale
     val labelSize = if (singlePhoneRow) 8.sp else if (phone || shortHeight) 10.sp else 12.sp
@@ -713,7 +731,7 @@ private fun CallToolbar(state: CallState, phone: Boolean, shortHeight: Boolean, 
             val size = Modifier.width(buttonWidth).heightIn(min = buttonHeight)
             CallToolbarButton("Микрофон", if (state.microphone) CallIcons.Mic else CallIcons.MicOff, "call-mic", size, labelSize, microphone,
                 enabled = connected && !state.microphoneBlocked, selected = state.microphone,
-                speaking = state.isSpeaking(state.participantId), microphoneLevel = state.microphoneLevel(state.participantId))
+                speaking = state.isSpeaking(state.participantId), microphoneLevel = state.microphoneLevel(state.participantId), liveLevel = localMicrophoneLevel)
             CallToolbarButton("Камера", if (state.camera) CallIcons.Video else CallIcons.VideoOff, "call-camera", size, labelSize, camera,
                 enabled = connected && !state.cameraBlocked, selected = state.camera)
             CallToolbarButton("Экран", CallIcons.MonitorUp, "call-share", size, labelSize, share,
@@ -730,7 +748,7 @@ private fun CallToolbar(state: CallState, phone: Boolean, shortHeight: Boolean, 
 @Composable
 private fun CallToolbarButton(label: String, icon: ImageVector, tag: String, modifier: Modifier, labelSize: TextUnit, onClick: () -> Unit,
     enabled: Boolean = true, selected: Boolean? = null, danger: Boolean = false, speaking: Boolean = false, microphoneLevel: Float = 0f,
-    badge: Int = 0) {
+    badge: Int = 0, liveLevel: StateFlow<Float>? = null) {
     val shape = RoundedCornerShape(10.dp)
     val highlighted = enabled && selected == true
     val background = when {
@@ -747,7 +765,8 @@ private fun CallToolbarButton(label: String, icon: ImageVector, tag: String, mod
         .padding(horizontal = if (labelSize < 10.sp) 2.dp else 4.dp, vertical = 5.dp),
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically)) {
         Box {
-            if (tag == "call-mic" && selected == true) MicrophoneLevelIcon(microphoneLevel, enabled, foreground, null, Modifier.size(21.dp).testTag("$tag-icon"))
+            if (tag == "call-mic" && selected == true) MicrophoneLevelIcon(microphoneLevel, enabled, foreground, null,
+                Modifier.size(21.dp).testTag("$tag-icon"), liveLevel = liveLevel)
             else Icon(icon, null, Modifier.size(21.dp), tint = foreground)
             if (badge > 0) Badge(Modifier.align(Alignment.TopEnd).offset(x = 7.dp, y = (-4).dp)) {
                 Text(if (badge > 9) "9+" else badge.toString())
@@ -763,7 +782,8 @@ private data class VideoTileItem(val id: String, val participantId: String, val 
     val microphone: Boolean, val tone: Int, val avatarName: String = name, val role: String? = null)
 
 @Composable
-private fun VideoTile(tile: VideoTileItem, state: CallState, phone: Boolean, modifier: Modifier, compact: Boolean = false, fillStage: Boolean = false) {
+private fun VideoTile(tile: VideoTileItem, state: CallState, phone: Boolean, modifier: Modifier, compact: Boolean = false, fillStage: Boolean = false,
+    liveLevel: StateFlow<Float>? = null) {
     val speaking = state.isSpeaking(tile.participantId)
     val level = state.microphoneLevel(tile.participantId)
     val shape = RoundedCornerShape(if (compact) 15.dp else 10.dp)
@@ -794,7 +814,7 @@ private fun VideoTile(tile: VideoTileItem, state: CallState, phone: Boolean, mod
             val micModifier = Modifier.size(badgeSize).testTag("call-participant-${tile.id}-mic")
             val micTint = Color(0xFFC5B8CC)
             if (tile.microphone) MicrophoneLevelIcon(level, state.phase == CallPhase.CONNECTED, micTint,
-                if (speaking) "Говорит" else "Микрофон включён", micModifier)
+                if (speaking) "Говорит" else "Микрофон включён", micModifier, liveLevel = liveLevel)
             else Icon(CallIcons.MicOff, "Без звука", micModifier, tint = micTint)
         }
     }

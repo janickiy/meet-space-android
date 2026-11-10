@@ -13,6 +13,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.flow.StateFlow
 import kotlin.math.log10
 
 internal val SpeakingGreen = Color(0xFF38C976)
@@ -37,8 +39,13 @@ private fun animatedMicrophoneFill(rms: Float, enabled: Boolean): Float {
 
 /** Only the capsule fills from bottom to top. The outline, button background and opacity stay fixed. */
 @Composable
-internal fun MicrophoneLevelIcon(rms: Float, enabled: Boolean, tint: Color, contentDescription: String?, modifier: Modifier = Modifier) {
-    val fill = animatedMicrophoneFill(rms, enabled)
+internal fun MicrophoneLevelIcon(rms: Float, enabled: Boolean, tint: Color, contentDescription: String?,
+    modifier: Modifier = Modifier, liveLevel: StateFlow<Float>? = null) {
+    val fill = when {
+        !enabled -> 0f
+        liveLevel != null -> microphoneFillFraction(liveLevel.collectAsStateWithLifecycle().value)
+        else -> animatedMicrophoneFill(rms, true)
+    }
     Box(modifier) {
         Icon(CallIcons.Mic, contentDescription, Modifier.matchParentSize(), tint = tint)
         Icon(CallIcons.MicFill, null, Modifier.matchParentSize().drawWithContent {

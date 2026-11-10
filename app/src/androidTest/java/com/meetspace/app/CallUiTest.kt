@@ -28,6 +28,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.UiDevice
 import com.meetspace.app.ui.*
 import com.meetspace.core.designsystem.MeetSpaceTheme
+import com.meetspace.core.model.MeetingParticipant
 import com.meetspace.core.model.ThemeMode
 import com.meetspace.core.media.*
 import org.junit.Assert.*
@@ -60,8 +61,33 @@ class CallUiTest {
         compose.setContent { MeetSpaceTheme { CallScreen(CallState(CallPhase.RECONNECTING, title = "Встреча", status = "Восстанавливаем связь…")) } }
         compose.onNodeWithTag("call-status").assertTextContains("Восстанавливаем связь…", substring = true)
         compose.onNodeWithTag("call-camera").assertIsNotEnabled()
+        compose.onNodeWithTag("call-reconnect").assertIsNotEnabled()
         compose.onNodeWithTag("call-share").assertIsDisplayed().assertIsNotEnabled()
         compose.onNodeWithTag("call-leave").assertIsEnabled()
+    }
+
+    @Test fun meetingHeaderSharesTheActualLinkAndReconnectsOnBothLayouts() {
+        var width by mutableStateOf(390.dp)
+        var reconnects = 0
+        val owner = MeetingParticipant("self", "meeting", "user", "Организатор", "owner", "joined")
+        val link = "https://meet.example.com/i/fixture-invitation"
+        compose.setContent {
+            DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(width, 844.dp))) {
+                MeetSpaceTheme { CallScreen(CallState(CallPhase.CONNECTED, conferenceId = "meeting", title = "Встреча"),
+                    details = CallUiDetails(room = MeetingRoomUiState(listOf(owner), owner.id), invitationLink = link),
+                    reconnect = { reconnects++ }) }
+            }
+        }
+        compose.onNodeWithTag("call-invite-header").assertIsDisplayed().performClick()
+        compose.onNodeWithTag("call-share-dialog").assertIsDisplayed()
+        compose.onNodeWithTag("call-share-link").assertTextEquals(link)
+        compose.waitUntil(timeoutMillis = 5_000) { compose.onAllNodesWithTag("call-share-qr").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("call-share-close").performClick()
+        compose.onNodeWithTag("call-reconnect").assertIsDisplayed().performClick()
+        compose.runOnIdle { assertEquals(1, reconnects); width = 1194.dp }
+        compose.onNodeWithTag("call-invite-header").assertTextContains("Пригласить")
+        compose.onNodeWithTag("call-reconnect").assertIsDisplayed().performClick()
+        compose.runOnIdle { assertEquals(2, reconnects) }
     }
     @Test fun activeMeetingBackArrowOpensMeetingsOnPhoneAndTabletWithoutLeaving() {
         var width by mutableStateOf(360.dp)
@@ -164,8 +190,8 @@ class CallUiTest {
         compose.onNodeWithTag("call-participant-self").assertDoesNotExist()
         compose.onNodeWithTag("call-participant-other").assertExists()
         compose.onNodeWithText("Реальный участник").assertExists()
-        openInfoActionIfNeeded("call-audio")
-        compose.onNodeWithTag("call-audio").assertIsEnabled()
+        openCallSettings()
+        compose.onNodeWithText("Обновить устройства").assertIsEnabled()
     }
 
     @Test fun permissionRequestKeepsJoinDisabledUntilResult() {
@@ -286,9 +312,9 @@ class CallUiTest {
             compose.onNodeWithTag(tag).assertIsDisplayed().assertHeightIsAtLeast(48.dp).assertWidthIsAtLeast(48.dp)
         }
         compose.onNodeWithTag("call-share").assertIsDisplayed().assertIsEnabled()
-        openInfoActionIfNeeded("call-audio")
-        compose.onNodeWithTag("call-audio").assertIsDisplayed().assertIsEnabled()
-        closeInfoMenuIfOpen()
+        openCallSettings()
+        compose.onNodeWithText("Обновить устройства").assertIsDisplayed().assertIsEnabled()
+        compose.onNodeWithText("Закрыть").performClick()
         compose.onNodeWithTag("call-leave").performClick()
         compose.runOnIdle { assertEquals(1, leaves) }
     }
@@ -643,14 +669,14 @@ class CallUiTest {
         compose.onNodeWithTag("call-chat-panel").assertIsDisplayed()
         compose.onNodeWithTag("bottom-navigation").assertDoesNotExist()
         compose.onNodeWithTag("call-back-to-meetings").assertIsDisplayed().performClick()
-        openInfoActionIfNeeded("call-workspace-messages")
-        compose.onNodeWithTag("call-workspace-messages").assertIsDisplayed().performClick()
-        openInfoActionIfNeeded("call-workspace-profile")
-        compose.onNodeWithTag("call-workspace-profile").assertIsDisplayed().performClick()
+        openCallSettings()
+        compose.onNodeWithTag("call-workspace-messages").performScrollTo().assertIsDisplayed().performClick()
+        openCallSettings()
+        compose.onNodeWithTag("call-workspace-profile").performScrollTo().assertIsDisplayed().performClick()
         compose.runOnIdle { assertEquals(listOf(WorkspaceTab.CALLS, WorkspaceTab.MESSAGES, WorkspaceTab.PROFILE), destinations); assertEquals(0, leaves); width = 1194.dp }
         compose.onNodeWithTag("bottom-navigation").assertDoesNotExist()
-        openInfoActionIfNeeded("call-workspace-profile")
-        compose.onNodeWithTag("call-workspace-profile").performClick()
+        openCallSettings()
+        compose.onNodeWithTag("call-workspace-profile").performScrollTo().performClick()
         compose.runOnIdle { assertEquals(WorkspaceTab.PROFILE, destinations.last()); assertEquals(0, leaves) }
         compose.onNodeWithTag("call-leave").performClick()
         compose.runOnIdle { assertEquals(1, leaves) }
@@ -665,16 +691,7 @@ class CallUiTest {
     private val meetingControls = listOf("call-mic" to "Микрофон", "call-camera" to "Камера", "call-share" to "Экран",
         "call-settings" to "Настройки", "call-people" to "Участники", "call-chat" to "Чат", "call-leave" to "Выйти")
 
-    private fun openInfoActionIfNeeded(tag: String) {
-        if (compose.onAllNodesWithTag(tag).fetchSemanticsNodes().isEmpty()) compose.onNodeWithTag("call-info").performClick()
-    }
-
-    private fun closeInfoMenuIfOpen() {
-        if (compose.onAllNodesWithTag("call-audio").fetchSemanticsNodes().isNotEmpty()) {
-            UiDevice.getInstance(InstrumentationRegistry.getInstrumentation()).pressBack()
-            compose.waitForIdle()
-        }
-    }
+    private fun openCallSettings() = compose.onNodeWithTag("call-settings").performClick()
 
     private fun revealPanelItem(panel: String, tag: String) {
         if (compose.onAllNodesWithTag(tag).fetchSemanticsNodes().isEmpty()) {
