@@ -64,9 +64,13 @@ internal fun CallCameraGallery(
     localMicrophoneLevel: StateFlow<Float>?,
 ) {
     if (tiles.isEmpty()) return
-    val largeStage = wide && width >= 960.dp
+    // A tablet can remain "wide" after rotation. Choose the arrangement from the
+    // actual stage, including the space left beside an open participant/chat panel.
+    val portraitStage = height > width
+    val largeStage = wide && !portraitStage && width >= 960.dp
     val columns = when {
         tiles.size == 1 -> 1
+        portraitStage && tiles.size <= 3 -> 1
         largeStage && tiles.size != 2 && tiles.size != 4 -> 3
         else -> 2
     }

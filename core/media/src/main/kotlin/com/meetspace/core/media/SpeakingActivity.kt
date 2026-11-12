@@ -12,6 +12,7 @@ internal class SpeakingActivity {
     private val previous = mutableMapOf<String, Previous>()
     private val voicedAt = mutableMapOf<String, Long>()
     private val measuredLevels = mutableMapOf<String, Level>()
+    private val remoteLevels = mutableMapOf<String, Level>()
 
     fun update(
         report: RTCStatsReport, nowMs: Long, localParticipant: String, localTrack: String?,
@@ -59,8 +60,7 @@ internal class SpeakingActivity {
             }
             val threshold = when {
                 participant in voicedAt && nowMs - voicedAt.getValue(participant) < HOLD_MS -> .012
-                local -> .015 // Match the web meter's onset so quiet local speech can move the meter.
-                else -> .025
+                else -> .015 // Local and received microphones use the same speech onset.
             }
             if (level >= threshold) voicedAt[participant] = nowMs
             // Unlike the speaker hold, the meter follows each fresh interval, including silence.
@@ -71,10 +71,25 @@ internal class SpeakingActivity {
         return expire(nowMs, allowed)
     }
 
+    /** PCM meters are independent of post-playback-gain RTP stats and active-speaker hold. */
+    fun updateRemoteLevels(levels: Map<String, Float>, nowMs: Long, allowed: Set<String>): Set<String> {
+        remoteLevels.clear()
+        for ((participant, rms) in levels) {
+            if (participant !in allowed || !rms.isFinite() || rms < 0f) continue
+            val level = rms.coerceAtMost(1f)
+            val threshold = if (participant in voicedAt && nowMs - voicedAt.getValue(participant) < HOLD_MS) .012f else .015f
+            if (level >= threshold) voicedAt[participant] = nowMs
+            remoteLevels[participant] = Level(participant, nowMs, level)
+        }
+        return expire(nowMs, allowed)
+    }
+
     fun expire(nowMs: Long, allowed: Set<String>): Set<String> {
         voicedAt.entries.removeAll { (id, time) -> id !in allowed || nowMs < time || nowMs - time >= HOLD_MS }
         previous.entries.removeAll { it.value.participant !in allowed }
         measuredLevels.entries.removeAll { (_, sample) -> sample.participant !in allowed ||
+            nowMs < sample.sampledAt || nowMs - sample.sampledAt >= HOLD_MS }
+        remoteLevels.entries.removeAll { (_, sample) -> sample.participant !in allowed ||
             nowMs < sample.sampledAt || nowMs - sample.sampledAt >= HOLD_MS }
         return voicedAt.keys.toSet()
     }
@@ -82,7 +97,7 @@ internal class SpeakingActivity {
     fun audioLevels(nowMs: Long, allowed: Set<String>): Map<String, Float> {
         expire(nowMs, allowed)
         val result = mutableMapOf<String, Float>()
-        for (sample in measuredLevels.values) if (sample.rms > 0f) {
+        for (sample in measuredLevels.values + remoteLevels.values) if (sample.rms > 0f) {
             result[sample.participant] = maxOf(result[sample.participant] ?: 0f, sample.rms)
         }
         return result
@@ -92,8 +107,9 @@ internal class SpeakingActivity {
         voicedAt.remove(participant)
         previous.entries.removeAll { it.value.participant == participant }
         measuredLevels.entries.removeAll { it.value.participant == participant }
+        remoteLevels.remove(participant)
     }
-    fun clear() { previous.clear(); voicedAt.clear(); measuredLevels.clear() }
+    fun clear() { previous.clear(); voicedAt.clear(); measuredLevels.clear(); remoteLevels.clear() }
 
     companion object {
         const val POLL_MS = 200L

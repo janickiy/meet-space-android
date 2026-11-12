@@ -27,13 +27,13 @@ class SpeakingActivityTest {
         assertTrue(detector.expire(1050, allowed).isEmpty())
     }
 
-    @Test fun quietLocalSpeechMovesTheMeterWithoutChangingRemoteDetection() {
+    @Test fun quietSpeechUsesTheSameOnsetForLocalAndRemoteMicrophones() {
         update(0, local(0, 0.0, 0.0), remote(0, 0.0, 0.0))
-        assertEquals(setOf("self"), update(200, local(200, .00008, .2), remote(200, .00008, .2))) // RMS .02
+        assertEquals(allowed, update(200, local(200, .00008, .2), remote(200, .00008, .2))) // RMS .02
         assertEquals(.02f, detector.audioLevels(200, allowed).getValue("self"), .00001f)
-        assertEquals(setOf("self"), update(400, local(400, .0001448, .4))) // RMS .018
+        assertEquals(allowed, update(400, local(400, .0001448, .4))) // RMS .018
         assertEquals(.018f, detector.audioLevels(400, allowed).getValue("self"), .00001f)
-        assertEquals(setOf("self"), update(600, local(600, .0001448, .6)))
+        assertEquals(allowed, update(600, local(600, .0001448, .6)))
         assertTrue(detector.audioLevels(600, allowed).isEmpty())
         assertTrue(detector.expire(850, allowed).isEmpty())
     }
@@ -151,7 +151,7 @@ class SpeakingActivityTest {
         assertTrue(detector.audioLevels(1300, allowed).isEmpty())
     }
 
-    @Test fun stateMeterRejectsStaleSpeakerFlagsInvalidLevelsAndMutedMedia() {
+    @Test fun stateMeterUsesCurrentLevelsIndependentlyOfSpeakerHoldAndRejectsInvalidMutedMedia() {
         val state = CallState(phase = CallPhase.CONNECTED, participantId = "self", microphone = true,
             participants = listOf(CallParticipant("remote", "Участник", true, true, false)), activeSpeakerIds = allowed,
             microphoneLevels = mapOf("self" to .2f, "remote" to .1f))
@@ -160,10 +160,86 @@ class SpeakingActivityTest {
         assertEquals(0f, state.copy(microphone = false).microphoneLevel("self"), 0f)
         assertEquals(0f, state.copy(microphoneBlocked = true).microphoneLevel("self"), 0f)
         assertEquals(0f, state.copy(phase = CallPhase.RECONNECTING).microphoneLevel("self"), 0f)
-        assertEquals(0f, state.copy(activeSpeakerIds = emptySet()).microphoneLevel("self"), 0f)
+        assertEquals(.2f, state.copy(activeSpeakerIds = emptySet()).microphoneLevel("self"), 0f)
         assertEquals(0f, state.copy(participants = emptyList()).microphoneLevel("remote"), 0f)
         for (bad in listOf(Float.NaN, Float.POSITIVE_INFINITY, -.1f))
             assertEquals(0f, state.copy(microphoneLevels = mapOf("self" to bad)).microphoneLevel("self"), 0f)
+    }
+
+    @Test fun negotiatedMicrophoneRemainsVisibleWhenPresenceIsLateOrMissing() {
+        val remote = CallParticipant("remote", "Участник", true, false, true)
+        val state = CallState(phase = CallPhase.CONNECTED, participantId = "self", microphone = false,
+            participants = listOf(remote), receivedMicrophoneIds = setOf("remote"),
+            activeSpeakerIds = setOf("remote"), microphoneLevels = mapOf("remote" to .02f))
+        assertTrue(state.microphoneEnabled("remote"))
+        assertTrue(state.canSpeak("remote"))
+        assertTrue(state.isSpeaking("remote"))
+        assertEquals(.02f, state.microphoneLevel("remote"), 0f)
+        // Local mute is never overridden by a remote publication or a stale measured level.
+        assertFalse(state.copy(receivedMicrophoneIds = setOf("self", "remote")).canSpeak("self"))
+        // Removing the negotiated microphone on mute removes its indicator immediately.
+        val muted = state.copy(receivedMicrophoneIds = emptySet())
+        assertFalse(muted.microphoneEnabled("remote"))
+        assertFalse(muted.isSpeaking("remote"))
+        assertEquals(0f, muted.microphoneLevel("remote"), 0f)
+        assertFalse(state.copy(participants = listOf(remote.copy(online = false))).canSpeak("remote"))
+        assertFalse(state.copy(participants = listOf(remote.copy(microphoneBlocked = true))).canSpeak("remote"))
+        assertFalse(state.copy(phase = CallPhase.RECONNECTING).canSpeak("remote"))
+        assertFalse(state.copy(participants = emptyList()).canSpeak("remote"))
+    }
+
+    @Test fun quietReceivedLevelDoesNotWaitForActiveSpeakerSelection() {
+        val state = CallState(phase = CallPhase.CONNECTED, participantId = "self",
+            participants = listOf(CallParticipant("remote", "Участник", true, false, true)),
+            receivedMicrophoneIds = setOf("remote"), microphoneLevels = mapOf("remote" to .014f))
+        assertFalse(state.isSpeaking("remote"))
+        assertEquals(.014f, state.microphoneLevel("remote"), 0f)
+    }
+
+    @Test fun decodedRemoteMeterIsIndependentOfPlaybackStatsAndExpiresOnSilence() {
+        assertEquals(setOf("remote"), detector.updateRemoteLevels(mapOf("remote" to .02f), 32, allowed))
+        // Listener output volume is zero: post-gain stats cannot erase pre-gain PCM activity.
+        detector.update(report(remote(200, 0.0, .2)), 200, "self", "local-track", emptyMap(), allowed)
+        assertEquals(.02f, detector.audioLevels(200, allowed).getValue("remote"), 0f)
+        detector.updateRemoteLevels(mapOf("remote" to .2f), 224, allowed)
+        assertEquals(.2f, detector.audioLevels(224, allowed).getValue("remote"), 0f)
+        detector.updateRemoteLevels(mapOf("remote" to 0f), 256, allowed)
+        assertTrue(detector.audioLevels(256, allowed).isEmpty())
+        assertEquals(setOf("remote"), detector.expire(673, allowed))
+        assertTrue(detector.expire(674, allowed).isEmpty())
+        detector.updateRemoteLevels(mapOf("remote" to .2f), 700, allowed)
+        detector.forget("remote")
+        assertTrue(detector.audioLevels(700, allowed).isEmpty())
+        assertTrue(detector.expire(700, allowed).isEmpty())
+    }
+
+    @Test fun decodedRemoteMetersCannotIdentifyUnknownMutedOrInvalidSources() {
+        assertTrue(detector.updateRemoteLevels(mapOf("remote" to .2f), 0, setOf("self")).isEmpty())
+        assertTrue(detector.updateRemoteLevels(mapOf("remote" to Float.NaN), 32, allowed).isEmpty())
+        assertTrue(detector.updateRemoteLevels(mapOf("remote" to -.2f), 64, allowed).isEmpty())
+        detector.updateRemoteLevels(mapOf("remote" to .2f), 100, allowed)
+        detector.clear()
+        assertTrue(detector.audioLevels(100, allowed).isEmpty())
+    }
+
+    @Test fun explicitMuteOverridesOldPublicationUntilUnmuteOrNewPublication() {
+        val microphone = CatalogTrack("old-source", "peer", "remote", "microphone", "audio")
+        val state = CallState(phase = CallPhase.CONNECTED, participantId = "self",
+            participants = listOf(CallParticipant("remote", "Участник", true, false, true)),
+            receivedMicrophoneIds = setOf("remote"), remoteMutedMicrophoneIds = setOf("remote"),
+            activeSpeakerIds = setOf("remote"), microphoneLevels = mapOf("remote" to .5f))
+        assertFalse(state.microphoneEnabled("remote"))
+        assertEquals(0f, state.microphoneLevel("remote"), 0f)
+        val repeatedCatalog = CallProtocol.newlyPublishedMicrophones(listOf(microphone), listOf(microphone))
+        assertTrue(repeatedCatalog.isEmpty())
+        assertFalse(state.copy(remoteMutedMicrophoneIds = state.remoteMutedMicrophoneIds - repeatedCatalog).canSpeak("remote"))
+        val screen = microphone.copy(id = "screen", streamId = "peer-screen", source = "audio/screen")
+        assertTrue(CallProtocol.newlyPublishedMicrophones(listOf(microphone), listOf(microphone, screen)).isEmpty())
+        val replaced = CallProtocol.newlyPublishedMicrophones(listOf(microphone), listOf(microphone.copy(id = "new-source")))
+        assertEquals(setOf("remote"), replaced)
+        assertTrue(state.copy(remoteMutedMicrophoneIds = state.remoteMutedMicrophoneIds - replaced).canSpeak("remote"))
+        assertTrue(state.copy(remoteMutedMicrophoneIds = emptySet()).canSpeak("remote"))
+        assertTrue(CallProtocol.newlyPublishedMicrophones(listOf(microphone), emptyList()).isEmpty())
     }
 
     private fun update(now: Long, vararg stats: RTCStats): Set<String> =

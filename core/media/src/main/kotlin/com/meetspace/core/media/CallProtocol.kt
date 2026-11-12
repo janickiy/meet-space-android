@@ -62,6 +62,11 @@ internal object CallProtocol {
         if (policy == "relay" && servers.none { s -> s.urls.any { it.startsWith("turn:") || it.startsWith("turns:") } }) throw ProtocolFailure()
         return IceConfiguration(servers, policy == "relay", expiry)
     }
+    fun newlyPublishedMicrophones(previous: List<CatalogTrack>, next: List<CatalogTrack>): Set<String> {
+        val known = previous.filter { it.kind == "audio" && it.source == "microphone" }.mapTo(mutableSetOf()) { it.id }
+        return next.asSequence().filter { it.kind == "audio" && it.source == "microphone" && it.id !in known }
+            .map(CatalogTrack::participantId).toSet()
+    }
     fun catalog(data: JsonObject): List<CatalogTrack> {
         val entries = data.array("tracks")
         if (entries.size > 128) throw ProtocolFailure()

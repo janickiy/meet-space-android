@@ -5,7 +5,8 @@ import org.webrtc.VideoSink
 import org.webrtc.VideoTrack
 
 enum class CallPhase { IDLE, PREJOIN, CONNECTING, CONNECTED, RECONNECTING, FAILED, LEAVING }
-data class CallParticipant(val id: String, val name: String, val online: Boolean, val microphone: Boolean, val camera: Boolean)
+data class CallParticipant(val id: String, val name: String, val online: Boolean, val microphone: Boolean, val camera: Boolean,
+    val microphoneBlocked: Boolean = false)
 data class CallVideo(val id: String, val participantId: String, val screen: Boolean, val feed: VideoFeed)
 data class CallDiagnostics(val relay: Boolean = false, val receivedBytes: Long = 0, val decodedFrames: Long = 0, val sentBytes: Long = 0, val receivedAudioBytes: Long = 0, val receivedVideoBytes: Long = 0,
     val screenFramesEncoded: Long = 0, val screenEncodedFps: Double? = null)
@@ -25,13 +26,19 @@ data class CallState(
     val activeSpeakerIds: Set<String> = emptySet(),
     /** Fresh microphone RMS (0..1), separate from the longer-lived speaker highlight. */
     val microphoneLevels: Map<String, Float> = emptyMap(),
+    /** Negotiated SFU microphone publications; presence may arrive later or omit media flags. */
+    val receivedMicrophoneIds: Set<String> = emptySet(),
+    /** Explicit media updates override an older publication until unmute or a new source. */
+    val remoteMutedMicrophoneIds: Set<String> = emptySet(),
 ) {
     val visible: Boolean get() = phase != CallPhase.IDLE
-    fun canSpeak(id: String): Boolean = phase == CallPhase.CONNECTED && id.isNotBlank() &&
+    fun microphoneEnabled(id: String): Boolean = id.isNotBlank() &&
         if (id == participantId) microphone && !microphoneBlocked
-        else participants.any { it.id == id && it.online && it.microphone }
+        else participants.any { it.id == id && it.online && !it.microphoneBlocked && id !in remoteMutedMicrophoneIds &&
+            (it.microphone || id in receivedMicrophoneIds) }
+    fun canSpeak(id: String): Boolean = phase == CallPhase.CONNECTED && microphoneEnabled(id)
     fun isSpeaking(id: String): Boolean = id in activeSpeakerIds && canSpeak(id)
-    fun microphoneLevel(id: String): Float = if (isSpeaking(id))
+    fun microphoneLevel(id: String): Float = if (canSpeak(id))
         microphoneLevels[id]?.takeIf { it.isFinite() }?.coerceIn(0f, 1f) ?: 0f else 0f
 }
 

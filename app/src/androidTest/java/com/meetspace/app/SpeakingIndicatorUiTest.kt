@@ -69,6 +69,33 @@ class SpeakingIndicatorUiTest {
     }
 
     @OptIn(ExperimentalTestApi::class)
+    @Test fun negotiatedRemoteMicrophoneDisplaysQuietPeaksDespiteStalePresenceAndClearsOnBlock() {
+        var state by mutableStateOf(call.copy(
+            participants = call.participants.map { if (it.id == "peer") it.copy(microphone = false) else it },
+            receivedMicrophoneIds = setOf("peer"),
+            microphoneLevels = mapOf("peer" to .02f),
+        ))
+        compose.setContent {
+            DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(1194.dp, 834.dp))) {
+                MeetSpaceTheme { CallScreen(state) }
+            }
+        }
+        val mic = "call-participant-peer-mic"
+        compose.onNodeWithTag(mic, useUnmergedTree = true).assert(hasAnyDescendant(hasContentDescription("Микрофон включён")))
+        assertTrue("Quiet received PCM must be visible before the speaker hold starts", meter(mic).count > 0)
+        compose.runOnIdle { state = state.copy(microphoneLevels = mapOf("peer" to .25f)) }
+        val loud = meter(mic).count
+        assertTrue(loud > 0)
+        compose.runOnIdle { state = state.copy(participants = state.participants.map { if (it.id == "peer") it.copy(microphoneBlocked = true) else it }) }
+        compose.onNodeWithTag(mic, useUnmergedTree = true).assertContentDescriptionEquals("Без звука")
+        assertEquals(0, meter(mic).count)
+        compose.runOnIdle { state = state.copy(participants = state.participants.map { it.copy(microphoneBlocked = false) },
+            receivedMicrophoneIds = emptySet(), microphoneLevels = emptyMap()) }
+        compose.onNodeWithTag(mic, useUnmergedTree = true).assertContentDescriptionEquals("Без звука")
+        assertEquals(0, meter(mic).count)
+    }
+
+    @OptIn(ExperimentalTestApi::class)
     @Test fun remoteVoicePulsesTheMicrophoneAndTileInGalleryAndSpeakerView() {
         var state by mutableStateOf(call)
         compose.setContent {

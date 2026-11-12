@@ -299,6 +299,9 @@ fun CallScreen(
                     onWorkspaceTab = onWorkspaceTab, compactActions = viewportWidth / LocalDensity.current.fontScale.coerceAtLeast(1f) < 600.dp)
                 val wide = viewportWidth >= 780.dp
                 val layout = chosenLayout ?: if (wide) CallVideoLayout.GALLERY else CallVideoLayout.SPEAKER
+                // Pick the initial view once per meeting. Rotating below the tablet
+                // breakpoint must rearrange the tiles without switching view modes.
+                SideEffect { if (chosenLayout == null) chosenLayout = layout }
                 BoxWithConstraints(Modifier.fillMaxWidth().weight(1f).padding(horizontal = if (wide) 22.dp else if (phone) 12.dp else 20.dp)
                     .padding(top = if (shortHeight) 4.dp else if (wide) 16.dp else if (phone) 8.dp else 6.dp,
                         bottom = if (shortHeight) 4.dp else if (wide) 16.dp else if (phone) 8.dp else 12.dp).testTag("call-body")) {
@@ -660,7 +663,7 @@ private fun CallStage(state: CallState, phone: Boolean, columns: Int, modifier: 
     val remoteTiles = state.participants.filter { it.id != state.participantId && it.online }.mapIndexed { index, participant ->
         VideoTileItem(participant.id, participant.id, participant.name,
             if (preferences.hideParticipantVideo) null else state.videos.firstOrNull { it.participantId == participant.id && !it.screen }?.feed,
-            participant.microphone, index % 3)
+            state.microphoneEnabled(participant.id), index % 3)
     }
     val self = if (preferences.showSelf) {
         val name = selfName(state)
@@ -909,7 +912,8 @@ internal fun VideoTile(tile: VideoTileItem, state: CallState, phone: Boolean, mo
     val speaking = state.isSpeaking(tile.participantId)
     val level = state.microphoneLevel(tile.participantId)
     val remote = tile.id != "self"
-    val remoteFill = if (remote) animatedMicrophoneFill(level, speaking && tile.microphone) else 0f
+    // Received PCM peaks arrive at the same cadence as the live local meter.
+    val remoteFill = if (remote && state.canSpeak(tile.participantId) && tile.microphone) microphoneFillFraction(level) else 0f
     val borderColor = when {
         remoteFill > 0f -> lerp(CallBorder, SpeakingGreen, .5f + .5f * remoteFill)
         !remote && speaking -> SpeakingGreen
@@ -1015,9 +1019,9 @@ private fun ParticipantPanel(state: CallState, modifier: Modifier, close: () -> 
                     CallAvatar(person.name, Modifier.size(40.dp), tone = tone)
                     Column(Modifier.weight(1f)) {
                         Text(if (person.id == state.participantId) "Вы" else person.name, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, lineHeight = 21.sp, color = colors.onSurface)
-                        Text(if (!person.online) "Не в сети" else if (person.microphone) "Микрофон включён" else "Микрофон выключен", color = colors.onSurfaceVariant, fontSize = 13.sp, lineHeight = 22.sp)
+                        Text(if (!person.online) "Не в сети" else if (state.microphoneEnabled(person.id)) "Микрофон включён" else "Микрофон выключен", color = colors.onSurfaceVariant, fontSize = 13.sp, lineHeight = 22.sp)
                     }
-                    Icon(if (person.microphone && person.online) CallIcons.Mic else CallIcons.MicOff, null, Modifier.size(20.dp), tint = colors.onSurfaceVariant)
+                    Icon(if (state.microphoneEnabled(person.id)) CallIcons.Mic else CallIcons.MicOff, null, Modifier.size(20.dp), tint = colors.onSurfaceVariant)
                 }
             }
         }

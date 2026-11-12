@@ -55,6 +55,7 @@ class CallEngine(
     val localMicrophoneLevel = mutableMicrophoneLevel.asStateFlow()
     private var localMeter: LocalMicrophoneMeter? = null
     private var localMeterJob: Job? = null
+    private var remoteMeterJob: Job? = null
     private var generation = 0L
     private var wanted = false
     private var membershipEntered = false
@@ -108,6 +109,11 @@ class CallEngine(
     private var peerTransceivers = emptyList<RtpTransceiver>()
     private var remoteTracksByMid = emptyMap<String, RemoteSdpTrack>()
     private var remoteMicrophones = emptyMap<String, ReceivedMicrophone>()
+    private data class ReceivedAudio(val receiverId: String, val binding: RemoteSdpTrack,
+        val participantId: String, val track: AudioTrack, val meter: RemoteMicrophoneMeter) {
+        fun close() { meter.close(); track.removeSink(meter) }
+    }
+    private val receivedAudio = mutableMapOf<String, ReceivedAudio>()
     private data class ReceivedVideo(val receiverId: String, val binding: RemoteSdpTrack, val feed: VideoFeed)
     private val received = mutableMapOf<String, ReceivedVideo>()
     private var captureWidth = 1280
@@ -586,7 +592,7 @@ class CallEngine(
                 if (people.size > 500) throw ProtocolFailure()
                 val roster = people.map { entry ->
                     val p = entry as? JsonObject ?: throw ProtocolFailure()
-                    CallParticipant(validId(p.string("id")), p.string("displayName").take(100), p.flag("online"), p.flag("microphoneEnabled"), p.flag("cameraEnabled"))
+                    CallParticipant(validId(p.string("id")), p.string("displayName").take(100), p.flag("online"), p.flag("microphoneEnabled"), p.flag("cameraEnabled"), p.flag("microphoneBlocked"))
                 }
                 mutable.value = state.value.copy(participantId = participant, participants = roster)
                 pruneSpeakers()
@@ -595,16 +601,19 @@ class CallEngine(
             "participant.media.updated" -> {
                 val person = d.obj("participant")
                 val participantId = validId(person.string("id"))
+                val microphone = person.flag("microphoneEnabled")
                 mutable.value = state.value.copy(participants = state.value.participants.map {
-                    if (it.id == participantId) it.copy(microphone = person.flag("microphoneEnabled"), camera = person.flag("cameraEnabled")) else it
-                })
+                    if (it.id == participantId) it.copy(microphone = microphone, camera = person.flag("cameraEnabled"), microphoneBlocked = person.flag("microphoneBlocked")) else it
+                }, remoteMutedMicrophoneIds = if (microphone) state.value.remoteMutedMicrophoneIds - participantId
+                    else state.value.remoteMutedMicrophoneIds + participantId)
+                if (!microphone) speaking.forget(participantId)
                 pruneSpeakers()
             }
             "media.joined" -> {
                 if (event.reply != joinRequest || pc != null) return
                 peerId = validId(d.string("mediaPeerId"))
                 val maxPeers = d.number("maxPeers").toInt().takeIf { it in 1..32 } ?: throw ProtocolFailure()
-                catalog = CallProtocol.catalog(d)
+                acceptCatalog(CallProtocol.catalog(d))
                 d["policy"]?.let { policy(it as? JsonObject ?: throw ProtocolFailure()) }
                 if (!wanted) return
                 (d["videoCapture"] as? JsonObject)?.let {
@@ -669,7 +678,7 @@ class CallEngine(
                         val revision = d.number("revision")
                         if (revision < catalogRevision) return
                         val nextCatalog = CallProtocol.catalog(d)
-                        catalogRevision = revision; catalog = nextCatalog; syncVideos()
+                        catalogRevision = revision; acceptCatalog(nextCatalog); syncVideos()
                     }
                     "media.policy" -> { if (policy(d.obj("policy"))) changed() }
                     "media.state" -> if ((d["state"] as? JsonPrimitive)?.content in setOf("failed", "closed")) reconnect()
@@ -863,6 +872,12 @@ class CallEngine(
         val line = (c["sdpMLineIndex"] as? JsonPrimitive)?.intOrNull ?: 0
         if (line !in 0..127 || !pc!!.addIceCandidate(IceCandidate(mid, line, c.string("candidate")))) throw ProtocolFailure()
     }
+    private fun acceptCatalog(next: List<CatalogTrack>) {
+        val newMicrophones = CallProtocol.newlyPublishedMicrophones(catalog, next)
+        catalog = next
+        if (newMicrophones.isNotEmpty()) mutable.value = state.value.copy(
+            remoteMutedMicrophoneIds = state.value.remoteMutedMicrophoneIds - newMicrophones)
+    }
     private fun syncVideos() {
         val bindings = RemoteSdpTracks.catalogBindings(remoteTracksByMid, catalog)
         val microphones = buildMap {
@@ -871,13 +886,27 @@ class CallEngine(
                 audioTrack.setVolume(deviceSettings.speakerVolume.coerceIn(0, 100) / 100.0)
                 val mid = transceiver.mid ?: return@forEach
                 val metadata = bindings[mid]?.takeIf { it.kind == "audio" && it.source == "microphone" } ?: return@forEach
+                val binding = remoteTracksByMid.getValue(mid)
+                val previous = receivedAudio[mid]
+                if (previous == null || previous.receiverId != transceiver.receiver.id() ||
+                    previous.binding != binding || previous.participantId != metadata.participantId) {
+                    previous?.close()
+                    previous?.let { speaking.forget(it.participantId) }
+                    val meter = RemoteMicrophoneMeter()
+                    audioTrack.addSink(meter)
+                    receivedAudio[mid] = ReceivedAudio(transceiver.receiver.id(), binding, metadata.participantId, audioTrack, meter)
+                }
                 // A preallocated receiver can keep its native track ID after the SFU binds its MID.
-                put(mid, ReceivedMicrophone(metadata.participantId, audioTrack.id(), remoteTracksByMid.getValue(mid).ssrcs))
+                put(mid, ReceivedMicrophone(metadata.participantId, audioTrack.id(), binding.ssrcs))
             }
+        }
+        (receivedAudio.keys - microphones.keys).forEach { mid ->
+            receivedAudio.remove(mid)?.let { it.close(); speaking.forget(it.participantId) }
         }
         if (microphones != remoteMicrophones) {
             remoteMicrophones.forEach { (mid, old) -> if (old != microphones[mid]) speaking.forget(old.participantId) }
             remoteMicrophones = microphones
+            mutable.value = state.value.copy(receivedMicrophoneIds = microphones.values.mapTo(mutableSetOf()) { it.participantId })
             pruneSpeakers()
         }
         val live = bindings.filterValues { it.kind == "video" }
@@ -901,6 +930,7 @@ class CallEngine(
         timer?.cancel(); attempts = 0
         mutable.value = state.value.copy(phase = CallPhase.CONNECTED, status = "На связи")
         startLocalMicrophoneMeter()
+        startRemoteMicrophoneMeters()
         updatePresence()
         if (statsJob == null) {
             val epoch = generation
@@ -942,6 +972,24 @@ class CallEngine(
         mutableMicrophoneLevel.value = 0f
     }
 
+    private fun startRemoteMicrophoneMeters() {
+        if (remoteMeterJob != null) return
+        remoteMeterJob = scope.launch {
+            while (isActive) {
+                delay(32)
+                val now = android.os.SystemClock.elapsedRealtime()
+                val connected = state.value.phase == CallPhase.CONNECTED &&
+                    pc?.connectionState() == PeerConnection.PeerConnectionState.CONNECTED
+                val levels = mutableMapOf<String, Float>()
+                for (audio in receivedAudio.values) {
+                    val level = audio.meter.takeLevel()
+                    if (connected) levels[audio.participantId] = maxOf(levels[audio.participantId] ?: 0f, level)
+                }
+                publishSpeakers(speaking.updateRemoteLevels(levels, now, eligibleSpeakers()), now)
+            }
+        }
+    }
+
     private fun stats(epoch: Long) {
         val now = android.os.SystemClock.elapsedRealtime()
         pruneSpeakers(now)
@@ -952,16 +1000,15 @@ class CallEngine(
         if (statsPending) return
         val diagnostics = now >= nextDiagnosticsMs
         if (diagnostics) nextDiagnosticsMs = now + 3_000
-        val microphones = remoteMicrophones
         statsPending = true
         pc?.getStats { report -> callback(epoch) {
             statsPending = false
             val sampledAt = android.os.SystemClock.elapsedRealtime()
             if (sampledAt - now > 1_000 || state.value.phase != CallPhase.CONNECTED ||
                 pc?.connectionState() != PeerConnection.PeerConnectionState.CONNECTED) return@callback
-            // Do not apply an in-flight report to a receiver that was rebound during negotiation.
-            if (microphones !== remoteMicrophones) return@callback
-            publishSpeakers(speaking.update(report, sampledAt, state.value.participantId, micTrack?.id(), microphones, eligibleSpeakers()), sampledAt)
+            // Inbound RTP energy is measured after playback gain in this SDK. Per-track
+            // PCM meters drive remote indicators even when the listener turns volume down.
+            publishSpeakers(speaking.update(report, sampledAt, state.value.participantId, micTrack?.id(), emptyMap(), eligibleSpeakers()), sampledAt)
             if (!diagnostics) return@callback
             var receivedBytes = 0L; var sent = 0L; var frames = 0L; var relay = false; var audioBytes = 0L; var videoBytes = 0L
             report.statsMap.values.forEach { stat ->
@@ -1036,6 +1083,7 @@ class CallEngine(
     }
     private fun closeNetwork() {
         stopLocalMicrophoneMeter()
+        remoteMeterJob?.cancel(); remoteMeterJob = null
         generation++
         timer?.cancel(); timer = null; reader?.cancel(); reader = null
         statsJob?.cancel(); statsJob = null; reconnectJob?.cancel(); reconnectJob = null
@@ -1045,11 +1093,12 @@ class CallEngine(
         signaling?.close(); signaling = null
         received.values.forEach { it.feed.close() }; received.clear(); remoteTracksByMid = emptyMap()
         remoteMicrophones = emptyMap()
+        receivedAudio.values.forEach { it.close() }; receivedAudio.clear()
         peerTransceivers = emptyList(); slots.clear(); pc?.close(); pc?.dispose(); pc = null
         peerId = ""; connectionId = ""; joinRequest = ""; hasRemote = false; hasOffer = false
         remoteIce.clear(); localIce.clear(); seenIce.clear(); gate = NegotiationGate(); catalog = emptyList()
         catalogRevision = -1; policyVersion = -1; presenceSequence = 0
-        mutable.value = state.value.copy(videos = emptyList(), participants = emptyList(), diagnostics = CallDiagnostics(), activeSpeakerIds = emptySet(), microphoneLevels = emptyMap())
+        mutable.value = state.value.copy(videos = emptyList(), participants = emptyList(), diagnostics = CallDiagnostics(), activeSpeakerIds = emptySet(), microphoneLevels = emptyMap(), receivedMicrophoneIds = emptySet(), remoteMutedMicrophoneIds = emptySet())
     }
     private fun disposeAll() {
         closeNetwork(); replaceMic(false); replaceCamera(false); stopScreenInternal()
