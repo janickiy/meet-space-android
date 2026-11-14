@@ -32,10 +32,13 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.*
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.*
 import androidx.compose.ui.text.style.LineHeightStyle
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.meetspace.app.SshWizardStep
@@ -75,12 +78,15 @@ fun SshWizardUi(
                         lineHeight = 24.sp, fontWeight = FontWeight.Medium, letterSpacing = 0.sp)
                 }
             },
-            footer = "Пароль и приватный ключ хранятся только в памяти мастера проверки и установки. Они не записываются на устройство.",
         ) {
             CompositionLocalProvider(LocalTextStyle provides LocalTextStyle.current.copy(letterSpacing = 0.sp,
                 lineHeightStyle = LineHeightStyle(LineHeightStyle.Alignment.Center, LineHeightStyle.Trim.None))) {
                 Column(Modifier.fillMaxWidth()) {
-                    OnboardingProgress(state.step.ordinal + 1)
+                    if (state.step == SshWizardStep.VERIFY_HOST) {
+                        OnboardingProgress(2, label = "Подключение к серверу", stepText = "Шаг 2 из 5")
+                    } else {
+                        OnboardingProgress(state.step.ordinal + 1)
+                    }
                     Spacer(Modifier.height(32.dp))
                     SshHeading(state)
                     state.error?.let { SshMessage(it, true, onClearMessage); Spacer(Modifier.height(20.dp)) }
@@ -115,17 +121,20 @@ fun SshWizardUi(
 private fun SshHeading(state: SshWizardUiState) {
     val wide = LocalOnboardingWide.current
     val titleSize = if (!wide) 28.sp else if (LocalConfiguration.current.screenWidthDp <= 1000) 30.sp else 32.sp
-    Text(when (state.step) {
+    val eyebrow = when (state.step) {
         SshWizardStep.DETAILS -> "СОБСТВЕННАЯ ИНФРАСТРУКТУРА"
-        SshWizardStep.VERIFY_HOST -> "ИДЕНТИЧНОСТЬ СЕРВЕРА"
+        SshWizardStep.VERIFY_HOST -> null
         SshWizardStep.AUTH -> "ДОСТУП ПО SSH"
         SshWizardStep.RESULTS -> "ПЕРЕД УСТАНОВКОЙ"
-    }, fontSize = if (wide) 11.sp else 12.sp, lineHeight = if (wide) 16.5.sp else 18.sp,
-        fontWeight = FontWeight.SemiBold, letterSpacing = 1.2.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    Spacer(Modifier.height(10.dp))
+    }
+    if (eyebrow != null) {
+        Text(eyebrow, fontSize = if (wide) 11.sp else 12.sp, lineHeight = if (wide) 16.5.sp else 18.sp,
+            fontWeight = FontWeight.SemiBold, letterSpacing = 1.2.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.height(10.dp))
+    }
     Text(when (state.step) {
         SshWizardStep.DETAILS -> "Начнём с сервера."
-        SshWizardStep.VERIFY_HOST -> "Знакомимся безопасно."
+        SshWizardStep.VERIFY_HOST -> "Проверка сервера"
         SshWizardStep.AUTH -> "Доступ к серверу."
         SshWizardStep.RESULTS -> if (state.report?.hasBlockers == true) "Проверим ограничения." else "Всё по плану."
     }, fontSize = titleSize, lineHeight = titleSize * if (wide) 1.2f else 1.22f,
@@ -133,10 +142,16 @@ private fun SshHeading(state: SshWizardUiState) {
     Spacer(Modifier.height(12.dp))
     Text(when (state.step) {
         SshWizardStep.DETAILS -> "Нужен отдельный удалённый Linux VPS с публичным IP-адресом."
-        SshWizardStep.VERIFY_HOST -> "При первом подключении проверьте отпечаток SSH-ключа сервера."
+        SshWizardStep.VERIFY_HOST -> "Убедитесь, что подключаетесь к нужному серверу."
         SshWizardStep.AUTH -> "Подтвердите доступ для проверки сервера перед установкой."
         SshWizardStep.RESULTS -> "Ознакомьтесь с результатами диагностики сервера."
-    }, fontSize = if (wide) 15.sp else 16.sp, lineHeight = if (wide) 24.75.sp else 26.4.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }, fontSize = if (wide) 15.sp else 16.sp, lineHeight = if (wide) 24.75.sp else 26.4.sp,
+        fontWeight = if (state.step == SshWizardStep.VERIFY_HOST) FontWeight.Bold else FontWeight.Normal,
+        color = if (state.step == SshWizardStep.VERIFY_HOST) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
+    if (state.step == SshWizardStep.VERIFY_HOST && state.identity?.trust != SshTrust.CHANGED) {
+        Spacer(Modifier.height(8.dp))
+        SshNote("При первом подключении необходимо проверить ключ безопасности сервера.")
+    }
     Spacer(Modifier.height(if (wide) 28.dp else 24.dp))
 }
 
@@ -203,7 +218,7 @@ private fun SshHostVerification(state: SshWizardUiState, onConfirm: () -> Unit, 
     var compared by remember(identity.key.fingerprint) { mutableStateOf(false) }
     var forgetDialog by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth().testTag("ssh-host-verification"), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-        SshEndpointLabel(identity.endpoint)
+        SshEndpointLabel(identity.endpoint, showLabels = true)
         if (identity.trust == SshTrust.CHANGED) {
             SshAlert("Ключ сервера изменился. Подключение заблокировано.", error = true, modifier = Modifier.testTag("ssh-host-changed").semantics { liveRegion = LiveRegionMode.Assertive })
             SshNote("Это может быть переустановка VPS или другой сервер. Не вводите данные доступа, пока не проверите причину через панель провайдера или администратора.")
@@ -212,13 +227,16 @@ private fun SshHostVerification(state: SshWizardUiState, onConfirm: () -> Unit, 
             SshButton("Удалить сохранённое доверие…", { forgetDialog = true }, !state.busy, "ssh-forget-trust", primary = false)
         } else {
             SshSectionTitle("Первое подключение")
-            SshFingerprint("SHA-256 отпечаток публичного ключа", identity.key, "ssh-new-fingerprint")
-            SshNote("Сравните отпечаток с панелью VPS или данными администратора по независимому каналу. Само SSH-подключение не доказывает, что это нужный сервер.")
+            SshFingerprint("SHA-256-хеш публичного ключа сервера", identity.key, "ssh-new-fingerprint", showKeyTypeLabel = true)
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SshNote("Сравните этот хеш с тем, который указан в панели управления сервером, или уточните его у администратора.")
+                SshNote("Если значения совпадают, можно безопасно продолжить подключение.")
+            }
             Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).selectable(compared, enabled = !state.busy,
                 role = Role.Checkbox, onClick = { compared = !compared }).testTag("ssh-fingerprint-compared").padding(vertical = 10.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
                 Checkbox(compared, onCheckedChange = null, enabled = !state.busy, modifier = Modifier.size(20.dp))
-                Text("Я сравнил отпечаток с панелью VPS или данными администратора", Modifier.weight(1f), fontSize = 14.sp, lineHeight = 23.1.sp)
+                Text("Я проверил SHA-256-хеш ключа сервера.", Modifier.weight(1f), fontSize = 14.sp, lineHeight = 23.1.sp)
             }
             SshButton("Доверять этому ключу", onConfirm, compared && !state.busy, "ssh-trust")
         }
@@ -232,21 +250,35 @@ private fun SshHostVerification(state: SshWizardUiState, onConfirm: () -> Unit, 
 }
 
 @Composable
-private fun SshEndpointLabel(endpoint: SshEndpoint) {
+private fun SshEndpointLabel(endpoint: SshEndpoint, showLabels: Boolean = false) {
+    val wide = LocalOnboardingWide.current
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        SelectionContainer { Text(endpoint.host, fontFamily = FontFamily.Monospace, fontSize = if (LocalOnboardingWide.current) 15.sp else 16.sp, lineHeight = if (LocalOnboardingWide.current) 24.75.sp else 26.4.sp) }
-        SshNote("SSH-порт ${endpoint.port}")
+        SelectionContainer {
+            Text(buildAnnotatedString {
+                if (showLabels) withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append("Адрес сервера: ") }
+                withStyle(SpanStyle(fontFamily = FontFamily.Monospace)) { append(endpoint.host) }
+            }, fontSize = if (wide) 15.sp else 16.sp, lineHeight = if (wide) 24.75.sp else 26.4.sp)
+        }
+        if (showLabels) {
+            Text(buildAnnotatedString {
+                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append("SSH-порт: ") }
+                append(endpoint.port.toString())
+            }, fontSize = if (wide) 15.sp else 16.sp, lineHeight = if (wide) 24.75.sp else 26.4.sp)
+        } else {
+            SshNote("SSH-порт ${endpoint.port}")
+        }
     }
 }
 
 @Composable
-private fun SshFingerprint(title: String, key: SshHostKey, tag: String) {
+private fun SshFingerprint(title: String, key: SshHostKey, tag: String, showKeyTypeLabel: Boolean = false) {
     Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
         Column(Modifier.padding(20.dp)) {
             Text(title, fontFamily = FontFamily.Monospace, fontSize = 18.sp, lineHeight = 25.2.sp,
                 fontWeight = FontWeight.SemiBold, letterSpacing = (-.25).sp, modifier = Modifier.semantics { heading() })
-            Text(key.algorithm, fontFamily = FontFamily.Monospace, fontSize = if (LocalOnboardingWide.current) 13.sp else 14.sp,
+            Text(if (showKeyTypeLabel) "Тип ключа: ${key.algorithm}" else key.algorithm,
+                fontFamily = FontFamily.Monospace, fontSize = if (LocalOnboardingWide.current) 13.sp else 14.sp,
                 lineHeight = if (LocalOnboardingWide.current) 22.1.sp else 23.8.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(8.dp))
             SelectionContainer { Text(key.fingerprint, fontFamily = FontFamily.Monospace, fontSize = if (LocalOnboardingWide.current) 13.sp else 14.sp,

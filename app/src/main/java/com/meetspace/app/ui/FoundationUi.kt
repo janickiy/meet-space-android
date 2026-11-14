@@ -329,8 +329,10 @@ internal fun IntroFrame(
                                     if (!sideVisible) {
                                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                                             Brand(phone = true)
-                                            Text("ANDROID", fontSize = (if (install) 10 else 8).sp, lineHeight = 12.sp,
-                                                fontWeight = FontWeight.SemiBold, letterSpacing = (if (install) 1.5 else 1.9).sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            if (!install) {
+                                                Text("ANDROID", fontSize = 8.sp, lineHeight = 12.sp,
+                                                    fontWeight = FontWeight.SemiBold, letterSpacing = 1.9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            }
                                         }
                                         Spacer(Modifier.height(if (install) { if (wide) 12.dp else 10.dp } else if (account) 8.dp else 17.dp))
                                     }
@@ -1046,14 +1048,18 @@ private fun backDestination(state: FoundationUiState): FoundationScreen = when {
 }
 
 @Composable
-internal fun OnboardingProgress(step: Int, label: String = "Подключение сервера") {
+internal fun OnboardingProgress(step: Int, label: String = "Подключение сервера", stepText: String? = null) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(label, style = MaterialTheme.typography.labelSmall, letterSpacing = 0.sp,
                 fontWeight = FontWeight.Normal, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text("0${step.coerceIn(1, 5)}", style = MaterialTheme.typography.labelSmall, letterSpacing = 0.sp, color = MaterialTheme.colorScheme.primary)
-                Text("/ 05", style = MaterialTheme.typography.labelSmall, letterSpacing = 0.sp, color = onboardingTone(0xFFB8C0CE, 0xFF91A0B6))
+            if (stepText != null) {
+                Text(stepText, style = MaterialTheme.typography.labelSmall, letterSpacing = 0.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+                Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text("0${step.coerceIn(1, 5)}", style = MaterialTheme.typography.labelSmall, letterSpacing = 0.sp, color = MaterialTheme.colorScheme.primary)
+                    Text("/ 05", style = MaterialTheme.typography.labelSmall, letterSpacing = 0.sp, color = onboardingTone(0xFFB8C0CE, 0xFF91A0B6))
+                }
             }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
