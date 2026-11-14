@@ -128,7 +128,9 @@ internal class AccountAudioProbe(private val context: Context) : AutoCloseable {
         if (uri == null) { status = "Звук уведомлений выключен в Android."; return }
         try {
             begin(AudioProbeKind.RINGTONE, 3_000, "Проверяем текущий сигнал уведомлений Android.")
-            tone.play(uri, preference, volume, AudioAttributes.USAGE_NOTIFICATION, finished = { stop(it ?: "Проверка завершена.") })
+            tone.play(uri, preference, volume, AudioAttributes.USAGE_NOTIFICATION,
+                started = { outputLevel = volume.coerceIn(0, 100) / 100f },
+                finished = { stop(it ?: "Проверка завершена.") })
         } catch (_: Exception) { stop("Сигнал недоступен. Проверьте настройки уведомлений Android.") }
     }
 
@@ -142,7 +144,7 @@ internal class AccountAudioProbe(private val context: Context) : AutoCloseable {
         recorder?.let { runCatching { it.stop() }; runCatching { it.release() } }; recorder = null
         track?.let { runCatching { it.stop() }; runCatching { it.release() } }; track = null
         tone.close()
-        kind = null; level = 0f; status = message
+        kind = null; level = 0f; outputLevel = 0f; status = message
         samples.fill(0)
     }
     override fun close() { stop("") }

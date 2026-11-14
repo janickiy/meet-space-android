@@ -492,6 +492,67 @@ class MessagingViewModelTest {
         assertTrue(model.state.value.messages.data!!.single { it.id == reply.id }.replyPreview!!.deleted)
     }
 
+    @Test fun deleteForMeHidesOwnAndReceivedMessagesAcrossPagesAndReopening() = runTest(dispatcher) {
+        val first = message("first")
+        val incoming = message("incoming", sequence = 2).copy(senderId = "peer")
+        val latest = message("latest", sequence = 3)
+        val keep = message("keep", sequence = 4).copy(replyPreview = ChatReply(incoming.id, incoming.text, "Peer", false))
+        val hidden = MemoryHiddenChatMessages()
+        val foundation = FakeFoundation()
+        val repository = FakeMessaging().apply {
+            messageResult = { _, cursor ->
+                if (cursor == null) MessagePage(listOf(first, incoming, latest, keep), nextCursor = "older")
+                else MessagePage(listOf(first, incoming))
+            }
+            searchResult = { _, _, _ -> ChatPage(listOf(incoming, keep)) }
+            pinsResult = { _, _ -> ChatPage(listOf(latest, keep)) }
+        }
+        val model = MessagingViewModel(foundation, repository, hiddenStore = hidden)
+        model.open("room"); runCurrent()
+        model.deleteForMe(listOf(incoming, latest)); runCurrent()
+        assertTrue(repository.deleted.isEmpty())
+        assertEquals(1L, model.state.value.bulkDeleteRevision)
+        assertEquals(listOf(first.id, keep.id), model.state.value.messages.data!!.map { it.id })
+        assertNull(model.state.value.messages.data!!.last().replyPreview)
+        model.actions.moreMessages(); runCurrent()
+        assertEquals(listOf(first.id, keep.id), model.state.value.messages.data!!.map { it.id })
+        model.searchMessages("keep"); advanceTimeBy(301); runCurrent()
+        assertEquals(listOf(keep.id), model.state.value.searchResults.data!!.map { it.id })
+        model.loadPins(); runCurrent()
+        assertEquals(listOf(keep.id), model.state.value.pins.data!!.map { it.id })
+        val reopened = MessagingViewModel(foundation, repository, hiddenStore = hidden)
+        reopened.open("room"); runCurrent()
+        assertEquals(listOf(first.id, keep.id), reopened.state.value.messages.data!!.map { it.id })
+        val other = FakeFoundation()
+        other.state.value = other.state.value.copy(session = other.state.value.session!!.copy(user = User("other", "other@example.test")))
+        val otherAccount = MessagingViewModel(other, repository, hiddenStore = hidden)
+        otherAccount.open("room"); runCurrent()
+        assertEquals(listOf(first.id, incoming.id, latest.id, keep.id), otherAccount.state.value.messages.data!!.map { it.id })
+    }
+
+    @Test fun forwardRetryReusesRequestIdAndOpensConfirmedDestination() = runTest(dispatcher) {
+        val original = message("original").copy(attachments = listOf(attachment()))
+        val forwarded = original.copy(id = "forwarded", conversationId = "recipient", forwardedSenderName = "Member",
+            attachments = listOf(attachment("recipient").copy(id = "copied-file")))
+        val repository = FakeMessaging().apply {
+            messageResult = { id, _ -> MessagePage(if (id == "room") listOf(original) else listOf(forwarded)) }
+            conversationListResult = { ChatPage(listOf(conversation("recipient"))) }
+            forwardResult = { _, _, _, _ -> throw network() }
+        }
+        val model = model(repository)
+        model.open("room"); runCurrent(); model.actions.forwardMessages(listOf(original)); runCurrent()
+        model.actions.forwardToConversation("recipient"); runCurrent()
+        assertEquals("room", model.state.value.selectedId)
+        assertEquals("Нет подключения.", model.state.value.forwarding?.error)
+        repository.forwardResult = { _, _, _, _ -> listOf(forwarded) }
+        model.actions.forwardToConversation("recipient"); runCurrent()
+        assertEquals(2, repository.forwards.size)
+        assertEquals(repository.forwards[0], repository.forwards[1])
+        assertEquals("recipient", model.state.value.selectedId)
+        assertNull(model.state.value.forwarding)
+        assertEquals("copied-file", model.state.value.messages.data!!.single().attachments.single().id)
+    }
+
     @Test fun loadedHistoryRemainsInRamOfflineUntilLogoutThenIsGone() = runTest(dispatcher) {
         val foundation = FakeFoundation()
         val repository = FakeMessaging()
@@ -962,6 +1023,7 @@ class MessagingViewModelTest {
         val sent = mutableListOf<Pair<String, ChatMessageInput>>()
         val edited = mutableListOf<Triple<String, String, String>>()
         val deleted = mutableListOf<Pair<String, String>>()
+        val forwards = mutableListOf<List<String>>()
         val reads = mutableListOf<Pair<String, String>>()
         val notificationReads = mutableListOf<String>()
         val notificationQueries = mutableListOf<String?>()
@@ -974,6 +1036,7 @@ class MessagingViewModelTest {
         val groupCreates = mutableListOf<List<String>>()
         val conversationRequests = mutableListOf<String>()
         var conversationResult: suspend (String) -> ChatConversation = { Companion.conversation(it) }
+        var conversationListResult: suspend (ChatQuery) -> ChatPage<ChatConversation> = { ChatPage(listOf(Companion.conversation("room"))) }
         var searchResult: suspend (String, String, String?) -> ChatPage<ChatMessage> = { id, _, _ -> ChatPage(listOf(message("result", id))) }
         var contextResult: suspend (String, String) -> ChatPage<ChatMessage> = { id, mid -> ChatPage(listOf(message(mid, id))) }
         var pinsResult: suspend (String, String?) -> ChatPage<ChatMessage> = { _, _ -> ChatPage(emptyList()) }
@@ -987,13 +1050,14 @@ class MessagingViewModelTest {
         var editResult: suspend (String, String, String) -> ChatMessage = { id, messageId, text -> message(messageId, id).copy(text = text, version = 2) }
         var sendResult: suspend (String, ChatMessageInput) -> ChatMessage = { id, input -> message("sent", id).copy(text = input.text, clientRequestId = input.clientRequestId, replyTo = input.replyTo) }
         var deleteResult: suspend (String, String) -> ChatMessage = { id, messageId -> message(messageId, id).copy(version = 2, text = "", deletedAt = at) }
+        var forwardResult: suspend (String, String, List<String>, String) -> List<ChatMessage> = { _, _, _, _ -> error("Unexpected forwarding") }
         var groupChangeResult: suspend (String, String, String) -> ChatConversation = { id, name, description -> conversation(id).copy(name = name, description = description) }
         var groupCreateResult: suspend (String, String, List<String>, String) -> ChatConversation = { name, _, _, _ -> conversation("created").copy(name = name) }
         var eventsResult: suspend () -> UserEvents = { FakeEvents() }
         var readResult: suspend (String, String) -> ChatReadState = { _, id -> ChatReadState(0, id) }
         var downloadResult: suspend (String, ChatAttachment) -> ByteArray = { _, _ -> byteArrayOf(1) }
         var uploadResult: suspend (String, String, String, ByteArray) -> ChatAttachment = { id, filename, mimeType, bytes -> attachment(id).copy(filename = filename, mimeType = mimeType, size = bytes.size.toLong()) }
-        override suspend fun conversations(query: ChatQuery): ChatPage<ChatConversation> { conversationQueries += query; return ChatPage(listOf(Companion.conversation("room"))) }
+        override suspend fun conversations(query: ChatQuery): ChatPage<ChatConversation> { conversationQueries += query; return conversationListResult(query) }
         override suspend fun conversation(id: String): ChatConversation { conversationRequests += id; return conversationResult(id) }
         override suspend fun searchPeers(search: String) = listOf(ChatPeer("peer", "Peer"))
         override suspend fun createDirect(peerId: String) = conversation("direct").copy(type = "direct", peer = ChatPeer(peerId, "Peer"))
@@ -1013,6 +1077,10 @@ class MessagingViewModelTest {
         override suspend fun sendMessage(id: String, input: ChatMessageInput): ChatMessage { sent += id to input; return sendResult(id, input) }
         override suspend fun editMessage(id: String, messageId: String, text: String): ChatMessage { edited += Triple(id, messageId, text); return editResult(id, messageId, text) }
         override suspend fun deleteMessage(id: String, messageId: String): ChatMessage { deleted += id to messageId; return deleteResult(id, messageId) }
+        override suspend fun forwardMessages(id: String, sourceId: String, messageIds: List<String>, clientRequestId: String): List<ChatMessage> {
+            forwards += listOf(id, sourceId, clientRequestId) + messageIds
+            return forwardResult(id, sourceId, messageIds, clientRequestId)
+        }
         override suspend fun markConversationRead(id: String, messageId: String): ChatReadState { reads += id to messageId; return readResult(id, messageId) }
         override suspend fun uploadAttachment(id: String, filename: String, mimeType: String, bytes: ByteArray, clientRequestId: String) = uploadResult(id, filename, mimeType, bytes)
         override suspend fun downloadAttachment(id: String, attachment: ChatAttachment) = downloadResult(id, attachment)

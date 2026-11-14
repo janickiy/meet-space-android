@@ -36,6 +36,9 @@ import com.meetspace.core.designsystem.MeetSpaceTheme
 import com.meetspace.core.model.*
 import java.io.File
 import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalTime
+import java.time.ZoneId
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
@@ -264,6 +267,85 @@ class MessagingUiTest {
         compose.onNodeWithText("private removed text").assertDoesNotExist()
         compose.onNodeWithTag("attachment-${file.id}").assertDoesNotExist()
         compose.onNodeWithTag("message-menu-${ownMessage.id}").assertDoesNotExist()
+    }
+
+    @Test fun longPressForwardsOriginalMessageWithItsAttachmentToTheChosenChat() {
+        val original = ownMessage.copy(attachments = listOf(file))
+        val direct = ready.conversations.data.orEmpty().first { it.type == "direct" }
+        var state by mutableStateOf(ready.copy(messages = MessagingLoad(listOf(original, peerMessage))))
+        var submittedMessages = emptyList<ChatMessage>()
+        var submittedTarget: String? = null
+        var query: String? = null
+        val actions = MessagingActions(
+            forwardMessages = { selected ->
+                state = state.copy(forwarding = ChatForwardUiState(
+                    messages = selected,
+                    conversations = MessagingLoad(listOf(group, direct)),
+                ))
+            },
+            searchForwardRecipients = { search ->
+                query = search
+                val picker = checkNotNull(state.forwarding)
+                state = state.copy(forwarding = picker.copy(
+                    query = search,
+                    conversations = MessagingLoad(listOf(group, direct).filter { it.title.contains(search, ignoreCase = true) }),
+                ))
+            },
+            forwardToConversation = { conversationId ->
+                submittedTarget = conversationId
+                submittedMessages = checkNotNull(state.forwarding).messages
+                state = state.copy(forwarding = null)
+            },
+        )
+        compose.setContent { Screen(state, actions, 390) }
+
+        compose.onNodeWithTag("message-menu-${original.id}").performTouchInput {
+            longClick(center.copy(y = center.y * .25f))
+        }
+        compose.onNodeWithTag("message-forward-${original.id}").performClick()
+        compose.onNodeWithTag("message-forward-dialog").assertIsDisplayed()
+        compose.onNodeWithTag("message-forward-target-${group.id}").assertIsDisplayed()
+        compose.onNodeWithTag("message-forward-search").performTextInput("Анна")
+        compose.runOnIdle { assertEquals("Анна", query); assertNull(submittedTarget) }
+        compose.onNodeWithTag("message-forward-target-${group.id}").assertDoesNotExist()
+        compose.onNodeWithTag("message-forward-target-${direct.id}").performScrollTo().performClick()
+        compose.runOnIdle {
+            assertEquals(direct.id, submittedTarget)
+            assertEquals(listOf(original), submittedMessages)
+        }
+        compose.onNodeWithTag("message-forward-dialog").assertDoesNotExist()
+    }
+
+    @Test fun mixedAuthorsCanBeSelectedAndDeletedOnlyAfterConfirmation() {
+        val unselected = peerMessage.copy(id = "keep", sequence = 0, text = "Оставить в истории")
+        val all = listOf(unselected, peerMessage, ownMessage)
+        var state by mutableStateOf(ready.copy(messages = MessagingLoad(all)))
+        var request = emptyList<ChatMessage>()
+        val actions = MessagingActions(deleteForMe = { selected ->
+            request = selected
+            state = state.copy(bulkDeleting = true)
+        })
+        compose.setContent { Screen(state, actions, 390) }
+
+        compose.onNodeWithTag("message-menu-${ownMessage.id}").performTouchInput { longClick() }
+        compose.onNodeWithTag("message-select-${ownMessage.id}").performClick()
+        compose.onNodeWithTag("message-selection-${ownMessage.id}").assertIsOn()
+        compose.onNodeWithTag("message-selection-${peerMessage.id}").assertIsOff().performClick().assertIsOn()
+        compose.onNodeWithTag("message-selection-${unselected.id}").assertIsOff()
+        compose.onNodeWithTag("message-selection-delete").performClick()
+        compose.onNodeWithTag("message-selection-cancel-delete").performClick()
+        compose.runOnIdle { assertTrue(request.isEmpty()) }
+        compose.onNodeWithTag("message-selection-${peerMessage.id}").assertIsOn()
+        compose.onNodeWithTag("message-selection-delete").performClick()
+        compose.onNodeWithTag("message-selection-confirm-delete").performClick()
+        compose.runOnIdle { assertEquals(setOf(ownMessage, peerMessage), request.toSet()) }
+        compose.onNodeWithTag("message-draft").assertDoesNotExist()
+        compose.runOnIdle {
+            state = state.copy(messages = MessagingLoad(listOf(unselected)), bulkDeleting = false, bulkDeleteRevision = 1)
+        }
+        compose.onNodeWithTag("message-selection-toolbar").assertDoesNotExist()
+        compose.onNodeWithTag("message-menu-${unselected.id}").assertIsDisplayed()
+        compose.onNodeWithTag("message-draft").assertIsDisplayed()
     }
 
     @Test fun attachmentsUsePickerAndExplicitDownloadWithoutOpeningRemoteLinks() {
@@ -588,14 +670,20 @@ class MessagingUiTest {
         val theme = args.getString("designTheme", "light")
         val screen = args.getString("designScreen", "messages")
         require(theme in setOf("light", "dark"))
-        require(screen in setOf("messages", "thread", "folders", "message-actions"))
+        require(screen in setOf("messages", "thread", "folders", "message-actions", "forward", "selection", "delete"))
         val configuration = instrumentation.targetContext.resources.configuration
-        val snapshot = if (screen == "folders") ready.copy(selectedId = null, folders = MessagingLoad(listOf(folder.copy(name = "Проект MeetSpace", itemCount = 8, conversationCount = 3, conferenceCount = 5), folder.copy(id = "personal", name = "Рабочие встречи", itemCount = 3), folder.copy(id = "design", name = "Дизайн"))))
-            else if (screen in setOf("thread", "message-actions") || configuration.screenWidthDp >= 780) ready.copy(messages = MessagingLoad(listOf(ownMessage, peerMessage.copy(attachments = listOf(file)))))
-            else ready.copy(selectedId = null)
+        val tablet = configuration.screenWidthDp >= 780
+        val showThread = screen != "folders" && (screen != "messages" || tablet)
+        var snapshot by mutableStateOf(if (screen == "folders") ready.copy(selectedId = null,
+            folders = MessagingLoad(listOf(folder.copy(name = "Проект MeetSpace", itemCount = 8, conversationCount = 3, conferenceCount = 5),
+                folder.copy(id = "personal", name = "Рабочие встречи", itemCount = 3), folder.copy(id = "design", name = "Дизайн"))))
+        else maxDesignSnapshot(showThread))
+        val actions = MessagingActions(forwardMessages = { selected ->
+            snapshot = snapshot.copy(forwarding = ChatForwardUiState(messages = selected, conversations = snapshot.conversations))
+        })
         val profile = ServerProfile("visual-server", "https://team.example")
         val repository = RepositoryState(profiles = listOf(profile), selectedProfileId = profile.id,
-            session = AccountSession(User("self", "member@example.test", "Александр"), Capabilities(), true))
+            session = AccountSession(User("self", "member@example.test", "Александр Соколов"), Capabilities(), true))
         compose.runOnUiThread { compose.activity.enableEdgeToEdge() }
         compose.setContent {
             MeetSpaceTheme(if (theme == "dark") ThemeMode.DARK else ThemeMode.LIGHT) {
@@ -606,22 +694,69 @@ class MessagingUiTest {
                 FoundationUi(FoundationUiState(FoundationScreen.WORKSPACE, repository),
                     onConnect = {}, onSelectProfile = {}, onRemoveProfile = {}, onLogin = { _, _ -> }, onLogout = {}, onTheme = {}, onNavigate = {}, onClearMessage = {},
                     messageThreadOpen = snapshot.selectedId != null,
-                    workspaceContent = { tab, _ -> if (tab == WorkspaceTab.MESSAGES) MessagingWorkspace(snapshot, MessagingActions(), serverOrigin = profile.origin, foldersRequested = screen == "folders") })
+                    hasUnreadChats = snapshot.conversations.data.orEmpty().any { it.unreadCount > 0 },
+                    workspaceContent = { tab, _ -> if (tab == WorkspaceTab.MESSAGES) MessagingWorkspace(
+                        snapshot, actions, serverOrigin = profile.origin, foldersRequested = screen == "folders", onStartCall = {},
+                        notificationBell = { NotificationBell(unreadCount = 3, expanded = false, onClick = {}) },
+                    ) })
             }
         }
         // Keep pointer press/ripple effects out of the visual fixture.
         compose.onNodeWithTag("tab-messages").performSemanticsAction(SemanticsActions.OnClick) { assertTrue(it()) }
         compose.onNodeWithTag(if (screen == "folders") "folders-workspace" else "messaging-workspace").assertIsDisplayed()
-        if (configuration.screenWidthDp < 780 && screen in setOf("thread", "message-actions")) compose.onNodeWithTag("bottom-navigation").assertDoesNotExist()
+        if (!tablet && showThread) compose.onNodeWithTag("bottom-navigation").assertDoesNotExist()
         else compose.onNodeWithTag("bottom-navigation").assertIsDisplayed()
         compose.mainClock.advanceTimeBy(1_000)
         compose.waitForIdle()
         val directory = checkNotNull(instrumentation.targetContext.getExternalFilesDir("screenshots"))
         check(directory.isDirectory || directory.mkdirs())
         val filename = "$screen-$theme-${configuration.screenWidthDp}x${configuration.screenHeightDp}-font${configuration.fontScale}.png"
-        if (screen == "message-actions") { compose.onNodeWithTag("message-menu-${peerMessage.id}").performClick(); compose.waitForIdle() }
-        val image = if (screen == "message-actions") checkNotNull(instrumentation.uiAutomation.takeScreenshot()) else compose.onNodeWithTag("workspace").captureToImage().asAndroidBitmap()
+        if (screen in setOf("message-actions", "forward", "selection", "delete")) {
+            compose.onNodeWithTag("message-history").performScrollToNode(hasTestTag("message-menu-m2"))
+            compose.onNodeWithTag("message-menu-m2").performTouchInput { longClick() }
+            when (screen) {
+                "forward" -> compose.onNodeWithTag("message-forward-m2").performClick()
+                "selection", "delete" -> {
+                    compose.onNodeWithTag("message-select-m2").performClick()
+                    compose.onNodeWithTag("message-history").performScrollToNode(hasTestTag("message-selection-m3"))
+                    compose.onNodeWithTag("message-selection-m3").performClick()
+                    if (screen == "delete") compose.onNodeWithTag("message-selection-delete").performClick()
+                }
+            }
+            compose.waitForIdle()
+        }
+        val image = checkNotNull(instrumentation.uiAutomation.takeScreenshot())
         File(directory, filename).outputStream().use { assertTrue(image.compress(Bitmap.CompressFormat.PNG, 100, it)) }
+    }
+
+    private fun maxDesignSnapshot(showThread: Boolean): MessagingUiState {
+        val zone = ZoneId.systemDefault()
+        val today = LocalDate.now(zone)
+        fun at(hour: Int, minute: Int, daysAgo: Long = 0) = today.minusDays(daysAgo)
+            .atTime(LocalTime.of(hour, minute)).atZone(zone).toInstant()
+        val maxim = ChatPeer("max-user", "Максим Петров")
+        val max = ChatConversation("max", "direct", maxim, preview = "Вы: Спасибо, посмотрю сегодня", lastMessageAt = at(9, 34, 1))
+        val first = ChatMessage("m1", max.id, maxim.id, maxim.displayName, "design-m1",
+            "Доброе утро! Материалы к встрече готовы. Посмотрите, когда будет минутка.", 1, 1, at(9, 32), at(9, 32),
+            attachments = listOf(ChatAttachment("design-pdf", max.id, "Обзор продукта.pdf", "application/pdf", 2516582, "attached", messageId = "m1")))
+        val second = ChatMessage("m2", max.id, "self", "Александр Соколов", "design-m2",
+            "Спасибо! Посмотрю перед встречей. Есть пара идей по навигации.", 2, 1, at(9, 34), at(9, 34))
+        val pinned = ChatMessage("m3", max.id, maxim.id, maxim.displayName, "design-m3",
+            "Встречаемся в 10:00. Обсудим новую версию и планы команды.", 3, 1, at(9, 38), at(9, 38), pinned = true)
+        val conversations = listOf(
+            ChatConversation("team", "group", name = "Команда продукта", memberCount = 5, unreadCount = 3,
+                preview = "Мария: собрала всё в одном файле", lastMessageAt = at(9, 38)),
+            ChatConversation("anna", "direct", ChatPeer("anna-user", "Анна Кузнецова"), unreadCount = 1,
+                preview = "Да, до встречи!", lastMessageAt = at(9, 24)),
+            ChatConversation("dev", "group", name = "Разработка", memberCount = 4,
+                preview = "Дмитрий: обновление готово", lastMessageAt = at(9, 38, 1)),
+            max,
+            ChatConversation("design", "group", name = "Дизайн-команда", memberCount = 3,
+                preview = "Анна: новая версия макетов в папке", lastMessageAt = at(12, 0, 2)),
+        )
+        return ready.copy(selectedId = max.id.takeIf { showThread }, conversations = MessagingLoad(conversations),
+            detail = MessagingLoad(max), messages = MessagingLoad(listOf(first, second, pinned)),
+            pins = MessagingLoad(listOf(pinned)), peerOnline = true, notificationUnread = 3)
     }
 
     private fun capture(name: String) {

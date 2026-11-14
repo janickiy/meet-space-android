@@ -131,11 +131,12 @@ class AccountMediaPanelsTest {
             compose.waitUntil(3_000) { probe.kind == null }
             compose.runOnIdle { assertTrue(probe.status.startsWith("Проверка завершена")) }
             compose.runOnIdle {
-                probe.ringtone(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
+                probe.ringtone(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION), volume = 27)
                 assertEquals(AudioProbeKind.RINGTONE, probe.kind)
             }
+            compose.waitUntil(2_000) { probe.level == .27f }
             compose.waitUntil(5_000) { probe.kind == null }
-            compose.runOnIdle { assertTrue(probe.status.startsWith("Проверка завершена")) }
+            compose.runOnIdle { assertTrue(probe.status.startsWith("Проверка завершена")); assertEquals(0f, probe.level) }
         } finally { compose.runOnIdle { probe.close(); assertNull(probe.kind) } }
     }
 

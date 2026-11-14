@@ -45,17 +45,23 @@ import java.util.Locale
 @Composable
 internal fun MeetingsHeader(wide: Boolean, calendar: () -> Unit, recordings: () -> Unit,
     notificationBell: (@Composable () -> Unit)? = null) {
-    Row(Modifier.fillMaxWidth().heightIn(min = 75.dp).background(MaterialTheme.colorScheme.surface)
-        .padding(start = if (wide) 30.dp else 20.dp, end = if (wide) 24.dp else 14.dp, bottom = 0.dp)
-        .testTag("meetings-header"), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-        if (wide) Image(painterResource(R.drawable.ic_meetspace), null, Modifier.size(32.dp))
-        Text("Встречи", Modifier.weight(1f).semantics { heading() }, fontSize = if (wide) 25.sp else 23.sp, lineHeight = 31.sp, fontWeight = FontWeight.SemiBold,
-            maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (wide) 8.dp else 0.dp)) {
-            IconButton(calendar, Modifier.testTag("calls-calendar")) { Icon(Icons.Outlined.CalendarMonth, "Открыть календарь", Modifier.size(27.dp)) }
-            IconButton(recordings, Modifier.testTag("meeting-recordings")) { Icon(Icons.Outlined.PlayCircleOutline, "Записи встреч", Modifier.size(27.dp)) }
-            notificationBell?.invoke()
+    Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface)) {
+        Row(Modifier.fillMaxWidth().heightIn(min = 74.dp)
+            .padding(start = if (wide) 28.dp else 20.dp, end = if (wide) 27.dp else 18.dp)
+            .testTag("meetings-header"), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            if (wide) Image(painterResource(R.drawable.ic_meetspace), null, Modifier.size(32.dp))
+            Text("Встречи", Modifier.weight(1f).semantics { heading() }, fontSize = if (wide) 25.sp else 23.sp, lineHeight = 31.sp, fontWeight = FontWeight.SemiBold,
+                maxLines = 1, overflow = TextOverflow.Ellipsis)
+            CompositionLocalProvider(LocalWorkspaceHeaderIconSize provides if (wide) 27.dp else 24.dp) {
+                // Keep Android's 48dp touch targets around the reference's smaller outline icons.
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (wide) 6.dp else 0.dp)) {
+                    IconButton(calendar, Modifier.size(48.dp).testTag("calls-calendar")) { Icon(WorkspaceHeaderIcons.Calendar, "Открыть календарь", Modifier.size(LocalWorkspaceHeaderIconSize.current)) }
+                    IconButton(recordings, Modifier.size(48.dp).testTag("meeting-recordings")) { Icon(WorkspaceHeaderIcons.Recordings, "Записи встреч", Modifier.size(LocalWorkspaceHeaderIconSize.current)) }
+                    notificationBell?.invoke()
+                }
+            }
         }
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
     }
 }
 

@@ -15,7 +15,9 @@ import kotlin.coroutines.coroutineContext
 
 /** Bounded RAM history. Account/origin changes discard drafts, attachments and event state. */
 class MessagingViewModel(private val foundation: FoundationRepository, private val repository: MessagingRepository,
-    private val outgoingStore: OutgoingMessageStore = MemoryOutgoingMessageStore()) : ViewModel() {
+    private val outgoingStore: OutgoingMessageStore = MemoryOutgoingMessageStore(),
+    private val hiddenStore: HiddenChatMessages = MemoryHiddenChatMessages(),
+) : ViewModel() {
     private val mutable = MutableStateFlow(MessagingUiState(selfId = selfId()))
     val state = mutable.asStateFlow()
     private var account = scope()
@@ -34,6 +36,10 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
     private val durableOutgoing = mutableSetOf<String>()
     private val retiredOutgoing = linkedSetOf<String>()
     private var groupAttempt: Pair<String, String>? = null
+    private var hiddenIds = emptySet<String>()
+    private var hiddenIdsLoaded = false
+    private var latestHistoryMessage: Pair<Long, String>? = null
+    private var forwardRequestId: String? = null
     private data class History(val detail: ChatConversation?, val items: List<ChatMessage>, val cursor: String?)
     private val history = linkedMapOf<String, History>()
     private val eventIds = linkedSetOf<String>()
@@ -54,7 +60,11 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
         latestMessages = { cancel("context"); mutable.update { it.copy(viewingContext = false, focusedMessageId = null) }; loadMessages(false) },
         clearConversation = ::clearConversation, folderFilter = ::folderFilter,
         draft = ::draft, send = ::send, retryMessage = ::retryMessage, discardMessage = ::discardMessage, reply = ::reply, edit = ::edit, cancelCompose = ::cancelCompose,
-        delete = ::delete, markRead = ::markRead, removeAttachment = ::removeAttachment,
+        delete = ::delete, deleteForMe = ::deleteForMe, markRead = ::markRead, removeAttachment = ::removeAttachment,
+        forwardMessages = ::forwardMessages, searchForwardRecipients = ::searchForwardRecipients,
+        moreForwardRecipients = { loadForwardConversations(append = true) },
+        forwardToConversation = { sendForward(it, peer = false) },
+        forwardToUser = { sendForward(it, peer = true) }, closeForwarding = ::closeForwarding,
         searchUsers = ::searchUsers, createDirect = ::createDirect, createGroup = ::createGroup,
         loadMembers = ::loadMembers, editGroup = ::editGroup, deleteGroupAvatar = ::deleteGroupAvatar, addMember = ::addMember, removeMember = ::removeMember,
         leaveGroup = ::leaveGroup, deleteGroup = ::deleteGroup, conversationNotifications = ::conversationNotifications,
@@ -79,6 +89,7 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
     fun onCallEvent(listener: ((UserEvent) -> Unit)?) { callEventListener = listener }
     fun suspendWork() {
         generation++; jobs.values.toList().forEach(Job::cancel); jobs.clear(); tickets.clear()
+        hiddenIds = emptySet(); hiddenIdsLoaded = false; latestHistoryMessage = null; forwardRequestId = null
         stopEvents(); history.clear(); eventIds.clear(); readThrough.clear(); pendingNotifications.clear(); notificationPageCursors.clear(); outgoing.clear(); persisting.clear(); durableOutgoing.clear(); retiredOutgoing.clear(); groupAttempt = null; mutable.value = MessagingUiState()
     }
     override fun onCleared() { suspendWork(); notificationListener = null; callEventListener = null; super.onCleared() }
@@ -105,11 +116,11 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
         if (append && (cursor == null || s.conversations.loading)) return
         val old = s.conversations
         mutable.update { it.copy(conversations = old.copy(loading = true, error = null)) }
-        request("conversations", { if (debounce) delay(300); repository.conversations(ChatQuery(s.query, when (s.filter) { ChatFilter.DIRECT -> "direct"; ChatFilter.GROUP -> "group"; else -> null }, s.filter == ChatFilter.UNREAD, cursor)) }, { page ->
+        request("conversations", { if (debounce) delay(300); loadHiddenIds(); repository.conversations(ChatQuery(s.query, when (s.filter) { ChatFilter.DIRECT -> "direct"; ChatFilter.GROUP -> "group"; else -> null }, s.filter == ChatFilter.UNREAD, cursor)) }, { page ->
             verifyCursor(cursor, page.nextCursor)
             val items = if (append) merge(old.data.orEmpty(), page.items) { it.id } else page.items
-            mutable.update { it.copy(conversations = MessagingLoad(items.take(300)), conversationCursor = page.nextCursor.takeIf { items.size < 300 }) }
-        }, { e -> mutable.update { it.copy(conversations = old.copy(loading = false, error = e.message)) } })
+            mutable.update { it.copy(conversations = MessagingLoad(items.take(300).map(::visibleConversation)), conversationCursor = page.nextCursor.takeIf { items.size < 300 }) }
+        }, { e -> mutable.update { it.copy(conversations = it.conversations.copy(loading = false, error = e.message)) } })
     }
     fun open(id: String) {
         if (scope() == null || id == state.value.selectedId) return
@@ -118,16 +129,20 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
         val cached = history.remove(id)?.also { history[id] = it }
         mutable.update { it.copy(selectedId = id, detail = MessagingLoad(cached?.detail), messages = MessagingLoad(cached?.items), messageCursor = cached?.cursor,
             draft = it.drafts[id].orEmpty(), searchQuery = "", searchResults = MessagingLoad(), searchCursor = null, pins = MessagingLoad(), pinsCursor = null, focusedMessageId = null, viewingContext = false, replyTo = null, editing = null, attachments = emptyList(), members = MessagingLoad(), peerOnline = null,
-            localMessages = outgoing.values.filter { row -> row.targetId == id }, pendingSend = false, sending = false, attachmentBusy = false, avatarBusy = false, error = null, notice = null) }
+            localMessages = outgoing.values.filter { row -> row.targetId == id }, pendingSend = false, sending = false, attachmentBusy = false, avatarBusy = false, error = null, notice = null, forwarding = null) }
         trimOutgoing(); loadDetail(); loadMessages(false); loadPins()
     }
     fun back() {
         rememberDraft(); rememberHistory(); cancelConversationWork()
         mutable.update { it.copy(selectedId = null, detail = MessagingLoad(), messages = MessagingLoad(), messageCursor = null,
             draft = "", searchQuery = "", searchResults = MessagingLoad(), searchCursor = null, pins = MessagingLoad(), pinsCursor = null, focusedMessageId = null, viewingContext = false, attachments = emptyList(), replyTo = null, editing = null, members = MessagingLoad(),
-            localMessages = emptyList(), pendingSend = false, sending = false, attachmentBusy = false, avatarBusy = false, peerOnline = null) }
+            localMessages = emptyList(), pendingSend = false, sending = false, attachmentBusy = false, avatarBusy = false, peerOnline = null, forwarding = null) }
     }
-    private fun cancelConversationWork() { listOf("outgoing-load", "detail", "messages", "members", "presence", "send", "attachment", "export", "read", "searchMessages", "pins", "context", "group-avatar").forEach(::cancel) }
+    private fun cancelConversationWork() {
+        listOf("outgoing-load", "detail", "messages", "members", "presence", "send", "attachment", "export", "read", "searchMessages", "pins", "context", "group-avatar").forEach(::cancel)
+        latestHistoryMessage = null
+        resetForwarding()
+    }
     private fun rememberHistory() {
         val s = state.value; val id = s.selectedId ?: return
         if (s.messages.data != null) history[id] = History(s.detail.data, s.messages.data.takeLast(200), s.messageCursor)
@@ -137,12 +152,12 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
     private fun loadDetail() {
         val id = state.value.selectedId ?: return; val old = state.value.detail
         mutable.update { it.copy(detail = old.copy(loading = true, error = null)) }
-        request("detail", { repository.conversation(id) }, { detail ->
+        request("detail", { loadHiddenIds(); repository.conversation(id) }, { detail ->
             val latest = detail.lastMessageId ?: state.value.messages.data?.lastOrNull()?.id
             val projection = if (latest != null && latest == readThrough[id]) detail.copy(unreadCount = 0) else detail
-            mutable.update { it.copy(detail = MessagingLoad(projection)) }
+            mutable.update { it.copy(detail = MessagingLoad(visibleConversation(projection))) }
             if (detail.type == "direct") request("presence", { repository.peerPresence(id) }, { online -> mutable.update { it.copy(peerOnline = online) } }, { mutable.update { it.copy(peerOnline = null) } })
-        }, { e -> if (!accessDenied(id, e)) mutable.update { it.copy(detail = old.copy(loading = false, error = e.message)) } })
+        }, { e -> if (!accessDenied(id, e)) mutable.update { it.copy(detail = it.detail.copy(loading = false, error = e.message)) } })
     }
     private fun loadMessages(append: Boolean) {
         if (state.value.viewingContext) return
@@ -150,19 +165,25 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
         if (append && (cursor == null || s.messages.loading)) return
         val old = s.messages
         mutable.update { it.copy(messages = old.copy(loading = true, error = null)) }
-        request("messages", { repository.messages(id, cursor) }, { page ->
+        request("messages", { loadHiddenIds(); repository.messages(id, cursor) }, { page ->
             verifyCursor(cursor, page.nextCursor)
+            if (!append) latestHistoryMessage = page.items.maxByOrNull { it.sequence }?.let { it.sequence to it.id }
             val retained = if (append) old.data.orEmpty() else old.data.orEmpty().filter { known -> page.items.any { it.id == known.id } }
             // Older pagination moves the bounded window towards the requested page.
             // Its cursor remains usable even when the in-memory window is full.
             val items = mergeMessages(retained, page.items, keepOldest = append)
             mutable.update { it.copy(messages = MessagingLoad(items), messageCursor = page.nextCursor) }
             page.lastReadMessageId?.let { readThrough[id] = it }
-            mutable.update { it.copy(detail = it.detail.copy(data = it.detail.data?.copy(unreadCount =
-                if (items.lastOrNull()?.id != null && items.last().id == readThrough[id]) 0 else page.unreadCount))) }
+            mutable.update { current ->
+                val latestId = latestHistoryMessage?.second
+                current.copy(detail = current.detail.copy(data = current.detail.data?.let { detail ->
+                    visibleConversation(detail.copy(unreadCount = if (latestId != null && latestId == readThrough[id]) 0 else page.unreadCount))
+                }), conversations = current.conversations.copy(data = current.conversations.data?.map(::visibleConversation)),
+                    folderEntries = current.folderEntries.copy(data = current.folderEntries.data?.map(::visibleFolderEntry)))
+            }
             reconcileOutgoing(id, page.items)
             rememberHistory(); if (!append && foreground && visible) markRead()
-        }, { e -> if (!accessDenied(id, e)) mutable.update { it.copy(messages = old.copy(loading = false, error = e.message)) } })
+        }, { e -> if (!accessDenied(id, e)) mutable.update { it.copy(messages = it.messages.copy(loading = false, error = e.message)) } })
     }
     private fun accessDenied(id: String, error: AppFailure): Boolean {
         if (error.kind !in setOf(FailureKind.FORBIDDEN, FailureKind.NOT_FOUND)) return false
@@ -179,9 +200,11 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
         if (resourceDenied(error) && state.value.selectedId == id) loadDetail()
     }
     fun draft(value: String) { if (!state.value.sending) mutable.update { it.copy(draft = value.take(8000), drafts = boundedDrafts(it.drafts, it.selectedId, value.take(8000))) } }
-    fun reply(message: ChatMessage) { if (message.kind == "message" && !state.value.sending && message.deletedAt == null) mutable.update { it.copy(replyTo = message, editing = null) } }
+    fun reply(message: ChatMessage) {
+        if (canActOnMessage(message) && !state.value.sending) mutable.update { it.copy(replyTo = message, editing = null) }
+    }
     fun edit(message: ChatMessage) {
-        if (message.kind != "message" || state.value.sending || message.senderId != selfId() || message.deletedAt != null) return
+        if (!canActOnMessage(message) || state.value.sending || message.senderId != selfId() || message.forwardedSenderName != null) return
         mutable.update { it.copy(editing = message, replyTo = null, draft = message.text, attachments = emptyList()) }
     }
     fun cancelCompose() { mutable.update { it.copy(editing = null, replyTo = null, draft = "") } }
@@ -288,12 +311,208 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
             .toList().forEach { row -> cancel("outgoing-${row.clientRequestId}"); removeOutgoing(identity, row) }
     }
     fun delete(message: ChatMessage) {
-        if (message.kind != "message") return
+        if (!canActOnMessage(message) || message.senderId != selfId()) return
         val id = state.value.selectedId ?: return
         mutate({ repository.deleteMessage(id, message.id) }) { result ->
             mutable.update { it.copy(messages = MessagingLoad(mergeMessages(it.messages.data.orEmpty(), listOf(result)))) }
             history.remove(id); loadMessages(false); loadConversations(false)
         }
+    }
+    private fun canActOnMessage(message: ChatMessage): Boolean = message.conversationId == state.value.selectedId &&
+        message.kind == "message" && message.deletedAt == null && message.id !in hiddenIds
+
+    private fun currentSelection(messages: List<ChatMessage>): List<ChatMessage>? {
+        val s = state.value
+        val current = s.messages.data.orEmpty().associateBy { it.id }
+        return messages.distinctBy { it.id }.map { original ->
+            if (original.conversationId != s.selectedId) return null
+            current[original.id]?.takeIf(::canActOnMessage) ?: return null
+        }.takeIf { it.isNotEmpty() }
+    }
+
+    fun deleteForMe(messages: List<ChatMessage>) {
+        if (state.value.bulkDeleting) return
+        if (scope() != account) return
+        val identity = hiddenScope() ?: return
+        val selection = currentSelection(messages) ?: return message("Выбранные сообщения больше недоступны.")
+        val conversationId = selection.first().conversationId
+        mutable.update { it.copy(bulkDeleting = true, error = null, notice = null) }
+        request("hide-messages", { storeHiddenIds { hiddenStore.hide(identity, selection.map { it.id }.toSet()) } }, { stored ->
+            hiddenIds = hiddenIds + stored
+            hiddenIdsLoaded = true
+            history.replaceAll { _, previous -> previous.copy(detail = previous.detail?.let(::visibleConversation), items = visibleMessages(previous.items)) }
+            if (state.value.forwarding?.messages.orEmpty().any { it.id in hiddenIds }) resetForwarding()
+            mutable.update { current ->
+                val same = current.selectedId == conversationId
+                val hiddenFocus = current.focusedMessageId in hiddenIds
+                val hiddenEdit = current.editing?.id in hiddenIds
+                current.copy(
+                    messages = current.messages.copy(data = current.messages.data?.let(::visibleMessages)),
+                    searchResults = current.searchResults.copy(data = current.searchResults.data?.let(::visibleMessages)),
+                    pins = current.pins.copy(data = current.pins.data?.let(::visibleMessages)),
+                    focusedMessageId = current.focusedMessageId.takeUnless { hiddenFocus },
+                    viewingContext = current.viewingContext && !hiddenFocus,
+                    replyTo = current.replyTo?.takeUnless { it.id in hiddenIds },
+                    editing = current.editing.takeUnless { hiddenEdit },
+                    draft = if (hiddenEdit) "" else current.draft,
+                    detail = current.detail.copy(data = current.detail.data?.let(::visibleConversation)),
+                    conversations = current.conversations.copy(data = current.conversations.data?.map(::visibleConversation)),
+                    folderEntries = current.folderEntries.copy(data = current.folderEntries.data?.map(::visibleFolderEntry)),
+                    folderCandidates = current.folderCandidates.copy(data = current.folderCandidates.data?.map(::visibleFolderEntry)),
+                    forwarding = current.forwarding?.takeUnless { it.messages.any { item -> item.id in hiddenIds } },
+                    bulkDeleting = false,
+                    bulkDeleteRevision = current.bulkDeleteRevision + if (same) 1 else 0,
+                )
+            }
+            if (state.value.selectedId == conversationId) rememberHistory()
+        }, { e -> mutable.update { it.copy(bulkDeleting = false, error = e.message) } })
+    }
+
+    private suspend fun loadHiddenIds() {
+        if (hiddenIdsLoaded) return
+        checkCurrent()
+        val identity = hiddenScope() ?: throw CancellationException("Scope changed")
+        val stored = storeHiddenIds { hiddenStore.ids(identity) }
+        checkCurrent()
+        hiddenIds = hiddenIds + stored
+        hiddenIdsLoaded = true
+    }
+
+    private suspend fun storeHiddenIds(operation: suspend () -> Set<String>): Set<String> = try {
+        operation()
+    } catch (error: CancellationException) {
+        throw error
+    } catch (_: Exception) {
+        throw AppFailure(FailureKind.STORAGE, "Не удалось открыть или сохранить список удалённых на этом устройстве сообщений.")
+    }
+
+    private fun visibleMessages(items: List<ChatMessage>): List<ChatMessage> = items.mapNotNull { item ->
+        when {
+            item.id in hiddenIds -> null
+            item.replyPreview?.id in hiddenIds -> item.copy(replyPreview = null)
+            else -> item
+        }
+    }
+
+    private fun visibleConversation(item: ChatConversation): ChatConversation {
+        if (item.lastMessageId !in hiddenIds) return item
+        val current = state.value
+        val available = if (item.id == current.selectedId && !current.viewingContext) current.messages.data
+            else history[item.id]?.items
+        val previous = available.orEmpty().lastOrNull { it.id !in hiddenIds && item.lastMessageAt?.let { date -> it.createdAt <= date } == true }
+        val preview = when {
+            previous == null -> ""
+            previous.deletedAt != null -> "Сообщение удалено"
+            previous.kind == "call" -> if (previous.senderId == current.selfId) "Исходящий звонок" else "Входящий звонок"
+            previous.text.isNotBlank() -> previous.text.take(160)
+            else -> "Вложение"
+        }
+        return item.copy(preview = preview, lastSender = previous?.let { ChatPeer(it.senderId, it.senderName) })
+    }
+
+    private fun visibleFolderEntry(item: FolderEntry): FolderEntry = item.copy(conversation = item.conversation?.let(::visibleConversation))
+
+    fun forwardMessages(messages: List<ChatMessage>) {
+        if (scope() == null || state.value.bulkDeleting || state.value.forwarding != null) return
+        val selection = currentSelection(messages) ?: return message("Выбранные сообщения больше недоступны.")
+        val attachments = selection.flatMap { it.attachments }
+        if (selection.size > 30 || attachments.size > 20 || attachments.sumOf { it.size } > 100L * 1024 * 1024) {
+            message("За раз можно переслать до 30 сообщений и 20 вложений общим размером до 100 МБ.")
+            return
+        }
+        forwardRequestId = UUID.randomUUID().toString()
+        mutable.update { it.copy(forwarding = ChatForwardUiState(selection), error = null, notice = null) }
+        loadForwardConversations()
+    }
+
+    fun searchForwardRecipients(value: String) {
+        val current = state.value.forwarding ?: return
+        if (current.busy) return
+        val query = value.take(100)
+        val searchPeople = query.trim().let { it.codePointCount(0, it.length) >= 2 }
+        cancel("forward-users")
+        mutable.update { it.copy(forwarding = current.copy(query = query, conversations = MessagingLoad(),
+            users = MessagingLoad(loading = searchPeople), cursor = null, error = null)) }
+        loadForwardConversations(debounce = true)
+        if (searchPeople) request("forward-users", { delay(250); repository.searchPeers(query.trim()) }, { people ->
+            updateForwarding { it.copy(users = MessagingLoad(people.distinctBy { user -> user.id }.filterNot { user -> user.id == selfId() })) }
+        }, { error -> updateForwarding { it.copy(users = MessagingLoad(error = error.message)) } })
+    }
+
+    private fun loadForwardConversations(append: Boolean = false, debounce: Boolean = false) {
+        val current = state.value.forwarding ?: return
+        val cursor = current.cursor.takeIf { append }
+        if (current.busy || append && (cursor == null || current.conversations.loading)) return
+        updateForwarding { it.copy(conversations = it.conversations.copy(loading = true, error = null)) }
+        request("forward-conversations", {
+            if (debounce) delay(250)
+            repository.conversations(ChatQuery(search = current.query.trim(), cursor = cursor))
+        }, { page ->
+            verifyCursor(cursor, page.nextCursor)
+            updateForwarding {
+                val retained = it.conversations.data.orEmpty().takeIf { append }.orEmpty()
+                val conversations = merge(retained, page.items) { chat -> chat.id }.filter { chat -> chat.type == "direct" || chat.type == "group" }
+                it.copy(conversations = MessagingLoad(conversations.take(300).map(::visibleConversation)), cursor = page.nextCursor.takeIf { conversations.size < 300 })
+            }
+        }, { error -> updateForwarding { it.copy(conversations = it.conversations.copy(loading = false, error = error.message)) } })
+    }
+
+    private fun sendForward(recipientId: String, peer: Boolean) {
+        val s = state.value
+        val dialog = s.forwarding ?: return
+        val sourceId = s.selectedId ?: return
+        val requestId = forwardRequestId ?: return
+        if (dialog.busy || s.bulkDeleting) return
+        if (currentSelection(dialog.messages) == null) {
+            updateForwarding { it.copy(error = "Выбранные сообщения больше недоступны.") }
+            return
+        }
+        val known = if (peer) dialog.users.data.orEmpty().any { it.id == recipientId }
+            else dialog.conversations.data.orEmpty().any { it.id == recipientId }
+        if (!known) return
+        val messageIds = dialog.messages.map { it.id }
+        updateForwarding { it.copy(busy = true, error = null) }
+        request("forward-send", {
+            checkCurrent()
+            val destination = if (peer) repository.createDirect(recipientId).also { chat ->
+                if (chat.type != "direct" || chat.peer?.id != recipientId) {
+                    throw AppFailure(FailureKind.INVALID_RESPONSE, "Сервер вернул данные другого получателя.")
+                }
+            }.id else recipientId
+            checkCurrent()
+            destination to repository.forwardMessages(destination, sourceId, messageIds, requestId)
+        }, { (destination, forwarded) ->
+            resetForwarding()
+            if (destination != sourceId) {
+                history.remove(destination)
+                open(destination)
+            } else {
+                cancel("messages")
+                cancel("context")
+            }
+            val notice = if (forwarded.size == 1) "Сообщение переслано." else "Переслано сообщений: ${forwarded.size}."
+            mutable.update { it.copy(forwarding = null, viewingContext = false, focusedMessageId = null,
+                messages = it.messages.copy(data = mergeMessages(it.messages.data.orEmpty(), forwarded)), notice = notice) }
+            rememberHistory()
+            if (destination == sourceId) loadMessages(false)
+            loadConversations(false)
+            if (state.value.selectedFolderId != null) loadFolder(false, false)
+        }, { error -> updateForwarding { it.copy(busy = false, error = error.message) } })
+    }
+
+    fun closeForwarding() {
+        if (state.value.forwarding?.busy == true) return
+        resetForwarding()
+        updateForwarding { null }
+    }
+
+    private fun resetForwarding() {
+        listOf("forward-conversations", "forward-users", "forward-send").forEach(::cancel)
+        forwardRequestId = null
+    }
+
+    private fun updateForwarding(update: (ChatForwardUiState) -> ChatForwardUiState?) {
+        mutable.update { it.copy(forwarding = it.forwarding?.let(update)) }
     }
     private fun boundedDrafts(values: Map<String, String>, id: String?, text: String): Map<String, String> {
         if (id == null) return values
@@ -317,9 +536,9 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
         cancel("searchMessages")
         mutable.update { it.copy(searchQuery = q, searchResults = if (append) it.searchResults.copy(loading = true, error = null) else MessagingLoad(loading = q.trim().length >= 2), searchCursor = cursor) }
         if (q.trim().length < 2) return
-        request("searchMessages", { delay(300); repository.searchMessages(id, q.trim(), cursor) }, { page ->
+        request("searchMessages", { delay(300); loadHiddenIds(); repository.searchMessages(id, q.trim(), cursor) }, { page ->
             verifyCursor(cursor, page.nextCursor)
-            mutable.update { it.copy(searchResults = MessagingLoad((if (append) merge(it.searchResults.data.orEmpty(), page.items) { it.id } else page.items).take(200)), searchCursor = page.nextCursor.takeIf { _ -> (it.searchResults.data?.size ?: 0) < 180 }) }
+            mutable.update { it.copy(searchResults = MessagingLoad(visibleMessages(if (append) merge(it.searchResults.data.orEmpty(), page.items) { it.id } else page.items).take(200)), searchCursor = page.nextCursor.takeIf { _ -> (it.searchResults.data?.size ?: 0) < 180 }) }
         }, { e ->
             mutable.update { it.copy(searchResults = if (resourceDenied(e)) MessagingLoad(error = e.message) else it.searchResults.copy(loading = false, error = e.message),
                 searchCursor = it.searchCursor.takeUnless { resourceDenied(e) }) }
@@ -330,9 +549,9 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
         val s = state.value; val id = s.selectedId ?: return; val cursor = s.pinsCursor.takeIf { append }
         if (append && (cursor == null || s.pins.loading)) return
         mutable.update { it.copy(pins = it.pins.copy(loading = true, error = null)) }
-        request("pins", { repository.messagePins(id, cursor) }, { page ->
+        request("pins", { loadHiddenIds(); repository.messagePins(id, cursor) }, { page ->
             verifyCursor(cursor, page.nextCursor)
-            mutable.update { it.copy(pins = MessagingLoad((if (append) merge(it.pins.data.orEmpty(), page.items) { it.id } else page.items).take(100)), pinsCursor = page.nextCursor) }
+            mutable.update { it.copy(pins = MessagingLoad(visibleMessages(if (append) merge(it.pins.data.orEmpty(), page.items) { it.id } else page.items).take(100)), pinsCursor = page.nextCursor) }
         }, { e ->
             mutable.update { it.copy(pins = if (resourceDenied(e)) MessagingLoad(error = e.message) else it.pins.copy(loading = false, error = e.message),
                 pinsCursor = it.pinsCursor.takeUnless { resourceDenied(e) }) }
@@ -341,7 +560,7 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
     }
     fun pin(message: ChatMessage, pinned: Boolean) {
         val id = state.value.selectedId ?: return
-        if (message.conversationId != id || message.kind != "message" || message.deletedAt != null) return
+        if (!canActOnMessage(message)) return
         mutate({ repository.pinMessage(id, message.id, pinned) }, revise = false, optionalResource = true) {
             mutable.update { it.copy(messages = it.messages.copy(data = it.messages.data?.map { m -> if (m.id == message.id) m.copy(pinned = pinned) else m })) }
             loadPins()
@@ -349,10 +568,19 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
     }
     fun focusMessage(messageId: String) {
         val id = state.value.selectedId ?: return
+        if (messageId in hiddenIds) return
         cancel("messages"); mutable.update { it.copy(viewingContext = true, messages = it.messages.copy(loading = true, error = null)) }
-        request("context", { repository.messageContext(id, messageId) }, { page ->
+        request("context", {
+            loadHiddenIds()
+            if (messageId in hiddenIds) null else repository.messageContext(id, messageId)
+        }, { page ->
+            if (page == null || messageId in hiddenIds) {
+                mutable.update { it.copy(viewingContext = false, focusedMessageId = null) }
+                loadMessages(false)
+                return@request
+            }
             if (page.items.none { it.id == messageId }) throw AppFailure(FailureKind.INVALID_RESPONSE, "Сообщение больше недоступно. Обновите историю.")
-            mutable.update { it.copy(messages = MessagingLoad(page.items.sortedBy { m -> m.sequence }), focusedMessageId = messageId, messageCursor = null) }
+            mutable.update { it.copy(messages = MessagingLoad(visibleMessages(page.items).sortedBy { m -> m.sequence }), focusedMessageId = messageId, messageCursor = null) }
         }, { e ->
             val denied = resourceDenied(e)
             mutable.update { it.copy(messages = if (denied) MessagingLoad(error = e.message) else it.messages.copy(loading = false, error = e.message),
@@ -367,7 +595,7 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
         mutate({ repository.clearConversation(id, hide) }) {
             cancelConversationWork(); history.remove(id)
             mutable.update { it.copy(messages = MessagingLoad(), pins = MessagingLoad(), searchResults = MessagingLoad(), drafts = it.drafts - id,
-                draft = "", replyTo = null, editing = null, attachments = emptyList(), sending = false, pendingSend = false, viewingContext = false, focusedMessageId = null) }
+                draft = "", replyTo = null, editing = null, attachments = emptyList(), sending = false, pendingSend = false, viewingContext = false, focusedMessageId = null, forwarding = null) }
             if (hide) { back(); history.remove(id) } else { loadMessages(false); loadPins() }
             loadConversations(false); loadFolders()
         }
@@ -375,10 +603,11 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
     fun markRead() {
         val id = state.value.selectedId ?: return
         if (!foreground || !visible || state.value.viewingContext) return
-        val newest = state.value.messages.data?.maxByOrNull { it.sequence } ?: return
-        if (readThrough[id] == newest.id || jobs["read"]?.isActive == true) return
-        request("read", { repository.markConversationRead(id, newest.id) }, { read ->
-            readThrough[id] = newest.id
+        val visibleLatest = state.value.messages.data?.maxByOrNull { it.sequence }?.let { it.sequence to it.id }
+        val newestId = listOfNotNull(latestHistoryMessage, visibleLatest).maxByOrNull { it.first }?.second ?: return
+        if (readThrough[id] == newestId || jobs["read"]?.isActive == true) return
+        request("read", { repository.markConversationRead(id, newestId) }, { read ->
+            readThrough[id] = newestId
             mutable.update { it.copy(detail = it.detail.copy(data = it.detail.data?.copy(unreadCount = read.unreadCount)), conversations = it.conversations.copy(data = it.conversations.data?.map { c -> if (c.id == id) c.copy(unreadCount = read.unreadCount) else c })) }
         }, { e -> accessDenied(id, e) })
     }
@@ -432,7 +661,7 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
     }
     private fun groupChange(block: suspend (String) -> ChatConversation) {
         val id = state.value.selectedId ?: return
-        mutate({ block(id) }) { result -> mutable.update { it.copy(detail = MessagingLoad(result)) }; if (result.type == "group") loadMembers(); loadConversations(false) }
+        mutate({ block(id) }) { result -> mutable.update { it.copy(detail = MessagingLoad(visibleConversation(result))) }; if (result.type == "group") loadMembers(); loadConversations(false) }
     }
     fun editGroup(name: String, description: String) = groupChange { repository.updateGroup(it, name, description) }
     fun uploadGroupAvatar(mimeType: String, bytes: ByteArray) = groupAvatarChange(mimeType, bytes)
@@ -452,7 +681,7 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
                 else repository.deleteGroupAvatar(id)
             } finally { bytes?.fill(0) }
         }, { result ->
-            mutable.update { it.copy(detail = MessagingLoad(result), avatarBusy = false, avatarRevision = it.avatarRevision + 1) }
+            mutable.update { it.copy(detail = MessagingLoad(visibleConversation(result)), avatarBusy = false, avatarRevision = it.avatarRevision + 1) }
             loadConversations(false)
         }, { error ->
             mutable.update { it.copy(avatarBusy = false, error = error.message, avatarRevision = it.avatarRevision + 1) }
@@ -491,10 +720,13 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
         fun update(load: MessagingLoad<List<FolderEntry>>, next: String?) { mutable.update { if (candidates) it.copy(folderCandidates = load, candidateCursor = next) else it.copy(folderEntries = load, folderCursor = next) } }
         update(old.copy(loading = true, error = null), cursor)
         request(if (candidates) "folderCandidates" else "folderItems",
-            { if (!append) delay(250); repository.folderItems(id, FolderQuery(type = if (candidates) "all" else s.folderFilter, search = if (candidates) s.candidateQuery else s.query, cursor = cursor, candidates = candidates)) },
+            { if (!append) delay(250); loadHiddenIds(); repository.folderItems(id, FolderQuery(type = if (candidates) "all" else s.folderFilter, search = if (candidates) s.candidateQuery else s.query, cursor = cursor, candidates = candidates)) },
             { page -> verifyCursor(cursor, page.nextCursor); val items = if (append) merge(old.data.orEmpty(), page.items) { it.type + it.id } else page.items
-                update(MessagingLoad(items.take(300)), page.nextCursor.takeIf { items.size < 300 }) },
-            { e -> update(old.copy(loading = false, error = e.message), cursor) })
+                update(MessagingLoad(items.take(300).map(::visibleFolderEntry)), page.nextCursor.takeIf { items.size < 300 }) },
+            { e ->
+                val current = if (candidates) state.value.folderCandidates else state.value.folderEntries
+                update(current.copy(loading = false, error = e.message), cursor)
+            })
     }
     fun folderMembership(folder: String, kind: String, id: String, included: Boolean) =
         mutate({ repository.setFolderItem(folder, kind, id, included) }, false) { loadFolders(); loadFolder(false, false); loadFolder(true, false) }
@@ -705,7 +937,9 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
             message("Чат скрыт или доступ к нему закрыт.")
         } else if (event.conversationId == state.value.selectedId && event.type == "conversation.history.cleared") {
             cancel("messages"); cancel("searchMessages"); cancel("pins"); cancel("context")
-            mutable.update { it.copy(messages = MessagingLoad(), pins = MessagingLoad(), searchResults = MessagingLoad(), viewingContext = false, focusedMessageId = null, drafts = it.drafts - it.selectedId.orEmpty(), draft = "", replyTo = null, editing = null, attachments = emptyList(), pendingSend = false) }
+            resetForwarding()
+            latestHistoryMessage = null
+            mutable.update { it.copy(messages = MessagingLoad(), pins = MessagingLoad(), searchResults = MessagingLoad(), viewingContext = false, focusedMessageId = null, drafts = it.drafts - it.selectedId.orEmpty(), draft = "", replyTo = null, editing = null, attachments = emptyList(), pendingSend = false, forwarding = null) }
         } else if (event.conversationId == state.value.selectedId && event.type == "message.deleted") {
             listOf("messages", "pins", "searchMessages", "context").forEach(::cancel)
             mutable.update { it.copy(messages = MessagingLoad(), pins = MessagingLoad(), searchResults = MessagingLoad(), viewingContext = false, focusedMessageId = null, replyTo = null, editing = null) }
@@ -728,6 +962,12 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
     private fun scope(): String? {
         val s = foundation.state.value; if (s.session?.guestMeeting != null) return null; val p = s.selectedProfile ?: return null; val user = s.session?.user ?: return null
         return listOf(p.id, p.origin, user.id).joinToString("|")
+    }
+    private fun hiddenScope(): String? {
+        val current = foundation.state.value
+        val origin = current.selectedProfile?.origin ?: return null
+        val user = current.session?.takeIf { it.guestMeeting == null }?.user ?: return null
+        return "$origin|${user.id}"
     }
     private suspend fun checkCurrent() { coroutineContext.ensureActive(); if (scope() != account) throw CancellationException("Scope changed") }
     private fun cancel(key: String) { tickets[key] = ++nextTicket; jobs.remove(key)?.cancel() }
@@ -764,12 +1004,15 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
     private fun verifyCursor(previous: String?, next: String?) { if (previous != null && previous == next) throw AppFailure(FailureKind.INVALID_RESPONSE, "Сервер повторил страницу. Обновите список.") }
     private fun <T> merge(old: List<T>, new: List<T>, key: (T) -> String): List<T> = (old + new).associateBy(key).values.toList()
     private fun mergeMessages(old: List<ChatMessage>, new: List<ChatMessage>, keepOldest: Boolean = false): List<ChatMessage> =
-        (old + new).groupBy { it.id }.values.map { copies -> copies.maxWith(compareBy<ChatMessage> { it.version }.thenBy { it.updatedAt }) }
+        visibleMessages((old + new).groupBy { it.id }.values.map { copies -> copies.maxWith(compareBy<ChatMessage> { it.version }.thenBy { it.updatedAt }) })
             .sortedWith(compareBy<ChatMessage> { it.sequence }.thenBy { it.createdAt })
             .let { if (keepOldest) it.take(200) else it.takeLast(200) }
-    class Factory(private val foundation: FoundationRepository, private val repository: MessagingRepository, private val outgoingStore: OutgoingMessageStore = MemoryOutgoingMessageStore()) : ViewModelProvider.Factory {
+    class Factory(private val foundation: FoundationRepository, private val repository: MessagingRepository,
+        private val outgoingStore: OutgoingMessageStore = MemoryOutgoingMessageStore(),
+        private val hiddenStore: HiddenChatMessages = MemoryHiddenChatMessages(),
+    ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST") override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            require(modelClass.isAssignableFrom(MessagingViewModel::class.java)); return MessagingViewModel(foundation, repository, outgoingStore) as T
+            require(modelClass.isAssignableFrom(MessagingViewModel::class.java)); return MessagingViewModel(foundation, repository, outgoingStore, hiddenStore) as T
         }
     }
 }

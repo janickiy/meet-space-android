@@ -122,6 +122,7 @@ fun ProfileWorkspace(
             val wide = maxWidth / LocalDensity.current.fontScale.coerceAtLeast(1f) >= 780.dp
             val videoColumns = maxWidth / LocalDensity.current.fontScale.coerceAtLeast(1f) >= 1100.dp
             val panelPadding = (maxWidth * .04f).coerceIn(26.dp, 54.dp)
+            val compactPanelPadding = if (section == AccountSection.AUDIO && maxWidth <= 360.dp) 16.dp else 20.dp
             val sidebarWidth = if (maxWidth >= 1100.dp) 270.dp else 240.dp
             val back = { if (section == AccountSection.ADD_ACCOUNT) section = AccountSection.ACCOUNTS else detailOpen = false }
             BackHandler(section == AccountSection.ADD_ACCOUNT || !wide && detailOpen) { if (!busy) back() }
@@ -138,11 +139,17 @@ fun ProfileWorkspace(
                     }
                     if (wide || detailOpen) {
                         Column(Modifier.weight(1f).fillMaxHeight().wrapContentWidth(Alignment.Start).widthIn(max = 860.dp).fillMaxWidth().verticalScroll(rememberScrollState())
-                            .padding(horizontal = if (wide) panelPadding else 20.dp, vertical = if (wide) 36.dp else 18.dp)
+                            .padding(horizontal = if (wide) panelPadding else compactPanelPadding, vertical = if (wide) 36.dp else 18.dp)
                             .testTag("account-panel-${section.name.lowercase()}"), verticalArrangement = Arrangement.spacedBy(0.dp)) {
                             if (!wide) {
-                                TextButton({ back() }, enabled = !busy, contentPadding = PaddingValues(0.dp), modifier = Modifier.heightIn(min = 48.dp).testTag("account-back")) {
-                                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, null, Modifier.size(19.dp)); Spacer(Modifier.width(8.dp)); Text(if (section == AccountSection.ADD_ACCOUNT) "Аккаунты" else "Все настройки", fontSize = 12.6.sp)
+                                CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides if (section == AccountSection.AUDIO) 44.dp else 48.dp) {
+                                    TextButton({ back() }, enabled = !busy, contentPadding = PaddingValues(0.dp), modifier = Modifier.heightIn(min = if (section == AccountSection.AUDIO) 44.dp else 48.dp).testTag("account-back")) {
+                                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, null, Modifier.size(if (section == AccountSection.AUDIO) 16.dp else 19.dp))
+                                        Spacer(Modifier.width(8.dp))
+                                        Text(if (section == AccountSection.ADD_ACCOUNT) "Аккаунты" else "Все настройки", fontSize = 12.6.sp,
+                                            fontWeight = if (section == AccountSection.AUDIO) FontWeight.Normal else null,
+                                            letterSpacing = if (section == AccountSection.AUDIO) 0.sp else androidx.compose.ui.unit.TextUnit.Unspecified)
+                                    }
                                 }
                                 Spacer(Modifier.height(22.dp))
                             }

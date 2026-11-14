@@ -4,43 +4,42 @@ import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material.icons.outlined.Key
-import androidx.compose.material.icons.outlined.Dns
-import androidx.compose.material.icons.outlined.CheckCircleOutline
-import androidx.compose.material.icons.outlined.ErrorOutline
-import androidx.compose.material.icons.outlined.Visibility
-import androidx.compose.material.icons.outlined.VisibilityOff
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.*
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.meetspace.app.SshWizardStep
 import com.meetspace.app.SshWizardUiState
-import com.meetspace.core.designsystem.MeetSpaceTokens
 import com.meetspace.core.model.*
 import com.meetspace.core.ssh.SshInputValidator
 
@@ -65,49 +64,80 @@ fun SshWizardUi(
 ) {
     val back = { if (state.busy) onCancel() else if (state.step == SshWizardStep.DETAILS) onExit() else onBack() }
     BackHandler(onBack = back)
-    Scaffold(modifier.testTag("ssh-wizard"), contentWindowInsets = WindowInsets.safeDrawing, containerColor = MaterialTheme.colorScheme.surface) { insets ->
-        IntroFrame(message = listOf(state.step.name, state.error, state.notice).joinToString(), modifier = Modifier.padding(insets).imePadding(), install = true) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = back, modifier = Modifier.heightIn(min = 48.dp).testTag("ssh-back")) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = null)
-                        Spacer(Modifier.width(8.dp)); Text(if (state.busy) "Отменить" else "Назад")
-                    }
-                    IconButton(onClick = onExit, modifier = Modifier.size(48.dp).testTag("ssh-exit")) {
-                        Icon(Icons.Outlined.Close, contentDescription = "Закрыть SSH-проверку")
-                    }
+    Scaffold(modifier.testTag("ssh-wizard"), contentWindowInsets = WindowInsets.safeDrawing, containerColor = MaterialTheme.colorScheme.background) { insets ->
+        IntroFrame(message = listOf(state.step.name, state.error, state.notice).joinToString(), modifier = Modifier.padding(insets).imePadding(), install = true,
+            topBar = {
+                TextButton(onClick = back, contentPadding = PaddingValues(vertical = 10.dp),
+                    modifier = Modifier.heightIn(min = 48.dp).testTag("ssh-back")) {
+                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(if (state.busy) "Отменить" else "Назад", fontSize = if (LocalOnboardingWide.current) 15.sp else 16.sp,
+                        lineHeight = 24.sp, fontWeight = FontWeight.Medium, letterSpacing = 0.sp)
                 }
-                OnboardingProgress(state.step.ordinal + 1)
-                Text(when (state.step) { SshWizardStep.DETAILS -> "СОБСТВЕННАЯ ИНФРАСТРУКТУРА"; SshWizardStep.VERIFY_HOST -> "ИДЕНТИЧНОСТЬ СЕРВЕРА"; SshWizardStep.AUTH -> "ДОСТУП ПО SSH"; SshWizardStep.RESULTS -> "ПЕРЕД УСТАНОВКОЙ" }, style = MaterialTheme.typography.labelSmall, letterSpacing = 1.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(when (state.step) { SshWizardStep.DETAILS -> "Начнём с сервера."; SshWizardStep.VERIFY_HOST -> "Знакомимся\nбезопасно."; SshWizardStep.AUTH -> "Доступ к серверу."; SshWizardStep.RESULTS -> if (state.report?.hasBlockers == true) "Проверим ограничения." else "Всё по плану." }, style = MaterialTheme.typography.headlineLarge, modifier = Modifier.semantics { heading() })
-                Text(when (state.step) { SshWizardStep.DETAILS -> "Нужен отдельный удалённый Linux VPS с публичным IP-адресом."; SshWizardStep.VERIFY_HOST -> "При первом подключении проверьте отпечаток SSH-ключа сервера."; SshWizardStep.AUTH -> "Подтвердите доступ для проверки сервера перед установкой."; SshWizardStep.RESULTS -> "Ознакомьтесь с результатами диагностики сервера." }, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                state.error?.let { SshMessage(it, true, onClearMessage) }
-                state.notice?.let { SshMessage(it, false, onClearMessage) }
-                onReconnectInstall?.let { reconnect -> OutlinedButton(shape = RoundedCornerShape(10.dp), onClick = reconnect, enabled = !state.busy) { Text("Восстановить наблюдение за установкой") } }
-                if (state.step == SshWizardStep.RESULTS && onInstall != null) {
-                    Button(shape = RoundedCornerShape(10.dp), onClick = onInstall, enabled = !state.busy, modifier = Modifier.testTag("ssh-install")) { Text("Подготовить план установки") }
-                }
-                if (state.busy) {
-                    Card(Modifier.fillMaxWidth().testTag("ssh-progress"), shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = onboardingTone(0xFFF6F8FC, 0xFF252F40))) {
-                        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            },
+            footer = "Пароль и приватный ключ хранятся только в памяти мастера проверки и установки. Они не записываются на устройство.",
+        ) {
+            CompositionLocalProvider(LocalTextStyle provides LocalTextStyle.current.copy(letterSpacing = 0.sp,
+                lineHeightStyle = LineHeightStyle(LineHeightStyle.Alignment.Center, LineHeightStyle.Trim.None))) {
+                Column(Modifier.fillMaxWidth()) {
+                    OnboardingProgress(state.step.ordinal + 1)
+                    Spacer(Modifier.height(32.dp))
+                    SshHeading(state)
+                    state.error?.let { SshMessage(it, true, onClearMessage); Spacer(Modifier.height(20.dp)) }
+                    state.notice?.let { SshMessage(it, false, onClearMessage); Spacer(Modifier.height(20.dp)) }
+                    onReconnectInstall?.let { reconnect ->
+                        SshButton("Восстановить наблюдение за установкой", reconnect, !state.busy, primary = false)
+                        Spacer(Modifier.height(20.dp))
+                    }
+                    if (state.busy) {
+                        SshCard(Modifier.testTag("ssh-progress")) {
                             LinearProgressIndicator(Modifier.fillMaxWidth())
-                            Text(state.operation ?: "Проверка…", modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
-                            OutlinedButton(shape = RoundedCornerShape(10.dp), onClick = onCancel, modifier = Modifier.heightIn(min = 48.dp).testTag("ssh-cancel")) { Text("Отменить проверку") }
+                            Spacer(Modifier.height(16.dp))
+                            SshNote(state.operation ?: "Проверка…", Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+                            Spacer(Modifier.height(16.dp))
+                            SshButton("Отменить проверку", onCancel, tag = "ssh-cancel", primary = false)
                         }
+                        Spacer(Modifier.height(20.dp))
+                    }
+                    when (state.step) {
+                        SshWizardStep.DETAILS -> SshDetails(state, onProbe)
+                        SshWizardStep.VERIFY_HOST -> SshHostVerification(state, onConfirmTrust, onForgetTrust)
+                        SshWizardStep.AUTH -> SshAuth(state, onImportKey, onClearKey, onPasswordPreflight, onKeyPreflight, onReuseAccess)
+                        SshWizardStep.RESULTS -> SshResults(state, onInstall, onBack)
                     }
                 }
-                when (state.step) {
-                    SshWizardStep.DETAILS -> SshDetails(state, onProbe)
-                    SshWizardStep.VERIFY_HOST -> SshHostVerification(state, onConfirmTrust, onForgetTrust)
-                    SshWizardStep.AUTH -> SshAuth(state, onImportKey, onClearKey, onPasswordPreflight, onKeyPreflight, onReuseAccess)
-                    SshWizardStep.RESULTS -> SshResults(state)
-                }
-                HorizontalDivider()
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.Lock, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("Пароль и приватный ключ хранятся только в памяти мастера проверки и установки. Они не записываются на устройство.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
+            }
         }
     }
+}
+
+@Composable
+private fun SshHeading(state: SshWizardUiState) {
+    val wide = LocalOnboardingWide.current
+    val titleSize = if (!wide) 28.sp else if (LocalConfiguration.current.screenWidthDp <= 1000) 30.sp else 32.sp
+    Text(when (state.step) {
+        SshWizardStep.DETAILS -> "СОБСТВЕННАЯ ИНФРАСТРУКТУРА"
+        SshWizardStep.VERIFY_HOST -> "ИДЕНТИЧНОСТЬ СЕРВЕРА"
+        SshWizardStep.AUTH -> "ДОСТУП ПО SSH"
+        SshWizardStep.RESULTS -> "ПЕРЕД УСТАНОВКОЙ"
+    }, fontSize = if (wide) 11.sp else 12.sp, lineHeight = if (wide) 16.5.sp else 18.sp,
+        fontWeight = FontWeight.SemiBold, letterSpacing = 1.2.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Spacer(Modifier.height(10.dp))
+    Text(when (state.step) {
+        SshWizardStep.DETAILS -> "Начнём с сервера."
+        SshWizardStep.VERIFY_HOST -> "Знакомимся безопасно."
+        SshWizardStep.AUTH -> "Доступ к серверу."
+        SshWizardStep.RESULTS -> if (state.report?.hasBlockers == true) "Проверим ограничения." else "Всё по плану."
+    }, fontSize = titleSize, lineHeight = titleSize * if (wide) 1.2f else 1.22f,
+        letterSpacing = if (wide) (-1).sp else (-.8).sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.semantics { heading() })
+    Spacer(Modifier.height(12.dp))
+    Text(when (state.step) {
+        SshWizardStep.DETAILS -> "Нужен отдельный удалённый Linux VPS с публичным IP-адресом."
+        SshWizardStep.VERIFY_HOST -> "При первом подключении проверьте отпечаток SSH-ключа сервера."
+        SshWizardStep.AUTH -> "Подтвердите доступ для проверки сервера перед установкой."
+        SshWizardStep.RESULTS -> "Ознакомьтесь с результатами диагностики сервера."
+    }, fontSize = if (wide) 15.sp else 16.sp, lineHeight = if (wide) 24.75.sp else 26.4.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Spacer(Modifier.height(if (wide) 28.dp else 24.dp))
 }
 
 @Composable
@@ -116,34 +146,55 @@ private fun SshDetails(state: SshWizardUiState, onProbe: (String, String, String
     var port by rememberSaveable { mutableStateOf(state.request?.endpoint?.port?.toString() ?: "22") }
     var domain by rememberSaveable { mutableStateOf(state.request?.domain ?: "") }
     val keyboard = LocalSoftwareKeyboardController.current
-    Column(Modifier.testTag("ssh-details"), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        if (LocalDensity.current.fontScale <= 1.2f) Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            SshField(host, { host = it }, "IP-адрес или имя VPS", "ssh-host", state.busy, KeyboardType.Uri, Modifier.weight(1f))
-            SshField(port, { port = it }, "SSH-порт", "ssh-port", state.busy, KeyboardType.Number, Modifier.width(85.dp))
+    Column(Modifier.fillMaxWidth().testTag("ssh-details"), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+        if (LocalDensity.current.fontScale <= 1.2f) Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            SshField(host, { host = it }, "IP-адрес или имя VPS", "ssh-host", state.busy, KeyboardType.Uri, Modifier.weight(1f), "203.0.113.10")
+            SshField(port, { port = it }, "SSH-порт", "ssh-port", state.busy, KeyboardType.Number, Modifier.width(100.dp), "22")
         } else {
-            SshField(host, { host = it }, "IP-адрес или имя VPS", "ssh-host", state.busy, KeyboardType.Uri)
-            SshField(port, { port = it }, "SSH-порт", "ssh-port", state.busy, KeyboardType.Number)
+            SshField(host, { host = it }, "IP-адрес или имя VPS", "ssh-host", state.busy, KeyboardType.Uri, placeholder = "203.0.113.10")
+            SshField(port, { port = it }, "SSH-порт", "ssh-port", state.busy, KeyboardType.Number, placeholder = "22")
         }
-        SshField(domain, { domain = it }, "Домен будущего MeetSpace", "ssh-domain", state.busy, KeyboardType.Uri)
-        Text("Для VPS укажите IP или имя сервера. Для MeetSpace — домен, например chat.stage.org.ru, или https://chat.stage.org.ru.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
-        Button(shape = RoundedCornerShape(10.dp), onClick = {
+        SshField(domain, { domain = it }, "Домен будущего MeetSpace", "ssh-domain", state.busy, KeyboardType.Uri, placeholder = "meet.example.org")
+        SshNote("Для VPS укажите IP или имя сервера. Для MeetSpace — домен или HTTPS-адрес.")
+        SshButton("Проверить ключ сервера", {
             keyboard?.hide()
-            // Show the same canonical domain that will be bound to the verified SSH access.
             domain = runCatching { SshInputValidator.normalizeDomain(domain) }.getOrDefault(domain)
-            // Host-key inspection stops before USERAUTH; the actual account is entered in AUTH.
+            // Inspect the public host key before USERAUTH; credentials are entered after trust.
             onProbe(host, port, state.request?.endpoint?.user ?: "root", domain)
-        }, enabled = !state.busy,
-            modifier = Modifier.fillMaxWidth().heightIn(min = 49.dp).testTag("ssh-probe")) { Text("Проверить ключ сервера") }
-        Text("На этом шаге пароль и приватный ключ не передаются. Сначала подтвердите публичный ключ сервера по независимому источнику.", style = MaterialTheme.typography.bodyMedium)
+        }, !state.busy, "ssh-probe")
+        SshNote("На этом шаге пароль и приватный ключ не передаются. Сначала подтвердите публичный ключ сервера по независимому источнику.")
     }
 }
 
 @Composable
-private fun SshField(value: String, onValue: (String) -> Unit, label: String, tag: String, busy: Boolean, keyboard: KeyboardType = KeyboardType.Text, modifier: Modifier = Modifier) {
-    OutlinedTextField(value, onValue, label = { Text(label, fontSize = 11.sp) }, singleLine = true, enabled = !busy,
-        shape = RoundedCornerShape(10.dp), colors = onboardingFieldColors(), textStyle = onboardingInputStyle(),
-        keyboardOptions = KeyboardOptions(keyboardType = keyboard, autoCorrectEnabled = false, imeAction = ImeAction.Next),
-        modifier = modifier.fillMaxWidth().testTag(tag))
+private fun SshField(value: String, onValue: (String) -> Unit, label: String, tag: String, busy: Boolean,
+    keyboard: KeyboardType = KeyboardType.Text, modifier: Modifier = Modifier, placeholder: String = "",
+    secret: Boolean = false, visible: Boolean = false, onToggle: (() -> Unit)? = null) {
+    val interaction = remember { MutableInteractionSource() }
+    val focused by interaction.collectIsFocusedAsState()
+    val colors = MaterialTheme.colorScheme
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(label, fontSize = 14.sp, lineHeight = 21.sp, fontWeight = FontWeight.Medium)
+        BasicTextField(value, onValue, enabled = !busy, singleLine = true, interactionSource = interaction,
+            visualTransformation = if (secret && !visible) PasswordVisualTransformation() else VisualTransformation.None,
+            textStyle = LocalTextStyle.current.copy(fontSize = 16.sp, lineHeight = 24.sp, color = colors.onSurface.copy(alpha = if (busy) .5f else 1f), fontWeight = FontWeight.Normal),
+            cursorBrush = SolidColor(colors.primary),
+            keyboardOptions = KeyboardOptions(keyboardType = keyboard, autoCorrectEnabled = false, imeAction = if (secret) ImeAction.Done else ImeAction.Next),
+            modifier = Modifier.fillMaxWidth().testTag(tag).semantics { contentDescription = label }
+                .background(colors.surface, RoundedCornerShape(12.dp)).border(1.dp, if (focused) colors.primary else colors.outlineVariant, RoundedCornerShape(12.dp)),
+            decorationBox = { inner ->
+                Row(Modifier.fillMaxWidth().heightIn(min = 50.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.weight(1f).padding(start = 14.dp, end = if (secret) 4.dp else 14.dp, top = 12.dp, bottom = 12.dp)) {
+                        if (value.isEmpty() && placeholder.isNotEmpty()) Text(placeholder, fontSize = 16.sp, lineHeight = 24.sp, color = colors.onSurfaceVariant, fontWeight = FontWeight.Normal)
+                        inner()
+                    }
+                    if (onToggle != null) IconButton(onClick = onToggle, enabled = !busy, modifier = Modifier.size(48.dp)) {
+                        Icon(if (visible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                            contentDescription = if (visible) "Скрыть данные доступа" else "Показать данные доступа", modifier = Modifier.size(20.dp), tint = colors.onSurfaceVariant)
+                    }
+                }
+            })
+    }
 }
 
 @Composable
@@ -151,28 +202,25 @@ private fun SshHostVerification(state: SshWizardUiState, onConfirm: () -> Unit, 
     val identity = state.identity ?: return
     var compared by remember(identity.key.fingerprint) { mutableStateOf(false) }
     var forgetDialog by remember { mutableStateOf(false) }
-    Column(Modifier.testTag("ssh-host-verification"), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("${identity.endpoint.host}:${identity.endpoint.port}", style = MaterialTheme.typography.titleLarge)
+    Column(Modifier.fillMaxWidth().testTag("ssh-host-verification"), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+        SshEndpointLabel(identity.endpoint)
         if (identity.trust == SshTrust.CHANGED) {
-            Text("Ключ сервера изменился. Подключение заблокировано.", color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.titleLarge, modifier = Modifier.testTag("ssh-host-changed").semantics { liveRegion = LiveRegionMode.Assertive })
-            Text("Это может быть переустановка VPS или другой сервер. Не вводите данные доступа, пока не проверите причину через панель провайдера или администратора.")
+            SshAlert("Ключ сервера изменился. Подключение заблокировано.", error = true, modifier = Modifier.testTag("ssh-host-changed").semantics { liveRegion = LiveRegionMode.Assertive })
+            SshNote("Это может быть переустановка VPS или другой сервер. Не вводите данные доступа, пока не проверите причину через панель провайдера или администратора.")
             identity.previous?.let { SshFingerprint("Сохранённый отпечаток", it, "ssh-old-fingerprint") }
             SshFingerprint("Новый отпечаток", identity.key, "ssh-new-fingerprint")
-            OutlinedButton(shape = RoundedCornerShape(10.dp), onClick = { forgetDialog = true }, enabled = !state.busy,
-                modifier = Modifier.heightIn(min = 48.dp).testTag("ssh-forget-trust")) { Text("Удалить сохранённое доверие…") }
+            SshButton("Удалить сохранённое доверие…", { forgetDialog = true }, !state.busy, "ssh-forget-trust", primary = false)
         } else {
-            Text("Первое подключение", style = MaterialTheme.typography.titleLarge)
+            SshSectionTitle("Первое подключение")
             SshFingerprint("SHA-256 отпечаток публичного ключа", identity.key, "ssh-new-fingerprint")
-            Text("Сравните отпечаток с данными в панели VPS или узнайте его у администратора по независимому каналу. Само SSH-подключение не доказывает, что это нужный сервер.")
+            SshNote("Сравните отпечаток с панелью VPS или данными администратора по независимому каналу. Само SSH-подключение не доказывает, что это нужный сервер.")
             Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).selectable(compared, enabled = !state.busy,
-                role = Role.Checkbox, onClick = { compared = !compared }).testTag("ssh-fingerprint-compared"), verticalAlignment = Alignment.CenterVertically) {
-                Checkbox(compared, onCheckedChange = null, enabled = !state.busy)
-                Spacer(Modifier.width(12.dp)); Text("Я сравнил отпечаток с панелью VPS или данными администратора")
+                role = Role.Checkbox, onClick = { compared = !compared }).testTag("ssh-fingerprint-compared").padding(vertical = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
+                Checkbox(compared, onCheckedChange = null, enabled = !state.busy, modifier = Modifier.size(20.dp))
+                Text("Я сравнил отпечаток с панелью VPS или данными администратора", Modifier.weight(1f), fontSize = 14.sp, lineHeight = 23.1.sp)
             }
-            Button(shape = RoundedCornerShape(10.dp), onClick = onConfirm, enabled = compared && !state.busy, modifier = Modifier.fillMaxWidth().heightIn(min = 49.dp).testTag("ssh-trust")) {
-                Text("Доверять этому ключу")
-            }
+            SshButton("Доверять этому ключу", onConfirm, compared && !state.busy, "ssh-trust")
         }
     }
     if (forgetDialog) AlertDialog(
@@ -184,18 +232,25 @@ private fun SshHostVerification(state: SshWizardUiState, onConfirm: () -> Unit, 
 }
 
 @Composable
+private fun SshEndpointLabel(endpoint: SshEndpoint) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        SelectionContainer { Text(endpoint.host, fontFamily = FontFamily.Monospace, fontSize = if (LocalOnboardingWide.current) 15.sp else 16.sp, lineHeight = if (LocalOnboardingWide.current) 24.75.sp else 26.4.sp) }
+        SshNote("SSH-порт ${endpoint.port}")
+    }
+}
+
+@Composable
 private fun SshFingerprint(title: String, key: SshHostKey, tag: String) {
-    Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surface, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
-        Column {
-            Row(Modifier.fillMaxWidth().background(onboardingTone(0xFFF7F9FC, 0xFF252F40)).padding(horizontal = 15.dp, vertical = 13.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.Dns, null, Modifier.size(16.dp), tint = onboardingTone(0xFF8A98AE, 0xFFA5B3C9))
-                Text(title, Modifier.weight(1f), fontSize = 11.sp, lineHeight = 17.sp, fontWeight = FontWeight.SemiBold)
-            }
-            HorizontalDivider()
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
-                Text(key.algorithm, fontSize = 9.sp, letterSpacing = 1.1.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                SelectionContainer { Text(key.fingerprint, fontFamily = FontFamily.Monospace, fontSize = 11.sp, lineHeight = 21.sp, color = onboardingTone(0xFF6B7892, 0xFFBAC8DF), modifier = Modifier.testTag(tag)) }
-            }
+    Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+        Column(Modifier.padding(20.dp)) {
+            Text(title, fontFamily = FontFamily.Monospace, fontSize = 18.sp, lineHeight = 25.2.sp,
+                fontWeight = FontWeight.SemiBold, letterSpacing = (-.25).sp, modifier = Modifier.semantics { heading() })
+            Text(key.algorithm, fontFamily = FontFamily.Monospace, fontSize = if (LocalOnboardingWide.current) 13.sp else 14.sp,
+                lineHeight = if (LocalOnboardingWide.current) 22.1.sp else 23.8.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.height(8.dp))
+            SelectionContainer { Text(key.fingerprint, fontFamily = FontFamily.Monospace, fontSize = if (LocalOnboardingWide.current) 13.sp else 14.sp,
+                lineHeight = if (LocalOnboardingWide.current) 22.1.sp else 23.8.sp, modifier = Modifier.testTag(tag)) }
         }
     }
 }
@@ -210,105 +265,170 @@ private fun SshAuth(state: SshWizardUiState, onImport: (Uri) -> Unit, onClearKey
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> if (uri != null) onImport(uri) }
     val keyboard = LocalSoftwareKeyboardController.current
     DisposableEffect(Unit) { onDispose { password = ""; passphrase = "" } }
-    Column(Modifier.testTag("ssh-auth"), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("Доступ к ${state.request?.endpoint?.host}", style = MaterialTheme.typography.titleLarge)
-        Text("SSH-порт: ${state.request?.endpoint?.port}")
-        state.identity?.let { SshFingerprint("Проверенный ключ сервера", it.key, "ssh-trusted-fingerprint") }
-        if (state.accessAvailable) {
-            Text("Пользователь: ${state.request?.endpoint?.user}")
-            Text("Данные доступа сохранены в памяти открытого мастера.", modifier = Modifier.testTag("ssh-access-retained"))
-            TextButton(onClick = onClearKey, enabled = !state.busy, modifier = Modifier.testTag("ssh-change-access")) { Text("Изменить данные доступа") }
-            Button(onClick = onReuseAccess, enabled = !state.busy, shape = RoundedCornerShape(10.dp),
-                modifier = Modifier.fillMaxWidth().heightIn(min = 49.dp).testTag("ssh-preflight")) { Text("Проверить сервер без изменений") }
-        } else {
-            SshField(user, { user = it }, "Пользователь SSH", "ssh-user", state.busy)
-            Text("Учётная запись SSH может отличаться от аккаунта MeetSpace.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Row(Modifier.fillMaxWidth().selectableGroup().background(onboardingTone(0xFFF0F3F8, 0xFF202A39), RoundedCornerShape(10.dp)).padding(4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                listOf(false to "Пароль SSH", true to "Приватный ключ").forEach { (mode, title) ->
-                    Row(Modifier.weight(1f).heightIn(min = 48.dp).background(if (keyMode == mode) onboardingTone(0xFFFFFFFF, 0xFF384963) else androidx.compose.ui.graphics.Color.Transparent, RoundedCornerShape(7.dp)).selectable(keyMode == mode, enabled = !state.busy, role = Role.RadioButton,
-                        onClick = { keyMode = mode; password = ""; passphrase = ""; visible = false; onClearKey() }).testTag(if (mode) "ssh-method-key" else "ssh-method-password"), verticalAlignment = Alignment.CenterVertically) {
-                        Spacer(Modifier.width(8.dp))
-                        Icon(if (mode) Icons.Outlined.Key else Icons.Outlined.Lock, null, Modifier.size(16.dp), tint = if (keyMode == mode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-                        Spacer(Modifier.width(7.dp)); Text(title, fontSize = 11.sp, lineHeight = 17.sp, color = if (keyMode == mode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+    Column(Modifier.fillMaxWidth().testTag("ssh-auth")) {
+        state.request?.endpoint?.let { SshEndpointLabel(it); Spacer(Modifier.height(20.dp)) }
+        state.identity?.let { SshFingerprint("Проверенный ключ сервера", it.key, "ssh-trusted-fingerprint"); Spacer(Modifier.height(24.dp)) }
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+            if (state.accessAvailable) {
+                SshAlert("Пользователь: ${state.request?.endpoint?.user}\nДанные доступа сохранены в памяти открытого мастера.", success = true, modifier = Modifier.testTag("ssh-access-retained"))
+                TextButton(onClick = onClearKey, enabled = !state.busy, contentPadding = PaddingValues(0.dp), modifier = Modifier.heightIn(min = 48.dp).testTag("ssh-change-access")) { Text("Изменить данные доступа") }
+                SshButton("Проверить сервер без изменений", onReuseAccess, !state.busy, "ssh-preflight")
+            } else {
+                SshField(user, { user = it }, "Пользователь SSH", "ssh-user", state.busy, placeholder = "root")
+                SshNote("Учётная запись SSH может отличаться от аккаунта MeetSpace.")
+                Row(Modifier.fillMaxWidth().selectableGroup().background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(14.dp)).padding(4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    listOf(false to "Пароль SSH", true to "Приватный ключ").forEach { (mode, title) ->
+                        Row(Modifier.weight(1f).heightIn(min = 44.dp)
+                            .background(if (keyMode == mode) MaterialTheme.colorScheme.surface else Color.Transparent, RoundedCornerShape(10.dp))
+                            .selectable(keyMode == mode, enabled = !state.busy, role = Role.RadioButton,
+                                onClick = { keyMode = mode; password = ""; passphrase = ""; visible = false; onClearKey() })
+                            .padding(horizontal = 10.dp, vertical = 10.dp).testTag(if (mode) "ssh-method-key" else "ssh-method-password"),
+                            horizontalArrangement = Arrangement.spacedBy(7.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
+                            val tint = if (keyMode == mode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            Icon(if (mode) Icons.Outlined.Key else Icons.Outlined.Lock, null, Modifier.size(18.dp), tint = tint)
+                            Text(title, fontSize = 14.sp, lineHeight = 21.sp, color = tint, fontWeight = FontWeight.Medium)
+                        }
                     }
                 }
+                if (keyMode) {
+                    OutlinedButton(onClick = { picker.launch(arrayOf("*/*")) }, enabled = !state.busy, shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurface, containerColor = MaterialTheme.colorScheme.surface),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), contentPadding = PaddingValues(16.dp),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 90.dp).testTag("ssh-import-key")) {
+                        Icon(Icons.Outlined.Key, null, Modifier.size(28.dp), tint = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(14.dp))
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(if (state.keyLoaded) "Выбрать другой ключ" else "Выбрать файл ключа", fontSize = if (LocalOnboardingWide.current) 15.sp else 16.sp)
+                            SshNote("До 256 КиБ")
+                        }
+                    }
+                    SshNote(if (state.keyLoaded) "Ключ загружен в память проверки" else "OpenSSH v1: без пароля или bcrypt до 64 раундов. RSA/EC PEM: только без шифрования. Зашифрованные PEM, PKCS#8 и PuTTY не поддерживаются.", Modifier.testTag("ssh-key-status"))
+                    if (state.keyLoaded) TextButton(onClick = onClearKey, enabled = !state.busy, contentPadding = PaddingValues(0.dp), modifier = Modifier.heightIn(min = 48.dp).testTag("ssh-clear-key")) { Text("Удалить ключ из памяти") }
+                    SshField(passphrase, { passphrase = it }, "Passphrase ключа (если есть)", "ssh-passphrase", state.busy, KeyboardType.Password,
+                        placeholder = "Необязательно", secret = true, visible = visible, onToggle = { visible = !visible })
+                } else {
+                    SshField(password, { password = it }, "Пароль SSH", "ssh-password", state.busy, KeyboardType.Password,
+                        secret = true, visible = visible, onToggle = { visible = !visible })
+                }
+                SshButton("Проверить сервер без изменений", {
+                    keyboard?.hide()
+                    if (keyMode) { val value = passphrase; passphrase = ""; onKey(user, value) }
+                    else { val value = password; password = ""; onPassword(user, value) }
+                    visible = false
+                }, !state.busy && user.isNotBlank() && if (keyMode) state.keyLoaded else password.isNotEmpty(), "ssh-preflight")
             }
-            if (keyMode) {
-                OutlinedButton(shape = RoundedCornerShape(10.dp), onClick = { picker.launch(arrayOf("*/*")) }, enabled = !state.busy,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 49.dp).testTag("ssh-import-key")) { Text(if (state.keyLoaded) "Выбрать другой ключ" else "Выбрать файл ключа") }
-                Text(if (state.keyLoaded) "Ключ загружен в память проверки" else "OpenSSH v1: без пароля или bcrypt до 64 раундов. RSA/EC PEM: только без шифрования. Зашифрованные PEM, PKCS#8 и PuTTY не поддерживаются. Максимум 256 КиБ; файл остаётся только в памяти.", modifier = Modifier.testTag("ssh-key-status"), style = MaterialTheme.typography.bodyMedium)
-                if (state.keyLoaded) TextButton(onClick = onClearKey, enabled = !state.busy, modifier = Modifier.heightIn(min = 48.dp).testTag("ssh-clear-key")) { Text("Удалить ключ из памяти") }
-                SshSecretField(passphrase, { passphrase = it }, "Passphrase ключа (если есть)", "ssh-passphrase", visible, { visible = !visible }, state.busy)
-            } else {
-                SshSecretField(password, { password = it }, "Пароль SSH", "ssh-password", visible, { visible = !visible }, state.busy)
-            }
-            Button(shape = RoundedCornerShape(10.dp), onClick = {
-                keyboard?.hide()
-                if (keyMode) { val value = passphrase; passphrase = ""; onKey(user, value) }
-                else { val value = password; password = ""; onPassword(user, value) }
-                visible = false
-            }, enabled = !state.busy && user.isNotBlank() && if (keyMode) state.keyLoaded else password.isNotEmpty(), modifier = Modifier.fillMaxWidth().heightIn(min = 49.dp).testTag("ssh-preflight")) { Text("Проверить сервер без изменений") }
+            SshNote("SSH используется только для диагностики. Пароль не передаётся в sudo. Изменение firewall, пакетов и Docker на этом этапе не выполняется.")
         }
-        Text("SSH используется только для диагностики. Пароль не передаётся в sudo. Установка, изменение firewall, пакетов и Docker на этом этапе не выполняются.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
 @Composable
-private fun SshSecretField(value: String, onValue: (String) -> Unit, label: String, tag: String, visible: Boolean, onToggle: () -> Unit, busy: Boolean) {
-    OutlinedTextField(value, onValue, label = { Text(label, fontSize = 11.sp) }, enabled = !busy, singleLine = true,
-        shape = RoundedCornerShape(10.dp), colors = onboardingFieldColors(), textStyle = onboardingInputStyle(),
-        visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false, imeAction = ImeAction.Done),
-        trailingIcon = { IconButton(onClick = onToggle, enabled = !busy, modifier = Modifier.size(48.dp)) {
-            Icon(if (visible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility, contentDescription = if (visible) "Скрыть данные доступа" else "Показать данные доступа")
-        } }, modifier = Modifier.fillMaxWidth().testTag(tag))
+private fun SshResults(state: SshWizardUiState, onInstall: (() -> Unit)?, onRepeat: () -> Unit) {
+    val report = state.report ?: return
+    Column(Modifier.fillMaxWidth().testTag("ssh-results"), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+        SshEndpointLabel(report.endpoint)
+        onInstall?.let { SshButton("Подготовить план установки", it, !state.busy, "ssh-install") }
+        SshAlert("План установки ещё не создан. Изменения на сервере не выполнялись.", modifier = Modifier.testTag("ssh-no-install"))
+        if (report.hasBlockers) SshAlert("Обнаружены препятствия. Устраните их и повторите проверку перед установкой.", error = true)
+        else SshNote("Предупреждения и неизвестные параметры требуют внимания перед установкой.")
+        SshCard {
+            SshSectionTitle("Проверка сервера")
+            Spacer(Modifier.height(14.dp))
+            report.checks.forEachIndexed { index, check ->
+                if (index > 0) { HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant); Spacer(Modifier.height(16.dp)) }
+                SshCheckRow(check)
+                if (index != report.checks.lastIndex) Spacer(Modifier.height(16.dp))
+            }
+        }
+        SshButton("Повторить проверку", onRepeat, !state.busy, "ssh-repeat", primary = false)
+    }
 }
 
 @Composable
-private fun SshResults(state: SshWizardUiState) {
-    val report = state.report ?: return
-    Column(Modifier.testTag("ssh-results"), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("Проверка завершена", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
-        Text("${report.endpoint.host}:${report.endpoint.port} · ${report.domain}")
-        Text(if (report.hasBlockers) "Обнаружены препятствия. Перед будущей установкой их нужно устранить и повторить проверку." else "Результат диагностики готов. Предупреждения и неизвестные параметры требуют внимания перед будущей установкой.", style = MaterialTheme.typography.bodyLarge)
-        Text("План установки ещё не создан. Изменения на сервере не выполнялись.", color = MaterialTheme.colorScheme.primary, modifier = Modifier.testTag("ssh-no-install"))
-        Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surface,
-            border = BorderStroke(1.dp, onboardingTone(0xFFE4E9F1, 0xFF354157))) {
-        Column {
-        Text("Проверка сервера", Modifier.fillMaxWidth().background(onboardingTone(0xFFF9FAFC, 0xFF252F40)).padding(horizontal = 15.dp, vertical = 13.dp), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-        report.checks.forEach { check ->
-            val color = when (check.level) {
-                PreflightLevel.PASS -> MaterialTheme.colorScheme.tertiary
-                PreflightLevel.WARN -> MaterialTheme.colorScheme.secondary
-                PreflightLevel.BLOCKED -> MaterialTheme.colorScheme.error
-                PreflightLevel.UNKNOWN -> MaterialTheme.colorScheme.onSurfaceVariant
-            }
-            val label = when (check.level) { PreflightLevel.PASS -> "PASS · пройдено"; PreflightLevel.WARN -> "WARN · внимание"; PreflightLevel.BLOCKED -> "BLOCKED · препятствие"; PreflightLevel.UNKNOWN -> "UNKNOWN · неизвестно" }
-            HorizontalDivider(color = onboardingTone(0xFFEDF0F5, 0xFF354157))
-            Row(Modifier.fillMaxWidth().padding(15.dp).testTag("ssh-check-${check.id}"), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                Surface(shape = RoundedCornerShape(8.dp), color = onboardingTone(0xFFF7F9FC, 0xFF2D3A50), border = BorderStroke(1.dp, onboardingTone(0xFFE9EDF4, 0xFF42516B)), modifier = Modifier.size(30.dp)) {
-                    Icon(Icons.Outlined.Dns, null, Modifier.padding(7.dp), tint = onboardingTone(0xFF8D9AB2, 0xFFB1C3E0))
-                }
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Text(check.title, fontSize = 11.sp, lineHeight = 17.sp, fontWeight = FontWeight.SemiBold)
-                    Text(check.detail, fontSize = 10.sp, lineHeight = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(label, fontSize = 9.sp, lineHeight = 15.sp, color = color)
-                }
-                Icon(if (check.level == PreflightLevel.PASS) Icons.Outlined.CheckCircleOutline else Icons.Outlined.ErrorOutline, null, Modifier.size(17.dp), tint = color)
-            }
+private fun SshCheckRow(check: PreflightCheck) {
+    val wide = LocalConfiguration.current.screenWidthDp > 1000 && LocalDensity.current.fontScale <= 1.2f
+    Row(Modifier.fillMaxWidth().testTag("ssh-check-${check.id}"), horizontalArrangement = Arrangement.spacedBy(if (wide) 12.dp else 10.dp), verticalAlignment = Alignment.Top) {
+        Icon(if (check.level == PreflightLevel.PASS) Icons.Outlined.CheckCircleOutline else Icons.Outlined.Info, null,
+            Modifier.padding(top = 2.dp).size(22.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Text(check.title, fontSize = if (LocalOnboardingWide.current) 15.sp else 16.sp, lineHeight = if (LocalOnboardingWide.current) 22.5.sp else 24.sp, fontWeight = FontWeight.SemiBold)
+            SshNote(check.detail)
+            if (!wide) { Spacer(Modifier.height(5.dp)); SshCheckStatus(check.level) }
         }
-        }
+        if (wide) SshCheckStatus(check.level)
+    }
+}
+
+@Composable
+private fun SshCheckStatus(level: PreflightLevel) {
+    val color = when (level) {
+        PreflightLevel.PASS -> onboardingTone(0xFF23785E, 0xFF95DEBF)
+        PreflightLevel.WARN -> onboardingTone(0xFF90651B, 0xFFE8C27B)
+        PreflightLevel.BLOCKED -> onboardingTone(0xFFB34250, 0xFFFFB2BE)
+        PreflightLevel.UNKNOWN -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val background = when (level) {
+        PreflightLevel.PASS -> onboardingTone(0xFFEDF8F3, 0xFF273B35)
+        PreflightLevel.WARN -> onboardingTone(0xFFFFF7E6, 0xFF3A3227)
+        PreflightLevel.BLOCKED -> onboardingTone(0xFFFFF0F2, 0xFF422B35)
+        PreflightLevel.UNKNOWN -> MaterialTheme.colorScheme.surfaceVariant
+    }
+    Surface(shape = RoundedCornerShape(7.dp), color = background) {
+        Text(when (level) { PreflightLevel.PASS -> "PASS · пройдено"; PreflightLevel.WARN -> "WARN · внимание"; PreflightLevel.BLOCKED -> "BLOCKED · препятствие"; PreflightLevel.UNKNOWN -> "UNKNOWN · неизвестно" },
+            Modifier.widthIn(max = if (LocalOnboardingWide.current) 150.dp else 320.dp).padding(horizontal = 9.dp, vertical = 4.dp), fontSize = if (LocalOnboardingWide.current) 13.sp else 14.sp,
+            lineHeight = if (LocalOnboardingWide.current) 18.2.sp else 19.6.sp, fontWeight = FontWeight.Medium, color = color)
+    }
+}
+
+@Composable
+private fun SshSectionTitle(text: String) {
+    Text(text, fontSize = 18.sp, lineHeight = 25.2.sp, letterSpacing = (-.25).sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.semantics { heading() })
+}
+
+@Composable
+private fun SshNote(text: String, modifier: Modifier = Modifier) {
+    Text(text, modifier, fontSize = if (LocalOnboardingWide.current) 13.sp else 14.sp,
+        lineHeight = if (LocalOnboardingWide.current) 20.8.sp else 22.4.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+}
+
+@Composable
+private fun SshCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    Surface(modifier.fillMaxWidth(), shape = RoundedCornerShape(if (LocalOnboardingWide.current) 20.dp else 18.dp),
+        color = MaterialTheme.colorScheme.surface, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+        Column(Modifier.padding(if (LocalOnboardingWide.current) 24.dp else 20.dp), content = content)
+    }
+}
+
+@Composable
+private fun SshButton(text: String, onClick: () -> Unit, enabled: Boolean = true, tag: String? = null, primary: Boolean = true) {
+    val modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp).then(if (tag != null) Modifier.testTag(tag) else Modifier)
+    val label: @Composable RowScope.() -> Unit = { Text(text, fontSize = 15.sp, lineHeight = 22.5.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.sp) }
+    if (primary) Button(onClick, enabled = enabled, shape = RoundedCornerShape(14.dp), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+        colors = ButtonDefaults.buttonColors(
+            disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = .45f).compositeOver(MaterialTheme.colorScheme.background),
+            disabledContentColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = .45f).compositeOver(MaterialTheme.colorScheme.background),
+        ), modifier = modifier, content = label)
+    else OutlinedButton(onClick, enabled = enabled, shape = RoundedCornerShape(14.dp), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurface, containerColor = MaterialTheme.colorScheme.surface), modifier = modifier, content = label)
+}
+
+@Composable
+private fun SshAlert(message: String, error: Boolean = false, success: Boolean = false, modifier: Modifier = Modifier) {
+    val color = if (error) onboardingTone(0xFFB34250, 0xFFFFB2BE) else if (success) onboardingTone(0xFF23785E, 0xFF95DEBF) else MaterialTheme.colorScheme.onSurfaceVariant
+    val background = if (error) onboardingTone(0xFFFFF0F2, 0xFF422B35) else if (success) onboardingTone(0xFFEDF8F3, 0xFF273B35) else MaterialTheme.colorScheme.surfaceVariant
+    val border = if (error) onboardingTone(0xFFEDC5CC, 0xFF68404C) else if (success) onboardingTone(0xFFC2E4D5, 0xFF3C5B4F) else MaterialTheme.colorScheme.outlineVariant
+    Surface(modifier.fillMaxWidth().semantics(mergeDescendants = true) { }, color = background, shape = RoundedCornerShape(14.dp), border = BorderStroke(1.dp, border)) {
+        Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
+            Icon(if (error) Icons.Outlined.ErrorOutline else if (success) Icons.Outlined.CheckCircleOutline else Icons.Outlined.Info, null, Modifier.padding(top = 2.dp).size(20.dp), tint = color)
+            Text(message, Modifier.weight(1f), fontSize = if (LocalOnboardingWide.current) 13.sp else 14.sp, lineHeight = if (LocalOnboardingWide.current) 21.45.sp else 23.1.sp, color = color)
         }
     }
 }
 
 @Composable
 private fun SshMessage(message: String, error: Boolean, onClear: () -> Unit) {
-    Card(Modifier.fillMaxWidth().testTag(if (error) "ssh-error" else "ssh-notice").semantics { liveRegion = LiveRegionMode.Polite },
-        colors = CardDefaults.cardColors(containerColor = if (error) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.secondaryContainer)) {
-        Column(Modifier.padding(16.dp)) {
-            Text(message, color = if (error) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSecondaryContainer)
-            TextButton(onClick = onClear, modifier = Modifier.heightIn(min = 48.dp)) { Text("Закрыть сообщение") }
-        }
+    Column(Modifier.fillMaxWidth().testTag(if (error) "ssh-error" else "ssh-notice").semantics { liveRegion = LiveRegionMode.Polite }) {
+        SshAlert(message, error)
+        TextButton(onClick = onClear, contentPadding = PaddingValues(0.dp), modifier = Modifier.heightIn(min = 48.dp)) { Text("Закрыть сообщение") }
     }
 }

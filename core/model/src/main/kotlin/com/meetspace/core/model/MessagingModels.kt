@@ -12,6 +12,7 @@ data class ChatConversation(
     val createdAt: Instant = Instant.EPOCH, val updatedAt: Instant = Instant.EPOCH,
     val lastMessageAt: Instant? = null, val lastMessageId: String? = null,
     val avatarVersion: String? = null,
+    val lastSender: ChatPeer? = null,
 ) {
     val title: String get() = if (type == "direct") peer?.displayName.orEmpty() else name
     val canManage: Boolean get() = type == "group" && myRole in setOf("owner", "admin")
@@ -30,6 +31,7 @@ data class ChatMessage(
     val attachments: List<ChatAttachment> = emptyList(),
     val kind: String = "message", val call: DirectCallHistory? = null,
     val pinned: Boolean = false,
+    val forwardedSenderName: String? = null,
 )
 data class ChatMessageInput(val clientRequestId: String, val text: String,
     val replyTo: String? = null, val attachmentIds: List<String> = emptyList())

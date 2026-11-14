@@ -79,7 +79,9 @@ class MainActivity : ComponentActivity() {
             val recordingsState = recordingsModel.state.collectAsStateWithLifecycle().value
             val recordingPlayback = recordingsModel.playback.collectAsStateWithLifecycle().value
             val foundationHolder = rememberSaveableStateHolder()
-            val messagingModel: MessagingViewModel = viewModel(factory = MessagingViewModel.Factory(repository, meetSpace.messagingRepository, meetSpace.outgoingMessageStore))
+            val messagingModel: MessagingViewModel = viewModel(factory = MessagingViewModel.Factory(
+                repository, meetSpace.messagingRepository, meetSpace.outgoingMessageStore, meetSpace.hiddenChatMessages,
+            ))
             val messagingState = messagingModel.state.collectAsStateWithLifecycle().value
             val directCalls: DirectCallViewModel = viewModel(factory = DirectCallViewModel.Factory(repository, meetSpace.directCallsRepository, meetSpace.callEngine) {
                 !AccountDevicePreferencesStore(meetSpace.getSharedPreferences("account-device-preferences", MODE_PRIVATE)).read().autoMute
@@ -291,6 +293,7 @@ class MainActivity : ComponentActivity() {
                     onNotifications = showNotifications,
                     unreadCount = messagingState.notificationUnread.coerceIn(0, 99).toInt(),
                     messageThreadOpen = messagingState.selectedId != null,
+                    hasUnreadChats = messagingState.conversations.data.orEmpty().any { it.unreadCount > 0 },
                     requestedWorkspaceTab = workspaceRequest.value,
                     consumeWorkspaceTab = { workspaceRequest.value = null },
                     onCallsSearch = { callsSearchVisible.value = !callsSearchVisible.value },

@@ -31,6 +31,8 @@ interface MessagingRepository {
     suspend fun pinMessage(id: String, messageId: String, pinned: Boolean): Unit = throw AppFailure(FailureKind.UNAVAILABLE, "Закрепления недоступны.")
     suspend fun clearConversation(id: String, hide: Boolean): Unit = throw AppFailure(FailureKind.UNAVAILABLE, "Действие недоступно.")
     suspend fun sendMessage(id: String, input: ChatMessageInput): ChatMessage
+    suspend fun forwardMessages(id: String, sourceId: String, messageIds: List<String>, clientRequestId: String): List<ChatMessage> =
+        throw AppFailure(FailureKind.INCOMPATIBLE_SERVER, "Пересылка сообщений недоступна на этом сервере.")
     suspend fun editMessage(id: String, messageId: String, text: String): ChatMessage
     suspend fun deleteMessage(id: String, messageId: String): ChatMessage
     suspend fun markConversationRead(id: String, messageId: String): ChatReadState

@@ -23,6 +23,7 @@ open class MeetSpaceApplication : Application() {
     }
     private var deviceSettingsListener: android.content.SharedPreferences.OnSharedPreferenceChangeListener? = null
     val outgoingMessageStore: OutgoingMessageStore by lazy { EncryptedOutgoingMessageStore(this) }
+    val hiddenChatMessages: HiddenChatMessages by lazy { DeviceHiddenChatMessages(this) }
     open val callEngine: com.meetspace.core.media.CallEngine by lazy {
         com.meetspace.core.media.CallEngine(this, repository as com.meetspace.core.data.CallRepository, meetingsRepository) {
             stopService(android.content.Intent(this, ScreenShareService::class.java))

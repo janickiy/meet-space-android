@@ -52,6 +52,27 @@ internal class MessagingApi(private val api: MeetSpaceApi) {
             messageId?.let { expected -> same(expected, it.id) }
         }
     }
+    suspend fun forwardMessages(origin: String, token: String, id: String, accountId: String,
+        sourceId: String, messageIds: List<String>, clientRequestId: String): List<ChatMessage> {
+        if (messageIds.size !in 1..30 || messageIds.distinct().size != messageIds.size) input()
+        val payload = fields("sourceType" to "conversation", "sourceId" to inputId(sourceId),
+            "messageIds" to messageIds.map(::inputId), "clientRequestId" to inputId(clientRequestId))
+        val body = try {
+            request(origin, token, path(id) + listOf("messages", "forward"), "POST", payload)
+        } catch (failure: HttpFailure) {
+            if (failure.statusCode == 405 || failure.statusCode == 501) {
+                throw AppFailure(FailureKind.INCOMPATIBLE_SERVER, "Сервер не поддерживает пересылку сообщений. Обновите MeetSpace на сервере.")
+            }
+            throw failure
+        }
+        val items = body.items(30).map { message(it, id) }
+        distinct(items.map { it.id })
+        if (items.size != messageIds.size || items.any { it.senderId != accountId || it.kind != "message" ||
+                it.deletedAt == null && it.forwardedSenderName == null }) {
+            throw InvalidContract()
+        }
+        return items
+    }
     suspend fun read(origin: String, token: String, id: String, messageId: String): ChatReadState {
         val item = request(origin, token, path(id) + "read", "POST", fields("messageId" to inputId(messageId))).item()
         return ChatReadState(item.count("unreadCount"), item.optionalId("lastReadMessageId"))
@@ -225,10 +246,15 @@ internal class MessagingApi(private val api: MeetSpaceApi) {
             if (type == "direct" && peer == null) throw InvalidContract()
             val count = o.count("memberCount", 0)
             if (count > 100) throw InvalidContract()
+            val lastSender = when (val sender = o["lastSender"]) {
+                null, JsonNull -> null
+                is JsonObject -> peer(sender)
+                else -> throw InvalidContract()
+            }
             return ChatConversation(o.id(), type, peer, o.optionalText("name", 200).orEmpty(),
                 o.optionalText("description", 800).orEmpty(), o.optionalText("myRole", 30).orEmpty(), count.toInt(),
                 o.text("preview", 16000), o.count("unreadCount"), o.bool("notificationsEnabled"),
-                o.instant("createdAt"), o.instant("updatedAt"), o.optionalInstant("lastMessageAt"), o.optionalId("lastMessageId"), o.optionalId("avatarVersion"))
+                o.instant("createdAt"), o.instant("updatedAt"), o.optionalInstant("lastMessageAt"), o.optionalId("lastMessageId"), o.optionalId("avatarVersion"), lastSender)
         }
         fun attachment(o: JsonObject, scope: String): ChatAttachment {
             same(o.id("conversationId"), scope)
@@ -254,11 +280,17 @@ internal class MessagingApi(private val api: MeetSpaceApi) {
                 is JsonObject -> DirectCallsApi.history(value)
                 else -> throw InvalidContract()
             }
+            val forwardedSenderName = when (val forwarded = o["forwardedFrom"]) {
+                null, JsonNull -> null
+                is JsonObject -> forwarded.text("senderName", 400).also { if (it.isBlank()) throw InvalidContract() }
+                else -> throw InvalidContract()
+            }
+            if (forwardedSenderName != null && call != null) throw InvalidContract()
             if (call != null && (attachments.isNotEmpty() || o.optionalId("replyTo") != null)) throw InvalidContract()
             return ChatMessage(o.id(), scope, o.id("senderId"), o.text("senderName", 400), o.id("clientRequestId"),
                 o.text("text", 16000), sequence, version, o.instant("createdAt"), o.instant("updatedAt"),
                 o.optionalInstant("deletedAt"), o.optionalId("replyTo"), reply, attachments,
-                if (call == null) "message" else "call", call, o.optionalBool("pinned") ?: false)
+                if (call == null) "message" else "call", call, o.optionalBool("pinned") ?: false, forwardedSenderName)
         }
         fun folder(o: JsonObject): ChatFolder = ChatFolder(o.id(), o.text("name", 200), o.count("position").toInt(),
             o.count("itemCount"), o.count("conversationCount"), o.count("conferenceCount"))

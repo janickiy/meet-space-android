@@ -26,7 +26,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -75,6 +77,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -120,7 +123,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -175,6 +180,7 @@ fun FoundationUi(
     consumeWorkspaceTab: () -> Unit = {},
     onRegister: ((String, String, String, String) -> Unit)? = null,
     onGuest: ((String, String) -> Unit)? = null,
+    hasUnreadChats: Boolean = false,
 ) {
     BackHandler(enabled = state.screen in listOf(FoundationScreen.CONNECT, FoundationScreen.LOGIN, FoundationScreen.REGISTER, FoundationScreen.INSTALLER) && !state.busy && !(state.screen == FoundationScreen.INSTALLER && installerContent != null)) {
         onNavigate(backDestination(state))
@@ -183,24 +189,25 @@ fun FoundationUi(
         BoxWithConstraints(Modifier.fillMaxSize()) {
         val expanded = maxWidth >= 760.dp
         if (state.screen == FoundationScreen.WORKSPACE) {
-            Workspace(state, onLogout, onTheme, onNavigate, onClearMessage, workspaceContent, onNotifications, unreadCount, messageThreadOpen, onCallsSearch, requestedWorkspaceTab, consumeWorkspaceTab)
+            Workspace(state, onLogout, onTheme, onNavigate, onClearMessage, workspaceContent, onNotifications, unreadCount,
+                messageThreadOpen, onCallsSearch, requestedWorkspaceTab, consumeWorkspaceTab, hasUnreadChats)
         } else if (state.screen == FoundationScreen.INSTALLER && installerContent != null) {
             installerContent()
         } else {
             Scaffold(contentWindowInsets = WindowInsets.safeDrawing, containerColor = MaterialTheme.colorScheme.surface) { padding ->
-                IntroFrame(message = state.error ?: state.notice, modifier = Modifier.padding(padding).imePadding()) {
-                    if (state.screen != FoundationScreen.WELCOME) {
-                        TextButton(
-                            onClick = { onNavigate(backDestination(state)) },
-                            enabled = !state.busy,
-                            modifier = Modifier.heightIn(min = MeetSpaceTokens.MinimumTouchTarget).testTag("back"),
-                            contentPadding = PaddingValues(horizontal = 0.dp),
-                        ) {
-                            Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = null, modifier = Modifier.size(20.dp))
+                IntroFrame(message = state.error ?: state.notice, modifier = Modifier.padding(padding).imePadding(),
+                    welcome = state.screen == FoundationScreen.WELCOME, account = state.screen == FoundationScreen.REGISTER,
+                    footer = "Ваше общение остаётся в вашем пространстве",
+                    topBar = if (state.screen == FoundationScreen.WELCOME) null else ({
+                        TextButton(onClick = { onNavigate(backDestination(state)) }, enabled = !state.busy,
+                            modifier = Modifier.heightIn(min = 48.dp).testTag("back"), contentPadding = PaddingValues(0.dp)) {
+                            Icon(Icons.AutoMirrored.Outlined.ArrowBack, null, Modifier.size(16.dp))
                             Spacer(Modifier.width(8.dp))
-                            Text(if (state.screen == FoundationScreen.REGISTER) "Ко входу" else "Назад")
+                            Text(if (state.screen == FoundationScreen.REGISTER) "Ко входу" else "Назад", fontSize = if (LocalOnboardingWide.current) 12.sp else 11.sp,
+                                fontWeight = FontWeight.Normal, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                    }
+                    }),
+                ) {
                     Message(state, onClearMessage)
                     when (state.screen) {
                         FoundationScreen.WELCOME -> Welcome(expanded, state.busy, onNavigate)
@@ -210,10 +217,7 @@ fun FoundationUi(
                         FoundationScreen.INSTALLER -> Installer(onNavigate)
                         FoundationScreen.WORKSPACE -> Unit
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 12.dp)) {
-                        Icon(Icons.Outlined.Lock, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("Ваше общение остаётся в вашем пространстве", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
+
                 }
             }
         }
@@ -231,72 +235,137 @@ internal fun onboardingTone(light: Long, dark: Long): Color = Color(if (Material
 internal fun onboardingInputStyle() = MaterialTheme.typography.bodyMedium.copy(fontSize = if (LocalOnboardingWide.current) 14.sp else 16.sp, lineHeight = if (LocalOnboardingWide.current) 22.sp else 24.sp)
 
 @Composable
-internal fun IntroFrame(modifier: Modifier = Modifier, message: String? = null, install: Boolean = false, content: @Composable ColumnScope.() -> Unit) {
+internal fun IntroFrame(
+    modifier: Modifier = Modifier,
+    message: String? = null,
+    install: Boolean = false,
+    welcome: Boolean = false,
+    account: Boolean = false,
+    topBar: (@Composable () -> Unit)? = null,
+    footer: String? = null,
+    content: @Composable ColumnScope.() -> Unit,
+) {
     val formScroll = rememberScrollState()
     LaunchedEffect(message) { if (message != null) formScroll.animateScrollTo(0) }
     BoxWithConstraints(modifier.fillMaxSize()) {
-        val wide = maxWidth / LocalDensity.current.fontScale.coerceAtLeast(1f) >= 760.dp
-        val generous = maxWidth >= 1100.dp
+        val screenWidth = maxWidth
+        val screenHeight = maxHeight
+        val readableWidth = screenWidth / LocalDensity.current.fontScale.coerceAtLeast(1f)
+        val wide = readableWidth >= 760.dp
+        val sideVisible = if (install) readableWidth > 1000.dp else wide
+        val generous = screenWidth >= 1100.dp
         val darkIntro = MaterialTheme.colorScheme.background.luminance() < .5f
-        val sideTitleSize = if (generous) (maxWidth.value * .038f).coerceIn(34f, 52f) else 37f
-        val baseTypography = MaterialTheme.typography
-        CompositionLocalProvider(LocalOnboardingWide provides wide, LocalOnboardingWidth provides maxWidth) {
-        MaterialTheme(typography = baseTypography.copy(
-            headlineLarge = baseTypography.headlineLarge.copy(fontSize = if (!wide) 33.sp else if (maxWidth <= 1000.dp) 34.sp else 37.sp, lineHeight = if (wide) 42.sp else 38.sp, letterSpacing = (-1.6).sp),
-            titleLarge = baseTypography.titleLarge.copy(fontSize = 17.sp, lineHeight = 24.sp),
-            titleMedium = baseTypography.titleMedium.copy(fontSize = 14.sp, lineHeight = 20.sp),
-            titleSmall = baseTypography.titleSmall.copy(fontSize = 12.sp, lineHeight = 18.sp),
-            bodyLarge = baseTypography.bodyLarge.copy(fontSize = 14.sp, lineHeight = 22.sp),
-            bodyMedium = baseTypography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 22.sp),
-            bodySmall = baseTypography.bodySmall.copy(fontSize = 12.sp, lineHeight = 18.sp),
-            labelLarge = baseTypography.labelLarge.copy(fontSize = 14.sp, lineHeight = 20.sp),
-            labelMedium = baseTypography.labelMedium.copy(fontSize = 11.sp, lineHeight = 16.sp),
-            labelSmall = baseTypography.labelSmall.copy(fontSize = if (wide) 10.sp else 8.sp, lineHeight = 15.sp),
-        )) {
-        Row(Modifier.fillMaxSize()) {
-            if (wide) {
-                Column(Modifier.weight(if (generous) 1f else .83f).fillMaxHeight().background(if (darkIntro) Color(0xFF222B3B) else Color(0xFFEEF1F9))
-                    .verticalScroll(rememberScrollState()).padding(horizontal = if (generous) 55.dp else 29.dp, vertical = 32.dp),
-                    verticalArrangement = Arrangement.spacedBy(24.dp)) {
-                    Brand()
-                    Spacer(Modifier.height(if (generous) 40.dp else 20.dp))
-                    Eyebrow(if (install) "ВАШ СЕРВЕР. ВАШИ ПРАВИЛА." else "БЛИЖЕ К КОМАНДЕ.")
-                    Text(if (install) "Своё пространство.\nПолный контроль." else "Быть на одной\nволне.",
-                        style = MaterialTheme.typography.displaySmall.copy(fontSize = sideTitleSize.sp, lineHeight = (sideTitleSize * 1.09f).sp, letterSpacing = (-2.3).sp), modifier = Modifier.semantics { heading() })
-                    Text(if (install) "Подключите удалённый сервер, а мы покажем каждый шаг настройки." else "Встречи, сообщения и идеи —\nв одном пространстве.",
-                        fontSize = if (generous) 15.sp else 12.sp, lineHeight = if (generous) 25.sp else 20.sp, color = if (darkIntro) Color(0xFF99A7BD) else Color(0xFF687285))
-                    ConnectionArtwork(Modifier.fillMaxWidth().height(if (generous) 270.dp else 230.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Outlined.Security, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
-                        Text("На вашей инфраструктуре", fontSize = 10.sp, color = if (darkIntro) Color(0xFF99A7BD) else Color(0xFF7D8799))
+        val sideTitleSize = if (install) (screenWidth.value * .03f).coerceIn(30f, 38f) else if (screenWidth <= 1000.dp) 37f else (screenWidth.value * .038f).coerceIn(34f, 52f)
+        val lineHeight = LineHeightStyle(LineHeightStyle.Alignment.Center, LineHeightStyle.Trim.None)
+        val base = MaterialTheme.typography
+        val headlineSize = if (install) { if (!wide) 28f else if (!sideVisible) 30f else 32f } else if (!wide) { if (screenWidth <= 375.dp) 31f else 33f } else if (screenWidth <= 1000.dp) 34f else 37f
+        val body = if (install) { if (wide) 15f else 16f } else 13f
+        val small = if (install) { if (wide) 13f else 14f } else 12f
+        CompositionLocalProvider(LocalOnboardingWide provides wide, LocalOnboardingWidth provides screenWidth) {
+            MaterialTheme(typography = base.copy(
+                headlineLarge = base.headlineLarge.copy(fontSize = headlineSize.sp, lineHeight = (headlineSize * if (install) 1.2f else 1.14f).sp,
+                    letterSpacing = (if (install) -1f else -1.6f).sp, fontWeight = FontWeight.SemiBold, lineHeightStyle = lineHeight),
+                titleLarge = base.titleLarge.copy(fontSize = (if (install) 18 else 17).sp, lineHeight = (if (install) 25.2 else 24.0).sp, lineHeightStyle = lineHeight),
+                titleMedium = base.titleMedium.copy(fontSize = 14.sp, lineHeight = 21.sp, lineHeightStyle = lineHeight),
+                titleSmall = base.titleSmall.copy(fontSize = 12.sp, lineHeight = 18.sp, lineHeightStyle = lineHeight),
+                bodyLarge = base.bodyLarge.copy(fontSize = body.sp, lineHeight = (body * 1.65f).sp, letterSpacing = 0.sp, lineHeightStyle = lineHeight),
+                bodyMedium = base.bodyMedium.copy(fontSize = body.sp, lineHeight = (body * 1.6f).sp, letterSpacing = 0.sp, lineHeightStyle = lineHeight),
+                bodySmall = base.bodySmall.copy(fontSize = small.sp, lineHeight = (small * 1.6f).sp, letterSpacing = 0.sp, lineHeightStyle = lineHeight),
+                labelLarge = base.labelLarge.copy(fontSize = (if (install) body else 12f).sp, lineHeight = (if (install) body * 1.5f else 18f).sp, letterSpacing = 0.sp, lineHeightStyle = lineHeight),
+                labelMedium = base.labelMedium.copy(fontSize = (if (install) small else 11f).sp, lineHeight = (if (install) small * 1.5f else 16f).sp, lineHeightStyle = lineHeight),
+                labelSmall = base.labelSmall.copy(fontSize = (if (install) { if (wide) 11 else 12 } else if (wide) 10 else 8).sp,
+                    lineHeight = (if (install) { if (wide) 16.5 else 18.0 } else if (wide) 15.0 else 12.0).sp, lineHeightStyle = lineHeight),
+            )) {
+                CompositionLocalProvider(LocalTextStyle provides MaterialTheme.typography.bodyMedium) {
+                    Row(Modifier.fillMaxSize().background(if (install) MaterialTheme.colorScheme.background else MaterialTheme.colorScheme.surface)) {
+                        if (sideVisible) {
+                            val sideFraction = if (install) .3f else if (screenWidth <= 1000.dp) .83f / 1.83f else .5f
+                            val sidePadding = if (install) (screenWidth * .027f).coerceIn(24.dp, 40.dp) else if (generous) 55.dp else if (screenWidth <= 1000.dp) 29.dp else 42.dp
+                            Column(Modifier.width(screenWidth * sideFraction).fillMaxHeight()
+                                .background(if (install) MaterialTheme.colorScheme.primaryContainer else if (darkIntro) Color(0xFF222B3B) else Color(0xFFEEF1F9))
+                                .verticalScroll(rememberScrollState()).heightIn(min = screenHeight).padding(horizontal = sidePadding, vertical = if (install) 32.dp else 38.dp),
+                                verticalArrangement = Arrangement.SpaceBetween) {
+                                Brand()
+                                Column(Modifier.padding(top = if (install) 28.dp else if (generous) 40.dp else 25.dp, bottom = 20.dp)) {
+                                    Eyebrow(if (install) "ВАШ СЕРВЕР. ВАШИ ПРАВИЛА." else "БЛИЖЕ К КОМАНДЕ.", installer = install)
+                                    Spacer(Modifier.height(18.dp))
+                                    Text(if (install) "Своё пространство.\nПолный контроль." else "Быть на одной\nволне.",
+                                        style = MaterialTheme.typography.displaySmall.copy(fontSize = sideTitleSize.sp,
+                                            lineHeight = (sideTitleSize * if (install) 1.15f else 1.09f).sp,
+                                            letterSpacing = (if (install) -1.2f else -2.3f).sp, fontWeight = FontWeight.SemiBold, lineHeightStyle = lineHeight),
+                                        modifier = Modifier.semantics { heading() })
+                                    Spacer(Modifier.height(17.dp))
+                                    Text(if (install) "Подключите удалённый сервер, а мы покажем каждый шаг настройки." else "Встречи, сообщения и идеи —\nв одном пространстве.",
+                                        fontSize = (if (install) 14 else if (screenWidth <= 1000.dp) 12 else 15).sp,
+                                        lineHeight = (if (install) 23.1 else if (screenWidth <= 1000.dp) 19.8 else 24.75).sp,
+                                        color = if (install) MaterialTheme.colorScheme.onSurfaceVariant else if (darkIntro) Color(0xFF99A7BD) else Color(0xFF687285))
+                                    Spacer(Modifier.height(if (generous && !install) 24.dp else 0.dp))
+                                    if (install) {
+                                        BoxWithConstraints(Modifier.fillMaxWidth().height(285.dp), contentAlignment = Alignment.Center) {
+                                            ConnectionArtwork(Modifier.requiredWidth(maxWidth + 48.dp).height(285.dp), installer = true)
+                                        }
+                                    } else ConnectionArtwork(Modifier.fillMaxWidth().height(285.dp))
+                                }
+                                FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(OnboardingIcons.Shield, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Text("На вашей инфраструктуре", fontSize = (if (install) 12 else 10).sp, lineHeight = (if (install) 19.2 else 14.0).sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                    Text("MeetSpace для Android", fontSize = (if (install) 12 else 10).sp, lineHeight = (if (install) 19.2 else 14.0).sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        }
+                        BoxWithConstraints(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.TopCenter) {
+                            val availableHeight = maxHeight
+                            val sideInset = if (install) { if (!wide) 20.dp else if (!sideVisible) 24.dp else (screenWidth * .04f).coerceIn(28.dp, 56.dp) }
+                                else if (sideVisible) { if (generous) 62.dp else if (screenWidth <= 1000.dp) 30.dp else 44.dp } else if (screenWidth <= 375.dp) 21.dp else 25.dp
+                            val topInset = if (install) { if (wide) 24.dp else 20.dp } else if (account) { if (wide) 24.dp else 18.dp } else if (wide) 34.dp else if (screenWidth <= 375.dp) 18.dp else 21.dp
+                            Column(Modifier.widthIn(max = if (install && wide && !sideVisible) 720.dp else 2000.dp).fillMaxWidth()
+                                .verticalScroll(formScroll).heightIn(min = availableHeight).padding(start = sideInset, end = sideInset, top = topInset,
+                                    bottom = if (install) { if (wide) 28.dp else 24.dp } else if (account && wide) 20.dp else if (wide) 24.dp else 22.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = if (wide && !install) Arrangement.SpaceBetween else Arrangement.Top) {
+                                Column(Modifier.fillMaxWidth()) {
+                                    if (!sideVisible) {
+                                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                            Brand(phone = true)
+                                            Text("ANDROID", fontSize = (if (install) 10 else 8).sp, lineHeight = 12.sp,
+                                                fontWeight = FontWeight.SemiBold, letterSpacing = (if (install) 1.5 else 1.9).sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                        Spacer(Modifier.height(if (install) { if (wide) 12.dp else 10.dp } else if (account) 8.dp else 17.dp))
+                                    }
+                                    topBar?.invoke()
+                                }
+                                Column(Modifier.widthIn(max = if (install) { if (wide) 648.dp else 560.dp } else if (wide) 418.dp else 470.dp).fillMaxWidth()
+                                    .padding(top = if (install) { if (wide) 24.dp else 16.dp } else if (account) 10.dp else if (wide) 32.dp else if (welcome) { if (screenWidth <= 375.dp) 12.dp else 17.dp } else 21.dp,
+                                        bottom = if (install) { if (wide) 40.dp else 28.dp } else if (account) 18.dp else if (welcome && !wide) 18.dp else if (wide) 32.dp else 27.dp),
+                                    verticalArrangement = Arrangement.spacedBy(20.dp), content = content)
+                                footer?.let {
+                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp, if (install) Alignment.Start else Alignment.CenterHorizontally),
+                                        verticalAlignment = if (install) Alignment.Top else Alignment.CenterVertically) {
+                                        Icon(OnboardingIcons.Lock, null, Modifier.size(if (install) 16.dp else if (wide) 12.dp else 10.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Text(it, fontSize = (if (install) small else if (wide) 10f else 8f).sp,
+                                            lineHeight = (if (install) small * 1.6f else if (wide) 15f else 12f).sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
-            BoxWithConstraints(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.TopCenter) {
-                val availableHeight = maxHeight
-                Column(Modifier.fillMaxWidth().verticalScroll(formScroll).heightIn(min = availableHeight)
-                    .padding(horizontal = if (generous && wide) 48.dp else if (wide) 30.dp else if (maxWidth < 360.dp) 16.dp else 24.dp, vertical = if (wide) 32.dp else 24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = if (wide) Arrangement.Center else Arrangement.Top) {
-                    Column(Modifier.widthIn(max = 460.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                        if (!wide) Brand(phone = true)
-                        content()
-                    }
-                }
-            }
-        }
-        }
         }
     }
 }
 
 @Composable
 internal fun Brand(modifier: Modifier = Modifier, compact: Boolean = false, phone: Boolean = false) {
-    Row(modifier, horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-        Image(painterResource(R.drawable.ic_meetspace), contentDescription = null, modifier = Modifier.size(if (compact) 32.dp else if (phone) 27.dp else 38.dp))
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(if (phone) 7.dp else 9.dp), verticalAlignment = Alignment.CenterVertically) {
+        Image(painterResource(R.drawable.ic_meetspace), contentDescription = null, modifier = Modifier.size(if (compact) 32.dp else if (phone) 27.dp else 32.dp))
         if (!compact) {
             Row {
-                Text("MeetSpace", style = MaterialTheme.typography.headlineSmall.copy(fontSize = if (phone) 20.sp else 24.sp), fontWeight = FontWeight.SemiBold)
-                Text(".", style = MaterialTheme.typography.headlineSmall.copy(fontSize = if (phone) 20.sp else 24.sp), fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
+                Text("MeetSpace", style = MaterialTheme.typography.headlineSmall.copy(fontSize = if (phone) 20.sp else 24.sp, lineHeight = if (phone) 26.sp else 31.2.sp, letterSpacing = if (phone) (-.8).sp else (-1).sp), fontWeight = FontWeight.SemiBold)
+                Text(".", style = MaterialTheme.typography.headlineSmall.copy(fontSize = if (phone) 20.sp else 24.sp, lineHeight = if (phone) 26.sp else 31.2.sp, letterSpacing = if (phone) (-.8).sp else (-1).sp), fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
             }
         }
     }
@@ -304,34 +373,43 @@ internal fun Brand(modifier: Modifier = Modifier, compact: Boolean = false, phon
 
 @Composable
 private fun Welcome(expanded: Boolean, busy: Boolean, onNavigate: (FoundationScreen) -> Unit) {
-    val narrowTablet = expanded && LocalOnboardingWidth.current <= 1000.dp
-    val smallPhone = LocalOnboardingWidth.current < 360.dp
-    val titleStyle = MaterialTheme.typography.displaySmall.copy(
-        fontSize = if (narrowTablet) 38.sp else if (expanded) 43.sp else if (smallPhone) 34.sp else 37.sp,
-        lineHeight = if (narrowTablet) 43.sp else if (expanded) 49.sp else if (smallPhone) 40.sp else 43.sp,
-        letterSpacing = if (expanded) (-1.9).sp else (-1.7).sp,
-    )
-    Column(Modifier.testTag("welcome"), verticalArrangement = Arrangement.spacedBy(if (expanded) 20.dp else 14.dp)) {
+    val wide = LocalOnboardingWide.current
+    val narrowTablet = wide && LocalOnboardingWidth.current <= 1000.dp
+    val smallPhone = !wide && LocalOnboardingWidth.current <= 375.dp
+    val fontSize = if (narrowTablet) 38f else if (wide) 43f else if (smallPhone) 34f else 37f
+    val titleStyle = MaterialTheme.typography.displaySmall.copy(fontSize = fontSize.sp,
+        lineHeight = (fontSize * if (wide) 1.13f else 1.15f).sp,
+        letterSpacing = (if (wide) -1.9f else -1.7f).sp, fontWeight = FontWeight.SemiBold,
+        lineHeightStyle = LineHeightStyle(LineHeightStyle.Alignment.Center, LineHeightStyle.Trim.None))
+    Column(Modifier.testTag("welcome")) {
         Eyebrow("ЕДИНОЕ ПРОСТРАНСТВО")
+        Spacer(Modifier.height(if (wide) 13.dp else 14.dp))
         Column(Modifier.semantics(mergeDescendants = true) { heading() }) {
             Text("Команда ближе.", style = titleStyle)
             Text("Идей больше.", style = titleStyle, color = MaterialTheme.colorScheme.primary)
         }
-        Text("MeetSpace — единое пространство для встреч и общения.",
-            fontSize = if (narrowTablet) 13.sp else if (expanded) 15.sp else if (smallPhone) 11.sp else 12.sp, lineHeight = if (expanded) 25.sp else 20.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
-        if (!expanded) ConnectionArtwork(Modifier.fillMaxWidth().height(if (smallPhone) 179.dp else 207.dp))
-        ChoiceCard("Подключиться к серверу", "У меня уже есть адрес MeetSpace", Icons.Outlined.Link, primary = true, compact = !expanded, enabled = !busy, modifier = Modifier.testTag("welcome-connect")) {
+        Spacer(Modifier.height(if (wide) 14.dp else 12.dp))
+        Text("MeetSpace — единое пространство\nдля встреч и общения.",
+            fontSize = (if (narrowTablet) 13 else if (wide) 15 else if (smallPhone) 11 else 12).sp,
+            lineHeight = (if (wide) 25.5 else 20.4).sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (!wide) {
+            ConnectionArtwork(Modifier.fillMaxWidth().height(if (smallPhone) 179.dp else 207.dp))
+            Spacer(Modifier.height(if (smallPhone) 17.dp else 20.dp))
+        } else Spacer(Modifier.height(30.dp))
+        ChoiceCard("Подключиться к серверу", "У меня уже есть адрес MeetSpace", CallIcons.Link, primary = true, compact = !wide || narrowTablet, enabled = !busy, modifier = Modifier.testTag("welcome-connect")) {
             onNavigate(FoundationScreen.CONNECT)
         }
-        ChoiceCard("Развернуть свой сервер", "Создать пространство на своём VPS", Icons.Outlined.Dns, compact = !expanded, enabled = !busy, modifier = Modifier.testTag("welcome-installer")) {
+        Spacer(Modifier.height(if (wide) 12.dp else 10.dp))
+        ChoiceCard("Развернуть свой сервер", "Создать пространство на своём VPS", OnboardingIcons.Server, compact = !wide || narrowTablet, enabled = !busy, modifier = Modifier.testTag("welcome-installer")) {
             onNavigate(FoundationScreen.INSTALLER)
         }
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            listOf("Встречи" to Icons.Outlined.Videocam, "Сообщения" to Icons.Outlined.ChatBubbleOutline, "Ваш сервер" to Icons.Outlined.Security).forEach { (title, icon) ->
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(icon, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(title, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.height(if (wide) 26.dp else if (smallPhone) 20.dp else 23.dp))
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(if (wide) 20.dp else 21.dp, Alignment.CenterHorizontally),
+            verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            listOf("Встречи" to CallIcons.Video, "Сообщения" to CallIcons.MessageCircle, "Ваш сервер" to OnboardingIcons.Shield).forEach { (title, icon) ->
+                Row(horizontalArrangement = Arrangement.spacedBy(if (wide) 6.dp else 5.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(icon, null, Modifier.size(if (wide) 14.dp else 12.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(title, fontSize = (if (wide) 10 else 8).sp, lineHeight = (if (wide) 15 else 12).sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -340,7 +418,7 @@ private fun Welcome(expanded: Boolean, busy: Boolean, onNavigate: (FoundationScr
 
 /** Decorative onboarding scene; its labels are not application state. */
 @Composable
-private fun ConnectionArtwork(modifier: Modifier = Modifier) = OnboardingArtwork(modifier)
+private fun ConnectionArtwork(modifier: Modifier = Modifier, installer: Boolean = false) = OnboardingArtwork(modifier, installer)
 
 @Composable
 internal fun onboardingFieldColors(): androidx.compose.material3.TextFieldColors {
@@ -377,19 +455,11 @@ private fun Connect(state: FoundationUiState, onConnect: (String) -> Unit, onSel
     val keyboard = LocalSoftwareKeyboardController.current
     Column(Modifier.testTag("connect"), verticalArrangement = Arrangement.spacedBy(20.dp)) {
         IntroHeading("01 / ПОДКЛЮЧЕНИЕ", "Где ваша\nкоманда?", "Введите адрес сервера MeetSpace. Его можно узнать у администратора команды.")
-        OutlinedTextField(
-            value = url,
-            onValueChange = { url = it },
-            label = { Text("Адрес сервера") },
-            placeholder = { Text("https://meet.example.org") },
-            singleLine = true,
-            enabled = !state.busy,
-            colors = onboardingFieldColors(),
-            textStyle = onboardingInputStyle(), shape = RoundedCornerShape(10.dp),
-            modifier = Modifier.fillMaxWidth().testTag("server-url"),
+        RegistrationTextField("Адрес сервера", "https://meet.example.org", "server-url", url, { url = it },
+            state.busy, false, remember { FocusRequester() },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
             keyboardActions = KeyboardActions(onGo = { if (url.isNotBlank() && !state.busy) { keyboard?.hide(); onConnect(url) } }),
-        )
+            labelGap = 9.dp)
         Hint(Icons.Outlined.Lock, "Защищённое подключение по HTTPS")
         PrimaryButton("Проверить адрес", state.busy, url.isNotBlank(), "connect-submit") { keyboard?.hide(); onConnect(url) }
         InfoCard(Icons.Outlined.Info, "Каждый сервер — отдельное пространство. Аккаунт вашей команды работает на её сервере.")
@@ -457,40 +527,22 @@ private fun Login(state: FoundationUiState, onLogin: (String, String) -> Unit, o
     }
     Column(Modifier.testTag("login"), verticalArrangement = Arrangement.spacedBy(20.dp)) {
         IntroHeading("02 / ВХОД В ПРОСТРАНСТВО", "С возвращением.", "Ваша команда уже здесь.")
-        Surface(shape = RoundedCornerShape(14.dp),
-            color = if (dark) Color(0xFF252F40) else Color(0xFFFAFBFD),
-            contentColor = if (dark) Color(0xFFA5B3C9) else Color(0xFF788398),
-            border = BorderStroke(1.dp, if (dark) Color(0xFF364359) else Color(0xFFE5E8F0))) {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Icon(Icons.Outlined.Dns, null, Modifier.size(20.dp), tint = Color(0xFF8C97AA))
-                Text(profile?.origin.orEmpty().removePrefix("https://"), fontSize = 12.sp, modifier = Modifier.weight(1f))
-                TextButton(onClick = { onNavigate(FoundationScreen.CONNECT) }, enabled = !state.busy) { Text("Изменить", fontSize = 12.sp) }
-            }
-        }
-        OutlinedTextField(
-            value = email, onValueChange = { email = it }, label = { Text("Электронная почта") }, singleLine = true, enabled = !state.busy,
-            colors = onboardingFieldColors(),
-            textStyle = onboardingInputStyle(), shape = RoundedCornerShape(10.dp),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
-            modifier = Modifier.fillMaxWidth().testTag("email"),
-        )
-        OutlinedTextField(
-            value = password, onValueChange = { password = it }, label = { Text("Пароль") }, singleLine = true, enabled = !state.busy,
-            colors = onboardingFieldColors(),
-            textStyle = onboardingInputStyle(), shape = RoundedCornerShape(10.dp),
+        OnboardingServerPill(profile?.origin.orEmpty(), !state.busy) { onNavigate(FoundationScreen.CONNECT) }
+        RegistrationTextField("Электронная почта", "you@company.ru", "email", email, { email = it }, state.busy, false, remember { FocusRequester() },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next), labelGap = 9.dp)
+        RegistrationTextField("Пароль", "Введите пароль", "password", password, { password = it }, state.busy, false, remember { FocusRequester() },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { submit() }), labelGap = 9.dp,
             visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
             trailingIcon = {
-                IconButton(onClick = { passwordVisible = !passwordVisible }, modifier = Modifier.size(MeetSpaceTokens.MinimumTouchTarget)) {
-                    Icon(if (passwordVisible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility, contentDescription = if (passwordVisible) "Скрыть пароль" else "Показать пароль")
+                IconButton(onClick = { passwordVisible = !passwordVisible }, enabled = !state.busy, modifier = Modifier.size(48.dp)) {
+                    Icon(if (passwordVisible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                        contentDescription = if (passwordVisible) "Скрыть пароль" else "Показать пароль", modifier = Modifier.size(18.dp))
                 }
-            },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
-            keyboardActions = KeyboardActions(onDone = { submit() }),
-            modifier = Modifier.fillMaxWidth().testTag("password"),
-        )
+            })
         if (onGuest != null) TextButton({ guest = true }, enabled = !state.busy, modifier = Modifier.fillMaxWidth().testTag("open-guest")) { Text("Войти гостем по приглашению") }
         PrimaryButton("Войти в MeetSpace", state.busy, email.isNotBlank() && password.isNotEmpty(), "login-submit", submit)
-        Text("Если не получается войти, обратитесь к администратору этого сервера.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("Если не получается войти, обратитесь к администратору этого сервера.", fontSize = 11.sp, lineHeight = 17.6.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (registrationAvailable) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
                 Text("Нет аккаунта?", color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -533,16 +585,8 @@ private fun Register(state: FoundationUiState, onRegister: ((String, String, Str
         }
     }
     Column(Modifier.testTag("register"), verticalArrangement = Arrangement.spacedBy(13.dp)) {
-        IntroHeading("АККАУНТ MEETSPACE", "Создайте аккаунт.", "Для встреч и общения с вашей командой.")
-        Surface(shape = RoundedCornerShape(14.dp), color = onboardingTone(0xFFFAFBFD, 0xFF252F40),
-            border = BorderStroke(1.dp, onboardingTone(0xFFE5E8F0, 0xFF364359))) {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Icon(Icons.Outlined.Dns, null, Modifier.size(20.dp), tint = onboardingTone(0xFF8C97AA, 0xFFA5B3C9))
-                Text(profile?.origin.orEmpty().removePrefix("https://"), fontSize = 12.sp, modifier = Modifier.weight(1f))
-                TextButton(onClick = { onNavigate(FoundationScreen.CONNECT) }, enabled = !state.busy) { Text("Изменить", fontSize = 12.sp) }
-            }
-        }
+        IntroHeading("АККАУНТ MEETSPACE", "Создайте аккаунт.", "Для встреч и общения с вашей командой.", compact = true)
+        OnboardingServerPill(profile?.origin.orEmpty(), !state.busy) { onNavigate(FoundationScreen.CONNECT) }
         RegistrationTextField("Имя для встреч", "Как вас зовут", "register-name", name, { name = it; edit() },
             state.busy, error?.field == RegistrationField.NAME, focus.getValue(RegistrationField.NAME),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
@@ -590,17 +634,18 @@ private fun RegistrationTextField(label: String, placeholder: String, tag: Strin
     onChange: (String) -> Unit, busy: Boolean, isError: Boolean, focus: FocusRequester,
     keyboardOptions: KeyboardOptions, keyboardActions: KeyboardActions = KeyboardActions.Default,
     visualTransformation: VisualTransformation = VisualTransformation.None,
-    hint: String? = null, trailingIcon: (@Composable () -> Unit)? = null) {
+    hint: String? = null, trailingIcon: (@Composable () -> Unit)? = null, labelGap: Dp = 6.dp) {
     val interactionSource = remember { MutableInteractionSource() }
     val focused by interactionSource.collectIsFocusedAsState()
-    val inputStyle = onboardingInputStyle()
+    val inputStyle = onboardingInputStyle().copy(fontSize = if (LocalOnboardingWide.current) 12.sp else 16.sp,
+        lineHeight = if (LocalOnboardingWide.current) 18.sp else 24.sp, letterSpacing = 0.sp)
     val ink = onboardingTone(0xFF202737, 0xFFE7EDF8)
     val border = when {
         isError -> MaterialTheme.colorScheme.error
         focused -> MaterialTheme.colorScheme.primary
         else -> onboardingTone(0xFFDFE4ED, 0xFF3C4960)
     }
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(labelGap)) {
         Text(label, fontSize = 11.sp, lineHeight = 16.sp, fontWeight = FontWeight.SemiBold,
             color = onboardingTone(0xFF596479, 0xFFB4BFD2))
         BasicTextField(value = value, onValueChange = onChange, singleLine = true, enabled = !busy,
@@ -675,6 +720,7 @@ private fun Workspace(
     onCallsSearch: (() -> Unit)?,
     requestedWorkspaceTab: WorkspaceTab?,
     consumeWorkspaceTab: () -> Unit,
+    hasUnreadChats: Boolean,
 ) {
     var selectedTab by rememberSaveable { mutableStateOf(WorkspaceTab.CALLS) }
     LaunchedEffect(requestedWorkspaceTab) { requestedWorkspaceTab?.let { selectedTab = it; consumeWorkspaceTab() } }
@@ -684,7 +730,7 @@ private fun Workspace(
     BoxWithConstraints(Modifier.fillMaxSize().testTag("workspace")) {
         val tablet = maxWidth >= 780.dp
         Scaffold(
-            containerColor = MaterialTheme.colorScheme.background,
+            containerColor = if (selectedTab == WorkspaceTab.MESSAGES) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.background,
             contentWindowInsets = WindowInsets.safeDrawing,
             bottomBar = {
                 if (!(selectedTab == WorkspaceTab.MESSAGES && messageThreadOpen && !tablet)) WorkspaceNavigation(
@@ -693,6 +739,7 @@ private fun Workspace(
                     profileLabel = state.repository.session?.user?.displayLabel.orEmpty(),
                     tablet = tablet,
                     profileUser = state.repository.session?.user,
+                    hasUnreadChats = hasUnreadChats,
                 )
             },
         ) { padding ->
@@ -730,42 +777,51 @@ private fun Workspace(
 
 @Composable
 private fun WorkspaceHeader(tab: WorkspaceTab, tablet: Boolean, onNotifications: (() -> Unit)?, unreadCount: Int, onCallsSearch: (() -> Unit)?, onTab: (WorkspaceTab) -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().heightIn(min = if (tablet) 84.dp else 77.dp)
-            .padding(start = if (tablet) 30.dp else 20.dp, end = if (tablet) 24.dp else 14.dp, bottom = if (tablet) 15.dp else 10.dp)
-            .testTag("workspace-header"),
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        if (tablet) Brand(compact = true)
-        Text(if (tab == WorkspaceTab.PROFILE) "Настройки аккаунта" else tab.title, style = MaterialTheme.typography.headlineSmall.copy(fontSize = if (tablet) 25.sp else 23.sp),
-            maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).semantics { heading() })
-        if (tab == WorkspaceTab.CALENDAR) {
-            IconButton(onClick = { onTab(WorkspaceTab.CALLS) }, modifier = Modifier.testTag("calendar-back")) {
-                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Назад к встречам")
+    val accountSettings = tab == WorkspaceTab.PROFILE
+    Column(Modifier.fillMaxWidth().then(if (accountSettings) Modifier.background(MaterialTheme.colorScheme.surface) else Modifier)) {
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = if (accountSettings) 74.dp else if (tablet) 84.dp else 77.dp)
+                .padding(start = if (tablet) { if (accountSettings) 28.dp else 30.dp } else 20.dp,
+                    end = if (accountSettings) { if (tablet) 28.dp else 20.dp } else if (tablet) 24.dp else 14.dp,
+                    bottom = if (accountSettings) 0.dp else if (tablet) 15.dp else 10.dp)
+                .testTag("workspace-header"),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (tablet) Brand(compact = true)
+            Text(if (tab == WorkspaceTab.PROFILE) "Настройки аккаунта" else tab.title, style = MaterialTheme.typography.headlineSmall.copy(fontSize = if (tablet) 25.sp else 23.sp),
+                maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).semantics { heading() })
+            if (tab == WorkspaceTab.CALENDAR) {
+                IconButton(onClick = { onTab(WorkspaceTab.CALLS) }, modifier = Modifier.testTag("calendar-back")) {
+                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Назад к встречам")
+                }
             }
-        }
-        if (tab == WorkspaceTab.CALLS) {
-            IconButton(onClick = onCallsSearch ?: { onTab(WorkspaceTab.CALENDAR) }, modifier = Modifier.testTag(if (onCallsSearch != null) "calls-search-toggle" else "calls-calendar")) {
-                Icon(if (onCallsSearch != null) Icons.Outlined.Search else Icons.Outlined.CalendarMonth, contentDescription = if (onCallsSearch != null) "Найти звонок" else "Открыть календарь", modifier = Modifier.size(27.dp))
+            if (tab == WorkspaceTab.CALLS) {
+                IconButton(onClick = onCallsSearch ?: { onTab(WorkspaceTab.CALENDAR) }, modifier = Modifier.testTag(if (onCallsSearch != null) "calls-search-toggle" else "calls-calendar")) {
+                    Icon(if (onCallsSearch != null) Icons.Outlined.Search else Icons.Outlined.CalendarMonth, contentDescription = if (onCallsSearch != null) "Найти звонок" else "Открыть календарь", modifier = Modifier.size(27.dp))
+                }
             }
-        }
-        if (tab == WorkspaceTab.HOME && onNotifications != null) {
-            IconButton(onClick = onNotifications, modifier = Modifier.testTag("workspace-notifications")) {
-                Box {
-                    Icon(Icons.Outlined.NotificationsNone,
-                        contentDescription = if (unreadCount > 0) "Уведомления, непрочитанных: $unreadCount" else "Уведомления",
-                        modifier = Modifier.size(27.dp))
-                    if (unreadCount > 0) Box(Modifier.align(Alignment.TopEnd).size(6.dp).background(MaterialTheme.colorScheme.primary, CircleShape))
+            if (tab == WorkspaceTab.HOME && onNotifications != null) {
+                IconButton(onClick = onNotifications, modifier = Modifier.testTag("workspace-notifications")) {
+                    Box {
+                        Icon(Icons.Outlined.NotificationsNone,
+                            contentDescription = if (unreadCount > 0) "Уведомления, непрочитанных: $unreadCount" else "Уведомления",
+                            modifier = Modifier.size(27.dp))
+                        if (unreadCount > 0) Box(Modifier.align(Alignment.TopEnd).size(6.dp).background(MaterialTheme.colorScheme.primary, CircleShape))
+                    }
                 }
             }
         }
+        if (accountSettings) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
     }
 }
 
 @Composable
-internal fun WorkspaceNavigation(selectedTab: WorkspaceTab, onSelect: (WorkspaceTab) -> Unit, profileLabel: String, tablet: Boolean, profileUser: User? = null) {
+internal fun WorkspaceNavigation(selectedTab: WorkspaceTab, onSelect: (WorkspaceTab) -> Unit, profileLabel: String, tablet: Boolean,
+    profileUser: User? = null, hasUnreadChats: Boolean = false) {
     val activeTab = if (selectedTab == WorkspaceTab.CALENDAR) WorkspaceTab.CALLS else selectedTab
+    val chatStyle = activeTab == WorkspaceTab.MESSAGES
+    val colors = MaterialTheme.colorScheme
     Surface(color = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp, modifier = Modifier.testTag("bottom-navigation")) {
         Column(Modifier.fillMaxWidth().navigationBarsPadding()) {
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -785,12 +841,25 @@ internal fun WorkspaceNavigation(selectedTab: WorkspaceTab, onSelect: (Workspace
                         verticalArrangement = Arrangement.spacedBy(5.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        Box(Modifier.size(35.dp).testTag("tab-${tab.tag}-icon"), contentAlignment = Alignment.Center) {
+                        val iconBox = if (chatStyle) 39.dp else 35.dp
+                        Box(Modifier.size(iconBox).testTag("tab-${tab.tag}-icon"), contentAlignment = Alignment.Center) {
                             if (tab == WorkspaceTab.PROFILE) {
                                 AvatarImage(profileUser?.displayLabel ?: profileLabel, profileUser?.id, profileUser?.avatarVersion,
                                     size = 29.dp, modifier = Modifier.testTag("navigation-profile-avatar")
                                         .then(if (selected) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, CircleShape) else Modifier))
-                            } else Icon(tab.icon, contentDescription = null, tint = color, modifier = Modifier.size(35.dp).background(if (selected) MaterialTheme.colorScheme.primaryContainer else androidx.compose.ui.graphics.Color.Transparent, RoundedCornerShape(9.dp)).padding(4.dp))
+                                if (chatStyle && profileUser != null) Box(Modifier.align(Alignment.BottomEnd).offset(x = (-1).dp, y = (-2).dp)
+                                    .size(8.dp).background(Color(0xFF41BC85), CircleShape).border(1.5.dp, colors.surface, CircleShape))
+                            } else {
+                                val icon = if (chatStyle && tab == WorkspaceTab.CALLS) CallIcons.Video
+                                    else if (chatStyle && tab == WorkspaceTab.MESSAGES) CallIcons.MessagesSquare else tab.icon
+                                Icon(icon, contentDescription = null, tint = color,
+                                    modifier = Modifier.size(iconBox).background(if (selected) colors.primaryContainer else Color.Transparent,
+                                        RoundedCornerShape(if (chatStyle) 13.dp else 9.dp)).padding(if (chatStyle) 6.dp else 4.dp))
+                                if (chatStyle && tab == WorkspaceTab.MESSAGES && hasUnreadChats) {
+                                    Box(Modifier.align(Alignment.TopEnd).offset(x = (-3).dp, y = 2.dp).size(5.dp)
+                                        .background(colors.primary, CircleShape))
+                                }
+                            }
                         }
                         Text(tab.title, fontSize = 11.sp, lineHeight = 15.sp,
                             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
@@ -863,16 +932,36 @@ private fun Detail(label: String, value: String) {
 }
 
 @Composable
-private fun IntroHeading(eyebrow: String, title: String, subtitle: String) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+private fun IntroHeading(eyebrow: String, title: String, subtitle: String, compact: Boolean = false) {
+    val wide = LocalOnboardingWide.current
+    Column(Modifier.padding(bottom = if (compact) { if (wide) 5.dp else 7.dp } else if (wide) 10.dp else 6.dp)) {
         Eyebrow(eyebrow)
+        Spacer(Modifier.height(if (compact) 8.dp else if (wide) 13.dp else 12.dp))
         Text(title, style = MaterialTheme.typography.headlineLarge, modifier = Modifier.semantics { heading() })
-        Text(subtitle, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.height(if (compact && !wide) 10.dp else 14.dp))
+        Text(subtitle, fontSize = if (wide) 13.sp else 12.sp, lineHeight = if (wide) 22.1.sp else 21.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
 @Composable
-private fun Eyebrow(text: String) { Text(text, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+private fun OnboardingServerPill(origin: String, enabled: Boolean, change: () -> Unit) {
+    Surface(shape = RoundedCornerShape(10.dp), color = onboardingTone(0xFFFAFBFD, 0xFF252F40),
+        border = BorderStroke(1.dp, onboardingTone(0xFFE5E8F0, 0xFF364359))) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Icon(OnboardingIcons.Server, null, Modifier.size(15.dp), tint = onboardingTone(0xFF8C97AA, 0xFFA5B3C9))
+            Text(origin.removePrefix("https://"), fontSize = 11.sp, lineHeight = 16.5.sp,
+                modifier = Modifier.weight(1f), color = onboardingTone(0xFF788398, 0xFFA5B3C9))
+            TextButton(onClick = change, enabled = enabled, contentPadding = PaddingValues(horizontal = 6.dp), modifier = Modifier.heightIn(min = 48.dp)) {
+                Text("Изменить", fontSize = 10.sp, fontWeight = FontWeight.Normal)
+            }
+        }
+    }
+}
+
+@Composable
+private fun Eyebrow(text: String, installer: Boolean = false) { Text(text, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, letterSpacing = if (installer) 1.2.sp else if (LocalOnboardingWide.current) 1.8.sp else 1.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
 
 @Composable
 private fun ChoiceCard(title: String, subtitle: String, icon: ImageVector, modifier: Modifier = Modifier, primary: Boolean = false, compact: Boolean = false, enabled: Boolean = true, onClick: () -> Unit) {
@@ -903,16 +992,17 @@ private fun ChoiceCard(title: String, subtitle: String, icon: ImageVector, modif
 private fun PrimaryButton(label: String, busy: Boolean, enabled: Boolean, tag: String, onClick: () -> Unit) {
     Button(onClick = onClick, enabled = enabled && !busy, modifier = Modifier.fillMaxWidth().heightIn(min = 49.dp).testTag(tag), shape = RoundedCornerShape(10.dp), contentPadding = PaddingValues(horizontal = 15.dp, vertical = 12.dp)) {
         if (busy) { CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp); Spacer(Modifier.width(12.dp)) }
-        Text(if (busy) "Пожалуйста, подождите…" else label, modifier = Modifier.weight(1f))
+        Text(if (busy) "Пожалуйста, подождите…" else label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        Spacer(Modifier.width(10.dp))
         if (!busy) Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null, modifier = Modifier.size(16.dp))
     }
 }
 
 @Composable
 private fun Hint(icon: ImageVector, text: String) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-        Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Row(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(if (icon == Icons.Outlined.Lock) OnboardingIcons.Lock else icon, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(12.dp))
+        Text(text, fontSize = if (LocalOnboardingWide.current) 10.sp else 9.sp, lineHeight = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -921,7 +1011,7 @@ private fun InfoCard(icon: ImageVector, text: String) {
     Surface(shape = RoundedCornerShape(11.dp), color = onboardingTone(0xFFF6F8FC, 0xFF252F40), border = BorderStroke(1.dp, onboardingTone(0xFFEDF0F5, 0xFF364359))) {
         Row(Modifier.fillMaxWidth().padding(15.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
             Icon(icon, contentDescription = null, tint = onboardingTone(0xFF8595B1, 0xFFA5B3C9), modifier = Modifier.size(16.dp))
-            Text(text, style = MaterialTheme.typography.bodySmall, color = onboardingTone(0xFF7C879B, 0xFFA5B3C9))
+            Text(text, fontSize = if (LocalOnboardingWide.current) 11.sp else 10.sp, lineHeight = if (LocalOnboardingWide.current) 18.7.sp else 17.sp, color = onboardingTone(0xFF7C879B, 0xFFA5B3C9))
         }
     }
 }
@@ -956,14 +1046,18 @@ private fun backDestination(state: FoundationUiState): FoundationScreen = when {
 }
 
 @Composable
-internal fun OnboardingProgress(step: Int) {
+internal fun OnboardingProgress(step: Int, label: String = "Подключение сервера") {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("Подключение сервера", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("0${step.coerceIn(1, 5)} / 05", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+            Text(label, style = MaterialTheme.typography.labelSmall, letterSpacing = 0.sp,
+                fontWeight = FontWeight.Normal, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text("0${step.coerceIn(1, 5)}", style = MaterialTheme.typography.labelSmall, letterSpacing = 0.sp, color = MaterialTheme.colorScheme.primary)
+                Text("/ 05", style = MaterialTheme.typography.labelSmall, letterSpacing = 0.sp, color = onboardingTone(0xFFB8C0CE, 0xFF91A0B6))
+            }
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-            repeat(5) { index -> Box(Modifier.weight(1f).height(3.dp).background(if (index < step) MaterialTheme.colorScheme.primary else onboardingTone(0xFFE9EDF5, 0xFF364156), CircleShape)) }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            repeat(5) { index -> Box(Modifier.weight(1f).height(4.dp).background(if (index < step) MaterialTheme.colorScheme.primary else onboardingTone(0xFFE9EDF5, 0xFF364156), CircleShape)) }
         }
     }
 }

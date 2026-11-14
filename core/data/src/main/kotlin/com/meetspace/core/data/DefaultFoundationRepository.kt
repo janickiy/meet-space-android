@@ -217,6 +217,9 @@ internal class DefaultFoundationRepository(
     override suspend fun editMessage(id: String, messageId: String, text: String) = meetingOperation(false) {
         messagingApi.mutateMessage(it.scope.origin, it.token, id, messageId, "PATCH", fields("text" to inputText(text, 4000, multiline = true)))
     }
+    override suspend fun forwardMessages(id: String, sourceId: String, messageIds: List<String>, clientRequestId: String) = meetingOperation(false) {
+        messagingApi.forwardMessages(it.scope.origin, it.token, id, it.scope.accountId, sourceId, messageIds, clientRequestId)
+    }
     override suspend fun deleteMessage(id: String, messageId: String) = meetingOperation(false) {
         messagingApi.mutateMessage(it.scope.origin, it.token, id, messageId, "DELETE")
     }

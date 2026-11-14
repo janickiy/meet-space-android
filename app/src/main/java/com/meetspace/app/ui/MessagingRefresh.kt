@@ -57,19 +57,30 @@ internal fun ChatHistoryDialog(state: MessagingUiState, actions: MessagingAction
 }
 
 @Composable
-internal fun ChatPinBar(state: MessagingUiState, actions: MessagingActions, open: () -> Unit) {
+internal fun ChatPinBar(state: MessagingUiState, actions: MessagingActions, compactWidth: Boolean = false,
+    enabled: Boolean = true, compactHeight: Boolean = false, open: () -> Unit) {
     val pin = state.pins.data?.firstOrNull() ?: return
-    Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.primaryContainer).padding(horizontal = 12.dp, vertical = 6.dp).testTag("chat-pinned-bar"),
-        verticalAlignment = Alignment.CenterVertically) {
-        Row(Modifier.weight(1f).clickable { actions.focusMessage(pin.id) }.padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(11.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Outlined.PushPin, null, Modifier.size(19.dp), tint = MaterialTheme.colorScheme.primary)
+    val colors = MaterialTheme.colorScheme
+    Row(Modifier.fillMaxWidth().heightIn(min = if (compactHeight) 43.dp else if (compactWidth) 60.dp else 64.dp)
+        .background(colors.primaryContainer).padding(horizontal = if (compactWidth) 12.dp else 24.dp)
+        .testTag("chat-pinned-bar"), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(Modifier.weight(1f).clickable(enabled = enabled) { actions.focusMessage(pin.id) }.padding(vertical = 3.dp),
+            horizontalArrangement = Arrangement.spacedBy(11.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(ChatMessageIcons.Pin, null, Modifier.size(19.dp), tint = colors.primary)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text("Закреплённое сообщение", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
-                Text(pin.text.ifBlank { "Вложение" }, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.primary)
+                Text("Закреплённое сообщение", fontSize = 11.sp, lineHeight = 17.sp, fontWeight = FontWeight.SemiBold, color = colors.primary)
+                Text(pin.text.ifBlank { "Вложение" }, fontSize = 11.sp, lineHeight = 18.sp,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis, color = colors.primary)
             }
         }
-        TextButton(open, Modifier.testTag("chat-pins")) { Text("${state.pins.data?.size ?: 0} ›") }
+        IconButton(open, Modifier.testTag("chat-pins"), enabled = enabled) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(state.pins.data.orEmpty().size.toString(), fontSize = 12.sp, color = colors.primary)
+                Icon(ChatMessageIcons.ChevronRight, "Закреплённые сообщения", Modifier.size(15.dp), tint = colors.primary)
+            }
+        }
     }
+    HorizontalDivider(color = colors.outlineVariant)
 }
 
 /** Uses the same server-backed folder membership as Chats; no second local collection. */

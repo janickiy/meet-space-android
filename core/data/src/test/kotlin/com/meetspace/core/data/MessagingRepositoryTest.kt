@@ -82,6 +82,22 @@ class MessagingRepositoryTest {
         assertEquals(first.body.readUtf8(), second.body.readUtf8())
         assertEquals("POST", first.method); assertEquals("/api/v1/conversations/$CHAT/messages", first.path)
     }
+    @Test fun `forwarding preserves original author and server copied attachments in destination`() = runBlocking {
+        login()
+        val attachment = """{"id":"$FILE","conversationId":"$CHAT","filename":"note.txt","mimeType":"text/plain","size":5,"status":"attached","messageId":"$MESSAGE"}"""
+        val forwarded = message().replace("\"attachments\":null", "\"attachments\":[$attachment],\"forwardedFrom\":{\"senderName\":\"Анна\"}")
+        server.enqueue(json("""{"items":[$forwarded]}""").setResponseCode(201))
+        val result = repository.forwardMessages(CHAT, OTHER, listOf(MESSAGE), REQUEST).single()
+        assertEquals("Анна", result.forwardedSenderName)
+        assertEquals(FILE, result.attachments.single().id)
+        val request = take()
+        assertEquals("POST", request.method)
+        assertEquals("/api/v1/conversations/$CHAT/messages/forward", request.path)
+        val expected = """{"sourceType":"conversation","sourceId":"$OTHER","messageIds":["$MESSAGE"],"clientRequestId":"$REQUEST"}"""
+        assertEquals(wireJson.parseToJsonElement(expected), wireJson.parseToJsonElement(request.body.readUtf8()))
+        server.enqueue(json("""{"items":[${forwarded.replace(CHAT, OTHER)}]}"""))
+        assertFailure(FailureKind.INVALID_RESPONSE) { repository.forwardMessages(CHAT, OTHER, listOf(MESSAGE), REQUEST) }
+    }
     @Test fun `message response cannot substitute account or scope`() = runBlocking {
         login()
         server.enqueue(json(item(message().replace(CHAT, OTHER)))); assertFailure(FailureKind.INVALID_RESPONSE) { repository.sendMessage(CHAT, ChatMessageInput(REQUEST, "Привет")) }

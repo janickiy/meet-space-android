@@ -57,7 +57,8 @@ import androidx.compose.ui.unit.sp
 
 /** Static artwork only: these decorative initials and controls never represent session data. */
 @Composable
-internal fun OnboardingArtwork(modifier: Modifier = Modifier) {
+internal fun OnboardingArtwork(modifier: Modifier = Modifier, installer: Boolean = false) {
+    val compact = !LocalOnboardingWide.current
     val dark = MaterialTheme.colorScheme.background.luminance() < .5f
     val panel = if (dark) Color(0xFF303E54) else Color.White
     val panelBorder = if (dark) Color(0xFF40506B) else Color.White
@@ -66,7 +67,8 @@ internal fun OnboardingArtwork(modifier: Modifier = Modifier) {
     val accent = MaterialTheme.colorScheme.primary
     val density = LocalDensity.current
     BoxWithConstraints(modifier.clipToBounds().clearAndSetSemantics {}, contentAlignment = Alignment.Center) {
-        val scale = minOf(maxWidth.value / 400f, maxHeight.value / 285f)
+        val sceneWidth = maxWidth
+        val scale = if (compact) { if (maxWidth < 330.dp) .73f else .79f } else if (installer) 1f else minOf(maxWidth.value / 400f, maxHeight.value / 285f)
         // The illustration scales as one drawing. Font accessibility is handled by the
         // adjacent heading and actionable controls, outside this semantic-free artwork.
         CompositionLocalProvider(LocalDensity provides Density(density.density, 1f)) {
@@ -107,9 +109,9 @@ internal fun OnboardingArtwork(modifier: Modifier = Modifier) {
                                 ArtworkPerson("МИ", Color(0xFFD6E5EF), Color(0xFF4D7A91), Modifier.weight(1f))
                             }
                             Row(Modifier.fillMaxWidth().height(30.dp), horizontalArrangement = Arrangement.spacedBy(13.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
-                                ArtworkControl(Icons.Outlined.Videocam, dark)
-                                ArtworkControl(Icons.Outlined.MicNone, dark)
-                                ArtworkControl(Icons.Outlined.CallEnd, dark, end = true)
+                                ArtworkControl(CallIcons.Video, dark)
+                                ArtworkControl(CallIcons.Mic, dark)
+                                ArtworkControl(ChatMessageIcons.Phone, dark, end = true)
                             }
                         }
                     }
@@ -120,10 +122,10 @@ internal fun OnboardingArtwork(modifier: Modifier = Modifier) {
                         }
                     }
                 }
-                Surface(Modifier.offset(x = 72.dp, y = 93.dp).rotate(4f), shape = RoundedCornerShape(12.dp), color = panel,
+                Surface(Modifier.offset(x = if (installer) sceneWidth * .43f - 86.dp else 72.dp, y = 93.dp).rotate(4f), shape = RoundedCornerShape(12.dp), color = panel,
                     border = BorderStroke(1.dp, if (dark) panelBorder else Color(0xFFE6EAF2)), shadowElevation = 3.dp) {
                     Row(Modifier.padding(horizontal = 13.dp, vertical = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Outlined.ChatBubbleOutline, null, Modifier.size(16.dp), tint = accent)
+                        Icon(CallIcons.MessageCircle, null, Modifier.size(16.dp), tint = accent)
                         Column {
                             Text("Хорошие идеи", fontSize = 10.sp, lineHeight = 16.sp, color = ink)
                             Text("начинаются здесь.", fontSize = 10.sp, lineHeight = 16.sp, fontWeight = FontWeight.SemiBold, color = ink)
@@ -131,11 +133,13 @@ internal fun OnboardingArtwork(modifier: Modifier = Modifier) {
                         Text("09:41", Modifier.align(Alignment.Bottom), fontSize = 7.sp, lineHeight = 10.sp, color = if (dark) Color(0xFFB3A9DA) else Color(0xFFA1A9B8))
                     }
                 }
-                Surface(Modifier.offset(x = (-154).dp, y = 42.dp).size(44.dp).rotate(-12f), shape = RoundedCornerShape(15.dp),
+                Surface(Modifier.offset(x = if (installer) sceneWidth * -.44f + 22.dp else (-154).dp, y = 42.dp).size(44.dp).rotate(-12f), shape = RoundedCornerShape(15.dp),
                     color = if (dark) Color(0xFF2D4E49) else Color(0xFFEDF7F1), border = BorderStroke(4.dp, if (dark) Color(0xFF35404E) else Color(0xFFF7FAFB))) {
-                    Icon(Icons.Outlined.VerifiedUser, null, Modifier.padding(10.dp), tint = if (dark) Color(0xFF99C9B4) else Color(0xFF62A687))
+                    Icon(OnboardingIcons.Shield, null, Modifier.padding(10.dp), tint = if (dark) Color(0xFF99C9B4) else Color(0xFF62A687))
                 }
-                Text("✦", Modifier.offset(x = 139.dp, y = (-91).dp), fontSize = 35.sp, lineHeight = 40.sp, color = Color(0xFFB3A9DA))
+                Text("✦", Modifier.offset(x = if (installer) sceneWidth * .39f - 17.5.dp else 139.dp, y = (-91).dp), fontSize = 35.sp, lineHeight = 40.sp, color = Color(0xFFB3A9DA))
+                if (!compact && !installer) Text("РАБОТАЕМ ВМЕСТЕ, ГДЕ БЫ МЫ НИ БЫЛИ", Modifier.align(Alignment.BottomCenter),
+                    fontSize = 6.sp, lineHeight = 9.sp, letterSpacing = 1.4.sp, color = ink.copy(alpha = .55f))
             }
         }
     }

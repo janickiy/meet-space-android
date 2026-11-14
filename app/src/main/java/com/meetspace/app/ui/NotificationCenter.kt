@@ -60,9 +60,9 @@ internal fun NotificationBell(
                 stateDescription = if (expanded) "Открыты" else "Закрыты"
             }, colors = IconButtonDefaults.iconButtonColors(
                 containerColor = if (expanded) colors.primaryContainer else Color.Transparent,
-                contentColor = if (expanded) colors.primary else colors.onSurfaceVariant,
+                contentColor = if (expanded) colors.primary else colors.onSurface,
             )) {
-            Icon(Icons.Outlined.NotificationsNone, null, Modifier.size(24.dp))
+            Icon(WorkspaceHeaderIcons.Bell, null, Modifier.size(LocalWorkspaceHeaderIconSize.current))
         }
         if (unread > 0) Surface(
             modifier = Modifier.align(Alignment.TopEnd).padding(top = 1.dp, end = 1.dp)

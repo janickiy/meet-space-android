@@ -27,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -121,6 +122,10 @@ internal fun AvatarImage(
     size: Dp = 48.dp,
     modifier: Modifier = Modifier,
     shape: Shape = if (group) RoundedCornerShape(14.dp) else CircleShape,
+    height: Dp = size,
+    background: Color = MaterialTheme.colorScheme.primaryContainer,
+    foreground: Color = MaterialTheme.colorScheme.primary,
+    singleInitial: Boolean = false,
 ) {
     val loader = LocalAvatarImages.current
     val bitmap by key(loader, id, version, group) {
@@ -130,14 +135,15 @@ internal fun AvatarImage(
         }
     }
     val label = if (name.isBlank()) "Аватар" else "Аватар $name"
-    Box(modifier.size(size).clip(shape).background(MaterialTheme.colorScheme.primaryContainer)
+    Box(modifier.size(size, height).clip(shape).background(background)
         .semantics { contentDescription = label }, contentAlignment = Alignment.Center) {
         val photo = bitmap
         if (photo != null) Image(photo.asImageBitmap(), contentDescription = null, modifier = Modifier.matchParentSize(), contentScale = ContentScale.Crop)
         else {
-            val initials = name.trim().split(Regex("\\s+")).mapNotNull { it.firstOrNull(Char::isLetterOrDigit)?.uppercaseChar() }.take(2).joinToString("")
+            val initials = name.trim().split(Regex("\\s+")).mapNotNull { it.firstOrNull(Char::isLetterOrDigit)?.uppercaseChar() }
+                .take(if (singleInitial) 1 else 2).joinToString("")
             Text(initials.ifBlank { "?" }, fontSize = (size.value * .34f).coerceIn(11f, 26f).sp,
-                fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
+                fontWeight = FontWeight.SemiBold, color = foreground)
         }
     }
 }

@@ -641,7 +641,8 @@ class MeetingsUiTest {
                 FoundationUi(FoundationUiState(FoundationScreen.WORKSPACE, account),
                     onConnect = {}, onSelectProfile = {}, onRemoveProfile = {}, onLogin = { _, _ -> }, onLogout = {}, onTheme = {}, onNavigate = {}, onClearMessage = {},
                     onCallsSearch = {},
-                    workspaceContent = { tab, onTab -> MeetingsWorkspace(tab, screenshotState, account, MeetingsActions(), onTab) })
+                    workspaceContent = { tab, onTab -> MeetingsWorkspace(tab, screenshotState, account, MeetingsActions(), onTab,
+                        notificationBell = { NotificationBell(0, false, {}) }) })
             }
         }
         // Fixture navigation invokes callbacks without creating pointer press/ripple effects.

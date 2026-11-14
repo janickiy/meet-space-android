@@ -14,6 +14,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -35,6 +36,8 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.LineHeightStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -80,63 +83,77 @@ fun AccountAudioPanel(settings: AppSettingsUiState, actions: AppSettingsActions,
         onDispose { lifecycle.removeObserver(observer); probe.close() }
     }
     fun update(value: AccountDevicePreferences) { microphonePermissionPending = false; probe.stop(""); permissionNotice = null; actions.updateDevicePreferences(value) }
-    Column(Modifier.fillMaxWidth().testTag("account-audio-panel")) {
-        MediaHeading("Аудио", "Подготовьте звук к следующей встрече.", wide)
-        AudioCard("Микрофон", "mic", probe) {
-            AudioSelectRow(wide, {
-                MediaSelect("Микрофон", device.microphone, inputChoices, "account-mic") { update(device.copy(microphone = it)) }
-            }) {
-                AudioTestButton("mic", probe) {
-                    if (probe.kind == AudioProbeKind.MICROPHONE) probe.stop()
-                    else if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) testMic()
-                    else { microphonePermissionPending = true; permission.launch(Manifest.permission.RECORD_AUDIO) }
+    CompositionLocalProvider(
+        LocalMinimumInteractiveComponentSize provides 46.dp,
+        LocalTextStyle provides LocalTextStyle.current.copy(
+            letterSpacing = 0.sp,
+            lineHeightStyle = LineHeightStyle(LineHeightStyle.Alignment.Center, LineHeightStyle.Trim.None),
+        ),
+    ) {
+        Column(Modifier.fillMaxWidth().testTag("account-audio-panel")) {
+            MediaHeading("Аудио", "Подготовьте звук к следующей встрече.", wide)
+            AudioCard("Микрофон", "mic", probe) {
+                AudioSelectRow(wide, {
+                    MediaSelect("Микрофон", device.microphone, inputChoices, "account-mic") { update(device.copy(microphone = it)) }
+                }) { testModifier ->
+                    AudioTestButton("mic", probe, testModifier) {
+                        if (probe.kind == AudioProbeKind.MICROPHONE) probe.stop()
+                        else if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) testMic()
+                        else { microphonePermissionPending = true; permission.launch(Manifest.permission.RECORD_AUDIO) }
+                    }
                 }
+                ProbeStatus("mic", probe, permissionNotice ?: "Проверьте микрофон, чтобы увидеть уровень звука и названия устройств.")
+                MediaVolume("Громкость микрофона", device.microphoneVolume, "account-microphone-volume") { update(device.copy(microphoneVolume = it)) }
+                NotificationSwitch("Подключаться с выключенным микрофоном", device.autoMute, true, "account-auto-mute", verticalPadding = 13.dp) { update(device.copy(autoMute = it)) }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                NotificationSwitch("Шумоподавление", device.noiseSuppression, true, "account-noise", verticalPadding = 13.dp) { update(device.copy(noiseSuppression = it)) }
             }
-            ProbeStatus("mic", probe, permissionNotice ?: "Проверьте микрофон, чтобы увидеть уровень звука и названия устройств.")
-            MediaVolume("Громкость микрофона", device.microphoneVolume, "account-microphone-volume") { update(device.copy(microphoneVolume = it)) }
-            NotificationSwitch("Подключаться с выключенным микрофоном", device.autoMute, true, "account-auto-mute", verticalPadding = 13.dp) { update(device.copy(autoMute = it)) }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            NotificationSwitch("Шумоподавление", device.noiseSuppression, true, "account-noise", verticalPadding = 13.dp) { update(device.copy(noiseSuppression = it)) }
-        }
-        AudioCard("Динамик", "speaker", probe) {
-            AudioSelectRow(wide, { MediaSelect("Динамик", device.speaker, outputChoices, "account-speaker") { update(device.copy(speaker = it)) } }) {
-                AudioTestButton("speaker", probe) { if (probe.kind == AudioProbeKind.SPEAKER) probe.stop() else probe.speaker(device.speaker, device.speakerVolume) }
+            AudioCard("Динамик", "speaker", probe) {
+                AudioSelectRow(wide, { MediaSelect("Динамик", device.speaker, outputChoices, "account-speaker") { update(device.copy(speaker = it)) } }) { testModifier ->
+                    AudioTestButton("speaker", probe, testModifier) { if (probe.kind == AudioProbeKind.SPEAKER) probe.stop() else probe.speaker(device.speaker, device.speakerVolume) }
+                }
+                ProbeStatus("speaker", probe)
+                MediaVolume("Громкость динамика", device.speakerVolume, "account-speaker-volume") { update(device.copy(speakerVolume = it)) }
+                OutputPicker(device.speaker, "speaker") { update(device.copy(speaker = it)) }
             }
-            ProbeStatus("speaker", probe)
-            MediaVolume("Громкость динамика", device.speakerVolume, "account-speaker-volume") { update(device.copy(speakerVolume = it)) }
-            OutputPicker(device.speaker, "speaker") { update(device.copy(speaker = it)) }
-        }
-        AudioCard("Звонки и уведомления", null, probe) {
-            MediaHint("Громкость сигнала вызова и уведомлений о сообщениях, приглашениях и скором начале встречи.")
-            Text("Источник звука", fontSize = 12.6.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(top = 16.dp, bottom = 9.dp))
-            MediaSelect("Динамик для сигналов", device.signalOutput, outputChoices, "account-signal-output") { update(device.copy(signalOutput = it)) }
-            OutputPicker(device.signalOutput, "signals") { update(device.copy(signalOutput = it)) }
-            MediaVolume("Громкость сигналов", device.signalVolume, "account-signal-volume") { update(device.copy(signalVolume = it)) }
-            Spacer(Modifier.height(12.dp))
-            AudioTestButton("ringtone", probe) {
-                if (probe.kind == AudioProbeKind.RINGTONE) probe.stop()
-                else probe.ringtone(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION), device.signalOutput, device.signalVolume)
+            AudioCard("Звонки и уведомления", "ringtone", probe) {
+                MediaHint("Громкость сигнала вызова и уведомлений о сообщениях, приглашениях и скором начале встречи.")
+                Spacer(Modifier.height(12.dp))
+                AudioSelectRow(wide, {
+                    MediaSelect("Динамик для сигналов", device.signalOutput, outputChoices, "account-signal-output") { update(device.copy(signalOutput = it)) }
+                }) { testModifier ->
+                    AudioTestButton("ringtone", probe, testModifier) {
+                        if (probe.kind == AudioProbeKind.RINGTONE) probe.stop()
+                        else probe.ringtone(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION), device.signalOutput, device.signalVolume)
+                    }
+                }
+                ProbeStatus("ringtone", probe)
+                MediaVolume("Громкость сигналов", device.signalVolume, "account-signal-volume") { update(device.copy(signalVolume = it)) }
+                OutputPicker(device.signalOutput, "signals") { update(device.copy(signalOutput = it)) }
             }
-            ProbeStatus("ringtone", probe)
             Spacer(Modifier.height(10.dp))
-            MediaHint("Для сигналов в приложении. В фоне громкостью и выходом управляет Android. Беззвучный режим сохраняется.")
-            if (android.os.Build.VERSION.SDK_INT < 28) MediaHint("На Android 8 аудиовыход для сигналов выбирает система.")
+            MediaHint("Настройки применяются автоматически.")
         }
-        MediaHint("Настройки применяются автоматически и сохраняются на этом устройстве.")
     }
 }
 
 @Composable
-private fun AudioCard(title: String, meter: String?, probe: AccountAudioProbe, content: @Composable ColumnScope.() -> Unit) {
+private fun AudioCard(title: String, meter: String, probe: AccountAudioProbe, content: @Composable ColumnScope.() -> Unit) {
     Column(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth().padding(bottom = 16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(title, Modifier.weight(1f).semantics { heading() }, fontSize = 15.12.sp, lineHeight = 22.68.sp, fontWeight = FontWeight.SemiBold)
-            if (meter != null) {
-                val active = probe.kind == if (meter == "mic") AudioProbeKind.MICROPHONE else AudioProbeKind.SPEAKER
-                val level = if (active) probe.level else 0f
-                Row(Modifier.testTag("account-$meter-meter").semantics { progressBarRangeInfo = ProgressBarRangeInfo(level, 0f..1f) }, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                    repeat(8) { index -> Box(Modifier.size(5.dp, 15.dp).clip(RoundedCornerShape(3.dp)).background(
-                        if (level > index / 8f) Color(0xFF32B78A) else MaterialTheme.colorScheme.outlineVariant)) }
+            val kind = when (meter) {
+                "mic" -> AudioProbeKind.MICROPHONE
+                "speaker" -> AudioProbeKind.SPEAKER
+                else -> AudioProbeKind.RINGTONE
+            }
+            val level = if (probe.kind == kind) probe.level else 0f
+            Row(Modifier.testTag("account-$meter-meter").semantics { progressBarRangeInfo = ProgressBarRangeInfo(level, 0f..1f) }, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                repeat(8) { index ->
+                    val lit = level > index / 8f
+                    val fill = if (lit) Color(0xFF32B78A) else MaterialTheme.colorScheme.background
+                    val outline = if (lit) Color(0xFF32B78A) else MaterialTheme.colorScheme.outlineVariant
+                    Box(Modifier.size(5.dp, 15.dp).background(fill, RoundedCornerShape(3.dp)).border(1.dp, outline, RoundedCornerShape(3.dp)))
                 }
             }
         }
@@ -146,26 +163,28 @@ private fun AudioCard(title: String, meter: String?, probe: AccountAudioProbe, c
 }
 
 @Composable
-private fun AudioSelectRow(wide: Boolean, select: @Composable () -> Unit, test: @Composable () -> Unit) {
-    if (wide) Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.weight(1f)) { select() }; test()
+private fun AudioSelectRow(wide: Boolean, select: @Composable () -> Unit, test: @Composable (Modifier) -> Unit) {
+    if (wide) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.weight(1f)) { select() }
+        test(Modifier.widthIn(min = 123.dp))
     } else Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        select(); Box(Modifier.fillMaxWidth()) { test() }
+        select()
+        test(Modifier.fillMaxWidth())
     }
 }
 
 @Composable
-private fun AudioTestButton(id: String, probe: AccountAudioProbe, action: () -> Unit) {
+private fun AudioTestButton(id: String, probe: AccountAudioProbe, modifier: Modifier = Modifier, action: () -> Unit) {
     val kind = when (id) { "mic" -> AudioProbeKind.MICROPHONE; "speaker" -> AudioProbeKind.SPEAKER; else -> AudioProbeKind.RINGTONE }
     val active = probe.kind == kind
     val label = when (id) { "mic" -> "микрофон"; "speaker" -> "динамик"; else -> "сигналы" }
     OutlinedButton(action, shape = RoundedCornerShape(11.dp), border = BorderStroke(1.dp, if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
         colors = ButtonDefaults.outlinedButtonColors(contentColor = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
             containerColor = if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface),
-        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp), modifier = Modifier.heightIn(min = 46.dp).testTag("account-test-$id")
+        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp), modifier = modifier.heightIn(min = 46.dp).testTag("account-test-$id")
             .semantics { contentDescription = if (active) "Остановить проверку" else "Проверить $label"; stateDescription = if (active) "Проверка идёт" else "Остановлено" }) {
-        Icon(if (active) Icons.Outlined.Stop else if (id == "mic") CallIcons.Mic else Icons.Outlined.PlayArrow, null, Modifier.size(17.dp))
-        Spacer(Modifier.width(7.dp)); Text(if (active) "Остановить" else "Проверить", fontSize = 12.6.sp, lineHeight = 19.sp, fontWeight = FontWeight.SemiBold)
+        Icon(if (active) CallIcons.Square else if (id == "mic") CallIcons.Mic else CallIcons.Play, null, Modifier.size(17.dp))
+        Spacer(Modifier.width(7.dp)); Text(if (active) "Остановить" else "Проверить", fontSize = 12.6.sp, lineHeight = 18.9.sp, letterSpacing = 0.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 
@@ -186,18 +205,23 @@ internal fun MediaVolume(label: String, value: Int, tag: String, change: (Int) -
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(label, Modifier.weight(1f), fontSize = 12.6.sp, lineHeight = 18.9.sp)
             Surface(shape = RoundedCornerShape(9.dp), color = MaterialTheme.colorScheme.primaryContainer) {
-                Text("$value%", Modifier.padding(horizontal = 8.dp, vertical = 5.dp), color = MaterialTheme.colorScheme.primary, fontSize = 10.71.sp, fontWeight = FontWeight.SemiBold)
+                Text("$value%", Modifier.widthIn(min = 48.dp).padding(horizontal = 8.dp, vertical = 5.dp),
+                    color = MaterialTheme.colorScheme.primary, fontSize = 10.71.sp, lineHeight = 16.065.sp,
+                    letterSpacing = 0.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
             }
         }
-        Slider(value.toFloat(), { change(it.roundToInt().coerceIn(0, 100)) }, valueRange = 0f..100f,
-            thumb = { Box(Modifier.width(14.dp).height(44.dp), contentAlignment = Alignment.Center) {
-                Box(Modifier.size(14.dp).background(accent, CircleShape))
-            } },
-            track = { slider -> Canvas(Modifier.fillMaxWidth().height(4.dp)) {
-                drawLine(rail, Offset(0f, size.height / 2), Offset(size.width, size.height / 2), size.height, StrokeCap.Round)
-                drawLine(accent, Offset(0f, size.height / 2), Offset(size.width * slider.value / 100f, size.height / 2), size.height, StrokeCap.Round)
-            } },
-            modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp).testTag(tag).semantics { contentDescription = label; stateDescription = "$value%" })
+        Spacer(Modifier.height(2.dp))
+        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 44.dp) {
+            Slider(value.toFloat(), { change(it.roundToInt().coerceIn(0, 100)) }, valueRange = 0f..100f,
+                thumb = { Box(Modifier.width(16.dp).height(44.dp), contentAlignment = Alignment.Center) {
+                    Box(Modifier.size(16.dp).background(accent, CircleShape))
+                } },
+                track = { slider -> Canvas(Modifier.fillMaxWidth().height(6.dp)) {
+                    drawLine(rail, Offset(0f, size.height / 2), Offset(size.width, size.height / 2), size.height, StrokeCap.Round)
+                    drawLine(accent, Offset(0f, size.height / 2), Offset(size.width * slider.value / 100f, size.height / 2), size.height, StrokeCap.Round)
+                } },
+                modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp).testTag(tag).semantics { contentDescription = label; stateDescription = "$value%" })
+        }
     }
 }
 
@@ -210,7 +234,7 @@ private fun <T> MediaSelect(label: String, value: T, options: List<Pair<T, Strin
             colors = ButtonDefaults.outlinedButtonColors(containerColor = MaterialTheme.colorScheme.surface, contentColor = MaterialTheme.colorScheme.onSurface),
             contentPadding = PaddingValues(horizontal = 13.dp, vertical = 10.dp),
             modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp).testTag(tag).semantics { contentDescription = label }) {
-            Text(options.firstOrNull { it.first == value }?.second ?: "По умолчанию", Modifier.weight(1f), fontSize = 14.sp, lineHeight = 21.sp)
+            Text(options.firstOrNull { it.first == value }?.second ?: "По умолчанию", Modifier.weight(1f), fontSize = 14.sp, lineHeight = 21.sp, letterSpacing = 0.sp, fontWeight = FontWeight.Normal)
             Icon(Icons.Outlined.KeyboardArrowDown, null, Modifier.size(18.dp))
         }
         DropdownMenu(open, { open = false }) { options.forEach { (key, text) -> DropdownMenuItem(text = { Text(text) }, onClick = { open = false; change(key) }) } }
@@ -220,8 +244,10 @@ private fun <T> MediaSelect(label: String, value: T, options: List<Pair<T, Strin
 @Composable
 private fun OutputPicker(value: SpeakerPreference, tag: String, change: (SpeakerPreference) -> Unit) {
     var open by remember { mutableStateOf(false) }
-    TextButton({ open = true }, contentPadding = PaddingValues(0.dp), modifier = Modifier.heightIn(min = 44.dp).testTag("account-$tag-other-output")) {
-        Text("Выбрать другое устройство", fontSize = 12.6.sp)
+    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 44.dp) {
+        TextButton({ open = true }, contentPadding = PaddingValues(0.dp), modifier = Modifier.heightIn(min = 44.dp).testTag("account-$tag-other-output")) {
+            Text("Выбрать другое устройство", fontSize = 12.6.sp, lineHeight = 18.9.sp, letterSpacing = 0.sp, fontWeight = FontWeight.Normal)
+        }
     }
     if (open) AlertDialog(onDismissRequest = { open = false }, title = { Text("Выберите устройство") }, text = {
         Column(verticalArrangement = Arrangement.spacedBy(7.dp)) { outputChoices.forEach { (key, label) ->

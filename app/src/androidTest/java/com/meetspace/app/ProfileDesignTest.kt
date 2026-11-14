@@ -157,6 +157,7 @@ class ProfileDesignTest {
         assumeTrue(args.getString("designScreenshots") == "true")
         val screen = args.getString("designScreen", "profile")
         val theme = args.getString("designTheme", "dark")
+        val scrollTag = args.getString("designScrollTag")?.takeIf { it.isNotBlank() }
         val captureRepository = if (screen.startsWith("account-")) repository.copy(profiles = repository.profiles +
             ServerProfile("studio", "https://studio.example.test", "studio-user", "alex@studio.example.test", "Александр · Студия")) else repository
         compose.runOnUiThread { compose.activity.enableEdgeToEdge() }
@@ -164,21 +165,24 @@ class ProfileDesignTest {
             val light = MaterialTheme.colorScheme.background.luminance() > .5f
             SideEffect { WindowCompat.getInsetsController(compose.activity.window, compose.activity.window.decorView).apply { isAppearanceLightStatusBars = light; isAppearanceLightNavigationBars = light } }
             when (screen) {
-                "profile", "account-profile", "account-accounts", "account-add-account", "account-audio", "account-video", "account-notifications", "account-appearance", "account-connection", "welcome", "connect", "login" -> FoundationUi(FoundationUiState(when (screen) {
-                    "welcome" -> FoundationScreen.WELCOME; "connect" -> FoundationScreen.CONNECT; "login" -> FoundationScreen.LOGIN; else -> FoundationScreen.WORKSPACE
+                "profile", "account-profile", "account-accounts", "account-add-account", "account-audio", "account-video", "account-notifications", "account-appearance", "account-connection", "welcome", "connect", "login", "register" -> FoundationUi(FoundationUiState(when (screen) {
+                    "welcome" -> FoundationScreen.WELCOME; "connect" -> FoundationScreen.CONNECT; "login" -> FoundationScreen.LOGIN; "register" -> FoundationScreen.REGISTER; else -> FoundationScreen.WORKSPACE
                 }, repository.copy(theme = if (theme == "dark") ThemeMode.DARK else ThemeMode.LIGHT)), {}, {}, {}, {_,_->}, {}, {}, {}, {},
-                    workspaceContent = { _, _ -> Profile(captureRepository.copy(theme = if (theme == "dark") ThemeMode.DARK else ThemeMode.LIGHT), section = screen.removePrefix("account-").takeIf { screen.startsWith("account-") }) })
-                "deploy", "hostkey", "sshauth", "preflight" -> SshWizardUi(sshFixture(screen), {_,_,_,_->}, {}, {}, {}, {}, {_,_->}, {_,_->}, {}, {}, {}, {})
-                else -> InstallerUi(installFixture(screen), {}, {_,_,_->}, {_,_,_,_,_->}, {}, {}, {}, {})
+                    workspaceContent = { _, _ -> Profile(captureRepository.copy(theme = if (theme == "dark") ThemeMode.DARK else ThemeMode.LIGHT), section = screen.removePrefix("account-").takeIf { screen.startsWith("account-") }) },
+                    onRegister = { _, _, _, _ -> })
+                "deploy", "hostkey", "sshauth", "preflight" -> SshWizardUi(sshFixture(screen), {_,_,_,_->}, {}, {}, {}, {}, {_,_->}, {_,_->}, {}, {}, {}, {}, onInstall = if (screen == "preflight") ({}) else null)
+                else -> InstallerUi(installFixture(screen), {}, {_,_,_->}, {_,_,_,_,_->}, {}, {}, {}, {}, onCreateAccount = {})
             }
         } }
         // Capture the settled destination without injecting a transient pressed/ripple state.
         if (screen == "profile" || screen.startsWith("account-")) compose.onNodeWithTag("tab-profile").performSemanticsAction(SemanticsActions.OnClick) { assertTrue(it()) }
+        if (scrollTag != null) compose.onNodeWithTag(scrollTag).performScrollTo().assertIsDisplayed()
         compose.mainClock.advanceTimeBy(1_000)
         compose.waitForIdle()
         val config = instrumentation.targetContext.resources.configuration
         val dir = checkNotNull(instrumentation.targetContext.getExternalFilesDir("screenshots")); dir.mkdirs()
-        val file = File(dir, "$screen-$theme-${config.screenWidthDp}x${config.screenHeightDp}-font${config.fontScale}.png")
+        val suffix = scrollTag?.replace(Regex("[^a-zA-Z0-9_-]"), "_")?.let { "-$it" }.orEmpty()
+        val file = File(dir, "$screen-$theme-${config.screenWidthDp}x${config.screenHeightDp}-font${config.fontScale}$suffix.png")
         file.outputStream().use { assertTrue(compose.onRoot().captureToImage().asAndroidBitmap().compress(Bitmap.CompressFormat.PNG, 100, it)) }
     }
     private val endpoint = SshEndpoint("vps.example.test", 22, "deploy")
@@ -191,7 +195,13 @@ class ProfileDesignTest {
             report = PreflightReport(endpoint, "meet.example.test", key, checks, 1791792000000))
     }
     private fun installFixture(screen: String): InstallerUiState {
-        val plan = InstallPlan("{}", "a".repeat(64), "v0.4.0", "b".repeat(40), InstallOptions("meet.example.test", "203.0.113.10", "owner@example.test"), "arm64", true, 2000000000)
+        val options = InstallOptions("meet.example.test", "203.0.113.10", admin = InstallAdminOptions())
+        val plan = InstallPlan("{}", "a".repeat(64), "v0.6.11-source.example", "b".repeat(40), options, "arm64", true, 2000000000,
+            sourceSelection = "main", resourceProfile = "compact-test")
+        if (screen == "install-options") return InstallerUiState(active = true, screen = InstallScreen.ACCESS,
+            endpoint = endpoint, options = options, needsAccess = false)
+        if (screen == "install-plan") return InstallerUiState(active = true, screen = InstallScreen.PLAN,
+            endpoint = endpoint, options = options, plan = plan, needsAccess = false)
         val state = when (screen) { "complete" -> "completed"; "installerror" -> "failed"; else -> "running" }
         return InstallerUiState(active = true, screen = InstallScreen.PROGRESS, endpoint = endpoint, plan = plan,
             ticket = InstallTicket(endpoint, plan, "test-job"), needsAccess = false,

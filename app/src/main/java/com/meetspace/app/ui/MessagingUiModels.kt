@@ -17,6 +17,16 @@ data class MessagingLoad<T>(val data: T? = null, val loading: Boolean = false, v
 enum class ChatFilter { ALL, DIRECT, GROUP, UNREAD }
 enum class NotificationFilter { ALL, UNREAD }
 
+data class ChatForwardUiState(
+    val messages: List<ChatMessage>,
+    val query: String = "",
+    val conversations: MessagingLoad<List<ChatConversation>> = MessagingLoad(),
+    val users: MessagingLoad<List<ChatPeer>> = MessagingLoad(),
+    val cursor: String? = null,
+    val busy: Boolean = false,
+    val error: String? = null,
+)
+
 data class MessagingUiState(
     val selfId: String = "",
     val conversations: MessagingLoad<List<ChatConversation>> = MessagingLoad(),
@@ -40,6 +50,9 @@ data class MessagingUiState(
     val draft: String = "",
     val replyTo: ChatMessage? = null,
     val editing: ChatMessage? = null,
+    val forwarding: ChatForwardUiState? = null,
+    val bulkDeleting: Boolean = false,
+    val bulkDeleteRevision: Long = 0,
     val attachments: List<ChatAttachment> = emptyList(),
     val members: MessagingLoad<List<ChatMember>> = MessagingLoad(),
     val memberCursor: String? = null,
@@ -104,6 +117,13 @@ data class MessagingActions(
     val edit: (ChatMessage) -> Unit = {},
     val cancelCompose: () -> Unit = {},
     val delete: (ChatMessage) -> Unit = {},
+    val deleteForMe: (List<ChatMessage>) -> Unit = {},
+    val forwardMessages: (List<ChatMessage>) -> Unit = {},
+    val searchForwardRecipients: (String) -> Unit = {},
+    val moreForwardRecipients: () -> Unit = {},
+    val forwardToConversation: (String) -> Unit = {},
+    val forwardToUser: (String) -> Unit = {},
+    val closeForwarding: () -> Unit = {},
     val markRead: () -> Unit = {},
     val pickAttachment: () -> Unit = {},
     val removeAttachment: (String) -> Unit = {},

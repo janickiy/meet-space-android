@@ -24,13 +24,13 @@ class InstallerUiTest {
         compose.setContent { editor.Observe(); MeetSpaceTheme { InstallerUi(state,{}, onAuthenticate,{ a,b,c,_,_ -> apply(a,b,c) },control,detach,{}, onConnect,
             onCreateAccount=onCreateAccount) } }
     }
-    @Test fun planAllowsAnOptionalCertificateEmail() {
+    @Test fun planDoesNotRequireOrPromptForACertificateEmail() {
         var submitted:InstallOptions?=null;var password="";var useKey=true
         render(InstallerUiState(active=true,screen=InstallScreen.ACCESS,endpoint=endpoint,
             options=plan.options.copy(domain="",publicIpv4="",acmeEmail="")),onAuthenticate={options,secret,key -> submitted=options;password=secret;useKey=key})
         compose.onNodeWithTag("install-email").assertDoesNotExist()
         compose.onNodeWithText("Email для сертификата",ignoreCase=true).assertDoesNotExist()
-        compose.onNodeWithTag("install-acme-email").performScrollTo().assertExists()
+        compose.onNodeWithTag("install-acme-email").assertDoesNotExist()
         compose.onNodeWithTag("install-domain").performScrollTo().performTextInput("meet.example.com")
         compose.onNodeWithTag("install-ip").performScrollTo().performTextInput("8.8.8.8")
         compose.onNodeWithTag("install-password").performScrollTo().performTextInput("test-only")
@@ -63,8 +63,8 @@ class InstallerUiTest {
         val images = plan.copy(options = plan.options.copy(imageMode = InstallImageMode.IMAGES),
             imageArchiveSha256 = "c".repeat(64), imageArchiveBytes = 750L * 1024 * 1024)
         render(InstallerUiState(active = true, screen = InstallScreen.PLAN, endpoint = endpoint, plan = images, needsAccess = false))
-        compose.onNodeWithTag("install-image-mode").performScrollTo().assertTextEquals("Способ: готовые образы")
-        compose.onNodeWithTag("install-image-size").performScrollTo().assertTextEquals("Пакет: 750 МиБ")
+        compose.onNodeWithTag("install-image-mode").performScrollTo().assertTextEquals("Способ", "Готовые образы")
+        compose.onNodeWithTag("install-image-size").performScrollTo().assertTextEquals("Пакет", "750 МиБ")
         compose.onNodeWithText("собрать 7 образов", substring = true).assertDoesNotExist()
     }
     @Test fun accessShowsSupportedUbuntuAndMinimumAndRecommendedResources() {
@@ -180,7 +180,7 @@ class InstallerUiTest {
     @Test fun compactPlanShowsMinimumAndCapacityGuidanceBeforeConfirmation() {
         val compactPlan=plan.copy(resourceProfile="compact-test")
         render(InstallerUiState(active=true,screen=InstallScreen.PLAN,endpoint=endpoint,plan=compactPlan,needsAccess=false))
-        compose.onNodeWithTag("install-resource-profile").performScrollTo().assertTextEquals("Режим: компактный")
+        compose.onNodeWithTag("install-resource-profile").performScrollTo().assertTextEquals("Режим ресурсов", "Компактный")
         compose.onNodeWithTag("install-resource-guidance").assertTextContains("Для небольшой нагрузки",substring=true)
             .assertTextContains("2 CPU, 4 ГБ RAM и около 20 ГБ свободного диска (18 ГиБ)",substring=true)
             .assertTextContains("Параллельные встречи и запись",substring=true)
@@ -201,7 +201,7 @@ class InstallerUiTest {
         val names=plugins.joinToString("/")
         var called=false
         render(InstallerUiState(active=true,screen=InstallScreen.PLAN,endpoint=endpoint,plan=pluginPlan,needsAccess=false),apply={_,_,_->called=true})
-        compose.onNodeWithText("Установить недостающие компоненты Docker ($names); использовать установленный Docker",substring=true).assertExists()
+        compose.onNodeWithText("Установить недостающие компоненты Docker ($names); использовать установленный Docker").assertExists()
         compose.onNodeWithText("Разрешаю установить недостающие компоненты Docker ($names) из официального репозитория").assertExists()
         compose.onNodeWithTag("install-confirm").performScrollTo().performClick()
         compose.onNodeWithTag("install-acme-consent").performScrollTo().performClick()
@@ -213,7 +213,7 @@ class InstallerUiTest {
     @Test fun eachConsentIsRequiredBeforeMutation() {
         var called=false
         render(InstallerUiState(active=true,screen=InstallScreen.PLAN,endpoint=endpoint,plan=plan,needsAccess=false),apply={_,_,_->called=true})
-        compose.onNodeWithTag("install-resource-profile").assertTextEquals("Режим: стандартный")
+        compose.onNodeWithTag("install-resource-profile").assertTextEquals("Режим ресурсов", "Стандартный")
         compose.onNodeWithTag("install-resource-guidance").assertDoesNotExist()
         compose.onNodeWithTag("install-apply").performScrollTo().assertIsNotEnabled()
         compose.onNodeWithTag("install-confirm").performScrollTo().performClick()

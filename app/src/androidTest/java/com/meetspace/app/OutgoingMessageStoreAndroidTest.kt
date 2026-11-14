@@ -9,6 +9,24 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class OutgoingMessageStoreAndroidTest {
+    @Test fun hiddenMessagesSurviveStoreRecreationAndStayScoped() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val scope = "https://test.invalid|${UUID.randomUUID()}"
+        val other = "https://other.invalid|${scope.substringAfter('|')}"
+        val messages = List(3) { UUID.randomUUID().toString() }.toSet()
+        val scopeHash = MessageDigest.getInstance("SHA-256").digest(scope.encodeToByteArray()).joinToString("") { "%02x".format(it) }
+        val path = File(context.noBackupFilesDir, "hidden-chat-messages-v1/$scopeHash")
+        try {
+            assertEquals(messages, DeviceHiddenChatMessages(context).hide(scope, messages))
+            val restarted = DeviceHiddenChatMessages(context)
+            assertEquals(messages, restarted.ids(scope))
+            assertTrue(restarted.ids(other).isEmpty())
+            assertEquals(messages, restarted.hide(scope, setOf(messages.first())))
+        } finally {
+            path.delete()
+        }
+    }
+
     @Test fun encryptedOutboxSurvivesStoreRecreationRejectsMovedCiphertextAndClearsOnlyItsScope() = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val scopeA = "outbox-test-a-${UUID.randomUUID()}"
