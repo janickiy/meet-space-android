@@ -135,7 +135,12 @@ class InstallerViewModel(private val repository: SshInstallerRepository) : ViewM
     fun authenticate(options: InstallOptions, password: String, useKey: Boolean) {
         if (state.value.busy) return
         if (state.value.endpoint == null) return
-        val normalized = try { options.copy(domain = SshInputValidator.normalizeDomain(options.domain), imageRelease = "latest") }
+        val admin = options.admin ?: InstallAdminOptions()
+        if (state.value.ticket == null && !admin.isValid()) {
+            mutableState.update { it.copy(error = "Проверьте логин и HTTPS-порт администратора.") }
+            return
+        }
+        val normalized = try { options.copy(domain = SshInputValidator.normalizeDomain(options.domain), imageRelease = "latest", admin = admin) }
             catch (error: SshFailure) { failure(error); return }
         if (!state.value.needsAccess && credentials != null && state.value.ticket == null) {
             if (normalized.domain != state.value.options.domain) {
@@ -182,7 +187,7 @@ class InstallerViewModel(private val repository: SshInstallerRepository) : ViewM
             }
             val ticket = state.value.ticket
             if (ticket == null) {
-                val plan = withAccess { repository.plan(endpoint, it, options, expectedHostKey) }
+                val plan = requestPlan(endpoint, options)
                 currentCoroutineContext().ensureActive()
                 if (plan.existingJobId != null) {
                     val existing = InstallTicket(endpoint, plan, requireNotNull(plan.existingJobId))
@@ -202,16 +207,26 @@ class InstallerViewModel(private val repository: SshInstallerRepository) : ViewM
             observe()
         }
     }
+    private suspend fun requestPlan(endpoint: SshEndpoint, options: InstallOptions): InstallPlan {
+        val requested = options.copy(admin = options.admin ?: InstallAdminOptions())
+        val plan = withAccess { repository.plan(endpoint, it, requested, expectedHostKey) }
+        if (plan.existingJobId == null && plan.options.admin != requested.admin) throw InstallFailure("PLAN_INVALID")
+        return plan
+    }
     /** The same saved job ID is reused after an ambiguous SSH response. Never auto-apply. */
     fun apply(confirmed: Boolean, dockerConsent: Boolean, acmeConsent: Boolean, smtpPassword: String = "", adminPassword: String = "") {
         if (state.value.busy || state.value.needsAccess || !confirmed || !acmeConsent) return
         val plan = state.value.plan ?: return
         if (plan.installDocker && !dockerConsent) return
+        if (plan.options.admin == null || plan.existingJobId != null) {
+            mutableState.update { it.copy(error = "Проверьте сервер и получите новый план с настройками администратора.") }
+            return
+        }
         if (plan.options.smtp != null && !isValidInstallSmtpPassword(smtpPassword)) {
             mutableState.update { it.copy(error = "Введите пароль SMTP (до 4096 байт, без переноса строки).") }
             return
         }
-        if (plan.options.admin != null && !isValidInstallAdminPassword(adminPassword)) {
+        if (!isValidInstallAdminPassword(adminPassword)) {
             mutableState.update { it.copy(error = "Введите пароль администратора: от 8 до 128 символов, без переноса строки.") }
             return
         }
@@ -224,9 +239,9 @@ class InstallerViewModel(private val repository: SshInstallerRepository) : ViewM
             currentCoroutineContext().ensureActive()
             mutableState.update { it.copy(ticket = ticket, pending = ticket, screen = InstallScreen.PROGRESS) }
             val secret = smtpPassword.takeIf { plan.options.smtp != null }?.toByteArray()
-            val adminSecret = adminPassword.takeIf { plan.options.admin != null }?.toByteArray()
+            val adminSecret = adminPassword.toByteArray()
             val status = try { withAccess { repository.apply(ticket, it, dockerConsent, acmeConsent, expectedHostKey, secret, adminSecret) } }
-                finally { secret?.fill(0); adminSecret?.fill(0) }
+                finally { secret?.fill(0); adminSecret.fill(0) }
             currentCoroutineContext().ensureActive()
             updateStatus(status)
             observe()
@@ -237,7 +252,7 @@ class InstallerViewModel(private val repository: SshInstallerRepository) : ViewM
         if (state.value.busy || state.value.needsAccess || state.value.errorCode != "STATE_UNAVAILABLE") return
         val previous = state.value.ticket ?: return
         execute {
-            val plan = withAccess { repository.plan(previous.endpoint, it, previous.plan.options.copy(imageRelease = "latest"), expectedHostKey) }
+            val plan = requestPlan(previous.endpoint, previous.plan.options.copy(imageRelease = "latest"))
             currentCoroutineContext().ensureActive()
             val existingId = plan.existingJobId
             if (existingId == null) {

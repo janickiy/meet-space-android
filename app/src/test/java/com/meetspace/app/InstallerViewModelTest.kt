@@ -20,7 +20,8 @@ class InstallerViewModelTest {
     @Before fun setup() { Dispatchers.setMain(dispatcher) }
     @After fun teardown() { Dispatchers.resetMain() }
     private val endpoint = SshEndpoint("vps.example.com",22,"root")
-    private val options = InstallOptions("meet.example.com","8.8.8.8","owner@example.com")
+    private val options = InstallOptions("meet.example.com", "8.8.8.8", "owner@example.com", admin = InstallAdminOptions())
+    private val adminPassword = "test-only-admin"
     private val plan get() = InstallPlan("{}","a".repeat(64),"v0.4.0-source.test","b".repeat(40),options,"arm64",true,Long.MAX_VALUE)
     private val hostKey = SshHostKey("ssh-ed25519", "test-key", "SHA256:test-key")
     private fun verified(target: SshEndpoint = endpoint, domain: String = options.domain, bytes: ByteArray = "test-only".toByteArray()) =
@@ -39,7 +40,9 @@ class InstallerViewModelTest {
     }
     @Test fun noApplyWithoutEachConsent() = runTest(dispatcher) {
         val repo=Fake();val model=setupModel(repo);runCurrent()
-        model.apply(false,true,true);model.apply(true,false,true);model.apply(true,true,false);runCurrent()
+        model.apply(false, true, true, adminPassword = adminPassword)
+        model.apply(true, false, true, adminPassword = adminPassword)
+        model.apply(true, true, false, adminPassword = adminPassword);runCurrent()
         assertEquals(0,repo.applyCount); assertEquals(InstallScreen.PLAN,model.state.value.screen);model.detach()
     }
     @Test fun newInstallDefaultsToSourceWithAdminAndCanChangeModeWithoutAnotherSshPassword() = runTest(dispatcher) {
@@ -47,14 +50,16 @@ class InstallerViewModelTest {
         model.start(endpoint, options.domain, verified()); runCurrent()
         assertEquals(InstallImageMode.SOURCE, model.state.value.options.imageMode)
         assertEquals(InstallAdminOptions(), model.state.value.options.admin)
-        val images = options.copy(imageMode = InstallImageMode.IMAGES)
+        val images = options.copy(imageMode = InstallImageMode.IMAGES, admin = null)
         model.authenticate(images, "", false); runCurrent()
         assertEquals(InstallImageMode.IMAGES, model.state.value.plan?.options?.imageMode)
+        assertEquals(InstallAdminOptions(), repo.plannedOptions.single().admin)
         model.editOptions()
         assertEquals(InstallScreen.ACCESS, model.state.value.screen)
         assertFalse(model.state.value.needsAccess); assertNull(model.state.value.plan)
-        model.authenticate(options, "", false); runCurrent()
+        model.authenticate(options.copy(admin = null), "", false); runCurrent()
         assertEquals(InstallImageMode.SOURCE, model.state.value.plan?.options?.imageMode)
+        assertEquals(InstallAdminOptions(), repo.plannedOptions.last().admin)
         assertEquals(2, repo.planCalls); assertEquals(0, repo.applyCount)
         model.detach()
     }
@@ -71,8 +76,9 @@ class InstallerViewModelTest {
             model.detach()
         }
     }
-    @Test fun savedExactReleaseSurvivesReconnectAndResumeWithoutAnotherPlan() = runTest(dispatcher) {
-        val frozen = plan.copy(options = options.copy(imageMode = InstallImageMode.IMAGES, imageRelease = "v0.4.0-prebuilt.test.1"))
+    @Test fun savedLegacyPlanWithoutAdminSurvivesReconnectAndResume() = runTest(dispatcher) {
+        val frozen = plan.copy(options = options.copy(imageMode = InstallImageMode.IMAGES,
+            imageRelease = "v0.4.0-prebuilt.test.1", admin = null))
         val ticket = InstallTicket(endpoint, frozen, "6f0f7f66-ea40-406e-a582-98bb9df557ca")
         val repo = Fake().apply { saved = ticket; remoteState = "needs_recovery" }
         val model = InstallerViewModel(repo); runCurrent()
@@ -85,21 +91,28 @@ class InstallerViewModelTest {
         assertEquals(ticket, repo.saved)
         model.detach()
     }
-    @Test fun refreshingAbsentOldJobUsesLatestAndReplacesStaleFormOptions() = runTest(dispatcher) {
-        val frozen = plan.copy(expiresAt = 0, options = options.copy(imageMode = InstallImageMode.IMAGES, imageRelease = "v0.4.0-prebuilt.test.1"))
-        val repo = Fake().apply { saved = InstallTicket(endpoint, frozen, "6f0f7f66-ea40-406e-a582-98bb9df557ca"); missing = true }
+    @Test fun absentLegacyJobMustRefreshWithAdminBeforeApplying() = runTest(dispatcher) {
+        val frozen = plan.copy(options = options.copy(imageMode = InstallImageMode.IMAGES,
+            imageRelease = "v0.4.0-prebuilt.test.1", admin = null))
+        val ticket = InstallTicket(endpoint, frozen, "6f0f7f66-ea40-406e-a582-98bb9df557ca")
+        val repo = Fake().apply { saved = ticket; missing = true }
         val model = InstallerViewModel(repo); runCurrent()
         model.reconnect(); model.authenticate(options, "test-only", false); runCurrent()
+        assertEquals("STATE_UNAVAILABLE", model.state.value.errorCode)
+        model.apply(true, true, true, adminPassword = adminPassword); runCurrent()
+        assertEquals(0, repo.applyCount)
+        assertEquals(ticket, repo.saved)
         model.refreshMissingPlan(); runCurrent()
-        assertEquals(frozen.options.copy(imageRelease = "latest"), repo.plannedOptions.single())
-        assertEquals("latest", model.state.value.options.imageRelease)
-        assertEquals("latest", model.state.value.plan?.options?.imageRelease)
+        val expected = frozen.options.copy(imageRelease = "latest", admin = InstallAdminOptions())
+        assertEquals(expected, repo.plannedOptions.single())
+        assertEquals(expected, model.state.value.options)
+        assertEquals(expected, model.state.value.plan?.options)
         assertNull(model.state.value.ticket); assertNull(repo.saved); assertEquals(0, repo.applyCount)
         model.detach()
     }
     @Test fun runningJobCannotChangeItsImageMode() = runTest(dispatcher) {
         val repo = Fake(); val model = setupModel(repo); runCurrent()
-        model.apply(true, true, true); runCurrent()
+        model.apply(true, true, true, adminPassword = adminPassword); runCurrent()
         val before = model.state.value
         model.editOptions()
         assertEquals(before.ticket, model.state.value.ticket)
@@ -113,8 +126,8 @@ class InstallerViewModelTest {
             model.start(endpoint,options.domain);model.authenticate(options.copy(smtp=smtp),"ssh-test-only",false);runCurrent()
             assertEquals(smtp,model.state.value.plan?.options?.smtp)
             assertNull(repo.smtpBuffer)
-            model.apply(true,true,true);runCurrent();assertEquals(0,repo.applyCount)
-            model.apply(true,true,true,"smtp-test-only");runCurrent()
+            model.apply(true,true,true, adminPassword = adminPassword);runCurrent();assertEquals(0,repo.applyCount)
+            model.apply(true,true,true,"smtp-test-only", adminPassword);runCurrent()
             assertEquals(1,repo.applyCount);assertEquals("smtp-test-only",repo.smtpReceived)
             assertTrue(repo.smtpBuffer!!.all { it==0.toByte() })
             assertFalse(repo.saved.toString().contains("smtp-test-only"))
@@ -149,7 +162,7 @@ class InstallerViewModelTest {
         val model = InstallerViewModel(repo)
         model.start(endpoint, options.domain, verified()); runCurrent()
         model.authenticate(options.copy(admin = InstallAdminOptions()), "", false); runCurrent()
-        model.apply(true, true, true, adminPassword = "test-only-admin"); runCurrent()
+        model.apply(true, true, true, adminPassword = adminPassword); runCurrent()
         assertEquals(1, repo.applyCount)
         val saved = repo.saved
         model.detach(); runCurrent()
@@ -180,8 +193,8 @@ class InstallerViewModelTest {
         assertTrue(original.any { it != 0.toByte() })
         assertTrue(repo.captured.all { it.password.all { byte -> byte == 0.toByte() } })
         assertNull(transfer.take(SshRequest(target, options.domain)))
-        model.apply(false, true, true); runCurrent(); assertEquals(0, repo.applyCount)
-        model.apply(true, true, true); runCurrent(); assertEquals(1, repo.applyCount)
+        model.apply(false, true, true, adminPassword = adminPassword); runCurrent(); assertEquals(0, repo.applyCount)
+        model.apply(true, true, true, adminPassword = adminPassword); runCurrent(); assertEquals(1, repo.applyCount)
         assertTrue(repo.hostKeys.all { it == hostKey })
         model.detach(); assertTrue(original.all { it == 0.toByte() })
     }
@@ -294,7 +307,7 @@ class InstallerViewModelTest {
             model.authenticate(options, "", false); runCurrent()
             if (outcome != "error") {
                 repo.remoteState = if (outcome == "cancel") "running" else outcome
-                model.apply(true, true, true); runCurrent()
+                model.apply(true, true, true, adminPassword = adminPassword); runCurrent()
                 if (outcome == "cancel") { model.control("cancel"); runCurrent() }
             }
             assertTrue("$outcome must erase original", bytes.all { it == 0.toByte() })
@@ -333,7 +346,7 @@ class InstallerViewModelTest {
             assertTrue(repo.captured.all { it.password.all { byte -> byte == 0.toByte() } })
             expectedGuidance.forEach { assertTrue("$code should explain $it", rejected.error.orEmpty().contains(it)) }
 
-            model.apply(true, true, true); runCurrent()
+            model.apply(true, true, true, adminPassword = adminPassword); runCurrent()
             assertEquals(0, repo.applyCount); assertNull(repo.saved); assertTrue(repo.mutations.isEmpty()); assertTrue(repo.controls.isEmpty())
 
             repo.planFailure = null
@@ -379,7 +392,7 @@ class InstallerViewModelTest {
     @Test fun activeInstallKeepsAccessBeyondHandoffDeadline() = runTest(dispatcher) {
         val original = "test-only".toByteArray(); val repo = Fake(); val model = InstallerViewModel(repo)
         model.start(endpoint, options.domain, verified(bytes = original)); runCurrent()
-        model.authenticate(options, "", false); runCurrent(); model.apply(true, true, true); runCurrent()
+        model.authenticate(options, "", false); runCurrent(); model.apply(true, true, true, adminPassword = adminPassword); runCurrent()
         advanceTimeBy(VerifiedInstallationAccess.TTL_MILLIS * 2); runCurrent()
         assertFalse(model.state.value.needsAccess); assertTrue(original.any { it != 0.toByte() })
         model.reconnect(); runCurrent()
@@ -389,7 +402,7 @@ class InstallerViewModelTest {
 
     @Test fun ticketPersistedBeforeApplyAndLostResponseDoesNotRetryAutomatically() = runTest(dispatcher) {
         val repo=Fake().apply { loseApply=true };val model=setupModel(repo);runCurrent()
-        model.apply(true,true,true);runCurrent()
+        model.apply(true,true,true, adminPassword = adminPassword);runCurrent()
         assertEquals(listOf("remember","apply"),repo.mutations);assertNotNull(model.state.value.pending)
         assertFalse(model.state.value.needsAccess);assertNull(model.state.value.status)
         assertTrue(repo.captured.all { it.password.all { byte -> byte==0.toByte() } })
@@ -398,11 +411,11 @@ class InstallerViewModelTest {
         assertEquals(1,repo.applyCount);assertEquals("status",repo.lastControl);model.detach()
     }
     @Test fun detachDoesNotCancelRemoteJob() = runTest(dispatcher) {
-        val repo=Fake();val model=setupModel(repo);runCurrent();model.apply(true,true,true);runCurrent()
+        val repo=Fake();val model=setupModel(repo);runCurrent();model.apply(true,true,true, adminPassword = adminPassword);runCurrent()
         model.detach();runCurrent();assertNull(repo.lastControl);assertNotNull(model.state.value.pending);assertFalse(model.state.value.active)
     }
     @Test fun explicitCancelUsesDurableRemoteSignal() = runTest(dispatcher) {
-        val repo=Fake();val model=setupModel(repo);runCurrent();model.apply(true,true,true);runCurrent()
+        val repo=Fake();val model=setupModel(repo);runCurrent();model.apply(true,true,true, adminPassword = adminPassword);runCurrent()
         model.control("cancel");runCurrent();assertEquals("cancel",repo.lastControl);assertEquals("cancel_requested",model.state.value.status!!.state);model.detach()
     }
     @Test fun reconnectToRecoveryDoesNotResumeWithoutUserAction() = runTest(dispatcher) {
@@ -415,11 +428,15 @@ class InstallerViewModelTest {
         val repo=Fake().apply { saved=InstallTicket(endpoint,plan,"6f0f7f66-ea40-406e-a582-98bb9df557ca");missing=true }
         val model=InstallerViewModel(repo);runCurrent();model.reconnect();model.authenticate(options,"test-only",false);runCurrent()
         assertEquals(0,repo.applyCount);assertEquals("STATE_UNAVAILABLE",model.state.value.errorCode);assertFalse(model.state.value.needsAccess)
-        val before=repo.saved!!.jobId;model.apply(true,true,true);runCurrent();assertEquals(before,repo.saved!!.jobId);model.detach()
+        val before = repo.saved!!.jobId
+        model.apply(true, true, true, adminPassword = adminPassword); runCurrent()
+        assertEquals(1, repo.applyCount)
+        assertEquals(before, repo.saved!!.jobId)
+        model.detach()
     }
     @Test fun expiredPlanCanBeRefreshedWithoutCreatingAJob() = runTest(dispatcher) {
         val repo=Fake().apply { expired=true };val model=setupModel(repo);runCurrent()
-        model.apply(true,true,true);runCurrent();assertEquals(0,repo.applyCount);assertTrue(model.state.value.needsAccess)
+        model.apply(true,true,true, adminPassword = adminPassword);runCurrent();assertEquals(0,repo.applyCount);assertTrue(model.state.value.needsAccess)
         model.reconnect();runCurrent();assertEquals(InstallScreen.ACCESS,model.state.value.screen);assertNull(model.state.value.plan);model.detach()
     }
     @Test fun expiredUnsentTicketReconcilesReadOnlyBeforeNewConfirmation() = runTest(dispatcher) {
@@ -431,7 +448,7 @@ class InstallerViewModelTest {
     }
     @Test fun backgroundObservationStopsFor120SecondsAndResumesWithoutRemoteCancellation() = runTest(dispatcher) {
         val repo=Fake();val model=setupModel(repo);runCurrent()
-        model.apply(true,true,true);runCurrent()
+        model.apply(true,true,true, adminPassword = adminPassword);runCurrent()
         model.foreground(false);runCurrent()
         assertEquals(0,repo.statusCalls)
         advanceTimeBy(120_000);runCurrent()
@@ -447,7 +464,7 @@ class InstallerViewModelTest {
         model.detach()
     }
     @Test fun repeatedForegroundCallbacksKeepExactlyOneObservationLoop() = runTest(dispatcher) {
-        val repo=Fake();val model=setupModel(repo);runCurrent();model.apply(true,true,true);runCurrent()
+        val repo=Fake();val model=setupModel(repo);runCurrent();model.apply(true,true,true, adminPassword = adminPassword);runCurrent()
         repeat(10) { model.foreground(true) }
         advanceTimeBy(30_000);runCurrent()
         assertEquals(10,repo.statusCalls)
@@ -461,7 +478,7 @@ class InstallerViewModelTest {
     }
     @Test fun applyFinishingInBackgroundRetainsTicketAndWaitsForForegroundToObserve() = runTest(dispatcher) {
         val gate=CompletableDeferred<Unit>();val repo=Fake().apply { applyGate=gate }
-        val model=setupModel(repo);runCurrent();model.apply(true,true,true);runCurrent()
+        val model=setupModel(repo);runCurrent();model.apply(true,true,true, adminPassword = adminPassword);runCurrent()
         assertTrue(model.state.value.busy);assertNotNull(model.state.value.pending)
         model.foreground(false);gate.complete(Unit);runCurrent()
         assertFalse(model.state.value.busy);assertFalse(model.state.value.observing)
@@ -470,7 +487,7 @@ class InstallerViewModelTest {
         assertEquals(1,repo.statusCalls);assertEquals(1,repo.applyCount);model.detach()
     }
     @Test fun lateCancelledObserverCannotOverwriteStatusOrClearReplacementLoop() = runTest(dispatcher) {
-        val gate=CompletableDeferred<Unit>();val repo=Fake();val model=setupModel(repo);runCurrent();model.apply(true,true,true);runCurrent()
+        val gate=CompletableDeferred<Unit>();val repo=Fake();val model=setupModel(repo);runCurrent();model.apply(true,true,true, adminPassword = adminPassword);runCurrent()
         repo.remoteState="completed";repo.statusGate=gate;repo.ignoreStatusCancellation=true
         advanceTimeBy(3_000);runCurrent();assertEquals(1,repo.statusCalls)
         model.foreground(false);runCurrent()
@@ -484,7 +501,7 @@ class InstallerViewModelTest {
         model.detach()
     }
     @Test fun terminalStatusDoesNotRestartObservationOnForeground() = runTest(dispatcher) {
-        val repo=Fake();val model=setupModel(repo);runCurrent();model.apply(true,true,true);runCurrent()
+        val repo=Fake();val model=setupModel(repo);runCurrent();model.apply(true,true,true, adminPassword = adminPassword);runCurrent()
         repo.remoteState="completed";advanceTimeBy(3_000);runCurrent()
         assertTrue(model.state.value.needsAccess);assertFalse(model.state.value.observing)
         model.foreground(false);model.foreground(true);advanceTimeBy(120_000);runCurrent()

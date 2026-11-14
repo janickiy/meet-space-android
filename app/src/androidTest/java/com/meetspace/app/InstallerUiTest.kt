@@ -36,7 +36,7 @@ class InstallerUiTest {
         compose.onNodeWithTag("install-password").performScrollTo().performTextInput("test-only")
         compose.settleFormEditorForClick(editor, compose.onNodeWithTag("install-plan")).assertIsEnabled().performClick()
         compose.runOnIdle {
-            assertEquals(InstallOptions("meet.example.com","8.8.8.8",""),submitted)
+            assertEquals(InstallOptions("meet.example.com","8.8.8.8","", admin = InstallAdminOptions()),submitted)
             assertEquals("test-only",password);assertFalse(useKey)
         }
     }
@@ -105,10 +105,13 @@ class InstallerUiTest {
     @Test fun adminAccessNormalizesLoginAndRejectsConflictingPortWithoutSshPrompt() {
         var submitted: InstallOptions? = null
         render(InstallerUiState(active = true, screen = InstallScreen.ACCESS, endpoint = endpoint,
-            options = plan.options.copy(admin = InstallAdminOptions()), needsAccess = false),
+            options = plan.options, needsAccess = false),
             onAuthenticate = { options, _, _ -> submitted = options })
         compose.onNodeWithTag("install-password").assertDoesNotExist()
         compose.onNodeWithTag("install-admin-password").assertDoesNotExist()
+        compose.onNodeWithTag("install-admin-enabled").assertDoesNotExist()
+        compose.onNodeWithTag("install-admin-username").performScrollTo().assertTextContains("admin")
+        compose.onNodeWithTag("install-admin-port").performScrollTo().assertTextContains("8081")
         compose.onNodeWithTag("install-admin-username").performScrollTo().performTextReplacement("Owner+Admin@example.com")
         compose.onNodeWithTag("install-admin-port").performScrollTo().performTextReplacement("8082")
         compose.settleFormEditorForClick(editor, compose.onNodeWithTag("install-plan")).assertIsNotEnabled()
@@ -173,7 +176,7 @@ class InstallerUiTest {
         compose.onNodeWithTag("install-ip").performScrollTo().performTextInput("8.8.8.8")
         compose.settleFormEditorForClick(editor, compose.onNodeWithTag("install-plan")).assertIsEnabled().performClick()
         compose.runOnIdle {
-            assertEquals(plan.options,submitted)
+            assertEquals(plan.options.copy(admin = InstallAdminOptions()),submitted)
             assertEquals("",secret);assertFalse(useKey)
         }
     }

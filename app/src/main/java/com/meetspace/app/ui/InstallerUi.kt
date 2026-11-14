@@ -91,9 +91,11 @@ fun InstallerUi(
                         status.errorCode?.let { InstallNotice(installErrorMessage(it), error = true) }
                         if ((state.needsAccess || state.error != null) && status.state != "completed") OutlinedButton(shape = RoundedCornerShape(14.dp), onClick = onReconnect, enabled = !state.busy, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("install-reconnect")) { Text("Подключиться снова") }
                         if (status.state == "completed") {
-                            val domain = (state.plan?.options?.domain ?: state.ticket?.plan?.options?.domain)?.takeIf { it.isNotBlank() }
+                            val completedPlan = state.plan ?: state.ticket?.plan
+                            val domain = completedPlan?.options?.domain?.takeIf { it.isNotBlank() }
                             val origin = domain?.let { "https://$it" }
-                            val admin = state.plan?.options?.admin ?: state.ticket?.plan?.options?.admin
+                            // A server-discovered job's response reflects the current request options.
+                            val admin = completedPlan?.takeIf { it.existingJobId == null }?.options?.admin
                             if (domain != null && admin != null) InstallAdministratorReady(admin, domain)
                             if (onCreateAccount != null) {
                                 Button(shape = RoundedCornerShape(14.dp), onClick = { origin?.let(onCreateAccount) },
@@ -150,7 +152,8 @@ fun InstallerUi(
                     }
                     if (state.errorCode == "STATE_UNAVAILABLE" && !state.needsAccess) {
                         OutlinedButton(shape = RoundedCornerShape(14.dp), onClick = onRefreshPlan, enabled = !state.busy, modifier = Modifier.heightIn(min = 48.dp)) { Text("Проверить сервер и обновить план") }
-                        state.plan?.let { InstallConsent(it, state.busy, onApply) }
+                        state.plan?.takeIf { it.options.admin != null && it.existingJobId == null }
+                            ?.let { InstallConsent(it, state.busy, onApply) }
                     }
                 }
         }
@@ -318,10 +321,10 @@ private fun InstallAccess(state: InstallerUiState, onImport: (Uri) -> Unit, onAu
     var ip by rememberSaveable(state.endpoint) { mutableStateOf(state.options.publicIpv4) }
     val acmeEmail = state.options.acmeEmail
     var imageMode by rememberSaveable(state.endpoint) { mutableStateOf(state.options.imageMode) }
-    var adminEnabled by rememberSaveable(state.endpoint) { mutableStateOf(state.options.admin != null) }
-    var adminUsername by rememberSaveable(state.endpoint) { mutableStateOf(state.options.admin?.username ?: "admin") }
-    var adminPort by rememberSaveable(state.endpoint) { mutableStateOf(state.options.admin?.httpsPort?.toString() ?: "8081") }
-    val admin = if (adminEnabled) InstallAdminOptions(adminUsername.trim().lowercase(java.util.Locale.ROOT), adminPort.toIntOrNull() ?: 0) else null
+    val initialAdmin = state.options.admin ?: InstallAdminOptions()
+    var adminUsername by rememberSaveable(state.endpoint) { mutableStateOf(initialAdmin.username) }
+    var adminPort by rememberSaveable(state.endpoint) { mutableStateOf(initialAdmin.httpsPort.toString()) }
+    val admin = InstallAdminOptions(adminUsername.trim().lowercase(java.util.Locale.ROOT), adminPort.toIntOrNull() ?: 0)
     var smtpEnabled by rememberSaveable(state.endpoint) { mutableStateOf(state.options.smtp != null) }
     var smtpHost by rememberSaveable(state.endpoint) { mutableStateOf(state.options.smtp?.host.orEmpty()) }
     var smtpPort by rememberSaveable(state.endpoint) { mutableStateOf(state.options.smtp?.port?.toString() ?: "465") }
@@ -389,14 +392,10 @@ private fun InstallAccess(state: InstallerUiState, onImport: (Uri) -> Unit, onAu
                 Text("Сертификат выпускается для домена MeetSpace. Условия Let's Encrypt подтвердите перед установкой.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             InstallFormSection("Административная панель") {
-                InstallToggle("Включить админку", adminEnabled, { adminEnabled = it }, enabled = !state.busy, tag = "install-admin-enabled")
-                if (adminEnabled) {
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    InstallFieldPair({ InstallOptionField(adminUsername, { adminUsername = it }, "Логин администратора", "install-admin-username", !state.busy) },
-                        { InstallOptionField(adminPort, { adminPort = it }, "HTTPS-порт админки", "install-admin-port", !state.busy, KeyboardType.Number) })
-                    Text("3–40 символов: латинские буквы, цифры, . - _ @ +", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("Отдельный вход для управления сервером. Пароль задаётся перед установкой. LDAP / Active Directory и почта настраиваются в админке.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                } else Text("Без админки настройка LDAP в браузере недоступна.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                InstallFieldPair({ InstallOptionField(adminUsername, { adminUsername = it }, "Логин администратора", "install-admin-username", !state.busy) },
+                    { InstallOptionField(adminPort, { adminPort = it }, "HTTPS-порт админки", "install-admin-port", !state.busy, KeyboardType.Number) })
+                Text("3–40 символов: латинские буквы, цифры, . - _ @ +", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Отдельный вход для управления сервером. Пароль задаётся перед установкой. LDAP / Active Directory и почта настраиваются в админке.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             InstallFormSection {
                 InstallToggle("Настроить отправку email", smtpEnabled, { smtpEnabled = it }, enabled = !state.busy, tag = "install-smtp-enabled")
@@ -420,7 +419,7 @@ private fun InstallAccess(state: InstallerUiState, onImport: (Uri) -> Unit, onAu
             InstallOptionField(password, { password = it }, if (useKey) "Парольная фраза ключа" else "Пароль SSH", "install-password", !state.busy, KeyboardType.Password, secret = true)
         } else Text("Доступ SSH уже проверен. Проверьте параметры установки и учётную запись администратора.", modifier = Modifier.testTag("install-access-verified"))
         Button(shape = RoundedCornerShape(14.dp), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp), onClick = { onAuthenticate(InstallOptions(domain, ip, acmeEmail.trim(), smtp, imageMode, admin = admin), password, useKey); password = "" }, enabled = !state.busy && (!state.needsAccess || !useKey || state.keyLoaded) && (state.ticket != null ||
-            (smtp == null || smtp.isValid()) && (admin == null || admin.isValid())), modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("install-plan")) {
+            (smtp == null || smtp.isValid()) && admin.isValid()), modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("install-plan")) {
             Text(if (state.ticket == null) "Получить план без установки" else "Проверить состояние задания", Modifier.weight(1f), textAlign = TextAlign.Center)
             Spacer(Modifier.width(8.dp)); Icon(Icons.AutoMirrored.Outlined.ArrowForward, null, Modifier.size(18.dp))
         }
