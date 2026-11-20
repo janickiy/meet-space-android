@@ -128,20 +128,31 @@ jobs:
           avdmanager="$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager"
           adb="$ANDROID_HOME/platform-tools/adb"
           emulator="$ANDROID_HOME/emulator/emulator"
+          # Keep AVD discovery independent of the runner's XDG and Android defaults.
+          export ANDROID_USER_HOME="$RUNNER_TEMP/meetspace-android"
+          export ANDROID_EMULATOR_HOME="$ANDROID_USER_HOME"
+          export ANDROID_AVD_HOME="$ANDROID_USER_HOME/avd"
+          mkdir -p "$ANDROID_AVD_HOME"
           printf 'no\n' | "$avdmanager" create avd --force --name meetspace-ci --package 'system-images;android-35;google_apis;x86_64'
+          test -s "$ANDROID_AVD_HOME/meetspace-ci.ini"
           "$emulator" -avd meetspace-ci -port 5554 -no-window -no-audio -no-boot-anim -no-snapshot -wipe-data -gpu swiftshader -memory 2048 > build/reports/stage09/emulator.log 2>&1 &
           emulator_pid=$!
           trap '"$adb" -s "$ANDROID_SERIAL" emu kill >/dev/null 2>&1 || true; kill "$emulator_pid" >/dev/null 2>&1 || true' EXIT
-          timeout 240 "$adb" -s "$ANDROID_SERIAL" wait-for-device
           booted=false
           for attempt in $(seq 1 120); do
-            if [[ "$("$adb" -s "$ANDROID_SERIAL" shell getprop sys.boot_completed | tr -d '\r')" == '1' ]]; then
+            if ! kill -0 "$emulator_pid" 2>/dev/null; then
+              break
+            fi
+            if [[ "$(timeout 5 "$adb" -s "$ANDROID_SERIAL" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" == '1' ]]; then
               booted=true
               break
             fi
             sleep 2
           done
-          test "$booted" = true
+          if [[ "$booted" != true ]]; then
+            cat build/reports/stage09/emulator.log
+            exit 1
+          fi
           "$adb" -s "$ANDROID_SERIAL" shell input keyevent 82
           "$adb" -s "$ANDROID_SERIAL" shell wm size 2560x1600
           "$adb" -s "$ANDROID_SERIAL" shell wm density 320
