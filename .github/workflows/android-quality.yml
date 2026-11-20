@@ -46,6 +46,13 @@ jobs:
             gradle/wrapper/gradle-wrapper.properties
             gradle.properties
 
+      - name: Install Android emulator runtime dependencies
+        run: |
+          set -euo pipefail
+          # QEMU requires libpulse.so.0 even when the emulator uses -no-audio.
+          sudo apt-get update -o Acquire::Retries=3
+          sudo apt-get install -y --no-install-recommends -o Acquire::Retries=3 libpulse0
+
       - name: Install Android tools and isolated emulator image
         run: |
           set -euo pipefail
