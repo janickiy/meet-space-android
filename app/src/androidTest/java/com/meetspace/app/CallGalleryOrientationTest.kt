@@ -98,30 +98,39 @@ class CallGalleryOrientationTest {
         assertPinned()
     }
 
-    @Test fun speakerTilesAlignWithControlsInPortraitAndShortLandscape() {
+    @Test fun speakerPairKeepsEqualTilesAndAlignsWithControlsAfterRotation() {
         var viewport by mutableStateOf(DpSize(720.dp, 1024.dp))
         compose.setContent {
             DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(viewport)) {
-                MeetSpaceTheme { CallScreen(state()) }
+                MeetSpaceTheme { CallScreen(state(), details = CallUiDetails(chat = CallTextPanelState(canSend = true))) }
             }
         }
 
-        for (portrait in listOf(viewport, DpSize(834.dp, 1194.dp), DpSize(390.dp, 844.dp))) {
+        for (portrait in listOf(viewport, DpSize(834.dp, 1194.dp), DpSize(834.dp, 844.dp), DpSize(390.dp, 844.dp))) {
             compose.runOnIdle { viewport = portrait }
             compose.onNodeWithTag("call-layout-speaker").assertIsSelected()
             val featured = bounds("call-featured-video")
             val thumbnail = bounds("call-participant-self")
             assertTrue(featured.bottom < thumbnail.top)
+            assertEqualTileSize(featured, thumbnail)
             assertControlWidth(featured.left, featured.right)
             assertControlWidth(thumbnail.left, thumbnail.right)
-            if (portrait.width == 834.dp) capture("portrait-speaker-wide")
+            if (portrait == DpSize(834.dp, 1194.dp)) capture("portrait-speaker-wide")
         }
+
+        compose.onNodeWithTag("call-chat").performClick()
+        val featuredWithChat = bounds("call-featured-video")
+        val peerWithChat = bounds("call-participant-self")
+        assertEqualTileSize(featuredWithChat, peerWithChat)
+        assertTrue(featuredWithChat.bottom < peerWithChat.top && peerWithChat.bottom <= bounds("call-chat-panel").top)
+        compose.onNodeWithTag("call-chat").performClick()
 
         compose.runOnIdle { viewport = DpSize(844.dp, 390.dp) }
         compose.onNodeWithTag("call-layout-speaker").assertIsSelected()
         val rotatedFeatured = bounds("call-featured-video")
         val rotatedThumbnail = bounds("call-participant-self")
         assertTrue(rotatedFeatured.right < rotatedThumbnail.left)
+        assertEqualTileSize(rotatedFeatured, rotatedThumbnail)
         assertControlWidth(rotatedFeatured.left, rotatedThumbnail.right)
         capture("landscape-speaker-wide")
 
@@ -130,6 +139,20 @@ class CallGalleryOrientationTest {
         val gallerySelf = bounds("call-participant-self")
         assertTrue(galleryRemote.right < gallerySelf.left)
         assertControlWidth(galleryRemote.left, gallerySelf.right)
+
+        compose.runOnIdle { viewport = DpSize(1194.dp, 834.dp) }
+        compose.onNodeWithTag("call-layout-speaker").performClick().assertIsSelected()
+        val tabletFeatured = bounds("call-featured-video")
+        val tabletPeer = bounds("call-participant-self")
+        assertTrue(tabletFeatured.right < tabletPeer.left)
+        assertEqualTileSize(tabletFeatured, tabletPeer)
+    }
+
+    private fun assertEqualTileSize(featured: DpRect, peer: DpRect) {
+        assertEquals("The presenter and interlocutor have equal widths",
+            (featured.right - featured.left).value, (peer.right - peer.left).value, 1f)
+        assertEquals("The presenter and interlocutor have equal heights",
+            (featured.bottom - featured.top).value, (peer.bottom - peer.top).value, 1f)
     }
 
     private fun assertControlWidth(left: Dp, right: Dp) {

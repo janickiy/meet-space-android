@@ -332,6 +332,9 @@ class CallDiscussionViewModel(
         }, { recordingKnown = false; recordingError = it.message; updateRecording() })
     }
 
+    private fun availableRecordingModes(): List<String> =
+        foundation.state.value.session?.capabilities?.recordingModes.orEmpty().filterNot { it == "screen_focus" }
+
     private fun updateRecording() {
         val status = if (!recordingKnown) CallRecordingStatus.UNKNOWN else when (currentRecording?.status) {
             "recording", "degraded" -> CallRecordingStatus.RECORDING
@@ -339,20 +342,20 @@ class CallDiscussionViewModel(
             "stopping", "processing", "finalizing", "uploading" -> CallRecordingStatus.STOPPING
             else -> CallRecordingStatus.STOPPED
         }
-        val mode = foundation.state.value.session?.capabilities?.recordingModes.orEmpty()
-        if (recordingMode !in mode) recordingMode = mode.firstOrNull().orEmpty()
+        val modes = availableRecordingModes()
+        if (recordingMode !in modes) recordingMode = modes.firstOrNull().orEmpty()
         val enabled = connected() && activeMeeting && recordingKnown && !recordingBusy
         val owner = selfId() != null && (selfId() == meetingOwner || selfId() == currentRecording?.requestedBy)
         mutable.value = state.value.copy(recording = status == CallRecordingStatus.RECORDING,
-            recordingState = CallRecordingUiState(status = status, busy = recordingBusy, modes = mode, selectedMode = recordingMode,
-                canStart = foundation.state.value.session?.guestMeeting == null && enabled && currentRecording == null && mode.isNotEmpty(),
+            recordingState = CallRecordingUiState(status = status, busy = recordingBusy, modes = modes, selectedMode = recordingMode,
+                canStart = foundation.state.value.session?.guestMeeting == null && enabled && currentRecording == null && modes.isNotEmpty(),
                 canStop = enabled && owner && currentRecording?.status in setOf("starting", "recording", "degraded"),
                 error = recordingError, description = if (currentRecording?.mode == "composite") "Видео, звук и демонстрация экрана в одной записи." else null, unavailableReason = when {
                     foundation.state.value.session?.guestMeeting != null -> "Гость не может управлять записью встречи."
                     !connected() -> "Управление станет доступно после подключения к встрече."
                     !activeMeeting -> "Встреча завершена."
                     !recordingKnown -> "Не удалось подтвердить состояние записи. Обновите данные."
-                    mode.isEmpty() -> "Запись недоступна на этом сервере."
+                    currentRecording == null && modes.isEmpty() -> "На этом сервере нет режимов записи, доступных в приложении."
                     currentRecording != null && !owner -> "Остановить запись может организатор или участник, который её начал."
                     else -> "Остановить запись может её инициатор или организатор встречи."
                 }))
@@ -363,8 +366,7 @@ class CallDiscussionViewModel(
         if (if (stop) !ui.canStop else !ui.canStart) return
         val cid = call.conferenceId
         val rid = currentRecording?.id
-        val modes = foundation.state.value.session?.capabilities?.recordingModes.orEmpty()
-        val mode = recordingMode.takeIf { it in modes }
+        val mode = recordingMode.takeIf { it in availableRecordingModes() }
         if (!stop && mode == null) return
         cancel("recording"); recordingBusy = true; recordingError = null; updateRecording()
         request("recording-control", {

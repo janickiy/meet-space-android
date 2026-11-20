@@ -31,6 +31,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -41,6 +43,7 @@ import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -462,6 +465,16 @@ private fun ConversationDetail(state: MessagingUiState, actions: MessagingAction
     var assignFolder by remember(state.selectedId) { mutableStateOf(false) }
     var manageFolders by remember(state.selectedId) { mutableStateOf(false) }
     var leaveGroup by remember(state.selectedId) { mutableStateOf(false) }
+    val composerFocus = remember(state.selectedId) { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
+    var focusComposer by remember(state.selectedId) { mutableStateOf(false) }
+    LaunchedEffect(focusComposer) {
+        if (focusComposer) {
+            composerFocus.requestFocus()
+            keyboard?.show()
+            focusComposer = false
+        }
+    }
     historyDialog?.let { value -> ChatHistoryDialog(state, actions, value == "pins") { historyDialog = null } }
     clearHistory?.let { hide -> AlertDialog(onDismissRequest = { clearHistory = null }, title = { Text(if (hide) "Удалить чат?" else "Очистить историю?") },
         text = { Text("История будет скрыта только для вас. У собеседника сообщения сохранятся.") },
@@ -470,6 +483,8 @@ private fun ConversationDetail(state: MessagingUiState, actions: MessagingAction
     if (conversation != null && showInfo) ConversationInfoDialog(
         conversation, state, actions, dismiss = { showInfo = false },
         onEdit = { showInfo = false; showMembers() },
+        onMessage = { showInfo = false; focusComposer = !state.sending && !state.pendingSend },
+        onCall = onStartCall?.let { start -> { showInfo = false; start() } },
         onPins = { showInfo = false; actions.loadPins(); historyDialog = "pins" },
     )
     if (conversation != null && assignFolder) ConversationFolderDialog(
@@ -656,7 +671,7 @@ private fun ConversationDetail(state: MessagingUiState, actions: MessagingAction
         } else {
             if (onNewChat != null && !compactHeight) ThreadCreateAction(state.busy, onNewChat)
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            if (conversation != null) MessageComposer(state, actions, compactHeight, showBack)
+            if (conversation != null) MessageComposer(state, actions, compactHeight, showBack, composerFocus)
         }
     }
 }
@@ -702,60 +717,6 @@ private fun ConversationMenuItem(
         modifier = Modifier.heightIn(min = 48.dp).testTag(tag),
         contentPadding = PaddingValues(horizontal = 20.dp),
         colors = MenuDefaults.itemColors(textColor = color, leadingIconColor = color),
-    )
-}
-
-@Composable
-private fun ConversationInfoDialog(
-    conversation: ChatConversation, state: MessagingUiState, actions: MessagingActions,
-    dismiss: () -> Unit, onEdit: () -> Unit, onPins: () -> Unit,
-) {
-    val group = conversation.type == "group"
-    AlertDialog(
-        onDismissRequest = dismiss,
-        title = { Text(if (group) "О группе" else "О контакте") },
-        text = {
-            Column(
-                Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()).testTag("conversation-info-content"),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    ConversationAvatar(conversation, 48.dp, groupBadge = group)
-                    Column {
-                        Text(conversation.title, style = MaterialTheme.typography.titleMedium)
-                        Text(if (group) "Группа · ${memberCountLabel(conversation.memberCount)}" else "Личная переписка",
-                            style = MaterialTheme.typography.bodySmall)
-                    }
-                }
-                if (group) {
-                    if (conversation.description.isNotBlank()) Text(conversation.description)
-                    if (conversation.canManage) TextButton(onEdit, enabled = !state.busy) {
-                        Icon(ChatMessageIcons.Edit, null, Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("Редактировать группу")
-                    }
-                    Text("Участники", style = MaterialTheme.typography.titleSmall)
-                    LoadingStatus(state.members.loading, state.members.error, actions.loadMembers)
-                    state.members.data.orEmpty().forEach { member ->
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            ChatAvatar(member.displayName, member.id, member.avatarVersion, 32.dp, 32.dp)
-                            Column {
-                                Text(member.displayName)
-                                Text(roleLabel(member.role), style = MaterialTheme.typography.bodySmall)
-                            }
-                        }
-                    }
-                    if (state.memberCursor != null)
-                        MoreButton("Ещё участники", "conversation-info-members-more", state.members.loading, actions.moreMembers)
-                }
-                TextButton(onPins, Modifier.testTag("conversation-info-pins")) { Text("Закреплённые сообщения") }
-                TextButton(
-                    onClick = { dismiss(); actions.refreshMessages() },
-                    enabled = !state.messages.loading, modifier = Modifier.testTag("messages-refresh"),
-                ) { Text("Обновить сообщения") }
-            }
-        },
-        confirmButton = { TextButton(dismiss) { Text("Готово") } },
     )
 }
 
@@ -974,7 +935,8 @@ private fun CallHistoryBubble(call: DirectCallHistory, selfId: String, createdAt
 }
 
 @Composable
-private fun MessageComposer(state: MessagingUiState, actions: MessagingActions, compactHeight: Boolean, compactWidth: Boolean) {
+private fun MessageComposer(state: MessagingUiState, actions: MessagingActions, compactHeight: Boolean, compactWidth: Boolean,
+    focusRequester: FocusRequester) {
     val busy = state.sending || state.attachmentBusy
     val hasContext = state.editing != null || state.replyTo != null || state.attachments.isNotEmpty() || state.attachmentBusy || state.pendingSend
     var contextOpen by remember(state.selectedId) { mutableStateOf(false) }
@@ -1007,7 +969,7 @@ private fun MessageComposer(state: MessagingUiState, actions: MessagingActions, 
             },
                 enabled = !state.sending && !state.pendingSend, singleLine = false, maxLines = if (compactHeight) 1 else 4,
                 textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 20.sp, color = colors.onSurface), cursorBrush = SolidColor(colors.primary),
-                modifier = Modifier.weight(1f).heightIn(min = 48.dp).testTag("message-draft").semantics { contentDescription = fieldLabel },
+                modifier = Modifier.weight(1f).heightIn(min = 48.dp).focusRequester(focusRequester).testTag("message-draft").semantics { contentDescription = fieldLabel },
                 decorationBox = { field -> Box(Modifier.fillMaxWidth().heightIn(min = 48.dp).clip(fieldShape)
                     .background(colors.background).border(1.dp, colors.outlineVariant, fieldShape)
                     .padding(horizontal = 12.dp, vertical = if (compactHeight) 9.dp else 14.dp), contentAlignment = Alignment.CenterStart) {
@@ -1418,16 +1380,16 @@ private fun ConfirmationDialog(title: String, message: String, busy: Boolean, er
 }
 
 @Composable
-internal fun ConversationAvatar(conversation: ChatConversation, size: Dp, height: Dp = size, groupBadge: Boolean = false) {
+internal fun ConversationAvatar(conversation: ChatConversation, size: Dp, height: Dp = size, groupBadge: Boolean = false, circular: Boolean = false) {
     val group = conversation.type == "group"
     ChatAvatar(conversation.title, if (group) conversation.id else conversation.peer?.id,
         if (group) conversation.avatarVersion else conversation.peer?.avatarVersion,
-        size, height, group, groupBadge, Modifier.testTag("conversation-avatar-${conversation.id}"))
+        size, height, group, groupBadge, Modifier.testTag("conversation-avatar-${conversation.id}"), circular)
 }
 
 @Composable
-private fun ChatAvatar(title: String, id: String?, version: String?, size: Dp, height: Dp = size,
-    group: Boolean = false, groupBadge: Boolean = false, modifier: Modifier = Modifier) {
+internal fun ChatAvatar(title: String, id: String?, version: String?, size: Dp, height: Dp = size,
+    group: Boolean = false, groupBadge: Boolean = false, modifier: Modifier = Modifier, circular: Boolean = false) {
     val (background, foreground) = when (title.hashCode().ushr(1) % 4) {
         1 -> Color(0xFFDEF0E9) to Color(0xFF3D8576)
         2 -> Color(0xFFF6E7DB) to Color(0xFFAC7451)
@@ -1435,7 +1397,7 @@ private fun ChatAvatar(title: String, id: String?, version: String?, size: Dp, h
         else -> Color(0xFFE6DEF6) to Color(0xFF7253A2)
     }
     Box {
-        AvatarImage(title, id, version, group, size, modifier, RoundedCornerShape(size * .33f), height, background, foreground,
+        AvatarImage(title, id, version, group, size, modifier, if (circular) CircleShape else RoundedCornerShape(size * .33f), height, background, foreground,
             singleInitial = group)
         if (group && groupBadge) Surface(Modifier.align(Alignment.BottomEnd).offset(x = 3.dp, y = 3.dp).size(if (size >= 43.dp) 22.dp else 18.dp),
             shape = RoundedCornerShape(if (size >= 44.dp) 8.dp else 6.dp), color = MaterialTheme.colorScheme.primaryContainer,
@@ -1444,7 +1406,7 @@ private fun ChatAvatar(title: String, id: String?, version: String?, size: Dp, h
 }
 
 @Composable
-private fun LoadingStatus(loading: Boolean, error: String?, retry: () -> Unit, modifier: Modifier = Modifier) {
+internal fun LoadingStatus(loading: Boolean, error: String?, retry: () -> Unit, modifier: Modifier = Modifier) {
     if (!loading && error == null) return
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         if (loading) LinearProgressIndicator(Modifier.fillMaxWidth().testTag("messaging-loading"))
@@ -1467,7 +1429,7 @@ private fun MessagingNotice(error: String?, notice: String?, dismiss: () -> Unit
 }
 
 @Composable
-private fun MoreButton(label: String, tag: String, loading: Boolean, more: () -> Unit) {
+internal fun MoreButton(label: String, tag: String, loading: Boolean, more: () -> Unit) {
     OutlinedButton(onClick = more, enabled = !loading, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag(tag)) { Text(label) }
 }
 
@@ -1505,8 +1467,8 @@ private fun chatDateLabel(date: LocalDate): String {
     }
 }
 private fun dateLabel(at: Instant): String = at.atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("d MMM yyyy, HH:mm", Locale.forLanguageTag("ru")))
-private fun sizeLabel(bytes: Long): String = when { bytes >= 1024 * 1024 -> String.format(Locale.forLanguageTag("ru"), "%.1f МБ", bytes / (1024.0 * 1024)); bytes >= 1024 -> String.format(Locale.forLanguageTag("ru"), "%.1f КБ", bytes / 1024.0); else -> "$bytes Б" }
-private fun roleLabel(role: String): String = when (role) { "owner" -> "Владелец"; "admin" -> "Администратор"; else -> "Участник" }
+internal fun sizeLabel(bytes: Long): String = when { bytes >= 1024 * 1024 -> String.format(Locale.forLanguageTag("ru"), "%.1f МБ", bytes / (1024.0 * 1024)); bytes >= 1024 -> String.format(Locale.forLanguageTag("ru"), "%.1f КБ", bytes / 1024.0); else -> "$bytes Б" }
+internal fun roleLabel(role: String): String = when (role) { "owner" -> "Владелец"; "admin" -> "Администратор"; else -> "Участник" }
 private fun notificationLabel(type: String): String = when {
     type == "conference.soon" || type.contains("reminder") -> "Скоро встреча"
     type == "conference.invited" || type.contains("invitation") || type.contains("invite") -> "Приглашение на встречу"

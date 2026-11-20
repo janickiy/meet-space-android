@@ -138,6 +138,12 @@ internal class DefaultFoundationRepository(
 
     override suspend fun conversations(query: ChatQuery) = meetingOperation(true) { messagingApi.conversations(it.scope.origin, it.token, query) }
     override suspend fun conversation(id: String) = meetingOperation(true) { messagingApi.conversation(it.scope.origin, it.token, id) }
+    override suspend fun contactProfile(id: String, userId: String) = meetingOperation(true) {
+        messagingApi.contactProfile(it.scope.origin, it.token, id, userId)
+    }
+    override suspend fun conversationMaterials(id: String, kind: ChatMaterialKind, cursor: String?) = meetingOperation(true) {
+        messagingApi.conversationMaterials(it.scope.origin, it.token, id, kind, cursor)
+    }
     override suspend fun searchPeers(search: String) = meetingOperation(true) { messagingApi.peers(it.scope.origin, it.token, search) }
     override suspend fun createDirect(peerId: String) = meetingOperation(false) {
         messagingApi.mutateConversation(it.scope.origin, it.token, listOf("conversations", "direct"), "POST", fields("userId" to inputId(peerId)))

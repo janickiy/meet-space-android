@@ -78,8 +78,11 @@ class RefreshUiTest {
         var mode: String? = null
         var starts = 0
         compose.setContent { MeetSpaceTheme { CallRecordingDialog("Встреча", CallRecordingUiState(
-            status = CallRecordingStatus.STOPPED, canStart = true, modes = listOf("composite", "audio_only", "individual_tracks", "screen_focus")),
+            status = CallRecordingStatus.STOPPED, canStart = true, modes = listOf("composite", "audio_only", "individual_tracks")),
             CallRecordingActions(selectMode = { mode = it }, start = { starts++ }), phone = false, close = {}) } }
+        compose.onNodeWithTag("recording-mode-composite").assertExists()
+        compose.onNodeWithTag("recording-mode-audio_only").assertExists()
+        compose.onNodeWithTag("recording-mode-screen_focus").assertDoesNotExist()
         compose.onNodeWithTag("recording-mode-individual_tracks").performScrollTo().performClick()
         compose.runOnIdle { assertEquals("individual_tracks", mode); assertEquals(0, starts) }
     }

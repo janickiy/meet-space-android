@@ -1,5 +1,6 @@
 package com.meetspace.core.model
 
+import java.net.URI
 import java.time.Instant
 
 data class ChatPeer(val id: String, val displayName: String, val avatarVersion: String? = null)
@@ -22,6 +23,15 @@ data class ChatQuery(val search: String = "", val type: String? = null, val unre
 data class ChatPage<T>(val items: List<T>, val nextCursor: String? = null, val unreadCount: Long = 0)
 data class ChatAttachment(val id: String, val conversationId: String, val filename: String,
     val mimeType: String, val size: Long, val status: String, val checksum: String = "", val messageId: String? = null)
+data class ChatContactProfile(val id: String, val displayName: String, val email: String, val bio: String)
+enum class ChatMaterialKind(val wireValue: String) { MEDIA("media"), FILE("file"), LINK("link") }
+data class ChatMaterial(val messageId: String, val attachment: ChatAttachment? = null, val link: URI? = null)
+
+fun chatMaterialHttpUri(value: String): URI? = runCatching { URI(value) }.getOrNull()?.takeIf {
+    (it.scheme.equals("https", ignoreCase = true) || it.scheme.equals("http", ignoreCase = true)) &&
+        !it.host.isNullOrBlank() && it.rawUserInfo == null
+}
+
 data class ChatReply(val id: String, val text: String, val senderName: String, val deleted: Boolean)
 data class ChatMessage(
     val id: String, val conversationId: String, val senderId: String, val senderName: String,

@@ -18,6 +18,9 @@ internal object ChatMessageIcons {
         "M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2") }
     val Forward by lazy { icon("Forward", "M5 12h14", "m12 5 7 7-7 7") }
     val ChevronRight by lazy { icon("ChevronRight", "m9 18 6-6-6-6") }
+    val ArrowOutward by lazy { icon("ArrowOutward", "M7 7h10v10", "M7 17 17 7") }
+    val Image by lazy { icon("Image", "M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z",
+        "M7 9a2 2 0 1 0 4 0a2 2 0 1 0 -4 0", "m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21") }
     val Pin by lazy { icon("Pin", "M12 17v5",
         "M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z") }
     val Edit by lazy { icon("Edit",

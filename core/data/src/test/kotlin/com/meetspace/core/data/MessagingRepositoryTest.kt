@@ -60,6 +60,35 @@ class MessagingRepositoryTest {
         assertFailure(FailureKind.INVALID_RESPONSE) { repository.searchMessages(CHAT, "query") }
         assertFailure(FailureKind.INVALID_RESPONSE) { repository.messagePins(CHAT) }
     }
+    @Test fun `conversation contact card and materials keep the requested identifiers and cursor`() = runBlocking {
+        login()
+        val profile = """{"id":"$OTHER","displayName":"Анна","email":"anna@example.test","bio":"Дизайнер","createdAt":"$AT"}"""
+        server.enqueue(json(item(profile)))
+        assertEquals(ChatContactProfile(OTHER, "Анна", "anna@example.test", "Дизайнер"), repository.contactProfile(CHAT, OTHER))
+        val contact = take()
+        assertEquals("/api/v1/conversations/$CHAT/profiles/$OTHER", contact.path)
+        assertEquals("Bearer access", contact.getHeader("Authorization"))
+
+        val file = attachment("attached").dropLast(1) + """, "messageId":"$MESSAGE"}"""
+        val withFile = message().replace("\"attachments\":null", "\"attachments\":[$file]")
+        val materials = """{"status":"success","items":[{"message":$withFile,"attachment":$file}],"nextCursor":"next+/="}"""
+        server.enqueue(json(materials))
+        val page = requireNotNull(repository.conversationMaterials(CHAT, ChatMaterialKind.FILE, "old+/="))
+        assertEquals(FILE, page.items.single().attachment?.id)
+        assertEquals(MESSAGE, page.items.single().messageId)
+        assertEquals("next+/=", page.nextCursor)
+        val fileRequest = take().requestUrl!!
+        assertEquals("/api/v1/conversations/$CHAT/materials", fileRequest.encodedPath)
+        assertEquals("file", fileRequest.queryParameter("kind"))
+        assertEquals("old+/=", fileRequest.queryParameter("before"))
+
+        server.enqueue(json(materials.replace(CHAT, OTHER)))
+        assertFailure(FailureKind.INVALID_RESPONSE) { repository.conversationMaterials(CHAT, ChatMaterialKind.FILE) }
+        server.enqueue(MockResponse().setResponseCode(404))
+        assertNull(repository.conversationMaterials(CHAT, ChatMaterialKind.LINK))
+        server.enqueue(MockResponse().setResponseCode(404))
+        assertNull(repository.contactProfile(CHAT, OTHER))
+    }
     @Test fun `clear and hide use personal endpoints and not group deletion`() = runBlocking {
         login(); server.enqueue(json("{}")); repository.clearConversation(CHAT, false)
         val clear = take(); assertEquals("POST", clear.method); assertEquals("/api/v1/conversations/$CHAT/clear-history", clear.path)

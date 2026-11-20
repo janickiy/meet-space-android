@@ -403,6 +403,40 @@ class CallDiscussionViewModelTest {
         assertEquals(CallRecordingStatus.STOPPING, model.state.value.recordingState.status)
     }
 
+    @Test fun screenFocusIsExcludedFromAndroidRecordingChoices() = discussionTest {
+        val records = Records()
+        val foundation = Foundation().apply { enableRecording(listOf("screen_focus", "audio_only", "individual_tracks")) }
+        val model = model(Chat(), foundation, records = records)
+        connect(model); runCurrent()
+
+        assertEquals(listOf("audio_only", "individual_tracks"), model.state.value.recordingState.modes)
+        assertEquals("audio_only", model.state.value.recordingState.selectedMode)
+        model.recordingActions.selectMode("screen_focus")
+        model.recordingActions.start(); runCurrent()
+        assertEquals(listOf("audio_only"), records.startedModes)
+    }
+
+    @Test fun screenFocusOnlyServerAllowsStoppingButNotStartingARecording() = discussionTest {
+        val records = Records().apply {
+            list = { room -> RecordingPage(status?.let {
+                listOf(Recording("record", room, "screen_focus", it, AT, requestedBy = "self"))
+            }.orEmpty(), null) }
+        }
+        val foundation = Foundation().apply { enableRecording(listOf("screen_focus")) }
+        val model = model(Chat(), foundation, records = records)
+        connect(model); runCurrent()
+        assertTrue(model.state.value.recordingState.modes.isEmpty())
+        assertFalse(model.state.value.recordingState.canStart)
+        model.recordingActions.start(); runCurrent()
+        assertTrue(records.started.isEmpty())
+
+        records.status = "recording"
+        model.bind(liveCall().copy(recordingRevision = 1)); runCurrent()
+        assertTrue(model.state.value.recordingState.canStop)
+        model.recordingActions.stop(); runCurrent()
+        assertEquals(listOf("record"), records.stopped)
+    }
+
     @Test fun lostRecordingStartIsReconciledWithoutReplayingMutation() = discussionTest {
         val records = Records().apply { start = { status = "recording"; throw network() } }
         val foundation = Foundation().apply { enableRecording() }
@@ -680,7 +714,9 @@ class CallDiscussionViewModelTest {
         }
     }
     private class Foundation : FoundationRepository {
-        fun enableRecording() { state.value = state.value.copy(session = state.value.session!!.copy(capabilities = Capabilities(recordingModes = listOf("composite")))) }
+        fun enableRecording(modes: List<String> = listOf("composite")) {
+            state.value = state.value.copy(session = state.value.session!!.copy(capabilities = Capabilities(recordingModes = modes)))
+        }
         fun switchAccount() { state.value = state.value.copy(session = AccountSession(User("other", "other@example.test"), Capabilities(), true)) }
 
         override val state = MutableStateFlow(RepositoryState(listOf(ServerProfile("profile", "https://fixture.example.test")), "profile",
@@ -713,9 +749,14 @@ class CallDiscussionViewModelTest {
             listOf(Recording("record", conferenceId, "composite", it, AT, requestedBy = "self"))
         }.orEmpty(), null) }
         val started = mutableListOf<String>()
+        val startedModes = mutableListOf<String>()
         val stopped = mutableListOf<String>()
         var start: suspend () -> Recording = { Recording("record", "room", "composite", "starting", AT, requestedBy = "self") }
-        override suspend fun startRecording(conferenceId: String, mode: String): Recording { started += conferenceId; return start() }
+        override suspend fun startRecording(conferenceId: String, mode: String): Recording {
+            started += conferenceId
+            startedModes += mode
+            return start()
+        }
         override suspend fun stopRecording(conferenceId: String, recordingId: String): Recording {
             stopped += recordingId
             return Recording(recordingId, conferenceId, "composite", "stopping", AT, requestedBy = "self")

@@ -173,5 +173,5 @@ private fun RecordingAction(label: String, icon: ImageVector, enabled: Boolean, 
     }
 }
 
-internal fun recordingModeName(mode: String) = when (mode) { "audio_only" -> "Только аудио"; "individual_tracks" -> "Отдельные дорожки"; "screen_focus" -> "Фокус на экране"; else -> "Общая запись" }
-internal fun recordingModeDescription(mode: String) = when (mode) { "audio_only" -> "Голоса участников без видео"; "individual_tracks" -> "Файлы участников для монтажа"; "screen_focus" -> "Демонстрация экрана и звук встречи"; else -> "Участники и демонстрация экрана" }
+internal fun recordingModeName(mode: String) = when (mode) { "audio_only" -> "Только аудио"; "individual_tracks" -> "Отдельные дорожки"; else -> "Общая запись" }
+internal fun recordingModeDescription(mode: String) = when (mode) { "audio_only" -> "Голоса участников без видео"; "individual_tracks" -> "Файлы участников для монтажа"; else -> "Участники и демонстрация экрана" }

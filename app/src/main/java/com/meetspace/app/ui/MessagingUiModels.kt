@@ -2,10 +2,14 @@ package com.meetspace.app.ui
 
 import com.meetspace.app.LocalOutgoingMessage
 import com.meetspace.core.model.ChatAttachment
+import com.meetspace.core.model.ChatContactProfile
 import com.meetspace.core.model.ChatConversation
 import com.meetspace.core.model.ChatFolder
+import com.meetspace.core.model.ChatMaterial
+import com.meetspace.core.model.ChatMaterialKind
 import com.meetspace.core.model.ChatMember
 import com.meetspace.core.model.ChatMessage
+import com.meetspace.core.model.ChatPage
 import com.meetspace.core.model.ChatPeer
 import com.meetspace.core.model.FolderEntry
 import com.meetspace.core.model.InboxNotification
@@ -16,6 +20,8 @@ data class MessagingLoad<T>(val data: T? = null, val loading: Boolean = false, v
 
 enum class ChatFilter { ALL, DIRECT, GROUP, UNREAD }
 enum class NotificationFilter { ALL, UNREAD }
+
+data class ChatMaterialsUiState(val kind: ChatMaterialKind, val page: MessagingLoad<ChatPage<ChatMaterial>>)
 
 data class ChatForwardUiState(
     val messages: List<ChatMessage>,
@@ -35,6 +41,8 @@ data class MessagingUiState(
     val filter: ChatFilter = ChatFilter.ALL,
     val selectedId: String? = null,
     val detail: MessagingLoad<ChatConversation> = MessagingLoad(),
+    val contactProfile: MessagingLoad<ChatContactProfile> = MessagingLoad(),
+    val chatMaterials: ChatMaterialsUiState? = null,
     val messages: MessagingLoad<List<ChatMessage>> = MessagingLoad(),
     val localMessages: List<LocalOutgoingMessage> = emptyList(),
     val messageCursor: String? = null,
@@ -132,6 +140,9 @@ data class MessagingActions(
     val createDirect: (String) -> Unit = {},
     val createGroup: (String, String, List<String>) -> Unit = { _, _, _ -> },
     val loadMembers: () -> Unit = {},
+    val loadContactProfile: () -> Unit = {},
+    val loadConversationMaterials: (ChatMaterialKind, Boolean) -> Unit = { _, _ -> },
+    val closeConversationInfo: () -> Unit = {},
     val moreMembers: () -> Unit = {},
     val editGroup: (String, String) -> Unit = { _, _ -> },
     val pickGroupAvatar: () -> Unit = {},

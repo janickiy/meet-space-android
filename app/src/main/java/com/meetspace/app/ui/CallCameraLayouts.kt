@@ -124,11 +124,21 @@ internal fun CallCameraSpeaker(
     height: Dp,
     wide: Boolean,
     shortLandscape: Boolean,
+    landscapeViewport: Boolean,
     pin: (String) -> Unit,
     unpin: (() -> Unit)?,
     localMicrophoneLevel: StateFlow<Float>?,
 ) {
     val tileGap = if (wide) 10.dp else 7.dp
+    val peer = others.singleOrNull()
+    if (peer != null) {
+        // A portrait call keeps its stack beside or above an open panel, unless the keyboard
+        // leaves too little height for two useful rows.
+        val sideBySide = width > height && (landscapeViewport || height < 120.dp)
+        CallSpeakerPair(state, featured, peer, width, height, tileGap, wide,
+            sideBySide, pin, unpin, localMicrophoneLevel)
+        return
+    }
     val showRail = others.isNotEmpty()
     if (shortLandscape) {
         val railWidth = if (showRail) (width - tileGap) / 3 else 0.dp
@@ -165,6 +175,27 @@ internal fun CallCameraSpeaker(
             Spacer(Modifier.height(stackGap))
             CallSpeakerRail(state, others, frameWidth, thumbnailHeight, slots, tileGap, pageDots, wide, pin, localMicrophoneLevel)
         }
+    }
+}
+
+@Composable
+private fun CallSpeakerPair(state: CallState, featured: VideoTileItem, peer: VideoTileItem,
+    width: Dp, height: Dp, gap: Dp, wide: Boolean, sideBySide: Boolean,
+    pin: (String) -> Unit, unpin: (() -> Unit)?, localMicrophoneLevel: StateFlow<Float>?) {
+    // Use integral pixel bounds for both tiles, including the gap, to avoid clipping the second tile.
+    val tileWidth = if (sideBySide) with(LocalDensity.current) { ((width.roundToPx() - gap.roundToPx()) / 2).toDp() } else width
+    val availableHeight = if (sideBySide) height else with(LocalDensity.current) { ((height.roundToPx() - gap.roundToPx()) / 2).toDp() }
+    val tileHeight = minOf(availableHeight, tileWidth / CameraAspect)
+    if (tileWidth <= 0.dp || tileHeight <= 0.dp) return
+    val tile = Modifier.width(tileWidth).height(tileHeight)
+    val tiles: @Composable () -> Unit = {
+        CallFeaturedParticipant(state, featured, wide, unpin, localMicrophoneLevel, tile)
+        VideoTile(peer, state, phone = !wide, tile, fillStage = true, fitVideo = true,
+            liveLevel = localMicrophoneLevel.takeIf { peer.id == "self" }, onSelect = { pin(peer.id) })
+    }
+    Box(Modifier.fillMaxSize().testTag("call-grid"), contentAlignment = Alignment.Center) {
+        if (sideBySide) Row(horizontalArrangement = Arrangement.spacedBy(gap)) { tiles() }
+        else Column(verticalArrangement = Arrangement.spacedBy(gap)) { tiles() }
     }
 }
 

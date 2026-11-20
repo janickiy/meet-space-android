@@ -1,43 +1,23 @@
 package com.meetspace.app.ui
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Download
-import androidx.compose.material.icons.outlined.PlayArrow
-import androidx.compose.material.icons.outlined.Refresh
-import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.Density
-import androidx.compose.ui.unit.sp
 import com.meetspace.core.designsystem.MeetSpaceTokens
 import com.meetspace.core.model.*
 import java.time.Instant
@@ -56,15 +36,15 @@ fun RecordingsWorkspace(state: RecordingsUiState, actions: RecordingsActions, on
             val compactDetail = maxWidth < 600.dp
             Column(Modifier.fillMaxSize()) {
                 Column(Modifier.weight(1f).fillMaxWidth().windowInsetsPadding(if (onWorkspaceTab == null) WindowInsets.safeDrawing else WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)).imePadding()) {
-                    WorkspaceTopBar(if (state.detailId != null) "Просмотр записи" else "Записи", tablet, "recordings-header") {
+                    WorkspaceTopBar(if (state.detailId != null) "Просмотр записи" else "Записи встреч", tablet, "recordings-header") {
                         WorkspaceTopAction(WorkspaceHeaderIcons.Back, "Назад к встречам", "recordings-back", onClick = actions.close)
                     }
-                    Box(Modifier.fillMaxWidth().weight(1f).background(MaterialTheme.colorScheme.background).padding(horizontal = if (tablet) 28.dp else 18.dp).testTag("recordings-single-pane"), contentAlignment = Alignment.TopCenter) {
+                    Box(Modifier.fillMaxWidth().weight(1f).background(MaterialTheme.colorScheme.background).padding(horizontal = if (tablet) 24.dp else 16.dp).testTag("recordings-single-pane"), contentAlignment = Alignment.TopCenter) {
                         when {
                             state.detailId != null -> RecordingDetails(state, actions, Modifier.widthIn(max = 1140.dp).fillMaxWidth(), compact = compactDetail, playingFileId, inlinePlayer)
                             state.meetingId != null -> RecordingList(state, actions, Modifier.widthIn(max = 1080.dp).fillMaxWidth())
                             state.meetingPicker -> Box(Modifier.widthIn(max = 1080.dp).fillMaxWidth()) { RecordingMeetings(state, actions) }
-                            else -> RecordingLibraryContent(state, actions, Modifier.widthIn(max = 1080.dp).fillMaxWidth(), tablet)
+                            else -> RecordingLibraryContent(state, actions, Modifier.widthIn(max = 1140.dp).fillMaxWidth(), tablet)
                         }
                     }
                 }
@@ -87,7 +67,7 @@ private fun RecordingMeetings(state: RecordingsUiState, actions: RecordingsActio
                 FilterChip(selected = state.meetingView == view, onClick = { query = ""; actions.filterMeetings(view) }, label = { Text(label) }, modifier = Modifier.heightIn(min = 48.dp).testTag("recordings-view-${view.name.lowercase()}"))
             }
         } }
-        item { OutlinedTextField(query, { query = it.take(200) }, label = { Text("Найти среди загруженных встреч") }, leadingIcon = { Icon(Icons.Outlined.Search, null) }, singleLine = true, shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth().testTag("recordings-search")) }
+        item { WorkspaceSearchField(query, { query = it.take(200) }, "Найти среди загруженных встреч", "recordings-search", minimumHeight = 48.dp) }
         item { RecordingRefresh("Встречи", state.meetings.loading, actions.refreshMeetings) }
         if (state.meetings.loading || state.meetings.error != null) item { RecordingLoad(state.meetings, actions.refreshMeetings) }
         items(meetings, key = { it.id }) { meeting ->
@@ -118,7 +98,6 @@ private fun RecordingList(state: RecordingsUiState, actions: RecordingsActions, 
     }
     BoxWithConstraints(modifier.fillMaxHeight()) {
         val columns = if (maxWidth / LocalDensity.current.fontScale >= 560.dp) 2 else 1
-        val compact = maxWidth < 560.dp
         LazyColumn(Modifier.fillMaxSize().testTag("recordings-list"), verticalArrangement = Arrangement.spacedBy(20.dp), contentPadding = PaddingValues(top = 12.dp, bottom = 24.dp)) {
             if (state.error != null || state.notice != null || state.download != null) item { RecordingMessages(state, actions) }
             item { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -126,22 +105,14 @@ private fun RecordingList(state: RecordingsUiState, actions: RecordingsActions, 
                 Text("К важному разговору можно вернуться.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
             } }
             if (state.meeting.loading || state.meeting.error != null) item { RecordingLoad(state.meeting, actions.refreshRecordings) }
-            item { OutlinedTextField(query, { query = it.take(200) }, label = { Text("Найти среди загруженных записей") }, leadingIcon = { Icon(Icons.Outlined.Search, null) },
-                singleLine = true, shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth().testTag("recordings-list-search")) }
+            item { WorkspaceSearchField(query, { query = it.take(200) }, "Найти среди загруженных записей", "recordings-list-search", minimumHeight = 48.dp) }
             item { RecordingRefresh("Загружено записей: ${ready.size}", state.recordings.loading, actions.refreshRecordings) }
             if (state.recordings.loading || state.recordings.error != null) item { RecordingLoad(state.recordings, actions.refreshRecordings) }
             items(matching.chunked(columns), key = { row -> row.joinToString { it.id } }) { row ->
                 Row(Modifier.fillMaxWidth().testTag(if (columns == 2) "recordings-card-pair" else "recordings-card-single"), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                     row.forEach { recording ->
-                        Card(onClick = { actions.open(recording.id) }, shape = RoundedCornerShape(21.dp), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), modifier = Modifier.weight(1f).testTag("recording-row-${recording.id}")) {
-                            RecordingModeCover(recording, modifier = Modifier.fillMaxWidth().height(if (compact) 168.dp else 174.dp))
-                            Column(Modifier.padding(if (compact) 16.dp else 17.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                                Text(state.meeting.data?.title ?: recordingLabel(recording), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                                Text(recordingTime(recording.startedAt ?: recording.createdAt), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text(recordingLabel(recording), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-                            }
-                        }
+                        RecordingLibraryCard(state.meeting.data, recording, grid = columns > 1, wide = false,
+                            modifier = Modifier.weight(1f), open = { actions.open(recording.id) }, selfId = state.selfId)
                     }
                     if (columns == 2 && row.size == 1) Spacer(Modifier.weight(1f))
                 }
@@ -176,7 +147,7 @@ internal fun RecordingMessages(state: RecordingsUiState, actions: RecordingsActi
 internal fun RecordingRefresh(title: String, loading: Boolean, refresh: () -> Unit) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f).semantics { heading() })
-        IconButton(refresh, enabled = !loading, modifier = Modifier.size(48.dp)) { Icon(Icons.Outlined.Refresh, "Обновить: $title") }
+        IconButton(refresh, enabled = !loading, modifier = Modifier.size(48.dp)) { Icon(CallIcons.RefreshCw, "Обновить: $title", Modifier.size(20.dp)) }
     }
 }
 
@@ -199,7 +170,7 @@ internal fun RecordingCard(content: @Composable ColumnScope.() -> Unit) {
     }
 }
 
-private fun recordingLabel(recording: Recording) = if (recording.media?.type == "final_audio") "Аудиозапись встречи" else "Запись встречи"
+private fun recordingLabel(recording: Recording) = recordingKind(recording)
 internal fun recordingTime(value: Instant): String = DateTimeFormatter.ofPattern("d MMMM yyyy · HH:mm", Locale.forLanguageTag("ru")).withZone(ZoneId.systemDefault()).format(value)
 internal fun recordingDuration(seconds: Long): String = if (seconds >= 3600) "%d:%02d:%02d".format(Locale.ROOT, seconds / 3600, (seconds / 60) % 60, seconds % 60) else "%d:%02d".format(Locale.ROOT, seconds / 60, seconds % 60)
 internal fun recordingSize(bytes: Long): String = if (bytes >= 1024L * 1024) String.format(Locale.forLanguageTag("ru"), "%.1f МБ", bytes.toDouble() / (1024 * 1024)) else if (bytes >= 1024) String.format(Locale.forLanguageTag("ru"), "%.1f КБ", bytes.toDouble() / 1024) else "$bytes Б"

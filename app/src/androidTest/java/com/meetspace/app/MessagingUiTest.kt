@@ -582,7 +582,10 @@ class MessagingUiTest {
         compose.onNodeWithTag("conversation-options").performClick()
         compose.onNodeWithTag("group-members").performClick()
         compose.runOnIdle { assertEquals(1, members) }
-        compose.onNodeWithText("Готово").performClick()
+        captureConversationInfo("group")
+        compose.onNodeWithTag("conversation-info-members").performClick()
+        compose.onNodeWithTag("conversation-info-edit").assertIsEnabled()
+        compose.onNodeWithTag("conversation-info-close").performClick()
         compose.runOnIdle { state = ready.copy(selectedId = "direct", detail = MessagingLoad(ChatConversation("direct", "direct", peer, unreadCount = 1))) }
         compose.onNodeWithTag("conversation-options").performClick()
         compose.onNodeWithTag("conversation-notifications").performClick()
@@ -600,6 +603,39 @@ class MessagingUiTest {
         compose.onNodeWithTag("conversation-folder-save").assertIsDisplayed()
         compose.runOnIdle { folderSaved!!.invoke() }
         compose.onNodeWithTag("conversation-folder-save").assertDoesNotExist()
+    }
+
+    @Test fun conversationInfoShowsProfileAndSharedTabs() {
+        val direct = ChatConversation("direct", "direct", peer)
+        val firstMessage = peerMessage.copy(conversationId = direct.id, text = "Сайт https://meet.example.test/guide")
+        val firstFile = file.copy(conversationId = direct.id, messageId = firstMessage.id)
+        var downloaded: ChatAttachment? = null
+        var state by mutableStateOf(ready.copy(selectedId = direct.id, detail = MessagingLoad(direct), peerOnline = true,
+            contactProfile = MessagingLoad(ChatContactProfile(peer.id, peer.displayName, "anna@example.test", "Дизайнер продукта")),
+            messages = MessagingLoad(listOf(firstMessage.copy(attachments = listOf(firstFile))))))
+        val tabs = mutableListOf<ChatMaterialKind>()
+        compose.setContent { Screen(state, MessagingActions(
+            loadConversationMaterials = { kind, _ ->
+                tabs += kind
+                state = state.copy(chatMaterials = ChatMaterialsUiState(kind, MessagingLoad()))
+            },
+            download = { downloaded = it },
+        ), 390) }
+        compose.onNodeWithTag("conversation-options").performClick()
+        compose.onNodeWithTag("conversation-info").performClick()
+        compose.onNodeWithText("Дизайнер продукта").assertExists()
+        compose.onNodeWithText("anna@example.test").assertExists()
+        compose.onNodeWithTag("conversation-info-tab-media").assertIsSelected()
+        captureConversationInfo("contact")
+        compose.onNodeWithTag("conversation-info-tab-file").performScrollTo().performClick()
+        compose.onNodeWithTag("conversation-info-material-${firstFile.id}").performScrollTo().performClick()
+        compose.runOnIdle { assertEquals(firstFile, downloaded) }
+        compose.onNodeWithTag("conversation-info-tab-link").performScrollTo().performClick()
+        compose.onNodeWithText("meet.example.test").performScrollTo().assertIsDisplayed()
+        compose.runOnIdle { assertEquals(listOf(ChatMaterialKind.MEDIA, ChatMaterialKind.FILE, ChatMaterialKind.LINK), tabs) }
+        compose.onNodeWithTag("conversation-info-message").performScrollTo().performClick()
+        compose.onNodeWithTag("conversation-info-dialog").assertDoesNotExist()
+        compose.onNodeWithTag("message-draft").assertIsFocused()
     }
 
     @Test fun busyNewChatFabCannotStartAnotherMutation() {
@@ -778,6 +814,18 @@ class MessagingUiTest {
         val bitmap = compose.onNodeWithTag("messaging-workspace").captureToImage().asAndroidBitmap()
         val target = File(InstrumentationRegistry.getInstrumentation().targetContext.cacheDir, name)
         target.outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+    }
+
+    private fun captureConversationInfo(kind: String) {
+        val arguments = InstrumentationRegistry.getArguments()
+        if (arguments.getString("designScreenshots") != "true") return
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext
+        val directory = checkNotNull(context.getExternalFilesDir("screenshots"))
+        check(directory.isDirectory || directory.mkdirs())
+        val width = context.resources.configuration.screenWidthDp
+        val bitmap = checkNotNull(instrumentation.uiAutomation.takeScreenshot())
+        File(directory, "chat-info-$kind-${width}dp.png").outputStream().use { assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) }
     }
 
     @Composable private fun Screen(state: MessagingUiState, actions: MessagingActions = MessagingActions(), width: Int = 1000) {

@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -32,8 +33,11 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
 import androidx.media3.ui.PlayerView
+import com.meetspace.app.ui.RecordingPlaybackControls
+import com.meetspace.app.ui.RecordingStageColor
 import com.meetspace.core.data.RecordingAccess
 import com.meetspace.core.data.RecordingStream
+import kotlinx.coroutines.delay
 
 /** The player knows an opaque local URI only. HTTPS URLs/auth stay behind the repository lease. */
 @androidx.annotation.OptIn(UnstableApi::class)
@@ -67,6 +71,7 @@ fun RecordingPlayer(playback: RecordingPlayback, close: () -> Unit, retry: () ->
     var renderedFrame by remember(playback) { mutableStateOf(false) }
     var failed by remember(playback) { mutableStateOf(false) }
     var playing by remember(playback) { mutableStateOf(false) }
+    var playRequested by remember(playback) { mutableStateOf(playback.playWhenReady) }
     var ready by remember(playback) { mutableStateOf(false) }
     val player = remember(playback) {
         ExoPlayer.Builder(context.applicationContext).build().apply {
@@ -85,7 +90,10 @@ fun RecordingPlayer(playback: RecordingPlayback, close: () -> Unit, retry: () ->
         val listener = object : Player.Listener {
             override fun onRenderedFirstFrame() { renderedFrame = true }
             override fun onIsPlayingChanged(isPlaying: Boolean) { playing = isPlaying }
-            override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) { playback.playWhenReady = playWhenReady }
+            override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+                playback.playWhenReady = playWhenReady
+                playRequested = playWhenReady
+            }
             override fun onPlayerError(error: PlaybackException) { failed = true; ready = false }
             override fun onPlaybackStateChanged(playbackState: Int) { ready = playbackState == Player.STATE_READY || playbackState == Player.STATE_ENDED }
         }
@@ -107,19 +115,44 @@ fun RecordingPlayer(playback: RecordingPlayback, close: () -> Unit, retry: () ->
     }
     BackHandler(onBack = close)
     if (inline) {
-        Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).heightIn(min = 180.dp).clip(RoundedCornerShape(18.dp)).background(Color(0xFF252F40)).testTag("recording-player-screen")) {
-            if (failed) Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Не удалось воспроизвести запись. Проверьте соединение и повторите.", color = Color.White, modifier = Modifier.testTag("recording-player-error"))
-                Button(retry, modifier = Modifier.testTag("recording-player-retry")) { Text("Повторить") }
-            } else {
-                Box(Modifier.fillMaxSize().testTag(if (ready) "recording-player-ready" else "recording-player")) {
-                    AndroidView(factory = { PlayerView(it).apply { this.player = player; setShutterBackgroundColor(0xFF252F40.toInt()); setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING); keepScreenOn = playing } },
-                        update = { it.player = player; it.keepScreenOn = playing }, onRelease = { it.keepScreenOn = false; it.player = null },
-                        modifier = Modifier.fillMaxSize().testTag(if (renderedFrame) "recording-video-frame" else "recording-video"))
-                }
-                if (!ready) LinearProgressIndicator(Modifier.fillMaxWidth().align(Alignment.TopCenter).testTag("recording-player-loading"))
+        val ratio = if (LocalConfiguration.current.screenWidthDp < 600) 16f / 11f else 16f / 10f
+        var position by remember(player) { mutableLongStateOf(player.currentPosition.coerceAtLeast(0)) }
+        var duration by remember(player) { mutableStateOf<Long?>(playback.access.file.durationSec?.times(1000)) }
+        LaunchedEffect(player, failed) {
+            while (!failed) {
+                position = player.currentPosition.coerceAtLeast(0)
+                player.duration.takeIf { it > 0 }?.let { duration = it }
+                delay(250)
             }
-            IconButton(close, modifier = Modifier.align(Alignment.TopStart).size(48.dp).testTag("recording-player-close")) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Закрыть проигрыватель", tint = Color.White) }
+        }
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(RecordingStageColor).testTag("recording-player-screen")) {
+            Box(Modifier.fillMaxWidth().aspectRatio(ratio)) {
+                if (failed) Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Не удалось воспроизвести запись. Проверьте соединение и повторите.", color = Color.White, modifier = Modifier.testTag("recording-player-error"))
+                    Button(retry, modifier = Modifier.testTag("recording-player-retry")) { Text("Повторить") }
+                } else {
+                    Box(Modifier.fillMaxSize().testTag(if (ready) "recording-player-ready" else "recording-player")) {
+                        AndroidView(factory = { PlayerView(it).apply {
+                            this.player = player
+                            useController = false
+                            setShutterBackgroundColor(0xFF202838.toInt())
+                            setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
+                            keepScreenOn = playing
+                        } }, update = { it.player = player; it.keepScreenOn = playing },
+                            onRelease = { it.keepScreenOn = false; it.player = null },
+                            modifier = Modifier.fillMaxSize().testTag(if (renderedFrame) "recording-video-frame" else "recording-video"))
+                    }
+                    if (!ready) LinearProgressIndicator(Modifier.fillMaxWidth().align(Alignment.TopCenter).testTag("recording-player-loading"))
+                }
+                IconButton(close, modifier = Modifier.align(Alignment.TopStart).size(48.dp).testTag("recording-player-close")) {
+                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Закрыть проигрыватель", tint = Color.White)
+                }
+            }
+            if (!failed) RecordingPlaybackControls(position, duration, playing = playRequested && player.playbackState != Player.STATE_ENDED,
+                enabled = ready, onToggle = {
+                    if (player.playbackState == Player.STATE_ENDED) { player.seekToDefaultPosition(); player.play() }
+                    else if (player.playWhenReady) player.pause() else player.play()
+                }, onSeek = if (player.isCurrentMediaItemSeekable) ({ target -> player.seekTo(target); position = target }) else null)
         }
         return
     }

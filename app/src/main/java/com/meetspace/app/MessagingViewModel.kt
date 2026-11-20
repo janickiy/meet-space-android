@@ -67,6 +67,8 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
         forwardToUser = { sendForward(it, peer = true) }, closeForwarding = ::closeForwarding,
         searchUsers = ::searchUsers, createDirect = ::createDirect, createGroup = ::createGroup,
         loadMembers = ::loadMembers, editGroup = ::editGroup, deleteGroupAvatar = ::deleteGroupAvatar, addMember = ::addMember, removeMember = ::removeMember,
+        loadContactProfile = ::loadContactProfile, loadConversationMaterials = ::loadConversationMaterials,
+        closeConversationInfo = ::closeConversationInfo,
         leaveGroup = ::leaveGroup, deleteGroup = ::deleteGroup, conversationNotifications = ::conversationNotifications,
         selectFolder = ::selectFolder, createFolder = ::createFolder, renameFolder = ::renameFolder, deleteFolder = ::deleteFolder,
         reorderFolders = ::reorderFolders, moreFolderItems = { loadFolder(false, true) },
@@ -143,6 +145,7 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
         listOf("outgoing-load", "detail", "messages", "members", "presence", "send", "attachment", "export", "read", "searchMessages", "pins", "context", "group-avatar").forEach(::cancel)
         latestHistoryMessage = null
         resetForwarding()
+        closeConversationInfo()
     }
     private fun rememberHistory() {
         val s = state.value; val id = s.selectedId ?: return
@@ -159,6 +162,46 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
             mutable.update { it.copy(detail = MessagingLoad(visibleConversation(projection))) }
             if (detail.type == "direct") request("presence", { repository.peerPresence(id) }, { online -> mutable.update { it.copy(peerOnline = online) } }, { mutable.update { it.copy(peerOnline = null) } })
         }, { e -> if (!accessDenied(id, e)) mutable.update { it.copy(detail = it.detail.copy(loading = false, error = e.message)) } })
+    }
+    private fun loadContactProfile() {
+        if (scope() == null) return
+        val id = state.value.selectedId ?: return
+        val peer = state.value.detail.data?.takeIf { it.id == id && it.type == "direct" }?.peer ?: return
+        mutable.update { it.copy(contactProfile = MessagingLoad(loading = true)) }
+        request("contact-profile", { repository.contactProfile(id, peer.id) }, { profile ->
+            if (profile != null && profile.id != peer.id) throw AppFailure(FailureKind.INVALID_RESPONSE, "Получен профиль другого пользователя.")
+            mutable.update { it.copy(contactProfile = MessagingLoad(profile)) }
+        }, { error ->
+            mutable.update { it.copy(contactProfile = MessagingLoad(error = error.message)) }
+            revalidateResourceAccess(id, error)
+        })
+    }
+    private fun loadConversationMaterials(kind: ChatMaterialKind, append: Boolean) {
+        if (scope() == null) return
+        val id = state.value.selectedId ?: return
+        val previous = state.value.chatMaterials?.takeIf { it.kind == kind }?.page
+        val cursor = previous?.data?.nextCursor.takeIf { append }
+        if (append && (cursor == null || previous?.loading == true)) return
+        val retained = previous?.data.takeIf { append }
+        mutable.update { it.copy(chatMaterials = ChatMaterialsUiState(kind, MessagingLoad(retained, loading = true))) }
+        request("chat-materials", { loadHiddenIds(); repository.conversationMaterials(id, kind, cursor) }, { page ->
+            verifyCursor(cursor, page?.nextCursor)
+            val result = page?.let {
+                val items = (retained?.items.orEmpty() + it.items).filterNot { material -> material.messageId in hiddenIds }
+                    .distinctBy { material -> material.attachment?.id ?: material.link }
+                ChatPage(items.take(200), it.nextCursor.takeIf { items.size < 200 })
+            }
+            mutable.update { it.copy(chatMaterials = ChatMaterialsUiState(kind, MessagingLoad(result))) }
+        }, { error ->
+            val data = retained.takeUnless { resourceDenied(error) }
+            mutable.update { it.copy(chatMaterials = ChatMaterialsUiState(kind, MessagingLoad(data, error = error.message))) }
+            revalidateResourceAccess(id, error)
+        })
+    }
+    private fun closeConversationInfo() {
+        cancel("contact-profile")
+        cancel("chat-materials")
+        mutable.update { it.copy(contactProfile = MessagingLoad(), chatMaterials = null) }
     }
     private fun loadMessages(append: Boolean) {
         if (state.value.viewingContext) return
@@ -954,6 +997,9 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
         } else if (event.conversationId == state.value.selectedId && event.type == "message.deleted") {
             listOf("messages", "pins", "searchMessages", "context").forEach(::cancel)
             mutable.update { it.copy(messages = MessagingLoad(), pins = MessagingLoad(), searchResults = MessagingLoad(), viewingContext = false, focusedMessageId = null, replyTo = null, editing = null) }
+        }
+        if (event.conversationId == state.value.selectedId && (event.type.startsWith("message.") || event.type == "conversation.history.cleared")) {
+            state.value.chatMaterials?.let { loadConversationMaterials(it.kind, false) }
         }
         if (reconcileJob?.isActive == true) return
         reconcileJob = viewModelScope.launch { delay(500); loadConversations(false); loadFolders()

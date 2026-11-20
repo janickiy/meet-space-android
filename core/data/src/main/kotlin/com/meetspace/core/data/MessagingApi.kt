@@ -22,6 +22,39 @@ internal class MessagingApi(private val api: MeetSpaceApi) {
     }
     suspend fun conversation(origin: String, token: String, id: String): ChatConversation =
         conversation(request(origin, token, path(id)).item()).also { same(it.id, id) }
+    suspend fun contactProfile(origin: String, token: String, id: String, userId: String): ChatContactProfile? {
+        val item = try {
+            request(origin, token, path(id) + listOf("profiles", inputId(userId))).item()
+        } catch (failure: HttpFailure) {
+            if (failure.statusCode in setOf(404, 405, 501)) return null
+            throw failure
+        }
+        same(item.id(), userId)
+        return ChatContactProfile(userId, item.text("displayName", 400), item.text("email", 400), item.text("bio", 4000))
+    }
+    suspend fun conversationMaterials(origin: String, token: String, id: String, kind: ChatMaterialKind, cursor: String?): ChatPage<ChatMaterial>? {
+        val limit = 30
+        val response = try {
+            request(origin, token, path(id) + "materials", query = pageQuery(cursor, limit) + ("kind" to kind.wireValue))
+        } catch (failure: HttpFailure) {
+            if (failure.statusCode in setOf(404, 405, 501)) return null
+            throw failure
+        }
+        val items = response.items(limit).mapNotNull { item ->
+            val message = message(item["message"] as? JsonObject ?: throw InvalidContract(), id)
+            if (message.kind != "message" || message.deletedAt != null) throw InvalidContract()
+            if (kind == ChatMaterialKind.LINK) {
+                val link = chatMaterialHttpUri(item.text("url", 8192)) ?: return@mapNotNull null
+                ChatMaterial(message.id, link = link)
+            } else {
+                val file = attachment(item["attachment"] as? JsonObject ?: throw InvalidContract(), id)
+                val media = file.mimeType.startsWith("image/") || file.mimeType.startsWith("video/")
+                if (file.messageId != message.id || media != (kind == ChatMaterialKind.MEDIA) || file !in message.attachments) throw InvalidContract()
+                ChatMaterial(message.id, attachment = file)
+            }
+        }
+        return ChatPage(items, response.cursor())
+    }
     suspend fun peers(origin: String, token: String, search: String): List<ChatPeer> {
         val text = inputText(search, 100, true)
         return request(origin, token, listOf("users"), query = mapOf("search" to text)).items(100).map(::peer)

@@ -7,6 +7,8 @@ import kotlinx.coroutines.channels.ReceiveChannel
 interface MessagingRepository {
     suspend fun conversations(query: ChatQuery = ChatQuery()): ChatPage<ChatConversation>
     suspend fun conversation(id: String): ChatConversation
+    suspend fun contactProfile(id: String, userId: String): ChatContactProfile? = null
+    suspend fun conversationMaterials(id: String, kind: ChatMaterialKind, cursor: String? = null): ChatPage<ChatMaterial>? = null
     suspend fun searchPeers(search: String): List<ChatPeer>
     suspend fun createDirect(peerId: String): ChatConversation
     suspend fun createGroup(name: String, description: String, memberIds: List<String>, clientRequestId: String): ChatConversation
