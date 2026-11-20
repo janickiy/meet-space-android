@@ -102,14 +102,17 @@ internal fun CallsDashboard(state: MeetingsUiState, repository: RepositoryState,
                     if (filterCount > 0) IconButton(reset, Modifier.testTag("meeting-reset")) { Icon(CallIcons.X, "Сбросить фильтры") }
                 }
                 val rows = state.list.data?.items.orEmpty().filter { it.title.contains(query.trim(), ignoreCase = true) }
-                Row(Modifier.fillMaxWidth().padding(top = if (wide) 21.dp else 16.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    val caption = when (state.listView) { MeetingsView.UPCOMING -> "Предстоящие и без даты"; MeetingsView.ACTIVE -> "Встречи в эфире"; MeetingsView.PAST -> "Завершённые и отменённые" }
-                    Text(caption + (state.list.data?.let { " · ${rows.size}${if (it.nextCursor != null) "+" else ""}" } ?: ""),
-                        Modifier.weight(1f).testTag("calls-loaded-count").semantics { contentDescription = "$caption. Загружено: ${rows.size}." }, fontSize = 11.sp, lineHeight = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    IconButton(actions.refreshList, enabled = !state.list.loading, modifier = Modifier.size(48.dp).testTag("calls-refresh")) {
-                        Icon(CallIcons.RefreshCw, "Обновить встречи", Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
+                val caption = when (state.listView) {
+                    MeetingsView.UPCOMING -> "Предстоящие и без даты"
+                    MeetingsView.ACTIVE -> "Встречи в эфире"
+                    MeetingsView.PAST -> "Завершённые и отменённые"
                 }
+                Text(
+                    caption + (state.list.data?.let { " · ${rows.size}${if (it.nextCursor != null) "+" else ""}" } ?: ""),
+                    Modifier.fillMaxWidth().padding(top = if (wide) 21.dp else 16.dp, bottom = 10.dp)
+                        .testTag("calls-loaded-count").semantics { contentDescription = "$caption. Загружено: ${rows.size}." },
+                    fontSize = 11.sp, lineHeight = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 MeetingLoadStatus(state.list, actions.refreshList)
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     rows.forEach { MeetingListEntry(it, state, repository.session?.user?.id, actions.open, actions.call, wide) }

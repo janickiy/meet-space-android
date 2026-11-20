@@ -485,7 +485,6 @@ private fun ConversationDetail(state: MessagingUiState, actions: MessagingAction
         onEdit = { showInfo = false; showMembers() },
         onMessage = { showInfo = false; focusComposer = !state.sending && !state.pendingSend },
         onCall = onStartCall?.let { start -> { showInfo = false; start() } },
-        onPins = { showInfo = false; actions.loadPins(); historyDialog = "pins" },
     )
     if (conversation != null && assignFolder) ConversationFolderDialog(
         conversation, state, actions, dismiss = { assignFolder = false },

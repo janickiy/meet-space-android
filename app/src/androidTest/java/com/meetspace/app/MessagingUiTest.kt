@@ -585,6 +585,9 @@ class MessagingUiTest {
         compose.onNodeWithTag("conversation-options").performClick()
         compose.onNodeWithTag("group-members").performClick()
         compose.runOnIdle { assertEquals(1, members) }
+        compose.onNodeWithTag("conversation-info-tab-media").assertIsSelected()
+        compose.onNodeWithText("Закреплённые сообщения").assertDoesNotExist()
+        compose.onNodeWithText("Обновить сообщения").assertDoesNotExist()
         captureConversationInfo("group")
         compose.onNodeWithTag("conversation-info-members").performClick()
         compose.onNodeWithTag("conversation-info-edit").assertIsEnabled()

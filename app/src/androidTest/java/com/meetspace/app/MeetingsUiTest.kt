@@ -575,6 +575,8 @@ class MeetingsUiTest {
         compose.setContent { Screen(WorkspaceTab.CALLS, ready.copy(list = MeetingsLoad(MeetingPage(listOf(meeting), null))), MeetingsActions(open = { opened = it })) }
         compose.onNodeWithTag("calls").assertIsDisplayed()
         compose.onNodeWithTag("meeting-view-upcoming").performScrollTo().assertIsSelected()
+        compose.onNodeWithTag("calls-loaded-count").assertExists()
+        compose.onNodeWithContentDescription("Обновить встречи").assertDoesNotExist()
         compose.onNodeWithText("Открыть", substring = false).assertDoesNotExist()
         compose.onNodeWithTag("meeting-title-${meeting.id}").performScrollTo().performClick()
         compose.runOnIdle { assertEquals(meeting.id, opened) }

@@ -52,7 +52,6 @@ internal fun ConversationInfoDialog(
     onEdit: () -> Unit,
     onMessage: () -> Unit,
     onCall: (() -> Unit)?,
-    onPins: () -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
     val compact = LocalConfiguration.current.screenWidthDp < 600
@@ -146,12 +145,6 @@ internal fun ConversationInfoDialog(
                     }
                     if (group) ConversationInfoMembers(conversation, state, actions, compact)
                     ConversationInfoMaterials(conversation, state, actions, tab, mediaViewport, select = { tab = it }, openMedia = { preview = it })
-                    if (group) FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
-                        TextButton(onPins, Modifier.testTag("conversation-info-pins")) { Text("Закреплённые сообщения", fontSize = 12.sp) }
-                        TextButton({ dismiss(); actions.refreshMessages() }, Modifier.testTag("messages-refresh"), enabled = !state.messages.loading) {
-                            Text("Обновить сообщения", fontSize = 12.sp)
-                        }
-                    }
                 }
             }
         }
