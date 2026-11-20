@@ -426,13 +426,19 @@ class MessagingUiTest {
     @Test fun folderNamesAreValidatedBeforeCreateAndDeletionRequiresExplicitConfirmation() {
         var created: String? = null
         var deleted: String? = null
-        compose.setContent { Screen(ready.copy(selectedId = null, folders = MessagingLoad(listOf(folder))), MessagingActions(createFolder = { created = it }, deleteFolder = { deleted = it }), 1000) }
+        val editor = FormEditorWindow()
+        compose.setContent {
+            editor.Observe()
+            Screen(ready.copy(selectedId = null, folders = MessagingLoad(listOf(folder))),
+                MessagingActions(createFolder = { created = it }, deleteFolder = { deleted = it }), 1000)
+        }
         compose.onNodeWithTag("chat-folder-filter").performScrollTo().performClick()
         compose.onNodeWithTag("folders-manage").performClick()
         compose.onNodeWithTag("folder-primary").performClick()
         compose.onNodeWithTag("folder-save").assertIsNotEnabled()
         compose.onNodeWithTag("folder-name").performScrollTo().performTextInput("  Работа  ")
-        compose.onNodeWithTag("folder-save").performScrollTo().performClick()
+        Espresso.closeSoftKeyboard()
+        compose.settleFormEditorForClick(editor, compose.onNodeWithTag("folder-save")).assertIsEnabled().performClick()
         compose.runOnIdle { assertEquals("Работа", created) }
         compose.onNodeWithTag("folder-delete-${folder.id}").performScrollTo().performClick()
         compose.runOnIdle { assertNull(deleted) }
