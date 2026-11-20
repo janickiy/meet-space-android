@@ -64,7 +64,7 @@ class MessagingUiTest {
         compose.onNodeWithTag("chat-user-search").assertIsDisplayed()
         compose.onNodeWithTag("create-chat-group").assertIsDisplayed()
         compose.runOnIdle { assertFalse(request); assertEquals(1, searches) }
-        compose.onNodeWithText("Закрыть").performClick()
+        compose.onNodeWithTag("new-chat-close").performClick()
         compose.onNodeWithTag("chat-user-search").assertDoesNotExist()
     }
 
@@ -383,10 +383,32 @@ class MessagingUiTest {
 
     @Test fun directChatUsesSelectedPersonIdentity() {
         var target: String? = null
-        compose.setContent { Screen(ready.copy(selectedId = null, users = MessagingLoad(listOf(peer))), MessagingActions(createDirect = { target = it }), 360) }
+        var state by mutableStateOf(ready.copy(selectedId = null))
+        val editor = FormEditorWindow()
+        val actions = MessagingActions(
+            searchUsers = { query ->
+                state = state.copy(userQuery = query, users = MessagingLoad(if (query.length >= 2) listOf(peer) else emptyList()))
+            },
+            createDirect = { target = it },
+        )
+        compose.setContent { editor.Observe(); Screen(state, actions, 360) }
         compose.onNodeWithTag("messaging-new").performClick()
-        compose.onNodeWithTag("direct-create-${peer.id}").performScrollTo().performClick()
+        compose.onNodeWithTag("new-chat-dialog").assertIsDisplayed()
+        compose.onNodeWithTag("create-chat-direct").assertIsSelected()
+        compose.onNodeWithText("Введите имя пользователя").assertIsDisplayed()
+        captureDialog("new-chat-empty")
+        val search = compose.onNodeWithTag("chat-user-search")
+        search.performTextInput("А")
+        compose.onNodeWithText("Введите хотя бы 2 символа").assertIsDisplayed()
+        search.performTextInput("н")
+        Espresso.closeSoftKeyboard()
+        val result = compose.settleFormEditorForClick(editor, compose.onNodeWithTag("direct-create-${peer.id}"))
+        captureDialog("new-chat-result")
+        result.performClick()
         compose.runOnIdle { assertEquals(peer.id, target) }
+        compose.onNodeWithTag("chat-user-search-clear").performClick()
+        compose.onNodeWithTag("direct-create-${peer.id}").assertDoesNotExist()
+        compose.onNodeWithText("Введите имя пользователя").assertIsDisplayed()
     }
 
     @Test fun foldersIncludeMeetingsAndRemovingMembershipDoesNotDeleteResource() {
@@ -752,11 +774,11 @@ class MessagingUiTest {
         assertTrue("Tablet creation stays above the composer", create.bottom <= draft.top)
         compose.onNodeWithTag("messaging-new").performClick()
         compose.onNodeWithTag("chat-user-search").assertIsDisplayed()
-        compose.onNodeWithText("Закрыть").performClick()
+        compose.onNodeWithTag("new-chat-close").performClick()
         compose.runOnIdle { state = ready.copy(selectedId = null, detail = MessagingLoad()) }
         compose.onNodeWithTag("messaging-new").assertIsDisplayed().performClick()
         compose.onNodeWithTag("chat-user-search").assertIsDisplayed()
-        compose.onNodeWithText("Закрыть").performClick()
+        compose.onNodeWithTag("new-chat-close").performClick()
         compose.runOnIdle { width = 390.dp }
         compose.onNodeWithTag("thread-create-actions").assertDoesNotExist()
         compose.onNodeWithTag("messaging-new").assertIsDisplayed().assertTextContains("Новый чат").performClick()
@@ -905,7 +927,9 @@ class MessagingUiTest {
         target.outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
     }
 
-    private fun captureConversationInfo(kind: String) {
+    private fun captureConversationInfo(kind: String) = captureDialog("chat-info-$kind")
+
+    private fun captureDialog(name: String) {
         val arguments = InstrumentationRegistry.getArguments()
         if (arguments.getString("designScreenshots") != "true") return
         val instrumentation = InstrumentationRegistry.getInstrumentation()
@@ -914,7 +938,7 @@ class MessagingUiTest {
         check(directory.isDirectory || directory.mkdirs())
         val width = context.resources.configuration.screenWidthDp
         val bitmap = checkNotNull(instrumentation.uiAutomation.takeScreenshot())
-        File(directory, "chat-info-$kind-${width}dp.png").outputStream().use { assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) }
+        File(directory, "$name-${width}dp.png").outputStream().use { assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) }
     }
 
     @Composable private fun Screen(state: MessagingUiState, actions: MessagingActions = MessagingActions(), width: Int = 1000) {

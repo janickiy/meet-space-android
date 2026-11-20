@@ -117,6 +117,33 @@ class MessagingViewModelTest {
         assertEquals("two", m.state.value.selectedId); assertNull(m.state.value.searchResults.data)
         assertNull(m.state.value.focusedMessageId); assertFalse(m.state.value.messages.data.orEmpty().any { it.id == "secret" || it.id == "old" })
     }
+
+    @Test fun shortPeerSearchesStayIdleAndCancelPendingWork() = runTest(dispatcher) {
+        val repository = FakeMessaging()
+        val model = model(repository)
+
+        model.searchUsers("Анна")
+        runCurrent()
+        for (input in listOf("", " А ", "😀")) {
+            model.searchUsers(input)
+            advanceTimeBy(251)
+            runCurrent()
+            assertEquals(input, model.state.value.userQuery)
+            assertFalse(model.state.value.users.loading)
+            assertNull(model.state.value.users.error)
+            assertNull(model.state.value.users.data)
+        }
+        assertTrue(repository.peerQueries.isEmpty())
+
+        model.searchUsers(" Ан ")
+        advanceTimeBy(251)
+        runCurrent()
+        assertEquals(listOf("Ан"), repository.peerQueries)
+        assertEquals(listOf("peer"), model.state.value.users.data?.map { it.id })
+
+        model.searchUsers("")
+        assertNull(model.state.value.users.data)
+    }
     @Test fun pinIsAppliedOnlyAfterServerAcknowledgesAndContextDoesNotAdvanceReadCursor() = runTest(dispatcher) {
         val gate = CompletableDeferred<Unit>(); val r = FakeMessaging().apply { pinResult = { gate.await() } }
         val m = model(r); m.foreground(true); m.workspaceVisible(true); m.open("room"); runCurrent()
@@ -1089,7 +1116,11 @@ class MessagingViewModelTest {
         var uploadResult: suspend (String, String, String, ByteArray) -> ChatAttachment = { id, filename, mimeType, bytes -> attachment(id).copy(filename = filename, mimeType = mimeType, size = bytes.size.toLong()) }
         override suspend fun conversations(query: ChatQuery): ChatPage<ChatConversation> { conversationQueries += query; return conversationListResult(query) }
         override suspend fun conversation(id: String): ChatConversation { conversationRequests += id; return conversationResult(id) }
-        override suspend fun searchPeers(search: String) = listOf(ChatPeer("peer", "Peer"))
+        val peerQueries = mutableListOf<String>()
+        override suspend fun searchPeers(search: String): List<ChatPeer> {
+            peerQueries += search
+            return listOf(ChatPeer("peer", "Peer"))
+        }
         override suspend fun createDirect(peerId: String) = conversation("direct").copy(type = "direct", peer = ChatPeer(peerId, "Peer"))
         override suspend fun createGroup(name: String, description: String, memberIds: List<String>, clientRequestId: String): ChatConversation {
             groupCreates += listOf(name, description, memberIds.joinToString(), clientRequestId); return groupCreateResult(name, description, memberIds, clientRequestId)

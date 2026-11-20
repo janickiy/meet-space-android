@@ -15,6 +15,8 @@ import com.meetspace.core.model.FolderEntry
 import com.meetspace.core.model.InboxNotification
 import com.meetspace.core.model.NotificationPreferences
 
+internal const val MinChatSearchCharacters = 2
+
 /** Private messaging content is transient: no rememberSaveable or saved-state persistence. */
 data class MessagingLoad<T>(val data: T? = null, val loading: Boolean = false, val error: String? = null)
 

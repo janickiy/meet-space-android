@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@android:color/white" />
+    <foreground>
+        <!-- Keep the existing 220:230 artwork centered inside the adaptive safe zone. -->
+        <inset
+            android:drawable="@drawable/ic_meetspace"
+            android:insetLeft="25%"
+            android:insetRight="25%"
+            android:insetTop="24%"
+            android:insetBottom="24%" />
+    </foreground>
+</adaptive-icon>

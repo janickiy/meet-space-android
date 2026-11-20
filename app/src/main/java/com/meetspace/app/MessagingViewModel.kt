@@ -707,8 +707,16 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
         return true
     }
     fun searchUsers(value: String) {
-        mutable.update { it.copy(userQuery = value.take(100), users = MessagingLoad(loading = true)) }
-        request("users", { delay(250); repository.searchPeers(value.take(100)) },
+        val inputLength = value.codePointCount(0, value.length).coerceAtMost(100)
+        val input = value.substring(0, value.offsetByCodePoints(0, inputLength))
+        val query = input.trim()
+        if (query.codePointCount(0, query.length) < MinChatSearchCharacters || scope() == null) {
+            cancel("users")
+            mutable.update { it.copy(userQuery = input, users = MessagingLoad()) }
+            return
+        }
+        mutable.update { it.copy(userQuery = input, users = MessagingLoad(loading = true)) }
+        request("users", { delay(250); repository.searchPeers(query) },
             { list -> mutable.update { it.copy(users = MessagingLoad(list.filterNot { person -> person.id == selfId() })) } },
             { e -> mutable.update { it.copy(users = MessagingLoad(error = e.message)) } })
     }

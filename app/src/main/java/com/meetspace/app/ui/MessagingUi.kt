@@ -1015,42 +1015,6 @@ private fun MessageComposeContext(state: MessagingUiState, actions: MessagingAct
 }
 
 @Composable
-private fun NewChatDialog(state: MessagingUiState, actions: MessagingActions, dismiss: () -> Unit) {
-    var group by remember { mutableStateOf(false) }
-    var name by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
-    var selected by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
-    AlertDialog(onDismissRequest = { if (!state.busy) dismiss() }, title = { Text(if (group) "Новая группа" else "Новый личный чат") },
-        shape = RoundedCornerShape(24.dp), containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp,
-        properties = DialogProperties(usePlatformDefaultWidth = false), modifier = Modifier.imePadding().padding(horizontal = 16.dp).widthIn(max = 560.dp).fillMaxWidth(),
-        text = { Column(Modifier.heightIn(max = 520.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(selected = !group, onClick = { group = false; selected = emptyMap() }, label = { Text("Личный") }, enabled = !state.busy, modifier = Modifier.testTag("create-chat-direct"))
-                FilterChip(selected = group, onClick = { group = true; selected = emptyMap() }, label = { Text("Группа") }, enabled = !state.busy, modifier = Modifier.testTag("create-chat-group"))
-            }
-            if (group) {
-                OutlinedTextField(value = name, onValueChange = { name = it.take(200) }, label = { Text("Название группы") }, shape = RoundedCornerShape(12.dp), enabled = !state.busy, modifier = Modifier.fillMaxWidth().testTag("create-group-name"))
-                OutlinedTextField(value = description, onValueChange = { description = it.take(2000) }, label = { Text("Описание · необязательно") }, shape = RoundedCornerShape(12.dp), minLines = 2, maxLines = 4, enabled = !state.busy, modifier = Modifier.fillMaxWidth().testTag("create-group-description"))
-                if (selected.isNotEmpty()) Text("Выбраны: ${selected.values.joinToString()}", style = MaterialTheme.typography.bodySmall)
-            }
-            OutlinedTextField(value = state.userQuery, onValueChange = actions.searchUsers, label = { Text("Найти человека") }, supportingText = { Text("Имя или точный email") }, shape = RoundedCornerShape(12.dp), singleLine = true, enabled = !state.busy, modifier = Modifier.fillMaxWidth().testTag("chat-user-search"))
-            if (state.users.loading || state.users.error != null) LoadingStatus(state.users.loading, state.users.error, { actions.searchUsers(state.userQuery) })
-            state.users.data.orEmpty().filter { it.id != state.selfId }.forEach { peer ->
-                Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background, RoundedCornerShape(12.dp)).padding(8.dp).heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
-                    if (group) Checkbox(checked = peer.id in selected, onCheckedChange = { checked -> selected = if (checked) selected + (peer.id to peer.displayName) else selected - peer.id }, enabled = !state.busy, modifier = Modifier.testTag("group-select-${peer.id}"))
-                    Text(peer.displayName, Modifier.weight(1f))
-                    if (!group) TextButton(onClick = { actions.createDirect(peer.id) }, enabled = !state.busy, modifier = Modifier.testTag("direct-create-${peer.id}")) { Text("Написать") }
-                }
-            }
-            if (state.users.data?.isEmpty() == true && !state.users.loading && state.users.error == null) Text(if (state.userQuery.isBlank()) "Введите имя собеседника" else "Пользователи не найдены")
-            state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        } },
-        confirmButton = { if (group) Button(onClick = { actions.createGroup(name.trim(), description.trim(), selected.keys.toList()) }, enabled = !state.busy && name.isNotBlank() && selected.isNotEmpty(),
-            shape = RoundedCornerShape(12.dp), modifier = Modifier.heightIn(min = 48.dp).testTag("create-group-submit")) { Text(if (state.busy) "Создаём…" else "Создать группу") } },
-        dismissButton = { TextButton(onClick = dismiss, enabled = !state.busy) { Text("Закрыть") } })
-}
-
-@Composable
 internal fun FoldersDialog(state: MessagingUiState, actions: MessagingActions, dismiss: () -> Unit) {
     var editing by remember { mutableStateOf<ChatFolder?>(null) }
     var name by remember { mutableStateOf("") }
