@@ -71,16 +71,20 @@ class NavigationAvatarUiTest {
                 }
             }
         }
+        val tabs = listOf(WorkspaceTab.CALLS, WorkspaceTab.MESSAGES, WorkspaceTab.PROFILE)
         for (size in listOf(390, 1194)) {
             compose.runOnIdle { width = size }
-            for (tab in listOf(WorkspaceTab.CALLS, WorkspaceTab.MESSAGES, WorkspaceTab.PROFILE)) {
+            fun iconBounds() = tabs.map { compose.onNodeWithTag("tab-${it.tag}-icon", useUnmergedTree = true).getUnclippedBoundsInRoot() }
+            val before = iconBounds()
+            for (tab in tabs) {
                 compose.onNodeWithTag("tab-${tab.tag}").performClick()
                 assertAlignedNavigation()
+                assertEquals(before, iconBounds())
             }
         }
     }
 
-    @Test fun prejoinActiveCallAndRecordingsKeepTheAuthenticatedAvatar() {
+    @Test fun prejoinAndRecordingsKeepTheAuthenticatedAvatarWhenActiveCallHidesNavigation() {
         var destination by mutableStateOf(0)
         val user = User("signed-in", "member@example.test", "Анна Первая", avatarVersion = "one")
         val requested = ConcurrentLinkedQueue<String>()
@@ -98,11 +102,14 @@ class NavigationAvatarUiTest {
                     }
                 }
             }
-            for (screen in 0..2) {
-                compose.runOnIdle { destination = screen }
-                waitForPhoto(Color.Red)
-                assertAlignedNavigation()
-            }
+            waitForPhoto(Color.Red)
+            assertAlignedNavigation()
+            compose.runOnIdle { destination = 1 }
+            compose.onNodeWithTag("bottom-navigation").assertDoesNotExist()
+            compose.onNodeWithTag("call-body").assertIsDisplayed()
+            compose.runOnIdle { destination = 2 }
+            waitForPhoto(Color.Red)
+            assertAlignedNavigation()
             assertEquals(listOf("signed-in"), requested.toList())
         } finally { loader.close() }
     }

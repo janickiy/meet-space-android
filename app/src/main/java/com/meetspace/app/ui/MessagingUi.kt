@@ -4,7 +4,6 @@ import android.content.ClipData
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -16,6 +15,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -33,14 +34,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
@@ -53,10 +55,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.meetspace.app.R
 import com.meetspace.app.LocalOutgoingMessage
 import com.meetspace.app.AvatarImage
 import com.meetspace.core.model.*
@@ -134,7 +136,8 @@ fun MessagingWorkspace(state: MessagingUiState, actions: MessagingActions, modif
         val listOnly = !wide && state.selectedId == null
         Column(Modifier.fillMaxSize()) {
             if (wide || listOnly) MessagingHeader(wide, searchOpen,
-                onSearch = { searchOpen = !searchOpen; if (!searchOpen) actions.query("") }, notificationBell = notificationBell)
+                onSearch = { searchOpen = !searchOpen; if (!searchOpen) actions.query("") },
+                onBack = actions.back.takeIf { state.selectedId != null }, notificationBell = notificationBell)
             if ((state.error != null || state.notice != null) && state.selectedId == null) {
                 Box(Modifier.fillMaxWidth().heightIn(max = 120.dp).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 4.dp)) {
                     MessagingNotice(state.error, state.notice, actions.clearMessage)
@@ -233,19 +236,16 @@ fun MessagingWorkspace(state: MessagingUiState, actions: MessagingActions, modif
 
 @Composable
 private fun MessagingHeader(wide: Boolean, searchOpen: Boolean, onSearch: () -> Unit,
-    notificationBell: (@Composable () -> Unit)? = null) {
-    Row(Modifier.fillMaxWidth().heightIn(min = 75.dp).background(MaterialTheme.colorScheme.surface)
-        .padding(start = if (wide) 28.dp else 20.dp, end = if (wide) 28.dp else 20.dp, bottom = 4.dp)
-        .testTag("messaging-header"), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-        if (wide) Image(painterResource(R.drawable.ic_meetspace), null, Modifier.size(32.dp))
-        Text("Чаты", Modifier.weight(1f).semantics { heading() }, fontSize = if (wide) 25.sp else 23.sp,
-            lineHeight = 31.sp, letterSpacing = (-.5).sp, fontWeight = FontWeight.SemiBold)
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (wide) 8.dp else 0.dp)) {
-            IconButton(onClick = onSearch, modifier = Modifier.testTag("messaging-search-toggle").semantics { stateDescription = if (searchOpen) "Поиск открыт" else "Поиск скрыт" }) {
-                Icon(if (searchOpen) CallIcons.X else ChatMessageIcons.Search, if (searchOpen) "Закрыть поиск чатов" else "Поиск чатов", Modifier.size(27.dp))
-            }
-            notificationBell?.invoke()
+    onBack: (() -> Unit)?, notificationBell: (@Composable () -> Unit)?) {
+    WorkspaceTopBar("Чаты", wide, "messaging-header") {
+        if (onBack != null) {
+            WorkspaceTopAction(WorkspaceHeaderIcons.Back, "Назад к списку чатов", "messaging-header-back", onClick = onBack)
+        } else {
+            WorkspaceTopAction(if (searchOpen) CallIcons.X else ChatMessageIcons.Search,
+                if (searchOpen) "Закрыть поиск чатов" else "Поиск чатов", "messaging-search-toggle",
+                modifier = Modifier.semantics { stateDescription = if (searchOpen) "Поиск открыт" else "Поиск скрыт" }, onClick = onSearch)
         }
+        notificationBell?.invoke()
     }
 }
 
@@ -458,11 +458,29 @@ private fun ConversationDetail(state: MessagingUiState, actions: MessagingAction
     val operationsBusy = state.busy || state.sending || state.pendingSend || state.attachmentBusy || state.bulkDeleting
     var historyDialog by remember(state.selectedId) { mutableStateOf<String?>(null) }
     var clearHistory by remember(state.selectedId) { mutableStateOf<Boolean?>(null) }
+    var showInfo by remember(state.selectedId) { mutableStateOf(false) }
+    var assignFolder by remember(state.selectedId) { mutableStateOf(false) }
+    var manageFolders by remember(state.selectedId) { mutableStateOf(false) }
+    var leaveGroup by remember(state.selectedId) { mutableStateOf(false) }
     historyDialog?.let { value -> ChatHistoryDialog(state, actions, value == "pins") { historyDialog = null } }
     clearHistory?.let { hide -> AlertDialog(onDismissRequest = { clearHistory = null }, title = { Text(if (hide) "Удалить чат?" else "Очистить историю?") },
         text = { Text("История будет скрыта только для вас. У собеседника сообщения сохранятся.") },
         confirmButton = { TextButton({ actions.clearConversation(hide); clearHistory = null }, enabled = !state.busy) { Text("Подтвердить") } },
         dismissButton = { TextButton({ clearHistory = null }) { Text("Отмена") } }) }
+    if (conversation != null && showInfo) ConversationInfoDialog(
+        conversation, state, actions, dismiss = { showInfo = false },
+        onEdit = { showInfo = false; showMembers() },
+        onPins = { showInfo = false; actions.loadPins(); historyDialog = "pins" },
+    )
+    if (conversation != null && assignFolder) ConversationFolderDialog(
+        conversation, state, actions, dismiss = { assignFolder = false },
+        onNewFolder = { assignFolder = false; manageFolders = true },
+    )
+    if (manageFolders) FoldersDialog(state, actions) { manageFolders = false; assignFolder = true }
+    if (leaveGroup && conversation?.type == "group" && conversation.myRole != "owner") {
+        ConfirmationDialog("Покинуть группу?", "Вы потеряете доступ к сообщениям и файлам группы.",
+            state.busy, state.error, { leaveGroup = false }) { actions.leaveGroup(); leaveGroup = false }
+    }
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).testTag("conversation-detail")) {
         var options by remember(state.selectedId) { mutableStateOf(false) }
         if (selecting) {
@@ -476,7 +494,7 @@ private fun ConversationDetail(state: MessagingUiState, actions: MessagingAction
                     vertical = if (compactHeight) 0.dp else if (showBack) 12.dp else 14.dp)
                 .testTag("thread-header"), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (compactHeight) 4.dp else if (showBack) 6.dp else 10.dp)) {
                 if (showBack) IconButton(onClick = actions.back, modifier = Modifier.size(actionWidth, 42.dp).testTag("conversation-back")) {
-                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, "К списку чатов", Modifier.size(20.dp))
+                    Icon(WorkspaceHeaderIcons.Back, "К списку чатов", Modifier.size(20.dp))
                 }
                 if (!compactHeight) conversation?.let { ConversationAvatar(it, if (showBack) 32.dp else 42.dp, groupBadge = it.type == "group") }
                 Column(Modifier.weight(1f)) {
@@ -501,26 +519,67 @@ private fun ConversationDetail(state: MessagingUiState, actions: MessagingAction
                 IconButton({ historyDialog = "search" }, Modifier.size(actionWidth, 42.dp).testTag("chat-search-messages")) {
                     Icon(ChatMessageIcons.Search, "Поиск по сообщениям", Modifier.size(20.dp))
                 }
+                val colors = MaterialTheme.colorScheme
+                val windowSize = LocalWindowInfo.current.containerSize
+                val menuWidth = with(LocalDensity.current) { (windowSize.width.toDp() - 32.dp).coerceIn(1.dp, 280.dp) }
+                val menuHeight = with(LocalDensity.current) { (windowSize.height.toDp() * .65f).coerceIn(1.dp, 360.dp) }
                 Box {
-                    IconButton(onClick = { options = true }, modifier = Modifier.size(actionWidth, 42.dp).testTag("conversation-options")) { Icon(CallIcons.Ellipsis, "Информация и действия с чатом", Modifier.size(20.dp)) }
-                    DropdownMenu(expanded = options, onDismissRequest = { options = false }) {
-                        DropdownMenuItem(text = { Text("Выбрать сообщения") }, leadingIcon = { Icon(ChatMessageIcons.Select, null) },
-                            enabled = !operationsBusy && state.messages.data.orEmpty().any { it.kind == "message" && it.deletedAt == null },
-                            onClick = { options = false; onStartSelection() }, modifier = Modifier.testTag("chat-select-messages"))
-                        DropdownMenuItem(text = { Text("Закреплённые сообщения") }, leadingIcon = { Icon(Icons.Outlined.PushPin, null) }, onClick = { options = false; actions.loadPins(); historyDialog = "pins" })
-                        if (conversation?.type == "direct") {
-                            DropdownMenuItem(text = { Text("Очистить историю") }, leadingIcon = { Icon(Icons.Outlined.DeleteSweep, null) }, onClick = { options = false; clearHistory = false })
-                            DropdownMenuItem(text = { Text("Удалить чат") }, leadingIcon = { Icon(Icons.Outlined.DeleteOutline, null) }, onClick = { options = false; clearHistory = true })
+                    IconButton(onClick = { options = !options }, enabled = conversation != null,
+                        modifier = Modifier.size(actionWidth, if (showBack) 42.dp else 44.dp)
+                            .background(if (options) colors.primaryContainer else Color.Transparent, RoundedCornerShape(12.dp))
+                            .testTag("conversation-options"),
+                        colors = IconButtonDefaults.iconButtonColors(contentColor = if (options) colors.primary else colors.onSurface)) {
+                        Icon(CallIcons.Ellipsis, "Действия с чатом", Modifier.size(if (showBack) 20.dp else 22.dp))
+                    }
+                    if (conversation != null) DropdownMenu(
+                        expanded = options, onDismissRequest = { options = false },
+                        modifier = Modifier.width(menuWidth).heightIn(max = menuHeight).testTag("conversation-menu"),
+                        offset = DpOffset(0.dp, if (showBack) 6.dp else 8.dp),
+                        shape = RoundedCornerShape(14.dp), containerColor = colors.surface, tonalElevation = 0.dp,
+                        shadowElevation = 12.dp, border = BorderStroke(1.dp, colors.outlineVariant),
+                    ) {
+                        val group = conversation.type == "group"
+                        ConversationMenuItem("Информация", ChatMessageIcons.Info, if (group) "group-members" else "conversation-info") {
+                            options = false
+                            if (group) actions.loadMembers()
+                            showInfo = true
                         }
-                        DropdownMenuItem(text = { Text("Обновить сообщения") }, leadingIcon = { Icon(Icons.Outlined.Refresh, null) }, enabled = !state.messages.loading,
-                            onClick = { options = false; actions.refreshMessages() }, modifier = Modifier.testTag("messages-refresh"))
-                        if (conversation?.type == "group") DropdownMenuItem(text = { Text("Участники и настройки группы") }, leadingIcon = { Icon(Icons.Outlined.Group, null) },
-                            onClick = { options = false; showMembers() }, modifier = Modifier.testTag("group-members"))
-                        if (conversation?.type == "direct") DropdownMenuItem(text = { Text(if (conversation.notificationsEnabled) "Отключить уведомления" else "Включить уведомления") }, enabled = !state.busy,
-                            leadingIcon = { Icon(if (conversation.notificationsEnabled) Icons.Outlined.NotificationsOff else Icons.Outlined.NotificationsActive, null) },
-                            onClick = { options = false; actions.conversationNotifications(!conversation.notificationsEnabled) }, modifier = Modifier.testTag("conversation-notifications"))
-                        if (conversation != null && conversation.unreadCount > 0) DropdownMenuItem(text = { Text("Отметить чат прочитанным") }, leadingIcon = { Icon(Icons.Outlined.DoneAll, null) },
-                            enabled = !state.busy && !state.messages.loading, onClick = { options = false; actions.markRead() }, modifier = Modifier.testTag("conversation-mark-read"))
+                        ConversationMenuItem("Выбрать сообщения", ChatMessageIcons.Select, "chat-select-messages",
+                            enabled = !operationsBusy && state.messages.data.orEmpty().any {
+                                it.conversationId == conversation.id && it.kind == "message" && it.deletedAt == null
+                            }) { options = false; onStartSelection() }
+                        if (conversation.canManage) ConversationMenuItem(
+                            "Редактировать группу", ChatMessageIcons.Edit, "group-edit-menu", enabled = !state.busy,
+                        ) { options = false; showMembers() }
+                        if (!group) ConversationMenuItem(
+                            if (conversation.notificationsEnabled) "Без уведомлений" else "Включить уведомления",
+                            if (conversation.notificationsEnabled) ChatMessageIcons.BellOff else ChatMessageIcons.Bell,
+                            "conversation-notifications", enabled = !state.busy,
+                        ) { options = false; actions.conversationNotifications(!conversation.notificationsEnabled) }
+                        ConversationMenuItem("Добавить в папку", ChatMessageIcons.FolderPlus, "conversation-add-to-folder", enabled = !state.busy) {
+                            options = false
+                            actions.clearMessage()
+                            assignFolder = true
+                        }
+                        if (conversation.unreadCount > 0) ConversationMenuItem("Отметить чат прочитанным", ChatMessageIcons.Delivered,
+                            "conversation-mark-read", enabled = !state.busy && !state.messages.loading) {
+                            options = false
+                            actions.markRead()
+                        }
+                        if (group) {
+                            if (conversation.myRole != "owner") ConversationMenuItem(
+                                "Покинуть группу", CallIcons.LogOut, "group-leave-menu", enabled = !state.busy, destructive = true,
+                            ) { options = false; leaveGroup = true }
+                        } else {
+                            ConversationMenuItem("Очистить историю", ChatMessageIcons.Eraser, "conversation-clear", enabled = !state.busy) {
+                                options = false
+                                clearHistory = false
+                            }
+                            ConversationMenuItem("Удалить чат", ChatMessageIcons.Delete, "conversation-delete", enabled = !state.busy, destructive = true) {
+                                options = false
+                                clearHistory = true
+                            }
+                        }
                     }
                 }
             }
@@ -629,6 +688,122 @@ private fun LocalMessageBubble(message: LocalOutgoingMessage, actions: Messaging
             }
         }
     }
+}
+
+@Composable
+private fun ConversationMenuItem(
+    label: String, icon: ImageVector, tag: String, enabled: Boolean = true, destructive: Boolean = false,
+    onClick: () -> Unit,
+) {
+    val color = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+    DropdownMenuItem(
+        text = { Text(label, fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.Normal) },
+        onClick = onClick, leadingIcon = { Icon(icon, null, Modifier.size(20.dp)) }, enabled = enabled,
+        modifier = Modifier.heightIn(min = 48.dp).testTag(tag),
+        contentPadding = PaddingValues(horizontal = 20.dp),
+        colors = MenuDefaults.itemColors(textColor = color, leadingIconColor = color),
+    )
+}
+
+@Composable
+private fun ConversationInfoDialog(
+    conversation: ChatConversation, state: MessagingUiState, actions: MessagingActions,
+    dismiss: () -> Unit, onEdit: () -> Unit, onPins: () -> Unit,
+) {
+    val group = conversation.type == "group"
+    AlertDialog(
+        onDismissRequest = dismiss,
+        title = { Text(if (group) "О группе" else "О контакте") },
+        text = {
+            Column(
+                Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()).testTag("conversation-info-content"),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    ConversationAvatar(conversation, 48.dp, groupBadge = group)
+                    Column {
+                        Text(conversation.title, style = MaterialTheme.typography.titleMedium)
+                        Text(if (group) "Группа · ${memberCountLabel(conversation.memberCount)}" else "Личная переписка",
+                            style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+                if (group) {
+                    if (conversation.description.isNotBlank()) Text(conversation.description)
+                    if (conversation.canManage) TextButton(onEdit, enabled = !state.busy) {
+                        Icon(ChatMessageIcons.Edit, null, Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Редактировать группу")
+                    }
+                    Text("Участники", style = MaterialTheme.typography.titleSmall)
+                    LoadingStatus(state.members.loading, state.members.error, actions.loadMembers)
+                    state.members.data.orEmpty().forEach { member ->
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            ChatAvatar(member.displayName, member.id, member.avatarVersion, 32.dp, 32.dp)
+                            Column {
+                                Text(member.displayName)
+                                Text(roleLabel(member.role), style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    }
+                    if (state.memberCursor != null)
+                        MoreButton("Ещё участники", "conversation-info-members-more", state.members.loading, actions.moreMembers)
+                }
+                TextButton(onPins, Modifier.testTag("conversation-info-pins")) { Text("Закреплённые сообщения") }
+                TextButton(
+                    onClick = { dismiss(); actions.refreshMessages() },
+                    enabled = !state.messages.loading, modifier = Modifier.testTag("messages-refresh"),
+                ) { Text("Обновить сообщения") }
+            }
+        },
+        confirmButton = { TextButton(dismiss) { Text("Готово") } },
+    )
+}
+
+@Composable
+private fun ConversationFolderDialog(
+    conversation: ChatConversation, state: MessagingUiState, actions: MessagingActions,
+    dismiss: () -> Unit, onNewFolder: () -> Unit,
+) {
+    val folders = state.folders.data.orEmpty()
+    var selectedId by remember(conversation.id) { mutableStateOf<String?>(null) }
+    val selected = folders.find { it.id == selectedId }
+    AlertDialog(
+        onDismissRequest = { if (!state.busy) dismiss() },
+        title = { Text("Добавить в папку") },
+        text = {
+            Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
+                Text(conversation.title, style = MaterialTheme.typography.titleSmall)
+                LoadingStatus(state.folders.loading, state.folders.error, actions.refresh)
+                Column(Modifier.selectableGroup()) {
+                    folders.forEach { folder ->
+                        Row(
+                            Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                                .selectable(folder.id == selectedId, enabled = !state.busy, role = Role.RadioButton) { selectedId = folder.id }
+                                .padding(horizontal = 4.dp).testTag("conversation-folder-${folder.id}"),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(ChatMessageIcons.FolderPlus, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                            Text(folder.name, Modifier.weight(1f).padding(horizontal = 12.dp))
+                            RadioButton(selected = folder.id == selectedId, onClick = null, enabled = !state.busy)
+                        }
+                    }
+                }
+                TextButton(onNewFolder, enabled = !state.busy) {
+                    Icon(ChatMessageIcons.Plus, null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Новая папка")
+                }
+                state.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { selected?.let { actions.addConversationToFolder(it.id, conversation.id, dismiss) } },
+                enabled = selected != null && !state.busy, modifier = Modifier.testTag("conversation-folder-save"),
+            ) { Text(if (state.busy) "Добавляем…" else "Добавить") }
+        },
+        dismissButton = { TextButton(dismiss, enabled = !state.busy) { Text("Отмена") } },
+    )
 }
 
 @Composable

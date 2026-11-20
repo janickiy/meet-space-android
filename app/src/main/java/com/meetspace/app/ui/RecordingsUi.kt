@@ -12,7 +12,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.Refresh
@@ -57,12 +56,8 @@ fun RecordingsWorkspace(state: RecordingsUiState, actions: RecordingsActions, on
             val compactDetail = maxWidth < 600.dp
             Column(Modifier.fillMaxSize()) {
                 Column(Modifier.weight(1f).fillMaxWidth().windowInsetsPadding(if (onWorkspaceTab == null) WindowInsets.safeDrawing else WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)).imePadding()) {
-                    Row(Modifier.fillMaxWidth().heightIn(min = 75.dp).background(MaterialTheme.colorScheme.surface).padding(start = if (tablet) 30.dp else 20.dp, end = if (tablet) 30.dp else 20.dp, bottom = 0.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                        if (tablet) Brand(compact = true)
-                        Text(if (state.detailId != null) "Просмотр записи" else "Записи", style = MaterialTheme.typography.headlineSmall.copy(fontSize = if (tablet) 25.sp else 23.sp, letterSpacing = (-.5).sp), maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).semantics { heading() })
-                        IconButton(onClick = actions.close, modifier = Modifier.size(48.dp).testTag("recordings-back")) {
-                            Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Назад к встречам", Modifier.size(27.dp))
-                        }
+                    WorkspaceTopBar(if (state.detailId != null) "Просмотр записи" else "Записи", tablet, "recordings-header") {
+                        WorkspaceTopAction(WorkspaceHeaderIcons.Back, "Назад к встречам", "recordings-back", onClick = actions.close)
                     }
                     Box(Modifier.fillMaxWidth().weight(1f).background(MaterialTheme.colorScheme.background).padding(horizontal = if (tablet) 28.dp else 18.dp).testTag("recordings-single-pane"), contentAlignment = Alignment.TopCenter) {
                         when {

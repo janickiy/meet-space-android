@@ -96,7 +96,8 @@ class Release040MessagingUiTest {
             MessagingWorkspace(state, MessagingActions(pickGroupAvatar = { picked++ }, deleteGroupAvatar = { removed++ }))
         } }
         compose.onNodeWithTag("conversation-options").performClick()
-        compose.onNodeWithTag("group-members").performClick()
+        compose.onNodeWithTag("group-leave-menu").assertDoesNotExist()
+        compose.onNodeWithTag("group-edit-menu").performClick()
         compose.onNodeWithTag("group-avatar-pick").performScrollTo().assertIsEnabled().performClick()
         compose.onNodeWithText("Добавить фото").assertExists()
         compose.onNodeWithTag("group-avatar-delete").assertDoesNotExist()
@@ -122,10 +123,12 @@ class Release040MessagingUiTest {
             MessagingWorkspace(ready.copy(detail = MessagingLoad(group.copy(myRole = "member", avatarVersion = "version-1"))), MessagingActions())
         } }
         compose.onNodeWithTag("conversation-options").performClick()
+        compose.onNodeWithTag("group-edit-menu").assertDoesNotExist()
+        compose.onNodeWithTag("group-leave-menu").assertIsDisplayed()
         compose.onNodeWithTag("group-members").performClick()
+        compose.onNodeWithText("О группе").assertIsDisplayed()
         compose.onNodeWithTag("group-avatar-pick").assertDoesNotExist()
         compose.onNodeWithTag("group-avatar-delete").assertDoesNotExist()
-        compose.onNodeWithTag("group-avatar-permission").assertExists()
         compose.onNodeWithTag("group-save").assertDoesNotExist()
     }
 

@@ -50,7 +50,6 @@ import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.ArrowOutward
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.CheckCircle
-import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.DeleteOutline
@@ -59,12 +58,8 @@ import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.icons.outlined.PersonOutline
-import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Security
-import androidx.compose.material.icons.outlined.Forum
-import androidx.compose.material.icons.outlined.Videocam
 import androidx.compose.material.icons.outlined.VideoCall
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
@@ -699,9 +694,9 @@ private fun Installer(onNavigate: (FoundationScreen) -> Unit) {
 
 enum class WorkspaceTab(val title: String, val tag: String, val icon: ImageVector) {
     HOME("Главная", "home", Icons.Outlined.Home),
-    MESSAGES("Чаты", "messages", Icons.Outlined.Forum),
-    CALLS("Встречи", "calls", Icons.Outlined.Videocam),
-    CALENDAR("Календарь", "calendar", Icons.Outlined.CalendarMonth),
+    MESSAGES("Чаты", "messages", CallIcons.MessagesSquare),
+    CALLS("Встречи", "calls", CallIcons.Video),
+    CALENDAR("Календарь", "calendar", WorkspaceHeaderIcons.Calendar),
     PROFILE("Профиль", "profile", Icons.Outlined.PersonOutline),
 }
 
@@ -779,42 +774,44 @@ private fun Workspace(
 
 @Composable
 private fun WorkspaceHeader(tab: WorkspaceTab, tablet: Boolean, onNotifications: (() -> Unit)?, unreadCount: Int, onCallsSearch: (() -> Unit)?, onTab: (WorkspaceTab) -> Unit) {
-    val accountSettings = tab == WorkspaceTab.PROFILE
-    Column(Modifier.fillMaxWidth().then(if (accountSettings) Modifier.background(MaterialTheme.colorScheme.surface) else Modifier)) {
-        Row(
-            Modifier.fillMaxWidth().heightIn(min = if (accountSettings) 74.dp else if (tablet) 84.dp else 77.dp)
-                .padding(start = if (tablet) { if (accountSettings) 28.dp else 30.dp } else 20.dp,
-                    end = if (accountSettings) { if (tablet) 28.dp else 20.dp } else if (tablet) 24.dp else 14.dp,
-                    bottom = if (accountSettings) 0.dp else if (tablet) 15.dp else 10.dp)
-                .testTag("workspace-header"),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            if (tablet) Brand(compact = true)
-            Text(if (tab == WorkspaceTab.PROFILE) "Настройки аккаунта" else tab.title, style = MaterialTheme.typography.headlineSmall.copy(fontSize = if (tablet) 25.sp else 23.sp),
-                maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).semantics { heading() })
-            if (tab == WorkspaceTab.CALENDAR) {
-                IconButton(onClick = { onTab(WorkspaceTab.CALLS) }, modifier = Modifier.testTag("calendar-back")) {
-                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Назад к встречам")
-                }
+    WorkspaceTopBar(if (tab == WorkspaceTab.PROFILE) "Настройки аккаунта" else tab.title, tablet, "workspace-header") {
+        when (tab) {
+            WorkspaceTab.CALENDAR -> WorkspaceTopAction(WorkspaceHeaderIcons.Back, "Назад к встречам", "calendar-back") { onTab(WorkspaceTab.CALLS) }
+            WorkspaceTab.CALLS -> if (onCallsSearch != null) {
+                WorkspaceTopAction(ChatMessageIcons.Search, "Найти звонок", "calls-search-toggle", onClick = onCallsSearch)
+            } else {
+                WorkspaceTopAction(WorkspaceHeaderIcons.Calendar, "Открыть календарь", "calls-calendar") { onTab(WorkspaceTab.CALENDAR) }
             }
-            if (tab == WorkspaceTab.CALLS) {
-                IconButton(onClick = onCallsSearch ?: { onTab(WorkspaceTab.CALENDAR) }, modifier = Modifier.testTag(if (onCallsSearch != null) "calls-search-toggle" else "calls-calendar")) {
-                    Icon(if (onCallsSearch != null) Icons.Outlined.Search else Icons.Outlined.CalendarMonth, contentDescription = if (onCallsSearch != null) "Найти звонок" else "Открыть календарь", modifier = Modifier.size(27.dp))
-                }
+            WorkspaceTab.HOME -> if (onNotifications != null) {
+                NotificationBell(unreadCount.toLong(), false, onNotifications, Modifier.testTag("workspace-notifications"))
             }
-            if (tab == WorkspaceTab.HOME && onNotifications != null) {
-                IconButton(onClick = onNotifications, modifier = Modifier.testTag("workspace-notifications")) {
-                    Box {
-                        Icon(Icons.Outlined.NotificationsNone,
-                            contentDescription = if (unreadCount > 0) "Уведомления, непрочитанных: $unreadCount" else "Уведомления",
-                            modifier = Modifier.size(27.dp))
-                        if (unreadCount > 0) Box(Modifier.align(Alignment.TopEnd).size(6.dp).background(MaterialTheme.colorScheme.primary, CircleShape))
-                    }
-                }
+            else -> Unit
+        }
+    }
+}
+
+@Composable
+internal fun WorkspaceTopBar(title: String, wide: Boolean, tag: String, actions: @Composable () -> Unit = {}) {
+    Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface)) {
+        Row(Modifier.fillMaxWidth().heightIn(min = 74.dp)
+            .padding(start = if (wide) 28.dp else 16.dp, end = if (wide) 27.dp else 12.dp).testTag(tag),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (wide) 14.dp else 8.dp)) {
+            if (wide) Brand(compact = true)
+            Text(title, fontSize = if (wide) 25.sp else 23.sp, lineHeight = 31.sp, letterSpacing = (-.5).sp,
+                fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f).semantics { heading() })
+            CompositionLocalProvider(LocalWorkspaceHeaderIconSize provides if (wide) 27.dp else 24.dp) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (wide) 6.dp else 0.dp)) { actions() }
             }
         }
-        if (accountSettings) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+    }
+}
+
+@Composable
+internal fun WorkspaceTopAction(icon: ImageVector, label: String, tag: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    IconButton(onClick, modifier.size(48.dp).testTag(tag)) {
+        Icon(icon, label, Modifier.size(LocalWorkspaceHeaderIconSize.current), tint = MaterialTheme.colorScheme.onSurface)
     }
 }
 
@@ -822,7 +819,6 @@ private fun WorkspaceHeader(tab: WorkspaceTab, tablet: Boolean, onNotifications:
 internal fun WorkspaceNavigation(selectedTab: WorkspaceTab, onSelect: (WorkspaceTab) -> Unit, profileLabel: String, tablet: Boolean,
     profileUser: User? = null, hasUnreadChats: Boolean = false) {
     val activeTab = if (selectedTab == WorkspaceTab.CALENDAR) WorkspaceTab.CALLS else selectedTab
-    val chatStyle = activeTab == WorkspaceTab.MESSAGES
     val colors = MaterialTheme.colorScheme
     Surface(color = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp, modifier = Modifier.testTag("bottom-navigation")) {
         Column(Modifier.fillMaxWidth().navigationBarsPadding()) {
@@ -843,21 +839,19 @@ internal fun WorkspaceNavigation(selectedTab: WorkspaceTab, onSelect: (Workspace
                         verticalArrangement = Arrangement.spacedBy(5.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        val iconBox = if (chatStyle) 39.dp else 35.dp
+                        val iconBox = 39.dp
                         Box(Modifier.size(iconBox).testTag("tab-${tab.tag}-icon"), contentAlignment = Alignment.Center) {
                             if (tab == WorkspaceTab.PROFILE) {
                                 AvatarImage(profileUser?.displayLabel ?: profileLabel, profileUser?.id, profileUser?.avatarVersion,
                                     size = 29.dp, modifier = Modifier.testTag("navigation-profile-avatar")
                                         .then(if (selected) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, CircleShape) else Modifier))
-                                if (chatStyle && profileUser != null) Box(Modifier.align(Alignment.BottomEnd).offset(x = (-1).dp, y = (-2).dp)
-                                    .size(8.dp).background(Color(0xFF41BC85), CircleShape).border(1.5.dp, colors.surface, CircleShape))
+                                if (profileUser != null) Box(Modifier.align(Alignment.BottomEnd).offset(x = (-3).dp, y = (-3).dp)
+                                    .size(8.dp).background(Color(0xFF48CD84), CircleShape).border(1.5.dp, colors.surface, CircleShape))
                             } else {
-                                val icon = if (chatStyle && tab == WorkspaceTab.CALLS) CallIcons.Video
-                                    else if (chatStyle && tab == WorkspaceTab.MESSAGES) CallIcons.MessagesSquare else tab.icon
-                                Icon(icon, contentDescription = null, tint = color,
+                                Icon(tab.icon, contentDescription = null, tint = color,
                                     modifier = Modifier.size(iconBox).background(if (selected) colors.primaryContainer else Color.Transparent,
-                                        RoundedCornerShape(if (chatStyle) 13.dp else 9.dp)).padding(if (chatStyle) 6.dp else 4.dp))
-                                if (chatStyle && tab == WorkspaceTab.MESSAGES && hasUnreadChats) {
+                                        RoundedCornerShape(13.dp)).padding(6.dp))
+                                if (tab == WorkspaceTab.MESSAGES && hasUnreadChats) {
                                     Box(Modifier.align(Alignment.TopEnd).offset(x = (-3).dp, y = 2.dp).size(5.dp)
                                         .background(colors.primary, CircleShape))
                                 }

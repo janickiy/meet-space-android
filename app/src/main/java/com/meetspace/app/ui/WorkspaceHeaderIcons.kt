@@ -21,9 +21,10 @@ internal object WorkspaceHeaderIcons {
         "M2 12a10 10 0 1 0 20 0a10 10 0 1 0-20 0") }
     val Bell by lazy { icon("Bell", "M10.268 21a2 2 0 0 0 3.464 0",
         "M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326") }
+    val Back by lazy { icon("ArrowLeft", "m12 19-7-7 7-7", "M19 12H5", mirrored = true) }
 
-    private fun icon(name: String, vararg paths: String): ImageVector =
-        ImageVector.Builder("Workspace$name", 24.dp, 24.dp, 24f, 24f).apply {
+    private fun icon(name: String, vararg paths: String, mirrored: Boolean = false): ImageVector =
+        ImageVector.Builder("Workspace$name", 24.dp, 24.dp, 24f, 24f, autoMirror = mirrored).apply {
             paths.forEach { path ->
                 addPath(PathParser().parsePathString(path).toNodes(), stroke = SolidColor(Color.Black),
                     strokeLineWidth = 1.8f, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round)

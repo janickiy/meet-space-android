@@ -290,6 +290,8 @@ fun CallScreen(
         BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(if (!prejoin || onWorkspaceTab != null) WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal) else WindowInsets.safeDrawing).then(if (!prejoin) Modifier.imePadding() else Modifier)) {
             val phone = maxWidth < 600.dp
             val shortHeight = maxHeight < 400.dp
+            val shortLandscape = shortHeight && maxWidth > maxHeight
+            val expandControls = shortLandscape || maxHeight > maxWidth
             val viewportWidth = maxWidth
             if (prejoin) Prejoin(state, viewportWidth, microphone, camera, connect, leave, switchCamera, onWorkspaceTab, profileLabel, joinPending, { devices = true }, profileUser)
             else Column(Modifier.fillMaxSize()) {
@@ -302,7 +304,7 @@ fun CallScreen(
                 // Pick the initial view once per meeting. Rotating below the tablet
                 // breakpoint must rearrange the tiles without switching view modes.
                 SideEffect { if (chosenLayout == null) chosenLayout = layout }
-                BoxWithConstraints(Modifier.fillMaxWidth().weight(1f).padding(horizontal = if (wide) 22.dp else if (phone) 12.dp else 20.dp)
+                BoxWithConstraints(Modifier.fillMaxWidth().weight(1f).padding(horizontal = if (wide) 22.dp else 12.dp)
                     .padding(top = if (shortHeight) 4.dp else if (wide) 16.dp else if (phone) 8.dp else 6.dp,
                         bottom = if (shortHeight) 4.dp else if (wide) 16.dp else if (phone) 8.dp else 12.dp).testTag("call-body")) {
                     val panel = selectedPanel
@@ -313,7 +315,8 @@ fun CallScreen(
                         Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                             CallStage(state, phone, columns, Modifier.weight(1f), devicePreferences, stageContentOverride, sharePreviewName,
                                 selfRole = details.room.self?.role, localMicrophoneLevel = localMicrophoneLevel, wide = true,
-                                layout = layout, selectLayout = { chosenLayout = it }, pinnedId = pinnedParticipant, pin = ::pinParticipant)
+                                shortLandscape = shortLandscape, layout = layout, selectLayout = { chosenLayout = it },
+                                pinnedId = pinnedParticipant, pin = ::pinParticipant)
                             if (panel != null) CallPanelContent(panel, state, details, panelActions, close, ::openPanel,
                                 compact = false, modifier = Modifier.width(panelWidth).fillMaxHeight())
                         }
@@ -325,14 +328,14 @@ fun CallScreen(
                         Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             if (showStage) CallStage(state, phone, if (phone || panel != null) 2 else 4, Modifier.weight(stageWeight).fillMaxWidth(),
                                 devicePreferences, stageContentOverride, sharePreviewName, selfRole = details.room.self?.role,
-                                localMicrophoneLevel = localMicrophoneLevel, wide = false, layout = layout,
+                                localMicrophoneLevel = localMicrophoneLevel, wide = false, shortLandscape = shortLandscape, layout = layout,
                                 selectLayout = { chosenLayout = it }, pinnedId = pinnedParticipant, pin = ::pinParticipant)
                             if (panel != null) CallPanelContent(panel, state, details, panelActions, close, ::openPanel,
                                 compact = true, modifier = Modifier.weight(1f - stageWeight).fillMaxWidth())
                         }
                     }
                 }
-                CallToolbar(state, viewportWidth, shortHeight, microphone, camera, leave, selectedPanel, ::openPanel,
+                CallToolbar(state, viewportWidth, shortHeight, expandControls, microphone, camera, leave, selectedPanel, ::openPanel,
                     waitingCount = if (details.room.self?.role == "owner") details.room.waiting.size else 0, localMicrophoneLevel = localMicrophoneLevel)
             }
         }
@@ -656,7 +659,7 @@ private fun CallError(state: CallState) {
 @Composable
 private fun CallStage(state: CallState, phone: Boolean, columns: Int, modifier: Modifier, preferences: AccountDevicePreferences,
     stageContentOverride: (@Composable () -> Unit)?, sharePreviewName: String?, selfRole: String?, localMicrophoneLevel: StateFlow<Float>?,
-    wide: Boolean, layout: CallVideoLayout, selectLayout: (CallVideoLayout) -> Unit, pinnedId: String?, pin: (String?) -> Unit) {
+    wide: Boolean, shortLandscape: Boolean, layout: CallVideoLayout, selectLayout: (CallVideoLayout) -> Unit, pinnedId: String?, pin: (String?) -> Unit) {
     val screen = if (preferences.hideParticipantVideo) null else state.videos.firstOrNull { it.screen }
     val sharedFeed = screen?.feed ?: state.localScreen
     val hasScreen = sharedFeed != null || stageContentOverride != null
@@ -671,7 +674,7 @@ private fun CallStage(state: CallState, phone: Boolean, columns: Int, modifier: 
             state.microphone, 3, name, selfRole)
     } else null
     if (!hasScreen) {
-        CallCameraStage(state, remoteTiles + listOfNotNull(self), modifier, wide, layout, selectLayout, pinnedId, pin, localMicrophoneLevel)
+        CallCameraStage(state, remoteTiles + listOfNotNull(self), modifier, wide, shortLandscape, layout, selectLayout, pinnedId, pin, localMicrophoneLevel)
         return
     }
     // Keep the local participant in the first four visible tiles during screen sharing.
@@ -721,7 +724,7 @@ private fun CallStage(state: CallState, phone: Boolean, columns: Int, modifier: 
 }
 
 @Composable
-private fun CallCameraStage(state: CallState, tiles: List<VideoTileItem>, modifier: Modifier, wide: Boolean, layout: CallVideoLayout,
+private fun CallCameraStage(state: CallState, tiles: List<VideoTileItem>, modifier: Modifier, wide: Boolean, shortLandscape: Boolean, layout: CallVideoLayout,
     selectLayout: (CallVideoLayout) -> Unit, pinnedId: String?, pin: (String?) -> Unit, localMicrophoneLevel: StateFlow<Float>?) {
     var lastSpeakerId by remember(state.conferenceId) { mutableStateOf<String?>(null) }
     val lastSpeaker = tiles.firstOrNull { it.id == lastSpeakerId && state.canSpeak(it.participantId) }
@@ -746,8 +749,8 @@ private fun CallCameraStage(state: CallState, tiles: List<VideoTileItem>, modifi
                     Icon(CallIcons.Users, null, Modifier.size(44.dp), tint = CallMuted)
                     Text("Ждём других участников", color = CallMuted, modifier = Modifier.padding(16.dp), textAlign = TextAlign.Center)
                 }
-                layout == CallVideoLayout.GALLERY -> CallCameraGallery(state, tiles, maxWidth, maxHeight, wide, pin, localMicrophoneLevel)
-                else -> CallCameraSpeaker(state, featured, tiles.filter { it.id != featured.id }, maxWidth, maxHeight, wide,
+                layout == CallVideoLayout.GALLERY -> CallCameraGallery(state, tiles, maxWidth, maxHeight, wide, shortLandscape, pin, localMicrophoneLevel)
+                else -> CallCameraSpeaker(state, featured, tiles.filter { it.id != featured.id }, maxWidth, maxHeight, wide, shortLandscape,
                     pin, if (pinned != null) ({ pin(null) }) else null, localMicrophoneLevel)
             }
         }
@@ -827,7 +830,7 @@ private fun CallSharingLabel(label: String, phone: Boolean, compact: Boolean, mo
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun CallToolbar(state: CallState, viewportWidth: Dp, shortHeight: Boolean, microphone: () -> Unit, camera: () -> Unit,
+private fun CallToolbar(state: CallState, viewportWidth: Dp, shortHeight: Boolean, expandControls: Boolean, microphone: () -> Unit, camera: () -> Unit,
     leave: () -> Unit, panel: CallPanel?, openPanel: (CallPanel) -> Unit, waitingCount: Int,
     localMicrophoneLevel: StateFlow<Float>?) {
     val connected = state.phase == CallPhase.CONNECTED
@@ -854,8 +857,8 @@ private fun CallToolbar(state: CallState, viewportWidth: Dp, shortHeight: Boolea
     Column(Modifier.fillMaxWidth().navigationBarsPadding().testTag("call-toolbar"), horizontalAlignment = Alignment.CenterHorizontally) {
         HorizontalDivider(color = CallHeaderBorder, modifier = Modifier.padding(horizontal = gutter))
         val container = Modifier.padding(horizontal = gutter, vertical = if (shortHeight) 4.dp else if (compact) 8.dp else 11.dp)
-            .clip(shape).background(Color(0xFF241E2C)).border(1.dp, Color(0xFF40364B), shape).padding(inset)
-        if (compact && fontScale <= 1.3f && viewportWidth >= 288.dp) {
+            .testTag("call-controls").clip(shape).background(Color(0xFF241E2C)).border(1.dp, Color(0xFF40364B), shape).padding(inset)
+        if ((compact || expandControls) && fontScale <= 1.3f && viewportWidth >= 288.dp) {
             Row(Modifier.fillMaxWidth().then(container), horizontalArrangement = Arrangement.spacedBy(spacing)) {
                 buttons(Modifier.weight(1f))
             }

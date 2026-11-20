@@ -71,6 +71,7 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
         selectFolder = ::selectFolder, createFolder = ::createFolder, renameFolder = ::renameFolder, deleteFolder = ::deleteFolder,
         reorderFolders = ::reorderFolders, moreFolderItems = { loadFolder(false, true) },
         searchFolderCandidates = ::searchFolderCandidates, moreFolderCandidates = { loadFolder(true, true) }, folderMembership = ::folderMembership,
+        addConversationToFolder = ::addConversationToFolder,
         loadNotifications = ::loadNotifications, moreNotifications = { notifications(true) }, readNotification = ::readNotification,
         notificationFilter = ::notificationFilter,
         readAllNotifications = ::readAllNotifications, saveNotificationPreferences = ::saveNotificationPreferences, clearMessage = ::clearMessage,
@@ -708,10 +709,10 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
         mutable.update { it.copy(selectedFolderId = id, folderEntries = MessagingLoad(), folderCursor = null, folderCandidates = MessagingLoad(), candidateCursor = null, candidateQuery = "", folderFilter = "all", query = "") }
         if (id != null) loadFolder(false, false)
     }
-    fun createFolder(name: String) = mutate({ repository.createFolder(name) }) { folder -> loadFolders(); selectFolder(folder.id) }
-    fun renameFolder(id: String, name: String) = mutate({ repository.renameFolder(id, name) }) { loadFolders() }
-    fun deleteFolder(id: String) = mutate({ repository.deleteFolder(id) }) { if (state.value.selectedFolderId == id) selectFolder(null); loadFolders() }
-    fun reorderFolders(ids: List<String>) = mutate({ repository.reorderFolders(ids) }) { items -> mutable.update { it.copy(folders = MessagingLoad(items)) } }
+    fun createFolder(name: String) = mutate({ repository.createFolder(name) }, checkChatAccessOnFailure = false) { folder -> loadFolders(); selectFolder(folder.id) }
+    fun renameFolder(id: String, name: String) = mutate({ repository.renameFolder(id, name) }, checkChatAccessOnFailure = false) { loadFolders() }
+    fun deleteFolder(id: String) = mutate({ repository.deleteFolder(id) }, checkChatAccessOnFailure = false) { if (state.value.selectedFolderId == id) selectFolder(null); loadFolders() }
+    fun reorderFolders(ids: List<String>) = mutate({ repository.reorderFolders(ids) }, checkChatAccessOnFailure = false) { items -> mutable.update { it.copy(folders = MessagingLoad(items)) } }
     fun searchFolderCandidates(query: String) { mutable.update { it.copy(candidateQuery = query.take(100), candidateCursor = null) }; loadFolder(true, false) }
     private fun loadFolder(candidates: Boolean, append: Boolean) {
         val s = state.value; val id = s.selectedFolderId ?: return
@@ -728,8 +729,18 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
                 update(current.copy(loading = false, error = e.message), cursor)
             })
     }
+    fun addConversationToFolder(folder: String, conversation: String, onSaved: () -> Unit) =
+        updateFolderMembership(folder, "conversation", conversation, true, onSaved)
     fun folderMembership(folder: String, kind: String, id: String, included: Boolean) =
-        mutate({ repository.setFolderItem(folder, kind, id, included) }, false) { loadFolders(); loadFolder(false, false); loadFolder(true, false) }
+        updateFolderMembership(folder, kind, id, included) {}
+    private fun updateFolderMembership(folder: String, kind: String, id: String, included: Boolean, onSaved: () -> Unit) {
+        mutate({ repository.setFolderItem(folder, kind, id, included) }, revise = false, checkChatAccessOnFailure = false) {
+            loadFolders()
+            loadFolder(false, false)
+            loadFolder(true, false)
+            onSaved()
+        }
+    }
     fun loadNotifications() { notifications(false); loadPreferences() }
     fun notificationFilter(value: NotificationFilter) {
         if (value == state.value.notificationFilter) return
@@ -983,7 +994,10 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
             } finally { if (epoch == generation && identity == scope() && tickets[key] == ticket) { jobs.remove(key); if (key.startsWith("outgoing-")) tickets.remove(key) } }
         }; jobs[key] = job; job.start(); return job
     }
-    private fun <T> mutate(block: suspend () -> T, revise: Boolean = true, optionalResource: Boolean = false, done: (T) -> Unit) {
+    private fun <T> mutate(
+        block: suspend () -> T, revise: Boolean = true, optionalResource: Boolean = false,
+        checkChatAccessOnFailure: Boolean = true, done: (T) -> Unit,
+    ) {
         if (scope() == null || state.value.busy) return
         val selected = state.value.selectedId
         mutable.update { it.copy(busy = true, error = null) }
@@ -993,7 +1007,7 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
             if (stillSelected) done(value) else { history.clear(); loadConversations(false); loadFolders() }
         }, { e ->
             mutable.update { it.copy(busy = false, error = e.message) }
-            if (selected == state.value.selectedId) selected?.let { id ->
+            if (checkChatAccessOnFailure && selected == state.value.selectedId) selected?.let { id ->
                 if (optionalResource) {
                     if (resourceDenied(e)) mutable.update { it.copy(pins = MessagingLoad(error = e.message), pinsCursor = null) }
                     revalidateResourceAccess(id, e)

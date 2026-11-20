@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -38,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -60,6 +62,7 @@ internal fun CallCameraGallery(
     width: Dp,
     height: Dp,
     wide: Boolean,
+    shortLandscape: Boolean,
     pin: (String) -> Unit,
     localMicrophoneLevel: StateFlow<Float>?,
 ) {
@@ -75,15 +78,21 @@ internal fun CallCameraGallery(
         else -> 2
     }
     val rows = tiles.chunked(columns)
-    val visibleRows = rows.size.coerceAtMost(if (largeStage) 2 else 3)
     val tileGap = if (wide) 10.dp else 7.dp
-    val rowGaps = tileGap * (visibleRows - 1)
+    val maxRows = if (shortLandscape) ((height + tileGap) / (84.dp + tileGap)).toInt().coerceIn(1, 2)
+        else if (largeStage) 2 else 3
+    val visibleRows = rows.size.coerceAtMost(maxRows)
     val columnGaps = tileGap * (columns - 1)
-    val availableWidth = if (wide) width else width.coerceAtMost(540.dp)
-    val fittedWidth = (height - rowGaps) / visibleRows * CameraAspect
-    val tileWidth = ((availableWidth - columnGaps) / columns)
-        .coerceAtMost(fittedWidth.coerceAtLeast(if (tiles.size == 1) 0.dp else 150.dp))
-    if (tileWidth <= 0.dp) return
+    // Fit an integer number of pixels per row so rounding never clips the last tile.
+    val fittedHeight = with(LocalDensity.current) {
+        ((height.roundToPx() - tileGap.roundToPx() * (visibleRows - 1)) / visibleRows).toDp()
+    }
+    val fittedWidth = fittedHeight * CameraAspect
+    val columnWidth = (width - columnGaps) / columns
+    val tileWidth = if (shortLandscape) columnWidth
+        else columnWidth.coerceAtMost(fittedWidth.coerceAtLeast(if (tiles.size == 1) 0.dp else 150.dp))
+    val tileHeight = if (shortLandscape) fittedHeight else tileWidth / CameraAspect
+    if (tileWidth <= 0.dp || tileHeight <= 0.dp) return
 
     Box(Modifier.fillMaxSize().testTag("call-gallery"), contentAlignment = Alignment.Center) {
         LazyColumn(
@@ -95,7 +104,7 @@ internal fun CallCameraGallery(
                 Row(horizontalArrangement = Arrangement.spacedBy(tileGap)) {
                     row.forEach { tile ->
                         key(tile.id) {
-                            VideoTile(tile, state, phone = !wide, Modifier.width(tileWidth).aspectRatio(CameraAspect),
+                            VideoTile(tile, state, phone = !wide, Modifier.width(tileWidth).height(tileHeight),
                                 gallery = true, fitVideo = true, onSelect = { pin(tile.id) },
                                 liveLevel = localMicrophoneLevel.takeIf { tile.id == "self" })
                         }
@@ -114,66 +123,97 @@ internal fun CallCameraSpeaker(
     width: Dp,
     height: Dp,
     wide: Boolean,
+    shortLandscape: Boolean,
     pin: (String) -> Unit,
     unpin: (() -> Unit)?,
     localMicrophoneLevel: StateFlow<Float>?,
 ) {
-    val pages = (others.size + SpeakerPageSize - 1) / SpeakerPageSize
-    val pageDots = pages > 1 && height >= 130.dp
     val tileGap = if (wide) 10.dp else 7.dp
+    val showRail = others.isNotEmpty()
+    if (shortLandscape) {
+        val railWidth = if (showRail) (width - tileGap) / 3 else 0.dp
+        val controlsHeight = if (others.size > 1 && height >= 106.dp) 30.dp else 0.dp
+        Row(Modifier.fillMaxSize().testTag("call-grid"), horizontalArrangement = Arrangement.spacedBy(tileGap),
+            verticalAlignment = Alignment.CenterVertically) {
+            CallFeaturedParticipant(state, featured, wide, unpin, localMicrophoneLevel, Modifier.weight(1f).fillMaxHeight())
+            if (railWidth > 0.dp) CallSpeakerRail(state, others, railWidth, height - controlsHeight, slots = 1,
+                tileGap, controlsHeight > 0.dp, wide, pin, localMicrophoneLevel)
+        }
+        return
+    }
+    val slots = minOf(others.size, SpeakerPageSize).coerceAtLeast(1)
+    val pageDots = others.size > slots && height >= 130.dp
     val stackGap = if (wide) 10.dp else 8.dp
-    val availableWidth = if (wide) width else width.coerceAtMost(540.dp)
-    val railGaps = tileGap * (SpeakerPageSize - 1)
-    val thumbnailAspect = if (wide) CameraAspect else 1f
-    val thumbnailHeightLimit = if (wide) 82.dp.coerceAtMost(height * .35f) else height * .35f
-    val thumbnailWidth = ((availableWidth - railGaps) / SpeakerPageSize)
-        .coerceIn(0.dp, thumbnailHeightLimit * thumbnailAspect)
-    val showRail = pages > 0 && thumbnailWidth > 0.dp
-    val thumbnailHeight = thumbnailWidth / thumbnailAspect
-    val railReserve = if (showRail) thumbnailHeight + stackGap + (if (pageDots) 30.dp else 14.dp) else 0.dp
-    val frameWidth = availableWidth.coerceAtMost((height - railReserve).coerceAtLeast(0.dp) * CameraAspect)
+    val railGaps = tileGap * (slots - 1)
+    val railReserve = if (showRail) stackGap + (if (pageDots) 30.dp else 0.dp) else 0.dp
+    val usableHeight = (height - railReserve).coerceAtLeast(0.dp)
+    val railHeightLimit = usableHeight * .35f
+    // Share one width between the featured video and the rail. The rail takes at most
+    // about a third of the height to leave room for the featured video.
+    val fittedStackWidth = (usableHeight * CameraAspect * slots + railGaps) / (slots + 1)
+    val frameWidth = if (showRail) width.coerceAtMost(maxOf(fittedStackWidth, (usableHeight - railHeightLimit) * CameraAspect))
+        else width.coerceAtMost(usableHeight * CameraAspect)
+    val thumbnailHeight = ((frameWidth - railGaps) / slots / CameraAspect).coerceIn(0.dp, railHeightLimit)
 
     Column(Modifier.fillMaxSize().testTag("call-grid"), horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center) {
         if (frameWidth > 0.dp) {
-            Box(Modifier.width(frameWidth).aspectRatio(CameraAspect).testTag("call-featured-video")) {
-                VideoTile(featured, state, phone = !wide, Modifier.matchParentSize(), fillStage = true, fitVideo = true,
-                    liveLevel = localMicrophoneLevel.takeIf { featured.id == "self" })
-                if (unpin != null || state.isSpeaking(featured.participantId)) {
-                    CallSpeakerBadge(unpin, Modifier.align(Alignment.TopStart).padding(10.dp))
-                }
-            }
+            CallFeaturedParticipant(state, featured, wide, unpin, localMicrophoneLevel,
+                Modifier.width(frameWidth).aspectRatio(CameraAspect))
         }
-        if (showRail) {
-            if (frameWidth > 0.dp) Spacer(Modifier.height(stackGap))
-            val pager = rememberPagerState(pageCount = { pages })
-            HorizontalPager(pager, Modifier.width(thumbnailWidth * SpeakerPageSize + railGaps)
-                .height(thumbnailHeight).testTag("call-speaker-rail"), userScrollEnabled = pages > 1) { page ->
-                val start = page * SpeakerPageSize
-                val end = minOf(start + SpeakerPageSize, others.size)
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(tileGap, Alignment.CenterHorizontally)) {
-                    for (index in start until end) {
-                        val tile = others[index]
-                        key(tile.id) {
-                            VideoTile(tile, state, phone = !wide, Modifier.width(thumbnailWidth).height(thumbnailHeight),
-                                compact = true, fitVideo = true, onSelect = { pin(tile.id) },
-                                liveLevel = localMicrophoneLevel.takeIf { tile.id == "self" })
-                        }
+        if (showRail && thumbnailHeight > 0.dp) {
+            Spacer(Modifier.height(stackGap))
+            CallSpeakerRail(state, others, frameWidth, thumbnailHeight, slots, tileGap, pageDots, wide, pin, localMicrophoneLevel)
+        }
+    }
+}
+
+@Composable
+private fun CallFeaturedParticipant(state: CallState, featured: VideoTileItem, wide: Boolean, unpin: (() -> Unit)?,
+    localMicrophoneLevel: StateFlow<Float>?, modifier: Modifier) {
+    Box(modifier.testTag("call-featured-video")) {
+        VideoTile(featured, state, phone = !wide, Modifier.matchParentSize(), fillStage = true, fitVideo = true,
+            liveLevel = localMicrophoneLevel.takeIf { featured.id == "self" })
+        if (unpin != null || state.isSpeaking(featured.participantId)) {
+            CallSpeakerBadge(unpin, Modifier.align(Alignment.TopStart).padding(10.dp))
+        }
+    }
+}
+
+@Composable
+private fun CallSpeakerRail(state: CallState, others: List<VideoTileItem>, width: Dp, height: Dp, slots: Int, tileGap: Dp,
+    pageDots: Boolean, wide: Boolean, pin: (String) -> Unit, localMicrophoneLevel: StateFlow<Float>?) {
+    val pages = (others.size + slots - 1) / slots
+    val thumbnailWidth = (width - tileGap * (slots - 1)) / slots
+    if (thumbnailWidth <= 0.dp || height <= 0.dp) return
+    val pager = rememberPagerState(pageCount = { pages })
+    Column(Modifier.width(width), horizontalAlignment = Alignment.CenterHorizontally) {
+        HorizontalPager(pager, Modifier.fillMaxWidth().height(height).testTag("call-speaker-rail"),
+            userScrollEnabled = pages > 1) { page ->
+            val start = page * slots
+            val end = minOf(start + slots, others.size)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(tileGap, Alignment.CenterHorizontally)) {
+                for (index in start until end) {
+                    val tile = others[index]
+                    key(tile.id) {
+                        VideoTile(tile, state, phone = !wide, Modifier.width(thumbnailWidth).height(height),
+                            compact = true, fitVideo = true, onSelect = { pin(tile.id) },
+                            liveLevel = localMicrophoneLevel.takeIf { tile.id == "self" })
                     }
                 }
             }
-            if (pageDots) {
-                val scope = rememberCoroutineScope()
-                Row(Modifier.widthIn(max = availableWidth).horizontalScroll(rememberScrollState())
-                    .padding(top = 2.dp).selectableGroup(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                    repeat(pages) { index ->
-                        val selected = pager.currentPage == index
-                        Box(Modifier.size(28.dp).clip(CircleShape).selectable(selected, role = Role.Tab,
-                            onClick = { scope.launch { pager.animateScrollToPage(index) } })
-                            .semantics { contentDescription = "Страница ${index + 1} из $pages" }
-                            .testTag("call-speaker-page-${index + 1}"), contentAlignment = Alignment.Center) {
-                            Box(Modifier.size(7.dp).background(if (selected) CallForeground else Color(0xFF82758B), CircleShape))
-                        }
+        }
+        if (pageDots) {
+            val scope = rememberCoroutineScope()
+            Row(Modifier.widthIn(max = width).horizontalScroll(rememberScrollState())
+                .padding(top = 2.dp).selectableGroup(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                repeat(pages) { index ->
+                    val selected = pager.currentPage == index
+                    Box(Modifier.size(28.dp).clip(CircleShape).selectable(selected, role = Role.Tab,
+                        onClick = { scope.launch { pager.animateScrollToPage(index) } })
+                        .semantics { contentDescription = "Страница ${index + 1} из $pages" }
+                        .testTag("call-speaker-page-${index + 1}"), contentAlignment = Alignment.Center) {
+                        Box(Modifier.size(7.dp).background(if (selected) CallForeground else Color(0xFF82758B), CircleShape))
                     }
                 }
             }

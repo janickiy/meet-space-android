@@ -150,6 +150,7 @@ data class MessagingActions(
     val searchFolderCandidates: (String) -> Unit = {},
     val moreFolderCandidates: () -> Unit = {},
     val folderMembership: (String, String, String, Boolean) -> Unit = { _, _, _, _ -> },
+    val addConversationToFolder: (String, String, () -> Unit) -> Unit = { _, _, _ -> },
     val openMeeting: (String) -> Unit = {},
     val loadNotifications: () -> Unit = {},
     val moreNotifications: () -> Unit = {},

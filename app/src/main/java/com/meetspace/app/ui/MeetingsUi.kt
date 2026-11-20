@@ -25,25 +25,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Login
-import androidx.compose.material.icons.automirrored.outlined.Logout
-import androidx.compose.material.icons.outlined.CallEnd
-import androidx.compose.material.icons.outlined.Check
-import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.ContentCopy
-import androidx.compose.material.icons.outlined.EditCalendar
-import androidx.compose.material.icons.outlined.EventAvailable
-import androidx.compose.material.icons.outlined.EventBusy
-import androidx.compose.material.icons.outlined.PersonAdd
-import androidx.compose.material.icons.outlined.PlayArrow
-import androidx.compose.material.icons.outlined.PlayCircleOutline
-import androidx.compose.material.icons.outlined.Refresh
-import androidx.compose.material.icons.outlined.VideoCall
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -56,6 +45,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimeInput
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -73,6 +64,7 @@ import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -256,8 +248,8 @@ fun MeetingsWorkspace(
             properties = DialogProperties(usePlatformDefaultWidth = false), containerColor = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(24.dp), tonalElevation = 0.dp,
             title = { Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(if (state.detail.data?.isClosed == true) "Материалы встречи" else "О встрече", Modifier.weight(1f), fontSize = 21.sp, lineHeight = 27.sp)
-                IconButton(actions.refreshDetail, enabled = !state.actionBusy, modifier = Modifier.testTag("meeting-detail-refresh")) { Icon(Icons.Outlined.Refresh, "Обновить встречу и допуск") }
-                IconButton(actions.closeDetail, enabled = !state.actionBusy, modifier = Modifier.testTag("meeting-detail-back")) { Icon(Icons.Outlined.Close, "Закрыть сведения о встрече") }
+                IconButton(actions.refreshDetail, enabled = !state.actionBusy, modifier = Modifier.testTag("meeting-detail-refresh")) { Icon(CallIcons.RefreshCw, "Обновить встречу и допуск") }
+                IconButton(actions.closeDetail, enabled = !state.actionBusy, modifier = Modifier.testTag("meeting-detail-back")) { Icon(CallIcons.X, "Закрыть сведения о встрече") }
             } },
             text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 MeetingsMessage(state.error, state.notice, actions.clearMessage)
@@ -281,10 +273,10 @@ fun MeetingsWorkspace(
                 state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             } },
             confirmButton = { Button(onClick = { actions.transition(meeting.id, transition) }, enabled = !state.actionBusy, modifier = Modifier.testTag("meeting-confirm-transition")) {
-                MeetingActionLabel(if (transition == MeetingTransition.CANCEL) Icons.Outlined.EventBusy else Icons.Outlined.CallEnd,
+                MeetingActionLabel(if (transition == MeetingTransition.CANCEL) MeetingIcons.CancelCalendar else CallIcons.PhoneOff,
                     if (transition == MeetingTransition.CANCEL) "Отменить встречу" else "Завершить", "meeting-confirm-transition-icon")
             } },
-            dismissButton = { TextButton(onClick = { confirmation = null }, enabled = !state.actionBusy) { MeetingActionLabel(Icons.Outlined.Close, "Оставить встречу", "meeting-dismiss-transition-icon") } },
+            dismissButton = { TextButton(onClick = { confirmation = null }, enabled = !state.actionBusy) { MeetingActionLabel(CallIcons.X, "Оставить встречу", "meeting-dismiss-transition-icon") } },
         )
     }
 }
@@ -319,16 +311,16 @@ private fun MeetingDetails(state: MeetingsUiState, repository: RepositoryState, 
                     if (self.status == "waiting" || self.admissionState == "waiting") Text("Ожидайте решения организатора. Нажмите обновление, чтобы проверить допуск.")
                     if (self.canParticipate) Text("Допуск подтверждён. Можно подключить камеру и микрофон.", style = MaterialTheme.typography.bodyMedium)
                     if (self.status == "left" && self.isAdmitted) Text(if (meeting.status in listOf("created", "scheduled")) "Вы зарегистрированы. Организатор ещё не начал встречу." else "Вы сейчас не находитесь во встрече. Можно войти.", style = MaterialTheme.typography.bodyMedium)
-                    if (self.status in listOf("joined", "waiting") && self.admissionState !in listOf("kicked", "rejected")) OutlinedButton(onClick = { actions.leave(meeting.id) }, enabled = !state.actionBusy, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("meeting-detail-leave")) { MeetingActionLabel(Icons.AutoMirrored.Outlined.Logout, "Выйти из встречи", "meeting-detail-leave-icon") }
+                    if (self.status in listOf("joined", "waiting") && self.admissionState !in listOf("kicked", "rejected")) OutlinedButton(onClick = { actions.leave(meeting.id) }, enabled = !state.actionBusy, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("meeting-detail-leave")) { MeetingActionLabel(CallIcons.LogOut, "Выйти из встречи", "meeting-detail-leave-icon") }
                 }
                 if (meeting.status == "active" && actions.call != null && self?.admissionState !in listOf("kicked", "rejected", "waiting")) {
                     Button(onClick = { actions.call.invoke(meeting) }, enabled = !state.actionBusy,
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("meeting-call")) { MeetingActionLabel(Icons.Outlined.VideoCall, "Подключиться к звонку", "meeting-call-icon") }
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("meeting-call")) { MeetingActionLabel(CallIcons.Video, "Подключиться к звонку", "meeting-call-icon") }
                 }
                 val joinAllowed = !state.self.loading && state.self.error == null && (self == null || (meeting.status == "active" && self.status == "left" && self.isAdmitted))
                 if (joinAllowed) Button(onClick = { actions.joinMeeting(meeting.id) }, enabled = !state.actionBusy, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("meeting-detail-join")) {
                     val registration = meeting.status in listOf("created", "scheduled")
-                    MeetingActionLabel(if (registration) Icons.Outlined.EventAvailable else Icons.AutoMirrored.Outlined.Login,
+                    MeetingActionLabel(if (registration) WorkspaceHeaderIcons.Calendar else Icons.AutoMirrored.Outlined.Login,
                         if (registration) "Зарегистрироваться на встречу" else "Войти во встречу", "meeting-detail-join-icon")
                 }
                 OutlinedButton(onClick = {
@@ -338,15 +330,15 @@ private fun MeetingDetails(state: MeetingsUiState, repository: RepositoryState, 
                             .onSuccess { copied = true; copyError = false }
                             .onFailure { copyError = true }
                     }
-                }, enabled = meeting.inviteCode.isNotBlank(), modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("meeting-copy-invite")) { MeetingActionLabel(if (copied) Icons.Outlined.Check else Icons.Outlined.ContentCopy, if (copied) "Ссылка скопирована" else "Скопировать приглашение", "meeting-copy-invite-icon") }
+                }, enabled = meeting.inviteCode.isNotBlank(), modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("meeting-copy-invite")) { MeetingActionLabel(if (copied) CallIcons.Check else ChatMessageIcons.Copy, if (copied) "Ссылка скопирована" else "Скопировать приглашение", "meeting-copy-invite-icon") }
                 if (copyError) Text("Не удалось скопировать ссылку.", color = MaterialTheme.colorScheme.error)
-                if (owner || meeting.status == "active" && self?.canParticipate == true && self.role == "co_host") OutlinedButton({ invite = true; actions.invitations.searchUsers("") }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("meeting-invite-users")) { MeetingActionLabel(Icons.Outlined.PersonAdd, "Пригласить участников", "meeting-invite-users-icon") }
+                if (owner || meeting.status == "active" && self?.canParticipate == true && self.role == "co_host") OutlinedButton({ invite = true; actions.invitations.searchUsers("") }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("meeting-invite-users")) { MeetingActionLabel(ChatMessageIcons.UserPlus, "Пригласить участников", "meeting-invite-users-icon") }
                 if (owner && meeting.status in listOf("created", "scheduled")) {
-                    Button(onClick = { actions.transition(meeting.id, MeetingTransition.START) }, enabled = !state.actionBusy, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("meeting-detail-start")) { MeetingActionLabel(Icons.Outlined.PlayArrow, "Начать встречу", "meeting-detail-start-icon") }
-                    if (meeting.status == "scheduled") OutlinedButton(onClick = { edit(meeting) }, enabled = !state.actionBusy, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("meeting-detail-edit")) { MeetingActionLabel(Icons.Outlined.EditCalendar, "Изменить расписание", "meeting-detail-edit-icon") }
-                    TextButton(onClick = { confirm(meeting, MeetingTransition.CANCEL) }, enabled = !state.actionBusy, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("meeting-detail-cancel")) { MeetingActionLabel(Icons.Outlined.EventBusy, "Отменить встречу", "meeting-detail-cancel-icon", MaterialTheme.colorScheme.error) }
+                    Button(onClick = { actions.transition(meeting.id, MeetingTransition.START) }, enabled = !state.actionBusy, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("meeting-detail-start")) { MeetingActionLabel(CallIcons.Play, "Начать встречу", "meeting-detail-start-icon") }
+                    if (meeting.status == "scheduled") OutlinedButton(onClick = { edit(meeting) }, enabled = !state.actionBusy, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("meeting-detail-edit")) { MeetingActionLabel(MeetingIcons.Edit, "Изменить расписание", "meeting-detail-edit-icon") }
+                    TextButton(onClick = { confirm(meeting, MeetingTransition.CANCEL) }, enabled = !state.actionBusy, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("meeting-detail-cancel")) { MeetingActionLabel(MeetingIcons.CancelCalendar, "Отменить встречу", "meeting-detail-cancel-icon", MaterialTheme.colorScheme.error) }
                 }
-                if (owner && meeting.status == "active") TextButton(onClick = { confirm(meeting, MeetingTransition.FINISH) }, enabled = !state.actionBusy, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("meeting-detail-finish")) { MeetingActionLabel(Icons.Outlined.CallEnd, "Завершить для всех", "meeting-detail-finish-icon", MaterialTheme.colorScheme.error) }
+                if (owner && meeting.status == "active") TextButton(onClick = { confirm(meeting, MeetingTransition.FINISH) }, enabled = !state.actionBusy, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("meeting-detail-finish")) { MeetingActionLabel(CallIcons.PhoneOff, "Завершить для всех", "meeting-detail-finish-icon", MaterialTheme.colorScheme.error) }
             }
             if (meeting.isClosed) {
                 HorizontalDivider()
@@ -367,7 +359,7 @@ private fun MeetingDetails(state: MeetingsUiState, repository: RepositoryState, 
                     if (history.recordings.ready > 0) Text("Доступные записи: ${history.recordings.ready}")
                 }
             }
-            if (meeting.status == "active" || meeting.isClosed) OutlinedButton(onClick = { actions.recordings(meeting.id) }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("meeting-detail-recordings")) { MeetingActionLabel(Icons.Outlined.PlayCircleOutline, "Записи и материалы", "meeting-detail-recordings-icon") }
+            if (meeting.status == "active" || meeting.isClosed) OutlinedButton(onClick = { actions.recordings(meeting.id) }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("meeting-detail-recordings")) { MeetingActionLabel(WorkspaceHeaderIcons.Recordings, "Записи и материалы", "meeting-detail-recordings-icon") }
         }
     }
     if (invite) MeetingInvitationDialog(state.invitation, actions.invitations) { invite = false }
@@ -401,12 +393,57 @@ internal fun MeetingsAccount(state: MeetingsUiState, repository: RepositoryState
 }
 
 @Composable
+internal fun MeetingDialogTitle(title: String, enabled: Boolean = true, close: () -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(title, Modifier.weight(1f).semantics { heading() }, fontSize = 21.sp, lineHeight = 27.sp, fontWeight = FontWeight.SemiBold)
+        IconButton(close, enabled = enabled, modifier = Modifier.size(48.dp)) {
+            Icon(CallIcons.X, "Закрыть", Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+private fun MeetingFormField(
+    label: String,
+    value: String,
+    change: (String) -> Unit,
+    enabled: Boolean,
+    tag: String,
+    modifier: Modifier = Modifier,
+    hint: String? = null,
+    keyboardType: KeyboardType = KeyboardType.Text,
+    trailing: (@Composable () -> Unit)? = null,
+) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(label, fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.Medium)
+        OutlinedTextField(value = value, onValueChange = change, shape = RoundedCornerShape(12.dp),
+            placeholder = hint?.let { { Text(it, fontSize = 13.sp) } }, trailingIcon = trailing,
+            textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType), enabled = enabled, singleLine = true,
+            modifier = Modifier.fillMaxWidth().testTag(tag).semantics { contentDescription = label })
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MeetingTimePicker(initial: LocalTime, dismiss: () -> Unit, select: (LocalTime) -> Unit) {
+    val picker = rememberTimePickerState(initialHour = initial.hour, initialMinute = initial.minute, is24Hour = true)
+    AlertDialog(onDismissRequest = dismiss, containerColor = MaterialTheme.colorScheme.surface,
+        title = { Text("Время встречи") }, text = { TimeInput(picker) },
+        confirmButton = { TextButton({ select(LocalTime.of(picker.hour, picker.minute)); dismiss() }) { Text("Выбрать") } },
+        dismissButton = { TextButton(dismiss) { Text("Отмена") } })
+}
+
+@Composable
 private fun MeetingFormDialog(form: MeetingForm, state: MeetingsUiState, actions: MeetingsActions, onDismiss: () -> Unit) {
     val editing = form.meeting != null
     val initial = form.meeting?.scheduledAt?.atZone(state.zone) ?: Instant.now().plusSeconds(3600).atZone(state.zone)
     var title by remember(form) { mutableStateOf(form.meeting?.title.orEmpty()) }
     var planned by remember(form) { mutableStateOf(form.scheduled) }
     var editZone by remember(form) { mutableStateOf(false) }
+    var selectDate by remember(form) { mutableStateOf(false) }
+    var selectTime by remember(form) { mutableStateOf(false) }
+    var durationMenu by remember(form) { mutableStateOf(false) }
     var date by remember(form) { mutableStateOf(initial.toLocalDate().toString()) }
     var time by remember(form) { mutableStateOf(initial.toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm"))) }
     var zoneText by remember(form) { mutableStateOf(state.zone.id) }
@@ -435,35 +472,68 @@ private fun MeetingFormDialog(form: MeetingForm, state: MeetingsUiState, actions
         shape = RoundedCornerShape(24.dp),
         tonalElevation = 0.dp,
         onDismissRequest = { if (!state.actionBusy) onDismiss() },
-        title = { Text(if (editing) "Изменить расписание" else if (planned) "Запланировать встречу" else "Новая встреча", fontSize = 21.sp, lineHeight = 27.sp) },
-        text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+        title = { MeetingDialogTitle(if (editing) "Изменить расписание" else if (planned) "Запланировать встречу" else "Новая встреча",
+            enabled = !state.actionBusy, close = onDismiss) },
+        text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             if (editing) Text(title, style = MaterialTheme.typography.titleMedium)
-            else OutlinedTextField(shape = RoundedCornerShape(12.dp), value = title, onValueChange = { title = it.take(400) }, label = { Text("Название встречи", fontSize = 13.sp) }, placeholder = { Text("Например, обсуждение проекта", fontSize = 13.sp) }, enabled = !state.actionBusy, modifier = Modifier.fillMaxWidth().testTag("meeting-form-title"))
+            else MeetingFormField("Название встречи", title, { title = it.take(400) }, !state.actionBusy,
+                "meeting-form-title", hint = "Например, обсуждение проекта")
             if (!editing) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) { Text("Запланировать встречу", fontSize = 13.sp); Text("Выберите дату и время заранее", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 Switch(planned, { planned = it }, enabled = !state.actionBusy, modifier = Modifier.testTag("meeting-form-planned"))
             }
             if (planned) {
-                val dateField: @Composable (Modifier) -> Unit = { field -> OutlinedTextField(shape = RoundedCornerShape(12.dp), value = date, onValueChange = { date = it.take(10); offsetText = "" }, label = { Text("Дата", fontSize = 13.sp) }, placeholder = { Text("ГГГГ-ММ-ДД", fontSize = 12.sp) }, textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp), enabled = !state.actionBusy, singleLine = true, modifier = field.testTag("meeting-form-date")) }
-                val timeField: @Composable (Modifier) -> Unit = { field -> OutlinedTextField(shape = RoundedCornerShape(12.dp), value = time, onValueChange = { time = it.take(8); offsetText = "" }, label = { Text("Время", fontSize = 13.sp) }, placeholder = { Text("ЧЧ:ММ", fontSize = 12.sp) }, textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp), enabled = !state.actionBusy, singleLine = true, modifier = field.testTag("meeting-form-time")) }
+                val dateField: @Composable (Modifier) -> Unit = { field ->
+                    MeetingFormField("Дата", date, { date = it.take(10); offsetText = "" }, !state.actionBusy,
+                        "meeting-form-date", field, "ГГГГ-ММ-ДД") {
+                        IconButton({ selectDate = true }, enabled = !state.actionBusy) {
+                            Icon(WorkspaceHeaderIcons.Calendar, "Выбрать дату встречи", Modifier.size(18.dp))
+                        }
+                    }
+                }
+                val timeField: @Composable (Modifier) -> Unit = { field ->
+                    MeetingFormField("Время", time, { time = it.take(8); offsetText = "" }, !state.actionBusy,
+                        "meeting-form-time", field, "ЧЧ:ММ") {
+                        IconButton({ selectTime = true }, enabled = !state.actionBusy) {
+                            Icon(MeetingIcons.Clock, "Выбрать время встречи", Modifier.size(18.dp))
+                        }
+                    }
+                }
                 if (LocalDensity.current.fontScale > 1.3f) { dateField(Modifier.fillMaxWidth()); timeField(Modifier.fillMaxWidth()) }
                 else Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) { dateField(Modifier.weight(1f)); timeField(Modifier.weight(1f)) }
+                MeetingFormField("Длительность, мин · необязательно", duration, { duration = it.take(4) }, !state.actionBusy,
+                    "meeting-form-duration", keyboardType = KeyboardType.Number) {
+                    Box {
+                        IconButton({ durationMenu = true }, enabled = !state.actionBusy) {
+                            Icon(CallIcons.ChevronDown, "Выбрать длительность встречи", Modifier.size(18.dp))
+                        }
+                        DropdownMenu(durationMenu, { durationMenu = false }, containerColor = MaterialTheme.colorScheme.surface) {
+                            listOf(30 to "30 минут", 45 to "45 минут", 60 to "1 час", 90 to "1,5 часа").forEach { (minutes, label) ->
+                                DropdownMenuItem(text = { Text(label) }, onClick = { duration = minutes.toString(); durationMenu = false })
+                            }
+                        }
+                    }
+                }
                 TextButton({ editZone = !editZone }, enabled = !state.actionBusy, modifier = Modifier.testTag("meeting-form-zone-toggle")) { Text("$zoneText · изменить часовой пояс", fontSize = 11.sp) }
-                if (editZone) OutlinedTextField(shape = RoundedCornerShape(12.dp), value = zoneText, onValueChange = { zoneText = it.take(80); offsetText = "" }, label = { Text("Часовой пояс IANA") }, enabled = !state.actionBusy, singleLine = true, modifier = Modifier.fillMaxWidth().testTag("meeting-form-zone"))
+                if (editZone) MeetingFormField("Часовой пояс IANA", zoneText, { zoneText = it.take(80); offsetText = "" }, !state.actionBusy, "meeting-form-zone")
                 if (offsets.size > 1) OutlinedTextField(shape = RoundedCornerShape(12.dp), value = offsetText, onValueChange = { offsetText = it.take(9) }, label = { Text("Выберите смещение UTC") }, supportingText = { Text("Это время встречается дважды: ${offsets.joinToString()}. Укажите нужное смещение.") }, enabled = !state.actionBusy, singleLine = true, modifier = Modifier.fillMaxWidth().testTag("meeting-form-offset"))
-                OutlinedTextField(shape = RoundedCornerShape(12.dp), value = duration, onValueChange = { duration = it.take(4) }, label = { Text("Длительность, мин · необязательно") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), enabled = !state.actionBusy, singleLine = true, modifier = Modifier.fillMaxWidth().testTag("meeting-form-duration"))
             }
             if (!editing) Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) { Text("Зал ожидания", fontSize = 13.sp); Text("Для участников без допуска", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) { Text("Зал ожидания", fontSize = 13.sp); Text("Участники с действующей ссылкой входят без ожидания", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 Switch(checked = waiting, onCheckedChange = { waiting = it }, enabled = !state.actionBusy, modifier = Modifier.testTag("meeting-form-waiting"))
             }
-            if (!editing && waiting) Text("Действительная ссылка-приглашение позволяет войти без ожидания.", style = MaterialTheme.typography.bodySmall)
             Text("Пригласите коллег по ссылке после создания. Встречу запускает организатор.", fontSize = 11.sp, lineHeight = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             (localError ?: state.error)?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("meeting-form-error").semantics { liveRegion = LiveRegionMode.Polite }) }
         } },
-        confirmButton = { Button(onClick = submit, enabled = !state.actionBusy && (!state.creationUncertain || editing), modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp).testTag("meeting-form-submit")) { Text(if (state.actionBusy) "Сохраняем…" else if (editing) "Сохранить расписание" else if (planned) "Запланировать" else "Создать встречу") } },
-        dismissButton = { TextButton(onClick = onDismiss, enabled = !state.actionBusy) { Text("Закрыть") } },
+        confirmButton = { Button(onClick = submit, enabled = !state.actionBusy && (!state.creationUncertain || editing), shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("meeting-form-submit")) {
+            Text(if (state.actionBusy) "Сохраняем…" else if (editing) "Сохранить расписание" else if (planned) "Запланировать" else "Создать встречу")
+        } },
     )
+    if (selectDate) MeetingDatePicker("Дата встречи", runCatching { LocalDate.parse(date) }.getOrNull(),
+        dismiss = { selectDate = false }, select = { date = it.toString(); offsetText = "" }, confirmTag = "meeting-form-date-confirm")
+    if (selectTime) MeetingTimePicker(runCatching { LocalTime.parse(time) }.getOrDefault(initial.toLocalTime()),
+        dismiss = { selectTime = false }, select = { time = it.format(DateTimeFormatter.ofPattern("HH:mm")); offsetText = "" })
 }
 
 @Composable
@@ -476,14 +546,20 @@ private fun MeetingJoinDialog(busy: Boolean, error: String?, dismiss: () -> Unit
         shape = RoundedCornerShape(24.dp),
         tonalElevation = 0.dp,
         onDismissRequest = { if (!busy) dismiss() },
-        title = { Text("Войти по ссылке") },
+        title = { MeetingDialogTitle("Войти по ссылке", enabled = !busy, close = dismiss) },
         text = { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedTextField(shape = RoundedCornerShape(12.dp), value = value, onValueChange = { value = it.take(2048) }, label = { Text("Код или HTTPS-ссылка") }, enabled = !busy, modifier = Modifier.fillMaxWidth().testTag("meeting-join-input"))
-            Text("Принимается приглашение только вашего текущего сервера. Действительное приглашение подтверждает допуск; исключённым участникам сервер может отказать.", style = MaterialTheme.typography.bodySmall)
+            Text("Вставьте ссылку, которую прислал организатор встречи.", style = MaterialTheme.typography.bodySmall)
+            MeetingFormField("Код или HTTPS-ссылка", value, { value = it.take(2048) }, !busy, "meeting-join-input",
+                hint = "https://meet.example.org/…", keyboardType = KeyboardType.Uri)
+            Text("Приглашение должно быть с вашего текущего сервера.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
         } },
-        confirmButton = { Button(onClick = { join(value.trim()) }, enabled = !busy && value.isNotBlank(), modifier = Modifier.testTag("meeting-join-submit")) { Text(if (busy) "Подключаем…" else "Продолжить") } },
-        dismissButton = { TextButton(onClick = dismiss, enabled = !busy) { Text("Закрыть") } },
+        confirmButton = { Button(onClick = { join(value.trim()) }, enabled = !busy && value.isNotBlank(), shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("meeting-join-submit")) {
+            Text(if (busy) "Подключаем…" else "Продолжить")
+            Spacer(Modifier.width(8.dp))
+            Icon(ChatMessageIcons.Forward, null, Modifier.size(18.dp))
+        } },
     )
 }
 
@@ -538,7 +614,7 @@ private fun MeetingsMessage(error: String?, notice: String?, dismiss: () -> Unit
     Surface(color = if (error != null) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth().testTag("meeting-message").semantics { liveRegion = LiveRegionMode.Polite }) {
         Row(Modifier.padding(start = 16.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(text, modifier = Modifier.weight(1f), color = if (error != null) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimaryContainer)
-            IconButton(onClick = dismiss) { Icon(Icons.Outlined.Close, "Закрыть сообщение") }
+            IconButton(onClick = dismiss) { Icon(CallIcons.X, "Закрыть сообщение") }
         }
     }
 }

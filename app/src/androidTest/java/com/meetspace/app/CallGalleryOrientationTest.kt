@@ -8,6 +8,7 @@ import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.junit4.StateRestorationTester
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpRect
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
@@ -95,6 +96,46 @@ class CallGalleryOrientationTest {
         restoration.emulateSavedInstanceStateRestore()
         compose.onNodeWithTag("call-layout-speaker").assertIsSelected()
         assertPinned()
+    }
+
+    @Test fun speakerTilesAlignWithControlsInPortraitAndShortLandscape() {
+        var viewport by mutableStateOf(DpSize(720.dp, 1024.dp))
+        compose.setContent {
+            DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(viewport)) {
+                MeetSpaceTheme { CallScreen(state()) }
+            }
+        }
+
+        for (portrait in listOf(viewport, DpSize(834.dp, 1194.dp), DpSize(390.dp, 844.dp))) {
+            compose.runOnIdle { viewport = portrait }
+            compose.onNodeWithTag("call-layout-speaker").assertIsSelected()
+            val featured = bounds("call-featured-video")
+            val thumbnail = bounds("call-participant-self")
+            assertTrue(featured.bottom < thumbnail.top)
+            assertControlWidth(featured.left, featured.right)
+            assertControlWidth(thumbnail.left, thumbnail.right)
+            if (portrait.width == 834.dp) capture("portrait-speaker-wide")
+        }
+
+        compose.runOnIdle { viewport = DpSize(844.dp, 390.dp) }
+        compose.onNodeWithTag("call-layout-speaker").assertIsSelected()
+        val rotatedFeatured = bounds("call-featured-video")
+        val rotatedThumbnail = bounds("call-participant-self")
+        assertTrue(rotatedFeatured.right < rotatedThumbnail.left)
+        assertControlWidth(rotatedFeatured.left, rotatedThumbnail.right)
+        capture("landscape-speaker-wide")
+
+        compose.onNodeWithTag("call-layout-gallery").performClick().assertIsSelected()
+        val galleryRemote = bounds("call-participant-remote")
+        val gallerySelf = bounds("call-participant-self")
+        assertTrue(galleryRemote.right < gallerySelf.left)
+        assertControlWidth(galleryRemote.left, gallerySelf.right)
+    }
+
+    private fun assertControlWidth(left: Dp, right: Dp) {
+        val controls = bounds("call-controls")
+        assertEquals(controls.left.value, left.value, 1f)
+        assertEquals(controls.right.value, right.value, 1f)
     }
 
     private fun state() = CallState(CallPhase.CONNECTED, conferenceId = "portrait-layout-fixture", title = "Встреча",

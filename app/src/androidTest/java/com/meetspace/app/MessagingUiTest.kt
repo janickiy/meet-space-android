@@ -572,7 +572,12 @@ class MessagingUiTest {
         var members = 0
         var notificationValue: Boolean? = null
         var reads = 0
-        compose.setContent { Screen(state, MessagingActions(loadMembers = { members++ }, conversationNotifications = { notificationValue = it }, markRead = { reads++ }), 390) }
+        var folderAssignment: Pair<String, String>? = null
+        var folderSaved: (() -> Unit)? = null
+        compose.setContent { Screen(state, MessagingActions(
+            loadMembers = { members++ }, conversationNotifications = { notificationValue = it }, markRead = { reads++ },
+            addConversationToFolder = { folder, id, onSaved -> folderAssignment = folder to id; folderSaved = onSaved },
+        ), 390) }
         compose.onNodeWithTag("conversation-call").assertDoesNotExist()
         compose.onNodeWithTag("conversation-options").performClick()
         compose.onNodeWithTag("group-members").performClick()
@@ -585,6 +590,16 @@ class MessagingUiTest {
         compose.onNodeWithTag("conversation-options").performClick()
         compose.onNodeWithTag("conversation-mark-read").performClick()
         compose.runOnIdle { assertEquals(1, reads) }
+        compose.runOnIdle { state = state.copy(folders = MessagingLoad(listOf(ChatFolder("team-folder", "Команда")))) }
+        compose.onNodeWithTag("conversation-options").performClick()
+        compose.onNodeWithTag("conversation-add-to-folder").performClick()
+        compose.onNodeWithTag("conversation-folder-save").assertIsNotEnabled()
+        compose.onNodeWithTag("conversation-folder-team-folder").performClick()
+        compose.onNodeWithTag("conversation-folder-save").performClick()
+        compose.runOnIdle { assertEquals("team-folder" to "direct", folderAssignment) }
+        compose.onNodeWithTag("conversation-folder-save").assertIsDisplayed()
+        compose.runOnIdle { folderSaved!!.invoke() }
+        compose.onNodeWithTag("conversation-folder-save").assertDoesNotExist()
     }
 
     @Test fun busyNewChatFabCannotStartAnotherMutation() {

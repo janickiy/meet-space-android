@@ -210,6 +210,35 @@ class MessagingViewModelTest {
         assertEquals("conference", r.folderQueries.last().second.type); assertNull(r.folderQueries.last().second.cursor)
     }
 
+    @Test fun folderAssignmentWaitsForServerAndMissingFolderPreservesTheOpenChat() = runTest(dispatcher) {
+        val response = CompletableDeferred<ChatFolder>()
+        val repository = FakeMessaging().apply { folderWrite = { response.await() } }
+        val model = model(repository)
+        model.open("room")
+        runCurrent()
+        model.draft("Черновик")
+        var acknowledgements = 0
+
+        model.addConversationToFolder("removed-folder", "room") { acknowledgements++ }
+        runCurrent()
+        assertTrue(model.state.value.busy)
+        assertEquals(0, acknowledgements)
+        response.completeExceptionally(AppFailure(FailureKind.NOT_FOUND, "Папка не найдена."))
+        runCurrent()
+        assertFalse(model.state.value.busy)
+        assertEquals(0, acknowledgements)
+        assertEquals("room", model.state.value.selectedId)
+        assertEquals("Черновик", model.state.value.draft)
+        assertEquals("Папка не найдена.", model.state.value.error)
+
+        repository.folderWrite = { ChatFolder(it, "Команда") }
+        model.addConversationToFolder("folder", "room") { acknowledgements++ }
+        runCurrent()
+        assertEquals(1, acknowledgements)
+        assertNull(model.state.value.error)
+        assertEquals("room", model.state.value.selectedId)
+    }
+
     @Test fun lateResponseFromPreviousAccountCannotRepopulateHistory() = runTest(dispatcher) {
         val gate = CompletableDeferred<MessagePage>()
         val foundation = FakeFoundation()
@@ -1020,6 +1049,7 @@ class MessagingViewModelTest {
     private class FakeMessaging : MessagingRepository {
         val conversationQueries = mutableListOf<ChatQuery>()
         val folderQueries = mutableListOf<Pair<String?, FolderQuery>>()
+        var folderWrite: suspend (String) -> ChatFolder = { ChatFolder(it, "Folder") }
         val sent = mutableListOf<Pair<String, ChatMessageInput>>()
         val edited = mutableListOf<Triple<String, String, String>>()
         val deleted = mutableListOf<Pair<String, String>>()
@@ -1090,7 +1120,7 @@ class MessagingViewModelTest {
         override suspend fun deleteFolder(id: String) = Unit
         override suspend fun reorderFolders(ids: List<String>) = ids.mapIndexed { i, id -> ChatFolder(id, id, i) }
         override suspend fun folderItems(folderId: String?, query: FolderQuery): ChatPage<FolderEntry> { folderQueries += folderId to query; return ChatPage(emptyList()) }
-        override suspend fun setFolderItem(folderId: String, kind: String, itemId: String, included: Boolean) = ChatFolder(folderId, "Folder")
+        override suspend fun setFolderItem(folderId: String, kind: String, itemId: String, included: Boolean) = folderWrite(folderId)
         override suspend fun peerPresence(id: String) = false
         override suspend fun notifications(cursor: String?): NotificationPage { notificationQueries += cursor; return notificationsResult(cursor) }
         override suspend fun readNotification(id: String): InboxNotification {
