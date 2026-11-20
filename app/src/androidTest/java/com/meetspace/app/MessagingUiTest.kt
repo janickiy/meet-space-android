@@ -17,6 +17,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.SoftwareKeyboardController
@@ -28,12 +29,14 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.width
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.espresso.Espresso
 import androidx.core.view.WindowCompat
 import com.meetspace.app.ui.*
 import com.meetspace.core.designsystem.MeetSpaceTheme
 import com.meetspace.core.model.*
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.time.Instant
 import java.time.LocalDate
@@ -614,18 +617,26 @@ class MessagingUiTest {
             contactProfile = MessagingLoad(ChatContactProfile(peer.id, peer.displayName, "anna@example.test", "Дизайнер продукта")),
             messages = MessagingLoad(listOf(firstMessage.copy(attachments = listOf(firstFile))))))
         val tabs = mutableListOf<ChatMaterialKind>()
-        compose.setContent { Screen(state, MessagingActions(
+        val actions = MessagingActions(
             loadConversationMaterials = { kind, _ ->
                 tabs += kind
                 state = state.copy(chatMaterials = ChatMaterialsUiState(kind, MessagingLoad()))
             },
             download = { downloaded = it },
-        ), 390) }
+        )
+        var calls = 0
+        compose.setContent { MeetSpaceTheme { MessagingWorkspace(state, actions, onStartCall = { calls++ }) } }
         compose.onNodeWithTag("conversation-options").performClick()
         compose.onNodeWithTag("conversation-info").performClick()
         compose.onNodeWithText("Дизайнер продукта").assertExists()
         compose.onNodeWithText("anna@example.test").assertExists()
         compose.onNodeWithTag("conversation-info-tab-media").assertIsSelected()
+        compose.onNodeWithText("Закреплённые сообщения").assertDoesNotExist()
+        compose.onNodeWithText("Обновить сообщения").assertDoesNotExist()
+        val messageButton = compose.onNodeWithTag("conversation-info-message").getUnclippedBoundsInRoot()
+        val callButton = compose.onNodeWithTag("conversation-info-call").getUnclippedBoundsInRoot()
+        assertEquals(messageButton.top, callButton.top)
+        assertEquals(messageButton.width.value, callButton.width.value, 1f)
         captureConversationInfo("contact")
         compose.onNodeWithTag("conversation-info-tab-file").performScrollTo().performClick()
         compose.onNodeWithTag("conversation-info-material-${firstFile.id}").performScrollTo().performClick()
@@ -636,6 +647,81 @@ class MessagingUiTest {
         compose.onNodeWithTag("conversation-info-message").performScrollTo().performClick()
         compose.onNodeWithTag("conversation-info-dialog").assertDoesNotExist()
         compose.onNodeWithTag("message-draft").assertIsFocused()
+        compose.onNodeWithTag("conversation-options").performClick()
+        compose.onNodeWithTag("conversation-info").performClick()
+        compose.onNodeWithTag("conversation-info-call").performScrollTo().performClick()
+        compose.runOnIdle { assertEquals(1, calls) }
+    }
+
+    @Test fun chatMediaShowsRealThumbnailsAndOpensPhotoAndVideo() {
+        val bitmap = Bitmap.createBitmap(96, 64, Bitmap.Config.ARGB_8888)
+        val photoBytes = try {
+            bitmap.eraseColor(android.graphics.Color.rgb(42, 143, 208))
+            ByteArrayOutputStream().use { output ->
+                check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, output))
+                output.toByteArray()
+            }
+        } finally { bitmap.recycle() }
+        val videoBytes = InstrumentationRegistry.getInstrumentation().context.assets
+            .open("chat-preview-sample.mp4").use { it.readBytes() }
+        val direct = ChatConversation("direct", "direct", peer)
+        val photo = ChatAttachment("preview-photo", direct.id, "Фото.png", "image/png", photoBytes.size.toLong(), "attached")
+        val video = ChatAttachment("preview-video", group.id, "Видео.mp4", "video/mp4", videoBytes.size.toLong(), "attached")
+        fun previewState(conversation: ChatConversation, attachment: ChatAttachment) = ready.copy(
+            selectedId = conversation.id, detail = MessagingLoad(conversation),
+            chatMaterials = ChatMaterialsUiState(ChatMaterialKind.MEDIA, MessagingLoad(ChatPage(listOf(ChatMaterial("preview", attachment))))),
+        )
+        var state by mutableStateOf(previewState(direct, photo))
+        val loader = ChatMediaLoader(download = { attachment ->
+            when (attachment) {
+                photo -> photoBytes.clone()
+                video -> videoBytes.clone()
+                else -> error("Unexpected attachment")
+            }
+        })
+
+        try {
+            compose.setContent {
+                CompositionLocalProvider(LocalChatMedia provides loader) { Screen(state, width = 390) }
+            }
+            compose.onNodeWithTag("conversation-options").performClick()
+            compose.onNodeWithTag("conversation-info").performClick()
+            val photoTile = compose.onNodeWithTag("conversation-info-material-${photo.id}")
+            photoTile.performScrollTo()
+            compose.waitUntil(10_000) {
+                compose.onAllNodesWithTag("conversation-info-thumbnail-${photo.id}", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+            }
+            val photoPixels = compose.onNodeWithTag("conversation-info-thumbnail-${photo.id}", useUnmergedTree = true).captureToImage().toPixelMap()
+            val photoColor = photoPixels[photoPixels.width / 2, photoPixels.height / 2]
+            assertTrue(photoColor.blue > .7f && photoColor.red < .3f)
+            photoTile.performClick()
+            compose.waitUntilAtLeastOneExists(hasTestTag("conversation-media-photo"), 10_000)
+            compose.onNodeWithTag("conversation-media-photo").assertIsDisplayed()
+            captureConversationInfo("media-photo")
+            compose.onNodeWithTag("conversation-media-back").performClick()
+            compose.onNodeWithTag("conversation-info-tab-media").assertIsSelected()
+            compose.onNodeWithTag("conversation-info-close").performClick()
+
+            compose.runOnIdle { state = previewState(group, video) }
+            compose.onNodeWithTag("conversation-options").performClick()
+            compose.onNodeWithTag("group-members").performClick()
+            val videoTile = compose.onNodeWithTag("conversation-info-material-${video.id}")
+            videoTile.performScrollTo()
+            compose.waitUntil(10_000) {
+                compose.onAllNodesWithTag("conversation-info-thumbnail-${video.id}", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+            }
+            val videoPixels = compose.onNodeWithTag("conversation-info-thumbnail-${video.id}", useUnmergedTree = true).captureToImage().toPixelMap()
+            val videoColor = videoPixels[videoPixels.width / 5, videoPixels.height / 2]
+            assertTrue(videoColor.blue > .55f && videoColor.red < .4f)
+            captureConversationInfo("media-grid")
+            videoTile.performClick()
+            compose.waitUntilAtLeastOneExists(hasTestTag("conversation-media-video-frame"), 15_000)
+            compose.onNodeWithTag("conversation-media-video").assertIsDisplayed()
+            captureConversationInfo("media-video")
+            compose.onNodeWithTag("conversation-media-back").performClick()
+            compose.onNodeWithTag("conversation-media-viewer").assertDoesNotExist()
+            compose.onNodeWithTag("conversation-info-tab-media").assertIsSelected()
+        } finally { loader.close() }
     }
 
     @Test fun busyNewChatFabCannotStartAnotherMutation() {

@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.meetspace.app.ui.MeetingRoomUiState
 import com.meetspace.app.ui.MeetingRoomActions
+import com.meetspace.app.ui.MeetingFolderActions
+import com.meetspace.app.ui.MeetingFolderAssignmentState
 import kotlinx.coroutines.delay
 import com.meetspace.app.ui.MeetingsActions
 import com.meetspace.app.ui.MeetingsLoad
@@ -12,6 +14,7 @@ import com.meetspace.app.ui.MeetingsUiState
 import com.meetspace.app.ui.WorkspaceTab
 import com.meetspace.core.data.FoundationRepository
 import com.meetspace.core.data.MeetingsRepository
+import com.meetspace.core.data.MessagingRepository
 import com.meetspace.core.model.*
 import java.time.Clock
 import java.time.LocalDate
@@ -32,6 +35,8 @@ class MeetingsViewModel(
     private val foundation: FoundationRepository,
     private val repository: MeetingsRepository,
     private val clock: Clock = Clock.systemUTC(),
+    private val folderRepository: MessagingRepository? = null,
+    private val refreshFolders: () -> Unit = {},
 ) : ViewModel() {
     private val mutableState = MutableStateFlow(freshState())
     val state = mutableState.asStateFlow()
@@ -63,6 +68,8 @@ class MeetingsViewModel(
         updateProfile = ::updateProfile, updateAvatar = ::updateAvatar, deleteAvatar = ::deleteAvatar,
         acknowledgeUncertainCreate = ::acknowledgeUncertainCreate,
         clearMessage = ::clearMessage, invitations = MeetingRoomActions(searchUsers = ::searchInviteUsers, invite = ::inviteUsers),
+        folders = MeetingFolderActions(load = ::loadMeetingFolders, create = ::createMeetingFolder,
+            add = ::addMeetingToFolders, close = ::closeMeetingFolders),
     )
 
     /** Called before logout/profile switches so a pending GET cannot delay credential cleanup. */
@@ -205,7 +212,86 @@ class MeetingsViewModel(
 
     fun closeDetail() {
         listOf("detail", "self", "history", "invite-search", "invite").forEach(::cancel)
+        closeMeetingFolders()
         mutableState.update { it.copy(detailId = null, detail = MeetingsLoad(), self = MeetingsLoad(), history = MeetingsLoad(), invitation = MeetingRoomUiState()) }
+    }
+
+    private fun loadMeetingFolders(meetingId: String) {
+        if (!canAssignMeetingFolders(meetingId) || state.value.folderAssignment.busy) return
+        updateMeetingFolders { MeetingFolderAssignmentState(meetingId = meetingId, loading = true) }
+        val folders = folderRepository
+        if (folders == null) {
+            updateMeetingFolders { it.copy(loading = false, error = "Папки недоступны.") }
+            return
+        }
+        request("meeting-folders", ::folderAssignmentFailed) {
+            val items = folders.foldersForMeeting(meetingId)
+            checkCurrent()
+            updateMeetingFolders { it.copy(folders = items, loading = false) }
+        }
+    }
+
+    private fun createMeetingFolder(name: String) {
+        val folders = folderRepository ?: return
+        val current = state.value.folderAssignment
+        val meetingId = current.meetingId ?: return
+        if (current.busy || current.loading || current.folders == null || !canAssignMeetingFolders(meetingId)) return
+        updateMeetingFolders { it.copy(busy = true, error = null, newFolderId = null) }
+        request("meeting-folders", ::folderAssignmentFailed) {
+            val folder = folders.createFolder(name)
+            checkCurrent()
+            updateMeetingFolders { previous ->
+                previous.copy(folders = previous.folders.orEmpty() + folder, busy = false, newFolderId = folder.id)
+            }
+            refreshFolders()
+        }
+    }
+
+    private fun addMeetingToFolders(selected: Set<String>) {
+        val folders = folderRepository ?: return
+        val current = state.value.folderAssignment
+        val meetingId = current.meetingId ?: return
+        if (current.busy || current.loading || !canAssignMeetingFolders(meetingId)) return
+        val pending = current.folders.orEmpty().filter { it.id in selected && !it.contains }
+        if (pending.isEmpty()) return
+        updateMeetingFolders { it.copy(busy = true, error = null) }
+        var applied = false
+        request("meeting-folders", { failure ->
+            folderAssignmentFailed(failure)
+            if (applied) refreshFolders()
+        }) {
+            for (folder in pending) {
+                val updated = folders.setFolderItem(folder.id, "conference", meetingId, true)
+                checkCurrent()
+                updateMeetingFolders { previous ->
+                    previous.copy(folders = previous.folders?.map {
+                        if (it.id == folder.id) updated.copy(contains = true) else it
+                    })
+                }
+                applied = true
+            }
+            refreshFolders()
+            updateMeetingFolders { it.copy(busy = false, saved = true) }
+            mutableState.update { it.copy(notice = if (pending.size == 1) "Встреча добавлена в папку." else "Встреча добавлена в выбранные папки.") }
+        }
+    }
+
+    private fun canAssignMeetingFolders(meetingId: String): Boolean {
+        val session = foundation.state.value.session ?: return false
+        return session.guestMeeting == null && accountScope == scope() && state.value.detail.data?.id == meetingId
+    }
+
+    private fun updateMeetingFolders(update: (MeetingFolderAssignmentState) -> MeetingFolderAssignmentState) {
+        mutableState.update { it.copy(folderAssignment = update(it.folderAssignment)) }
+    }
+
+    private fun folderAssignmentFailed(failure: AppFailure) {
+        updateMeetingFolders { it.copy(loading = false, busy = false, error = failure.message) }
+    }
+
+    private fun closeMeetingFolders() {
+        cancel("meeting-folders")
+        updateMeetingFolders { MeetingFolderAssignmentState() }
     }
 
     private fun canInvite(): Boolean {
@@ -278,6 +364,7 @@ class MeetingsViewModel(
 
     private fun clearDeniedMeeting(id: String, failure: AppFailure) {
         listOf("self", "history", "invite-search", "invite").forEach(::cancel)
+        closeMeetingFolders()
         fun MeetingsLoad<MeetingPage>.withoutMeeting() = copy(data = data?.let { it.copy(items = it.items.filterNot { meeting -> meeting.id == id }) })
         mutableState.update { state -> state.copy(detail = MeetingsLoad(error = failure.message), self = MeetingsLoad(), history = MeetingsLoad(),
             invitation = MeetingRoomUiState(), upcoming = state.upcoming.withoutMeeting(), active = state.active.withoutMeeting(),
@@ -463,11 +550,16 @@ class MeetingsViewModel(
         return MeetingsUiState(zone = zone, calendarDay = today, calendarMonth = YearMonth.from(today))
     }
 
-    class Factory(private val foundation: FoundationRepository, private val repository: MeetingsRepository) : ViewModelProvider.Factory {
+    class Factory(
+        private val foundation: FoundationRepository,
+        private val repository: MeetingsRepository,
+        private val folderRepository: MessagingRepository,
+        private val refreshFolders: () -> Unit,
+    ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             require(modelClass.isAssignableFrom(MeetingsViewModel::class.java))
-            return MeetingsViewModel(foundation, repository) as T
+            return MeetingsViewModel(foundation, repository, folderRepository = folderRepository, refreshFolders = refreshFolders) as T
         }
     }
 }

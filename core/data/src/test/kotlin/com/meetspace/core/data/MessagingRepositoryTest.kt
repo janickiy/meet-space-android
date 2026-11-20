@@ -307,6 +307,24 @@ class MessagingRepositoryTest {
         assertTrue(page.items.single().inFolder); assertEquals(CHAT, page.items.single().id)
         val req = take(); assertEquals("/api/v1/folder-items", req.requestUrl!!.encodedPath); assertEquals(OTHER, req.requestUrl!!.queryParameter("folderId"))
     }
+    @Test fun `meeting assignment lists membership and adds to the same personal folders`() = runBlocking {
+        login()
+        val folder = """{"id":"$OTHER","name":"Проект","position":0,"itemCount":1,"conversationCount":0,"conferenceCount":1}"""
+        val assigned = folder.dropLast(1) + ""","contains":true}"""
+        server.enqueue(json("""{"items":[$assigned]}"""))
+        assertTrue(repository.foldersForMeeting(CHAT).single().contains)
+        val list = take().requestUrl!!
+        assertEquals("/api/v1/folders", list.encodedPath)
+        assertEquals("conference", list.queryParameter("itemKind"))
+        assertEquals(CHAT, list.queryParameter("itemId"))
+
+        server.enqueue(json(item(folder)))
+        assertEquals(OTHER, repository.setFolderItem(OTHER, "conference", CHAT, true).id)
+        val put = take()
+        assertEquals("PUT", put.method)
+        assertEquals("/api/v1/folders/$OTHER/items/conference/$CHAT", put.path)
+        assertEquals("Bearer access", put.getHeader("Authorization"))
+    }
     @Test fun `global socket uses only ticket without conference subprotocol and closes on logout`() = runBlocking {
         login(); server.enqueue(json("""{"ticket":"${"a".repeat(43)}"}"""))
         server.enqueue(MockResponse().withWebSocketUpgrade(object : WebSocketListener() {

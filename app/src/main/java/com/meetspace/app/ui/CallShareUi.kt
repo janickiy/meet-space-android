@@ -153,32 +153,41 @@ private fun CallInvitationLink(link: String, colors: CallShareColors, copy: () -
 
 @Composable
 private fun CallInvitationQr(link: String, colors: CallShareColors) {
-    val qr by key(link) {
-        produceState<BitMatrix?>(null) {
-            value = withContext(Dispatchers.Default) {
-                runCatching {
-                    QRCodeWriter().encode(link, BarcodeFormat.QR_CODE, 0, 0,
-                        mapOf(EncodeHintType.ERROR_CORRECTION to ErrorCorrectionLevel.M, EncodeHintType.MARGIN to 4))
-                }.getOrNull()
-            }
-        }
-    }
-    qr?.let { matrix ->
+    rememberInvitationQr(link)?.let { matrix ->
         Column(Modifier.width(162.dp), horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(4.dp)) {
             val shape = RoundedCornerShape(12.dp)
-            Canvas(Modifier.fillMaxWidth().aspectRatio(1f).background(Color.White, shape).border(1.dp, colors.line, shape)
-                .padding(4.dp).testTag("call-share-qr").semantics { contentDescription = "QR-код ссылки на встречу" }) {
-                val module = floor(minOf(size.width, size.height) / matrix.width).coerceAtLeast(1f)
-                val xOffset = floor((size.width - matrix.width * module) / 2f)
-                val yOffset = floor((size.height - matrix.height * module) / 2f)
-                for (row in 0 until matrix.height) for (column in 0 until matrix.width) {
-                    if (matrix[column, row]) drawRect(Color(0xFF211927),
-                        topLeft = Offset(xOffset + column * module, yOffset + row * module), size = Size(module, module))
-                }
-            }
+            InvitationQrCode(matrix, Modifier.fillMaxWidth().aspectRatio(1f)
+                .background(Color.White, shape).border(1.dp, colors.line, shape).padding(4.dp).testTag("call-share-qr"))
             Text("Подключиться с телефона", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
             Text("Наведите камеру на QR-код", color = colors.muted, fontSize = 11.sp, textAlign = TextAlign.Center)
+        }
+    }
+}
+
+@Composable
+internal fun rememberInvitationQr(link: String): BitMatrix? = key(link) {
+    val qr by produceState<BitMatrix?>(null) {
+        value = withContext(Dispatchers.Default) {
+            runCatching {
+                QRCodeWriter().encode(link, BarcodeFormat.QR_CODE, 0, 0,
+                    mapOf(EncodeHintType.ERROR_CORRECTION to ErrorCorrectionLevel.M, EncodeHintType.MARGIN to 4))
+            }.getOrNull()
+        }
+    }
+    qr
+}
+
+@Composable
+internal fun InvitationQrCode(matrix: BitMatrix, modifier: Modifier) {
+    Canvas(modifier.semantics { contentDescription = "QR-код ссылки на встречу" }) {
+        val module = floor(minOf(size.width, size.height) / matrix.width)
+        if (module < 1f) return@Canvas
+        val xOffset = floor((size.width - matrix.width * module) / 2f)
+        val yOffset = floor((size.height - matrix.height * module) / 2f)
+        for (row in 0 until matrix.height) for (column in 0 until matrix.width) {
+            if (matrix[column, row]) drawRect(Color(0xFF211927),
+                topLeft = Offset(xOffset + column * module, yOffset + row * module), size = Size(module, module))
         }
     }
 }

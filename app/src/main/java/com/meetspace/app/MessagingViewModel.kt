@@ -670,6 +670,27 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
             { e -> mutable.update { it.copy(attachmentBusy = false, error = e.message) }; revalidateResourceAccess(id, e) })
     }
     fun removeAttachment(id: String) { if (!state.value.sending) mutable.update { it.copy(attachments = it.attachments.filterNot { item -> item.id == id }) } }
+    internal suspend fun downloadMedia(attachment: ChatAttachment): ByteArray {
+        val conversation = attachment.conversationId
+        val (identity, epoch) = withContext(Dispatchers.Main.immediate) {
+            val current = scope() ?: throw CancellationException("Chat account changed")
+            if (account != current || state.value.selectedId != conversation) throw CancellationException("Chat changed")
+            current to generation
+        }
+        val bytes = repository.downloadAttachment(conversation, attachment)
+        try {
+            withContext(Dispatchers.Main.immediate) {
+                if (scope() != identity || generation != epoch || state.value.selectedId != conversation) {
+                    throw CancellationException("Chat changed")
+                }
+            }
+            return bytes
+        } catch (cancelled: CancellationException) {
+            bytes.fill(0)
+            throw cancelled
+        }
+    }
+
     fun export(attachment: ChatAttachment, onFailure: suspend () -> Unit = {}, write: suspend (ByteArray) -> Unit): Boolean {
         val id = state.value.selectedId ?: return false
         if (scope() == null || state.value.attachmentBusy || attachment.conversationId != id) return false
@@ -778,11 +799,14 @@ class MessagingViewModel(private val foundation: FoundationRepository, private v
         updateFolderMembership(folder, kind, id, included) {}
     private fun updateFolderMembership(folder: String, kind: String, id: String, included: Boolean, onSaved: () -> Unit) {
         mutate({ repository.setFolderItem(folder, kind, id, included) }, revise = false, checkChatAccessOnFailure = false) {
-            loadFolders()
-            loadFolder(false, false)
-            loadFolder(true, false)
+            refreshFolders()
             onSaved()
         }
+    }
+    fun refreshFolders() {
+        loadFolders()
+        loadFolder(false, false)
+        loadFolder(true, false)
     }
     fun loadNotifications() { notifications(false); loadPreferences() }
     fun notificationFilter(value: NotificationFilter) {

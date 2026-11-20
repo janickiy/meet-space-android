@@ -17,6 +17,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.LayoutBoundsHolder
+import androidx.compose.ui.layout.layoutBounds
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalView
@@ -33,6 +35,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
+import com.meetspace.app.LocalChatMedia
 import com.meetspace.core.model.ChatAttachment
 import com.meetspace.core.model.ChatConversation
 import com.meetspace.core.model.ChatMaterial
@@ -64,14 +67,24 @@ internal fun ConversationInfoDialog(
     val details = if (group) listOf("Название" to name, "Описание" to conversation.description.ifBlank { "Описание не добавлено" })
         else listOf("Имя" to name, "О себе" to (profile?.bio?.ifBlank { "Не указано" } ?: "—"),
             "Email" to (profile?.email?.ifBlank { "Не указан" } ?: "—"))
+    val mediaLoader = LocalChatMedia.current
+    var preview by remember(conversation.id, mediaLoader) { mutableStateOf<ChatAttachment?>(null) }
+    val mediaViewport = remember { LayoutBoundsHolder() }
+    val infoScroll = rememberScrollState()
     var tab by remember(conversation.id) { mutableStateOf(ChatMaterialKind.MEDIA) }
     LaunchedEffect(conversation.id, conversation.peer?.id) { if (!group) actions.loadContactProfile() }
     LaunchedEffect(conversation.id, tab) { actions.loadConversationMaterials(tab, false) }
     DisposableEffect(conversation.id) { onDispose(actions.closeConversationInfo) }
 
-    Dialog(onDismissRequest = dismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    Dialog(onDismissRequest = { if (preview != null) preview = null else dismiss() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         val window = (LocalView.current.parent as? DialogWindowProvider)?.window
         SideEffect { window?.setGravity(if (compact) Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL else Gravity.CENTER) }
+        val file = preview
+        if (file != null) {
+            ConversationMediaViewer(file, compact, downloadEnabled = !state.attachmentBusy,
+                download = { actions.download(file) }, back = { preview = null })
+            return@Dialog
+        }
         Surface(
             Modifier.padding(if (compact) 14.dp else 20.dp).widthIn(max = 560.dp).fillMaxWidth().testTag("conversation-info-dialog"),
             shape = RoundedCornerShape(if (compact) 23.dp else 24.dp), color = colors.surface,
@@ -87,21 +100,27 @@ internal fun ConversationInfoDialog(
                     }
                 }
                 Column(
-                    Modifier.weight(1f, fill = false).fillMaxWidth().verticalScroll(rememberScrollState())
+                    Modifier.weight(1f, fill = false).fillMaxWidth().layoutBounds(mediaViewport).verticalScroll(infoScroll)
                         .padding(start = gutter, end = gutter, bottom = if (compact) 18.dp else 24.dp).testTag("conversation-info-content"),
                     verticalArrangement = Arrangement.spacedBy(if (compact) 16.dp else 18.dp),
                 ) {
-                    Column(Modifier.fillMaxWidth().padding(top = 2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        ConversationAvatar(conversation, if (compact) 60.dp else 72.dp, circular = true)
-                        Text(name, Modifier.padding(top = 10.dp).semantics { heading() }, fontSize = if (compact) 21.sp else 24.sp,
-                            lineHeight = if (compact) 25.sp else 29.sp, fontWeight = FontWeight.Bold,
-                            letterSpacing = (-0.4).sp, textAlign = TextAlign.Center)
-                        Text(status, Modifier.padding(top = 4.dp), color = colors.onSurfaceVariant, textAlign = TextAlign.Center,
-                            fontSize = 13.sp, lineHeight = 18.sp)
+                    val online = !group && state.peerOnline == true
+                    if (!group && !compact) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            verticalAlignment = Alignment.CenterVertically) {
+                            ConversationAvatar(conversation, 64.dp, circular = true)
+                            ConversationIdentity(name, status, online, centered = false, modifier = Modifier.weight(1f))
+                        }
+                    } else {
+                        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            ConversationAvatar(conversation, if (compact) 60.dp else 72.dp, circular = true)
+                            ConversationIdentity(name, status, online, centered = true)
+                        }
                     }
                     val secondaryAction = if (group) onEdit.takeIf { conversation.canManage } else onCall
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)) {
-                        val actionModifier = if (compact && secondaryAction != null) Modifier.weight(1f) else Modifier
+                        val actionModifier = if ((!group || compact) && secondaryAction != null) Modifier.weight(1f) else Modifier
                         ConversationInfoAction(if (group) "Перейти в чат" else "Сообщение", CallIcons.MessageCircle, "conversation-info-message", actionModifier, onClick = onMessage)
                         if (secondaryAction != null) ConversationInfoAction(
                             if (group) "Редактировать группу" else "Позвонить",
@@ -111,19 +130,23 @@ internal fun ConversationInfoDialog(
                         )
                     }
                     Column(Modifier.fillMaxWidth().background(colors.background, RoundedCornerShape(16.dp))
-                        .padding(horizontal = if (compact) 15.dp else 20.dp, vertical = if (compact) 15.dp else 18.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        details.forEach { (label, value) ->
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 16.dp)) {
-                                Text(label, Modifier.weight(if (compact) .25f else .22f), color = colors.onSurfaceVariant, fontSize = 12.sp, lineHeight = 20.sp)
-                                Text(value, Modifier.weight(if (compact) .75f else .78f), color = colors.onSurface, fontSize = 14.sp, lineHeight = 20.sp)
+                        .padding(horizontal = if (compact) 15.dp else 20.dp, vertical = 4.dp)) {
+                        details.forEachIndexed { index, (label, value) ->
+                            if (index > 0) HorizontalDivider(color = colors.outlineVariant)
+                            Row(Modifier.fillMaxWidth().padding(vertical = 10.dp),
+                                horizontalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 16.dp)) {
+                                Text(label, Modifier.weight(if (compact) .25f else .22f).alignByBaseline(),
+                                    color = colors.onSurfaceVariant, fontSize = 12.sp, lineHeight = 20.sp)
+                                Text(value, Modifier.weight(if (compact) .75f else .78f).alignByBaseline(),
+                                    color = colors.onSurface, fontSize = 14.sp, lineHeight = 20.sp)
                             }
                         }
-                        if (!group) LoadingStatus(state.contactProfile.loading, state.contactProfile.error, actions.loadContactProfile)
+                        if (!group) LoadingStatus(state.contactProfile.loading, state.contactProfile.error, actions.loadContactProfile,
+                            Modifier.padding(vertical = 8.dp))
                     }
                     if (group) ConversationInfoMembers(conversation, state, actions, compact)
-                    ConversationInfoMaterials(conversation, state, actions, tab, { tab = it })
-                    FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
+                    ConversationInfoMaterials(conversation, state, actions, tab, mediaViewport, select = { tab = it }, openMedia = { preview = it })
+                    if (group) FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
                         TextButton(onPins, Modifier.testTag("conversation-info-pins")) { Text("Закреплённые сообщения", fontSize = 12.sp) }
                         TextButton({ dismiss(); actions.refreshMessages() }, Modifier.testTag("messages-refresh"), enabled = !state.messages.loading) {
                             Text("Обновить сообщения", fontSize = 12.sp)
@@ -131,6 +154,21 @@ internal fun ConversationInfoDialog(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ConversationIdentity(name: String, status: String, online: Boolean, centered: Boolean, modifier: Modifier = Modifier) {
+    val colors = MaterialTheme.colorScheme
+    Column(modifier, horizontalAlignment = if (centered) Alignment.CenterHorizontally else Alignment.Start,
+        verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(name, Modifier.semantics { heading() }, color = colors.onSurface, fontSize = if (centered) 22.sp else 24.sp,
+            lineHeight = 28.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.4).sp,
+            textAlign = if (centered) TextAlign.Center else TextAlign.Start)
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (online) Box(Modifier.size(7.dp).background(colors.tertiary, CircleShape))
+            Text(status, color = colors.onSurfaceVariant, fontSize = 13.sp, lineHeight = 18.sp)
         }
     }
 }
@@ -181,7 +219,7 @@ private fun ConversationInfoMembers(conversation: ChatConversation, state: Messa
 
 @Composable
 private fun ConversationInfoMaterials(conversation: ChatConversation, state: MessagingUiState, actions: MessagingActions,
-    tab: ChatMaterialKind, select: (ChatMaterialKind) -> Unit) {
+    tab: ChatMaterialKind, mediaViewport: LayoutBoundsHolder, select: (ChatMaterialKind) -> Unit, openMedia: (ChatAttachment) -> Unit) {
     val colors = MaterialTheme.colorScheme
     val page = state.chatMaterials?.takeIf { it.kind == tab }?.page
     val fromHistory = page?.data == null && page?.loading != true && page?.error == null
@@ -209,22 +247,7 @@ private fun ConversationInfoMaterials(conversation: ChatConversation, state: Mes
         if (items.isEmpty() && page?.loading != true && page?.error == null) {
             ConversationInfoEmpty(tab, fromHistory)
         } else if (tab == ChatMaterialKind.MEDIA) {
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                items.mapNotNull { it.attachment }.chunked(3).forEach { row ->
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                        row.forEach { file ->
-                            Column(Modifier.weight(1f).aspectRatio(1f).clip(RoundedCornerShape(9.dp)).background(colors.surfaceVariant)
-                                .clickable(enabled = !state.attachmentBusy, role = Role.Button) { actions.download(file) }
-                                .testTag("conversation-info-material-${file.id}").padding(6.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(5.dp, Alignment.CenterVertically)) {
-                                Icon(if (file.mimeType.startsWith("video/")) CallIcons.Video else ChatMessageIcons.Image, null, Modifier.size(22.dp), tint = colors.primary)
-                                Text(file.filename, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            }
-                        }
-                        repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
-                    }
-                }
-            }
+            ConversationMediaGrid(items.mapNotNull { it.attachment }, mediaViewport, openMedia)
         } else {
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 items.forEach { item ->

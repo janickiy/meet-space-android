@@ -4,6 +4,10 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.layout.*
@@ -13,18 +17,24 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -32,6 +42,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.meetspace.core.model.*
@@ -57,220 +68,346 @@ internal fun recordingStatus(record: Recording) = when (record.status) {
 }
 
 @Composable
-private fun <T> RecordingSelect(label: String, value: T, choices: List<Pair<T, String>>, select: (T) -> Unit, modifier: Modifier = Modifier, fontSize: Int = 12) {
+private fun <T> RecordingSelect(
+    label: String, value: T, choices: List<Pair<T, String>>, select: (T) -> Unit, tag: String,
+    modifier: Modifier = Modifier, fontSize: Int = 12, minimumHeight: Dp = 44.dp,
+) {
+    val colors = MaterialTheme.colorScheme
+    val shape = RoundedCornerShape(10.dp)
     var expanded by remember { mutableStateOf(false) }
     Box(modifier) {
-        OutlinedButton({ expanded = true }, shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurface, containerColor = MaterialTheme.colorScheme.surface),
-            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp), modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-            Text(choices.find { it.first == value }?.second ?: label, Modifier.weight(1f), fontSize = fontSize.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            Spacer(Modifier.width(4.dp))
-            Icon(CallIcons.ChevronDown, label, Modifier.size(14.dp))
+        Surface(shape = shape, color = colors.surface, border = BorderStroke(1.dp, colors.outlineVariant)) {
+            Row(Modifier.fillMaxWidth().heightIn(min = minimumHeight).clickable(role = Role.DropdownList) { expanded = true }
+                .testTag(tag).padding(start = if (fontSize == 10) 8.dp else 12.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(choices.firstOrNull { it.first == value }?.second ?: label, Modifier.weight(1f), color = colors.onSurface,
+                    fontSize = fontSize.sp, lineHeight = (fontSize + 5).sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Icon(CallIcons.ChevronDown, label, Modifier.size(12.dp))
+            }
         }
-        DropdownMenu(expanded, { expanded = false }) { choices.forEach { (id, title) -> DropdownMenuItem(text = { Text(title) }, onClick = { select(id); expanded = false }) } }
+        DropdownMenu(expanded, { expanded = false }) {
+            choices.forEach { (id, title) -> DropdownMenuItem(text = { Text(title) }, onClick = { expanded = false; select(id) }) }
+        }
     }
 }
 
 @Composable
-internal fun RecordingLibraryContent(state: RecordingsUiState, actions: RecordingsActions, modifier: Modifier, tablet: Boolean) {
-    var query by remember { mutableStateOf("") }
-    var live by remember { mutableStateOf(false) }
-    var meeting by remember { mutableStateOf("") }
-    var period by remember { mutableIntStateOf(0) }
-    var oldest by remember { mutableStateOf(false) }
-    var grid by remember { mutableStateOf(false) }
-    var deleting by remember { mutableStateOf<Recording?>(null) }
+private fun RecordingLibraryTabs(live: Boolean, roomy: Boolean, choose: (Boolean) -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    Box(Modifier.fillMaxWidth()) {
+        HorizontalDivider(Modifier.align(Alignment.BottomCenter), color = colors.outlineVariant)
+        Row(Modifier.fillMaxWidth().selectableGroup().padding(bottom = 1.dp),
+            horizontalArrangement = Arrangement.spacedBy(if (roomy) 22.dp else 25.dp)) {
+            listOf(false to "Завершённые", true to "В эфире").forEach { (value, title) ->
+                val selected = live == value
+                Column(Modifier.width(IntrinsicSize.Max).selectable(selected, role = Role.Tab) { choose(value) }
+                    .testTag(if (value) "recordings-live" else "recordings-finished")) {
+                    Row(Modifier.heightIn(min = 42.dp).padding(start = 2.dp, end = 2.dp, bottom = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(title, fontSize = if (roomy) 14.sp else 13.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold,
+                            color = if (selected) colors.primary else colors.onSurfaceVariant)
+                        if (value) Box(Modifier.size(6.dp).background(colors.tertiary, CircleShape))
+                    }
+                    HorizontalDivider(thickness = 2.dp, color = if (selected) colors.primary else Color.Transparent)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecordingViewSwitch(grid: Boolean, roomy: Boolean, choose: (Boolean) -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    Surface(shape = RoundedCornerShape(10.dp), color = colors.surface, border = BorderStroke(1.dp, colors.outlineVariant)) {
+        Row(Modifier.padding(if (roomy) 4.dp else 3.dp).selectableGroup()) {
+            listOf(false to RecordingIcons.List, true to RecordingIcons.Grid).forEach { (isGrid, icon) ->
+                val selected = isGrid == grid
+                Box(Modifier.size(44.dp).clip(RoundedCornerShape(7.dp))
+                    .background(if (selected) colors.primaryContainer else colors.surface)
+                    .selectable(selected, role = Role.Tab) { choose(isGrid) }
+                    .testTag(if (isGrid) "recordings-view-grid" else "recordings-view-list"), contentAlignment = Alignment.Center) {
+                    Icon(icon, if (isGrid) "Плитка" else "Список", Modifier.size(18.dp),
+                        tint = if (selected) colors.primary else colors.onSurfaceVariant)
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun RecordingLibraryContent(
+    state: RecordingsUiState, actions: RecordingsActions, modifier: Modifier, tablet: Boolean,
+    selfName: String,
+) {
+    val initialMeetingId = state.meetingId.orEmpty()
+    val libraryTag = if (initialMeetingId.isEmpty()) "recordings-library" else "recordings-list"
+    var query by remember(initialMeetingId) { mutableStateOf("") }
+    var live by rememberSaveable(initialMeetingId) { mutableStateOf(false) }
+    var meeting by remember(initialMeetingId) { mutableStateOf(initialMeetingId) }
+    var period by rememberSaveable(initialMeetingId) { mutableIntStateOf(0) }
+    var oldest by rememberSaveable(initialMeetingId) { mutableStateOf(false) }
+    var grid by rememberSaveable(initialMeetingId) { mutableStateOf(false) }
+    var deleting by remember(initialMeetingId) { mutableStateOf<Recording?>(null) }
+    val scoped = initialMeetingId.isNotEmpty()
     val library = state.library
-    val all = library.meetings.flatMap { row -> row.recordings.data?.items.orEmpty().map { row.meeting to it } }
-    val matching = all.filter { (m, r) ->
-        (if (live) r.status !in finishedRecordingStates else r.status in finishedRecordingStates) &&
-            (meeting.isBlank() || meeting == m.id) && (period == 0 || (r.startedAt ?: r.createdAt) >= Instant.now().minusSeconds(period * 86400L)) &&
-            (query.isBlank() || "${m.title} ${recordingKind(r)}".contains(query.trim(), true))
-    }.sortedWith(compareBy<Pair<Meeting, Recording>> { it.second.startedAt ?: it.second.createdAt }.let { if (oldest) it else it.reversed() })
+    val currentMeeting = state.meeting.data?.takeIf { it.id == initialMeetingId }
+    val all: List<Pair<Meeting?, Recording>> = if (scoped) {
+        state.recordings.data?.items.orEmpty().filter { record ->
+            record.conferenceId == initialMeetingId && (record.status !in setOf("ready", "partial_ready") ||
+                record.playable || record.files.any { it.type == "tracks_archive" && it.available })
+        }.map { currentMeeting to it }
+    } else library.meetings.flatMap { row -> row.recordings.data?.items.orEmpty().map { row.meeting to it } }
+    val inTab = all.filter { (_, record) -> (record.status !in finishedRecordingStates) == live }
+    val cutoff = if (period == 0) null else Instant.now().minusSeconds(period * 86400L)
+    val text = query.trim()
+    val matching = inTab.filter { (info, record) ->
+        val date = record.startedAt ?: record.createdAt
+        (meeting.isEmpty() || meeting == record.conferenceId) && (cutoff == null || date >= cutoff) &&
+            (text.isEmpty() || info?.title?.contains(text, true) == true || recordingKind(record).contains(text, true) ||
+                recordingTime(date).contains(text, true))
+    }.sortedWith(compareBy<Pair<Meeting?, Recording>> { it.second.startedAt ?: it.second.createdAt }.let { if (oldest) it else it.reversed() })
+    val meetingChoices = listOf("" to "Все встречи") + if (scoped) {
+        listOf(initialMeetingId to (currentMeeting?.title ?: "Текущая встреча"))
+    } else {
+        library.meetings.filter { row -> row.meeting.id == meeting ||
+            row.recordings.data?.items.orEmpty().any { (it.status !in finishedRecordingStates) == live } }
+            .map { it.meeting.id to it.meeting.title }
+    }
+    val loading = if (scoped) state.recordings.loading else library.loading
+    val refresh = if (scoped) actions.refreshRecordings else actions.refreshLibrary
+    val showEmpty = matching.isEmpty() && !loading && if (scoped) state.recordings.data != null && state.recordings.error == null
+        else library.loaded && library.error == null && library.meetings.none { it.recordings.error != null || it.recordings.loading }
+    fun chooseMeeting(id: String) {
+        if (scoped && id.isEmpty()) actions.allRecordings() else meeting = id
+    }
+
     BoxWithConstraints(modifier.fillMaxHeight()) {
-        val readableWidth = maxWidth / LocalDensity.current.fontScale.coerceAtLeast(1f)
-        val roomy = tablet && readableWidth >= 650.dp
-        val columns = if (grid && readableWidth >= 1000.dp) 3 else if (grid && readableWidth >= 560.dp) 2 else 1
-        LazyColumn(Modifier.fillMaxSize().testTag("recordings-library"), contentPadding = PaddingValues(top = if (roomy) 22.dp else 16.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (state.error != null || state.notice != null || state.download != null) item { RecordingMessages(state, actions) }
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("БИБЛИОТЕКА ВСТРЕЧ", color = MaterialTheme.colorScheme.primary, fontSize = 10.sp, letterSpacing = 1.2.sp, fontWeight = FontWeight.Bold)
-                    Text("Важное остаётся с вами", Modifier.semantics { heading() }, fontSize = if (roomy) 26.sp else 24.sp,
-                        lineHeight = 30.sp, letterSpacing = (-0.8).sp, fontWeight = FontWeight.SemiBold)
-                    Text("Видео, аудио и материалы ваших встреч.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+        val scale = LocalDensity.current.fontScale.coerceAtLeast(1f)
+        val readableWidth = maxWidth / scale
+        val roomy = tablet && readableWidth >= 540.dp
+        val meetingFieldWidth = minOf(350.dp, maxWidth * .38f)
+        val large = roomy && (maxWidth + 96.dp) / scale > 1000.dp
+        val columns = if (!grid) 1 else if (large) 3 else if (roomy) 2 else 1
+        val gap = if (grid && roomy) 16.dp else if (grid) 13.dp else 12.dp
+        val colors = MaterialTheme.colorScheme
+        PullToRefreshBox(isRefreshing = loading, onRefresh = { if (!loading) refresh() }, modifier = Modifier.fillMaxSize()) {
+            LazyColumn(Modifier.fillMaxSize().testTag(libraryTag).semantics {
+                customActions = listOf(CustomAccessibilityAction("Обновить записи") { if (!loading) refresh(); !loading })
+            }, contentPadding = PaddingValues(top = if (roomy) 22.dp else 16.dp, bottom = if (roomy) 30.dp else 24.dp)) {
+                if (state.error != null || state.notice != null || state.download != null) item {
+                    Box(Modifier.padding(bottom = 12.dp)) { RecordingMessages(state, actions) }
                 }
-            }
-            item { Box(Modifier.fillMaxWidth()) {
-                HorizontalDivider(Modifier.align(Alignment.BottomCenter), color = MaterialTheme.colorScheme.outlineVariant)
-                Row(Modifier.fillMaxWidth().selectableGroup(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    listOf(false to "Завершённые", true to "В эфире").forEach { (value, title) ->
-                        val selected = live == value
-                        Column(Modifier.widthIn(max = readableWidth / 2).width(IntrinsicSize.Max)
-                            .selectable(selected, role = Role.Tab) { live = value; meeting = "" }
-                            .testTag(if (value) "recordings-live" else "recordings-finished")) {
-                            Row(Modifier.heightIn(min = 48.dp).padding(horizontal = 2.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Text(title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
-                                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-                                if (value) Box(Modifier.size(6.dp).background(Color(0xFF278A78), CircleShape))
-                            }
-                            HorizontalDivider(thickness = 2.dp, color = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent)
+                item {
+                    Column(Modifier.padding(bottom = if (roomy) 24.dp else 18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Box(Modifier.heightIn(min = 21.dp), contentAlignment = Alignment.CenterStart) {
+                            Text("БИБЛИОТЕКА ВСТРЕЧ", color = colors.primary, fontSize = if (roomy) 10.sp else 9.sp,
+                                lineHeight = 15.sp, letterSpacing = if (roomy) 1.2.sp else 1.08.sp, fontWeight = FontWeight.Bold)
+                        }
+                        Text("Важное остаётся с вами", Modifier.widthIn(max = if (roomy) Dp.Unspecified else 310.dp)
+                            .heightIn(min = if (roomy) 31.dp else 29.dp).semantics { heading() },
+                            fontSize = if (roomy) 26.sp else 24.sp, lineHeight = if (roomy) 31.sp else 29.sp,
+                            letterSpacing = if (roomy) (-1.17).sp else (-1.08).sp, fontWeight = FontWeight.SemiBold)
+                        Text("Видео, аудио и материалы ваших встреч.", Modifier.heightIn(min = 18.dp),
+                            color = colors.onSurfaceVariant, fontSize = 12.sp, lineHeight = 18.sp)
+                    }
+                }
+                item { Box(Modifier.padding(bottom = if (roomy) 20.dp else 16.dp)) {
+                    RecordingLibraryTabs(live, roomy) { selected -> live = selected; if (!scoped) meeting = "" }
+                } }
+                item {
+                    val search: @Composable (Modifier) -> Unit = { mod ->
+                        WorkspaceSearchField(query, { query = it.take(200) }, "Найти запись встречи", "$libraryTag-search",
+                            mod, minimumHeight = if (roomy) 48.dp else 46.dp)
+                    }
+                    val choice: @Composable (Modifier) -> Unit = { mod ->
+                        Column(mod, verticalArrangement = Arrangement.spacedBy(if (roomy) 6.dp else 4.dp)) {
+                            Text("Встреча", Modifier.heightIn(min = 17.dp), fontSize = 11.sp, lineHeight = 17.sp, color = colors.onSurfaceVariant)
+                            RecordingSelect("Встреча", meeting, meetingChoices, ::chooseMeeting, "recordings-meeting-filter",
+                                minimumHeight = if (roomy) 48.dp else 44.dp)
                         }
                     }
-                    Spacer(Modifier.weight(1f))
-                    IconButton(actions.refreshLibrary, enabled = !library.loading, modifier = Modifier.testTag("recordings-library-refresh")) {
-                        Icon(CallIcons.RefreshCw, "Обновить библиотеку записей", Modifier.size(18.dp))
+                    if (roomy) Row(Modifier.fillMaxWidth().padding(bottom = 18.dp), horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.Bottom) {
+                        search(Modifier.weight(1f)); choice(Modifier.width(meetingFieldWidth))
+                    } else Column(Modifier.fillMaxWidth().padding(bottom = 14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        search(Modifier.fillMaxWidth()); choice(Modifier.fillMaxWidth())
                     }
                 }
-            } }
-            item {
-                val search: @Composable (Modifier) -> Unit = { mod -> WorkspaceSearchField(query, { query = it.take(200) }, "Найти запись встречи", "recordings-library-search", mod, minimumHeight = 48.dp) }
-                val choice: @Composable (Modifier) -> Unit = { mod ->
-                    Column(mod, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("Встреча", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        RecordingSelect("Встреча", meeting, listOf("" to "Все встречи") + library.meetings.map { it.meeting.id to it.meeting.title }, { meeting = it })
+                item {
+                    val filters: @Composable (Modifier) -> Unit = { mod ->
+                        Row(mod, horizontalArrangement = Arrangement.spacedBy(if (roomy) 9.dp else 7.dp)) {
+                            RecordingSelect("Период записей", period, listOf(0 to "Всё время", 7 to "За 7 дней", 30 to "За 30 дней", 90 to "За 90 дней"),
+                                { period = it }, "recordings-period-filter", if (roomy) Modifier.width(125.dp) else Modifier.weight(1f), if (roomy) 12 else 10)
+                            RecordingSelect("Сортировка записей", oldest, listOf(false to "Сначала новые", true to "Сначала старые"),
+                                { oldest = it }, "recordings-sort-filter", if (roomy) Modifier.width(156.dp) else Modifier.weight(1f), if (roomy) 12 else 10)
+                        }
+                    }
+                    if (roomy || readableWidth >= 285.dp) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = if (roomy) Alignment.CenterVertically else Alignment.Bottom) {
+                            filters(Modifier.weight(1f))
+                            RecordingViewSwitch(grid, roomy) { grid = it }
+                        }
+                    } else Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                        filters(Modifier.fillMaxWidth())
+                        RecordingViewSwitch(grid, roomy) { grid = it }
                     }
                 }
-                if (roomy) Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.Bottom) { search(Modifier.weight(1f)); choice(Modifier.weight(.6f).widthIn(max = 350.dp)) }
-                else Column(verticalArrangement = Arrangement.spacedBy(10.dp)) { search(Modifier.fillMaxWidth()); choice(Modifier.fillMaxWidth()) }
-            }
-            item { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                val periodPicker: @Composable (Modifier) -> Unit = { mod ->
-                    RecordingSelect("Период записей", period, listOf(0 to "Всё время", 7 to "За 7 дней", 30 to "За 30 дней", 90 to "За 90 дней"), { period = it }, mod, if (roomy) 12 else 11)
+                item {
+                    Text("Найдено: ${matching.size}", Modifier.padding(start = 2.dp, top = 14.dp, bottom = if (roomy) 10.dp else 9.dp)
+                        .heightIn(min = if (roomy) 15.dp else 14.dp), fontSize = if (roomy) 10.sp else 9.sp,
+                        lineHeight = if (roomy) 15.sp else 14.sp, color = colors.onSurfaceVariant)
                 }
-                val sortPicker: @Composable (Modifier) -> Unit = { mod ->
-                    RecordingSelect("Сортировка записей", oldest, listOf(false to "Сначала новые", true to "Сначала старые"), { oldest = it }, mod, if (roomy) 12 else 11)
+                if (scoped) {
+                    if (state.meeting.error != null || state.meeting.loading) item { RecordingLoad(state.meeting, refresh) }
+                    if (state.recordings.error != null) item { RecordingLoad(state.recordings, refresh) }
+                } else if (library.error != null) item { RecordingLoad(RecordingsLoad<Unit>(error = library.error), refresh) }
+
+                items(matching.chunked(columns), key = { row -> row.joinToString { it.second.id } }) { row ->
+                    val rowTag = if (scoped) "recordings-card" else "recordings-library"
+                    val equalHeights = columns > 1
+                    Row(Modifier.fillMaxWidth().padding(bottom = gap).testTag(if (equalHeights) "$rowTag-pair" else "$rowTag-single")
+                        .then(if (equalHeights) Modifier.height(IntrinsicSize.Min) else Modifier),
+                        horizontalArrangement = Arrangement.spacedBy(gap)) {
+                        row.forEach { (info, record) ->
+                            RecordingLibraryCard(info, record, grid || readableWidth < 270.dp, roomy,
+                                Modifier.weight(1f).then(if (equalHeights) Modifier.fillMaxHeight() else Modifier),
+                                open = { if (scoped) actions.open(record.id) else actions.openLibrary(record.conferenceId, record.id) },
+                                selfId = state.selfId, delete = if (canDeleteRecording(record, info, state.selfId)) ({ deleting = record }) else null,
+                                selfName = selfName, large = large, download = { file -> actions.download(record, file) },
+                                downloadEnabled = state.download == null && !state.mediaBusy)
+                        }
+                        repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
+                    }
                 }
-                val views: @Composable () -> Unit = {
-                    Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surface,
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
-                        Row(Modifier.padding(2.dp).selectableGroup()) {
-                            listOf(false to RecordingIcons.List, true to RecordingIcons.Grid).forEach { (isGrid, icon) ->
-                                val selected = isGrid == grid
-                                Box(Modifier.size(48.dp).clip(RoundedCornerShape(8.dp))
-                                    .background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface)
-                                    .selectable(selected, role = Role.Tab) { grid = isGrid }
-                                    .testTag(if (isGrid) "recordings-view-grid" else "recordings-view-list"), contentAlignment = Alignment.Center) {
-                                    Icon(icon, if (isGrid) "Плитка" else "Список", Modifier.size(18.dp),
-                                        tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                            }
+                if (showEmpty) item {
+                    Surface(color = colors.surface, shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, colors.outlineVariant)) {
+                        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = if (roomy) 42.dp else 34.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Icon(WorkspaceHeaderIcons.Recordings, null, Modifier.padding(bottom = 7.dp).size(40.dp), tint = colors.primary)
+                            Text(if (query.isNotBlank()) "На загруженных страницах совпадений нет" else "Записи не найдены",
+                                Modifier.testTag(if (scoped) "recordings-empty" else "recordings-library-empty"),
+                                fontSize = 19.sp, lineHeight = 24.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
+                            Text("Попробуйте другую встречу или измените условия поиска.", fontSize = 12.sp, color = colors.onSurfaceVariant, textAlign = TextAlign.Center)
+                            OutlinedButton({ query = ""; period = 0; chooseMeeting("") }, modifier = Modifier.padding(top = 12.dp)) { Text("Сбросить фильтры") }
                         }
                     }
                 }
-                if (readableWidth >= 346.dp) Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    if (roomy) {
-                        periodPicker(Modifier.width(120.dp)); sortPicker(Modifier.width(146.dp)); Spacer(Modifier.weight(1f))
-                    } else {
-                        periodPicker(Modifier.weight(1f)); sortPicker(Modifier.weight(1.25f))
+                if (scoped) {
+                    if (state.recordings.data?.nextOffset != null) item {
+                        OutlinedButton(actions.moreRecordings, enabled = !loading, modifier = Modifier.fillMaxWidth().testTag("recordings-more")) { Text("Проверить следующие записи") }
                     }
-                    views()
                 } else {
-                    if (readableWidth >= 360.dp) Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        periodPicker(Modifier.weight(1f)); sortPicker(Modifier.weight(1.2f))
-                    } else {
-                        periodPicker(Modifier.fillMaxWidth()); sortPicker(Modifier.fillMaxWidth())
+                    items(library.meetings.filter { it.recordings.error != null || it.recordings.data?.nextOffset != null || it.recordings.loading },
+                        key = { "continuation-${it.meeting.id}" }) { row ->
+                        Column(Modifier.padding(bottom = 12.dp)) {
+                            Text(row.meeting.title, style = MaterialTheme.typography.titleSmall)
+                            if (row.recordings.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+                            row.recordings.error?.let { Text(it, color = colors.error)
+                                TextButton({ actions.retryLibraryMeeting(row.meeting.id) }, modifier = Modifier.testTag("recordings-library-retry-${row.meeting.id}")) { Text("Повторить") } }
+                            if (row.recordings.data?.nextOffset != null) TextButton({ actions.moreLibraryMeeting(row.meeting.id) },
+                                enabled = !row.recordings.loading, modifier = Modifier.testTag("recordings-library-more-${row.meeting.id}")) { Text("Ещё записи этой встречи") }
+                        }
                     }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) { views() }
+                    if (library.hasMore) item { OutlinedButton(actions.moreLibrary, enabled = !loading,
+                        modifier = Modifier.fillMaxWidth().testTag("recordings-library-more")) { Text("Показать ещё записи") } }
                 }
-            } }
-            item { Text("Найдено: ${matching.size}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-            if (library.loading) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
-            if (library.error != null) item { RecordingLoad(RecordingsLoad<Unit>(error = library.error), actions.refreshLibrary) }
-            items(matching.chunked(columns), key = { row -> row.joinToString { it.second.id } }) { row ->
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    row.forEach { (m, r) -> RecordingLibraryCard(m, r, grid, roomy && !grid, Modifier.weight(1f), { actions.openLibrary(m.id, r.id) },
-                        selfId = state.selfId, delete = if (canDeleteRecording(r, m, state.selfId)) ({ deleting = r }) else null) }
-                    repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
-                }
+                item { RecordingRetention(compact = !roomy) }
             }
-            if (matching.isEmpty() && library.loaded && !library.loading && library.error == null && library.meetings.none { it.recordings.error != null || it.recordings.loading }) item {
-                Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Icon(WorkspaceHeaderIcons.Recordings, null, Modifier.size(40.dp), tint = MaterialTheme.colorScheme.primary)
-                    Text(if (query.isNotBlank()) "На загруженных страницах совпадений нет" else "Записи не найдены", style = MaterialTheme.typography.titleLarge, modifier = Modifier.testTag("recordings-library-empty"))
-                    Text("Выберите другую встречу или измените условия поиска.", style = MaterialTheme.typography.bodySmall)
-                    OutlinedButton({ query = ""; meeting = ""; period = 0; live = false }) { Text("Сбросить фильтры") }
-                }
-            }
-            items(library.meetings.filter { it.recordings.error != null || it.recordings.data?.nextOffset != null || it.recordings.loading }, key = { "continuation-${it.meeting.id}" }) { row ->
-                Column { Text(row.meeting.title, style = MaterialTheme.typography.titleSmall)
-                    if (row.recordings.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
-                    row.recordings.error?.let { Text(it, color = MaterialTheme.colorScheme.error); TextButton({ actions.retryLibraryMeeting(row.meeting.id) }, modifier = Modifier.testTag("recordings-library-retry-${row.meeting.id}")) { Text("Повторить") } }
-                    if (row.recordings.data?.nextOffset != null) TextButton({ actions.moreLibraryMeeting(row.meeting.id) }, enabled = !row.recordings.loading, modifier = Modifier.testTag("recordings-library-more-${row.meeting.id}")) { Text("Ещё записи этой встречи") } }
-            }
-            if (library.hasMore) item { OutlinedButton(actions.moreLibrary, enabled = !library.loading, modifier = Modifier.fillMaxWidth().testTag("recordings-library-more")) { Text("Показать ещё записи") } }
-            item { RecordingRetention() }
         }
     }
     deleting?.let { RecordingDeleteDialog(it, state, actions) { deleting = null } }
 }
 
 @Composable
-internal fun RecordingLibraryCard(meeting: Meeting?, record: Recording, grid: Boolean, wide: Boolean,
-    modifier: Modifier, open: () -> Unit, selfId: String, delete: (() -> Unit)? = null) {
-    Surface(onClick = open, shape = RoundedCornerShape(if (wide || grid) 16.dp else 13.dp), color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), modifier = modifier.testTag("recording-row-${record.id}")) {
-        BoxWithConstraints {
-            val readableWidth = maxWidth / LocalDensity.current.fontScale.coerceAtLeast(1f)
-            val stacked = grid || readableWidth < 270.dp
-            val colors = MaterialTheme.colorScheme
-            val body: @Composable (Modifier) -> Unit = { mod ->
-                Column(mod, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Icon(recordingModeIcon(record), null, Modifier.size(12.dp), tint = colors.primary)
-                        Text(recordingKind(record), fontSize = 10.sp, lineHeight = 14.sp, fontWeight = FontWeight.SemiBold, color = colors.primary)
-                    }
-                    Text(meeting?.title ?: "Запись встречи", fontSize = if (grid) 15.sp else if (wide) 14.sp else 12.sp,
-                        lineHeight = if (grid || wide) 20.sp else 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 3, overflow = TextOverflow.Ellipsis)
-                    Text(listOfNotNull(recordingCardDate.format(record.startedAt ?: record.createdAt),
-                        meeting?.participantCount?.let(::recordingParticipants)).joinToString(" · "), fontSize = if (wide || grid) 11.sp else 10.sp,
-                        lineHeight = 15.sp, color = colors.onSurfaceVariant)
-                    if (meeting != null && selfId.isNotBlank() && meeting.ownerId == selfId) {
-                        Text("Организатор: вы", fontSize = 10.sp, lineHeight = 14.sp, color = colors.onSurfaceVariant)
-                    }
-                    if (record.status !in finishedRecordingStates || !record.playable) {
-                        Text(recordingStatus(record), fontSize = 10.sp, lineHeight = 14.sp, color = colors.onSurfaceVariant)
-                    }
-                }
+internal fun RecordingLibraryCard(
+    meeting: Meeting?, record: Recording, grid: Boolean, wide: Boolean,
+    modifier: Modifier, open: () -> Unit, selfId: String, delete: (() -> Unit)? = null,
+    large: Boolean = wide, selfName: String = "", download: ((RecordingFile) -> Unit)? = null, downloadEnabled: Boolean = true,
+) {
+    val colors = MaterialTheme.colorScheme
+    val compact = !wide
+    val title = meeting?.title?.takeIf { it.isNotBlank() } ?: "Запись встречи"
+    val owner = if (meeting?.ownerId == selfId && selfId.isNotBlank()) {
+        if (selfName.isBlank()) "вы" else "$selfName (вы)"
+    } else null
+    val ready = record.status == "ready" || record.status == "partial_ready"
+    val file = if (ready && record.mode == "individual_tracks") {
+        record.files.firstOrNull { it.type == "tracks_archive" && it.available } ?: record.media
+    } else record.media.takeIf { ready }
+    val live = record.status == "recording" || record.status == "degraded"
+    val compactRow = compact && !grid
+
+    val body: @Composable (Modifier) -> Unit = { bodyModifier ->
+        Column(bodyModifier, verticalArrangement = Arrangement.spacedBy(if (compactRow) 4.dp else 5.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (compactRow) 4.dp else 5.dp)) {
+                Icon(recordingModeIcon(record), null, Modifier.size(if (compactRow) 11.dp else 13.dp), tint = colors.primary)
+                Text(if (live) "${recordingKind(record)} · Идёт запись" else recordingKind(record),
+                    fontSize = if (compactRow) 9.sp else 10.sp, lineHeight = if (compactRow) 14.sp else 15.sp,
+                    fontWeight = FontWeight.SemiBold, color = colors.primary)
             }
-            val action: @Composable (Boolean) -> Unit = { labelled ->
-                val label = when (record.mode) {
-                    "individual_tracks" -> "Материалы"
-                    "audio_only" -> "Слушать"
-                    else -> "Смотреть"
-                }
-                val icon = if (record.mode == "individual_tracks") RecordingIcons.FolderOpen else CallIcons.Play
-                OutlinedButton(open, modifier = Modifier.heightIn(min = 48.dp), shape = RoundedCornerShape(9.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = colors.onSurface),
-                    border = BorderStroke(1.dp, colors.outlineVariant), contentPadding = PaddingValues(horizontal = 11.dp)) {
-                    Icon(icon, if (labelled) null else label, Modifier.size(15.dp))
-                    if (labelled) {
-                        Spacer(Modifier.width(6.dp))
-                        Text(label, fontSize = 11.sp)
-                    }
-                }
+            Text(title, Modifier.heightIn(min = if (grid && wide) 40.dp else 0.dp),
+                fontSize = when { compactRow -> 12.sp; compact -> 15.sp; else -> 14.sp },
+                lineHeight = if (compactRow) 17.sp else 20.sp, fontWeight = FontWeight.SemiBold)
+            Text(listOfNotNull(recordingCardDate.format(record.startedAt ?: record.createdAt),
+                meeting?.participantCount?.let(::recordingParticipants)).joinToString(" · "),
+                fontSize = if (compactRow) 9.sp else 11.sp, lineHeight = if (compactRow) 14.sp else 16.sp,
+                color = colors.onSurfaceVariant)
+            if (owner != null) Text("Организатор: $owner", fontSize = if (compactRow) 9.sp else 10.sp,
+                lineHeight = if (compactRow) 14.sp else 15.sp, color = colors.onSurfaceVariant)
+            if (file == null && !live) Text(recordingStatus(record), fontSize = 10.sp, lineHeight = 15.sp, color = colors.onSurfaceVariant)
+        }
+    }
+    val menu: @Composable () -> Unit = {
+        RecordingMenu(title = title, open = open, delete = delete, downloadEnabled = downloadEnabled,
+            download = if (file != null && download != null) ({ download(file) }) else null)
+    }
+    val primaryAction: @Composable () -> Unit = {
+        if (file != null) {
+            val label = when (record.mode) {
+                "individual_tracks" -> "Материалы"
+                "audio_only" -> "Слушать"
+                else -> "Смотреть"
             }
-            if (stacked) Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                RecordingModeCover(record, Modifier.fillMaxWidth().aspectRatio(16f / 9f))
-                body(Modifier.fillMaxWidth().padding(horizontal = 3.dp, vertical = 3.dp))
+            val labelled = large || compact
+            Row(Modifier.heightIn(min = 44.dp).clip(RoundedCornerShape(9.dp)).border(1.dp, colors.outlineVariant, RoundedCornerShape(9.dp))
+                .clickable(role = Role.Button, onClick = open).padding(horizontal = if (labelled) 12.dp else 9.dp),
+                horizontalArrangement = Arrangement.spacedBy(7.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
+                Icon(if (record.mode == "individual_tracks") RecordingIcons.FolderOpen else CallIcons.Play,
+                    if (labelled) null else label, Modifier.size(15.dp))
+                if (labelled) Text(label, fontSize = if (compact) 12.sp else 11.sp, lineHeight = 16.sp)
+            }
+        } else if (live) Text("В эфире", fontSize = 11.sp, color = colors.error)
+    }
+
+    Surface(onClick = open, shape = RoundedCornerShape(if (compactRow) 13.dp else 16.dp), color = colors.surface,
+        border = BorderStroke(1.dp, colors.outlineVariant), modifier = modifier.testTag("recording-row-${record.id}")) {
+        if (grid) {
+            Column(Modifier.padding(11.dp)) {
+                RecordingModeCover(record, Modifier.fillMaxWidth().aspectRatio(16f / 9f), compact = compact, grid = true)
+                body(Modifier.fillMaxWidth().padding(start = 3.dp, end = 3.dp, top = if (compact) 14.dp else 13.dp,
+                    bottom = if (compact) 14.dp else 10.dp))
+                Spacer(Modifier.weight(1f))
                 HorizontalDivider(color = colors.outlineVariant)
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    if (record.playable) action(true)
-                    Spacer(Modifier.weight(1f))
-                    RecordingMenu(open, delete)
+                Row(Modifier.fillMaxWidth().padding(top = 7.dp), verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween) {
+                    Box { primaryAction() }
+                    menu()
                 }
-            } else Row(Modifier.fillMaxWidth().padding(if (wide) 12.dp else 10.dp),
-                horizontalArrangement = Arrangement.spacedBy(if (wide) 12.dp else 8.dp), verticalAlignment = if (wide) Alignment.CenterVertically else Alignment.Top) {
-                val coverWidth = when {
-                    !wide -> 84.dp
-                    readableWidth < 965.dp -> 128.dp
-                    else -> 150.dp
-                }
-                RecordingModeCover(record, Modifier.width(coverWidth).aspectRatio(if (wide) 1.6f else 1f))
+            }
+        } else {
+            val gap = when { compact -> 8.dp; large -> 18.dp; else -> 12.dp }
+            Row(Modifier.fillMaxWidth().padding(if (compact) 11.dp else 13.dp), horizontalArrangement = Arrangement.spacedBy(gap),
+                verticalAlignment = if (compact) Alignment.Top else Alignment.CenterVertically) {
+                val coverWidth = when { compact -> 84.dp; large -> 150.dp; else -> 128.dp }
+                RecordingModeCover(record, Modifier.width(coverWidth).aspectRatio(if (compact) 1f else 1.6f), compact = compact)
                 body(Modifier.weight(1f))
-                if (wide && record.playable) action(readableWidth >= 550.dp)
-                RecordingMenu(open, delete)
+                Row(Modifier.align(Alignment.CenterVertically), horizontalArrangement = Arrangement.spacedBy(7.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    if (!compact) primaryAction()
+                    menu()
+                }
             }
         }
     }
@@ -294,7 +431,7 @@ private val posterAvatars = listOf(Color(0xFF596B98), Color(0xFF79638C), Color(0
 
 /** Uses the server's authorised preview when available and a neutral illustration for each format. */
 @Composable
-internal fun RecordingModeCover(record: Recording, modifier: Modifier, player: Boolean = false) {
+internal fun RecordingModeCover(record: Recording, modifier: Modifier, player: Boolean = false, compact: Boolean = false, grid: Boolean = false) {
     val previews = LocalRecordingPreviews.current
     val preview = record.files.firstOrNull { record.status in setOf("ready", "partial_ready") && it.type == "preview_jpg" && it.available }
     val image = remember(previews, record.conferenceId, record.id, preview) { mutableStateOf<android.graphics.Bitmap?>(null) }
@@ -310,70 +447,122 @@ internal fun RecordingModeCover(record: Recording, modifier: Modifier, player: B
     Box(modifier.clip(RoundedCornerShape(if (player) 0.dp else 10.dp)).background(background), contentAlignment = Alignment.Center) {
         if (poster != null) Image(poster.asImageBitmap(), "Обложка записи", Modifier.fillMaxSize().testTag("recording-cover-${record.id}"),
             contentScale = if (player) ContentScale.Fit else ContentScale.Crop)
-        else RecordingPosterIllustration(record.mode, Modifier.fillMaxSize().testTag("recording-cover-placeholder-${record.id}"))
+        else RecordingPosterIllustration(record.mode, Modifier.fillMaxSize().testTag("recording-cover-placeholder-${record.id}"),
+            compact = compact, grid = grid, player = player)
         if (!player) {
-            Box(Modifier.fillMaxSize().background(Color(0x24141A29)))
-            Surface(shape = CircleShape, color = Color(0xDB1E263D), border = BorderStroke(1.dp, Color(0x55FFFFFF))) {
-                Box(Modifier.size(if (record.mode == "audio_only") 32.dp else 34.dp), contentAlignment = Alignment.Center) {
-                    Icon(recordingModeIcon(record), null, Modifier.size(17.dp), tint = Color.White)
+            val live = record.status == "recording" || record.status == "degraded"
+            val badgeSize = when { grid && compact -> 44.dp; compact -> 30.dp; else -> 38.dp }
+            Box(Modifier.fillMaxSize().background(Color(0x30141A29)))
+            Surface(shape = CircleShape, color = Color(0xC91E263D), border = BorderStroke(1.dp, Color(0x36FFFFFF))) {
+                Box(Modifier.size(badgeSize), contentAlignment = Alignment.Center) {
+                    if (live) Box(Modifier.size(badgeSize / 2).border(1.5.dp, Color.White, CircleShape))
+                    else Icon(recordingModeIcon(record), null, Modifier.size(badgeSize / 2), tint = Color.White)
                 }
             }
-            val live = record.status in setOf("recording", "degraded")
+            val duration = record.durationSec ?: record.media?.durationSec
+            val badge = if (live || duration == null) recordingStatus(record)
+                else recordingDuration(duration).padStart(5, '0')
+            val inset = when { grid && compact -> 10.dp; compact -> 4.dp; else -> 7.dp }
             Surface(color = if (live) Color(0xFFA5344A) else Color(0xE0151B2C), shape = RoundedCornerShape(4.dp),
-                modifier = Modifier.align(Alignment.BottomEnd).padding(4.dp)) {
-                Text(record.durationSec?.let(::recordingDuration) ?: recordingStatus(record), Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                    fontSize = 9.sp, lineHeight = 12.sp, color = Color.White)
+                modifier = Modifier.align(Alignment.BottomEnd).padding(inset)) {
+                Text(badge, Modifier.padding(horizontal = if (compact) 4.dp else 5.dp, vertical = if (compact) 1.dp else 2.dp),
+                    fontSize = when { grid && compact -> 11.sp; compact -> 8.sp; else -> 10.sp },
+                    lineHeight = if (compact && !grid) 10.sp else 13.sp, letterSpacing = .3.sp, color = Color.White)
             }
         }
     }
 }
 
 @Composable
-private fun RecordingPosterIllustration(mode: String, modifier: Modifier) {
+private fun RecordingPosterIllustration(mode: String, modifier: Modifier, compact: Boolean, grid: Boolean, player: Boolean) {
     Canvas(modifier) {
         val width = size.width
         val height = size.height
-        if (mode == "audio_only" || mode == "individual_tracks") {
-            val rows = if (mode == "audio_only") 1 else 3
-            val waveColor = if (rows == 1) Color(0xFF79D4C6) else Color(0xFFA8A1CC)
-            repeat(rows) { row ->
-                val middle = height * (row + 1) / (rows + 1)
-                if (rows > 1) drawRoundRect(Color(0x12FFFFFF), Offset(width * .07f, middle - height * .10f),
-                    Size(width * .86f, height * .20f), CornerRadius(3.dp.toPx()))
-                repeat(21) { bar ->
-                    val length = (7 + (bar * 17 + row * 3) % 19) / 25f * height * if (rows == 1) .55f else .16f
-                    val barWidth = width / 54f
-                    drawRoundRect(waveColor.copy(alpha = .8f), Offset(width * .10f + bar * width * .038f, middle - length / 2),
-                        Size(barWidth, length), CornerRadius(barWidth / 2))
+        when (mode) {
+            "audio_only", "individual_tracks" -> {
+                val tracks = mode == "individual_tracks"
+                if (!tracks) drawRect(Brush.linearGradient(listOf(Color(0xFF254952), Color(0xFF19323F))))
+                val rows = if (tracks) 3 else 1
+                val waveColor = if (tracks) Color(0xBFA8A1CC) else Color(0xBF79D4C6)
+                val inset = if (tracks) minOf(10.dp.toPx(), height * .12f) else 0f
+                val rowHeight = (height - 2 * inset) / rows
+                val naturalStep = (if (tracks) 4.dp else 6.dp).toPx()
+                val naturalHeight = (if (tracks) 19.dp else 56.dp).toPx()
+                val step = minOf(if (player) naturalStep * 1.7f else naturalStep, (width - 2 * inset) / 25)
+                val maxBarHeight = minOf(rowHeight * .8f, if (player) naturalHeight * 2f else naturalHeight)
+                val barWidth = step * .5f
+                repeat(rows) { row ->
+                    val middle = inset + rowHeight * (row + .5f)
+                    if (tracks) drawRoundRect(Color(0x08FFFFFF), Offset(inset, middle - rowHeight * .42f),
+                        Size(width - 2 * inset, rowHeight * .84f), CornerRadius(4.dp.toPx()))
+                    repeat(25) { bar ->
+                        val length = (18 + bar * 17 % 38) / 56f * maxBarHeight
+                        val x = width / 2 + (bar - 12) * step - barWidth / 2
+                        drawRoundRect(waveColor, Offset(x, middle - length / 2), Size(barWidth, length), CornerRadius(barWidth / 2))
+                    }
                 }
             }
-        } else {
-            val gap = height * .03f
-            val inset = height * .08f
-            val tile = Size((width - 2 * inset - gap) / 2, (height - 2 * inset - gap) / 2)
-            repeat(4) { index ->
-                val start = Offset(inset + index % 2 * (tile.width + gap), inset + index / 2 * (tile.height + gap))
-                drawRoundRect(posterPanels[index], start, tile, CornerRadius(4.dp.toPx()))
-                drawCircle(posterAvatars[index], minOf(tile.height, tile.width) * .22f, start + Offset(tile.width / 2, tile.height / 2))
+            else -> {
+                val gap = when { player -> 10.dp; grid -> 7.dp; compact -> 3.dp; else -> 4.dp }.toPx()
+                val insetX = when { player -> 23.dp; grid -> 25.dp; compact -> 7.dp; else -> 12.dp }.toPx()
+                val insetY = when { player -> 23.dp; grid -> 16.dp; compact -> 7.dp; else -> 12.dp }.toPx()
+                val tile = Size((width - 2 * insetX - gap).coerceAtLeast(0f) / 2, (height - 2 * insetY - gap).coerceAtLeast(0f) / 2)
+                val avatar = when { player -> 42.dp; grid -> 30.dp; compact -> 19.dp; else -> 23.dp }.toPx()
+                repeat(4) { index ->
+                    val start = Offset(insetX + index % 2 * (tile.width + gap), insetY + index / 2 * (tile.height + gap))
+                    drawRoundRect(posterPanels[index], start, tile, CornerRadius(5.dp.toPx()))
+                    drawCircle(posterAvatars[index], minOf(avatar, tile.height, tile.width) / 2, start + Offset(tile.width / 2, tile.height / 2))
+                }
             }
         }
     }
 }
 
 @Composable
-private fun RecordingMenu(open: (() -> Unit)? = null, delete: (() -> Unit)? = null) {
+private fun RecordingMenu(modifier: Modifier = Modifier, title: String? = null, open: (() -> Unit)? = null,
+    delete: (() -> Unit)? = null, download: (() -> Unit)? = null, downloadEnabled: Boolean = true) {
+    val colors = MaterialTheme.colorScheme
     var menu by remember { mutableStateOf(false) }
-    Box {
-        IconButton({ menu = true }) { Icon(CallIcons.Ellipsis, "Действия с записью", Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant) }
-        DropdownMenu(menu, { menu = false }) {
-            if (open != null) DropdownMenuItem(text = { Text("О записи") }, leadingIcon = { Icon(ChatMessageIcons.Info, null, Modifier.size(18.dp)) },
-                onClick = { menu = false; open() })
-            if (delete != null) DropdownMenuItem(text = { Text("Удалить запись", color = MaterialTheme.colorScheme.error) },
-                leadingIcon = { Icon(ChatMessageIcons.Delete, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error) },
-                onClick = { menu = false; delete() }, modifier = Modifier.testTag("recording-delete"))
+    Box(modifier) {
+        IconButton({ menu = true }, Modifier.size(44.dp)) {
+            Icon(CallIcons.Ellipsis, "Действия с записью", Modifier.size(20.dp), tint = colors.onSurfaceVariant)
+        }
+        if (title == null) {
+            DropdownMenu(menu, { menu = false }) {
+                if (delete != null) DropdownMenuItem(text = { Text("Удалить запись", color = colors.error) },
+                    leadingIcon = { Icon(ChatMessageIcons.Delete, null, Modifier.size(18.dp), tint = colors.error) },
+                    onClick = { menu = false; delete() }, modifier = Modifier.testTag("recording-delete"))
+            }
+        } else if (menu) {
+            ChatMessageModal("Действия с записью", "recording-actions", busy = false, dismiss = { menu = false }) { padding, heading ->
+                Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(padding)) {
+                    heading()
+                    Text(title, Modifier.padding(top = 18.dp, bottom = 12.dp), fontSize = 13.sp, lineHeight = 20.sp,
+                        fontWeight = FontWeight.SemiBold, color = colors.onSurfaceVariant)
+                    if (open != null) RecordingMenuAction("Открыть запись", WorkspaceHeaderIcons.Recordings) { menu = false; open() }
+                    if (download != null) RecordingMenuAction("Скачать запись", ChatMessageIcons.Download, enabled = downloadEnabled) {
+                        menu = false; download()
+                    }
+                    if (delete != null) RecordingMenuAction("Удалить запись", ChatMessageIcons.Delete, Modifier.testTag("recording-delete"),
+                        tint = colors.error) { menu = false; delete() }
+                }
+            }
         }
     }
 }
+
+@Composable
+private fun RecordingMenuAction(label: String, icon: ImageVector, modifier: Modifier = Modifier, enabled: Boolean = true,
+    tint: Color = MaterialTheme.colorScheme.onSurface, action: () -> Unit) {
+    Row(modifier.fillMaxWidth().heightIn(min = 48.dp).clip(RoundedCornerShape(9.dp)).clickable(enabled = enabled, role = Role.Button, onClick = action)
+        .padding(horizontal = 10.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        val color = if (enabled) tint else MaterialTheme.colorScheme.onSurface.copy(alpha = .38f)
+        Icon(icon, null, Modifier.size(20.dp), tint = color)
+        Text(label, fontSize = 14.sp, lineHeight = 20.sp, color = color)
+    }
+}
+
 @Composable
 private fun RecordingDeleteDialog(record: Recording, state: RecordingsUiState, actions: RecordingsActions, close: () -> Unit) {
     LaunchedEffect(state.deleting, state.notice) { if (!state.deleting && state.notice == "Запись удалена.") close() }
@@ -382,11 +571,12 @@ private fun RecordingDeleteDialog(record: Recording, state: RecordingsUiState, a
         confirmButton = { TextButton({ actions.delete(record) }, enabled = !state.deleting, modifier = Modifier.testTag("recording-delete-confirm")) { Text("Удалить") } }, dismissButton = { TextButton(close, enabled = !state.deleting) { Text("Отмена") } })
 }
 @Composable
-private fun RecordingRetention() {
+private fun RecordingRetention(compact: Boolean = false) {
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
-    Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Icon(ChatMessageIcons.Info, null, Modifier.padding(top = 1.dp).size(16.dp), tint = muted)
-        Text("Материалы доступны участникам встречи. Срок хранения определяет сервер.", fontSize = 11.sp, lineHeight = 17.sp, color = muted)
+    Row(Modifier.fillMaxWidth().padding(vertical = if (compact) 12.dp else 14.dp), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+        Icon(ChatMessageIcons.Info, null, Modifier.padding(top = 2.dp).size(16.dp), tint = muted)
+        Text("Материалы доступны участникам встречи. Срок хранения определяет сервер.",
+            fontSize = if (compact) 10.sp else 11.sp, lineHeight = if (compact) 17.sp else 18.sp, color = muted)
     }
 }
 

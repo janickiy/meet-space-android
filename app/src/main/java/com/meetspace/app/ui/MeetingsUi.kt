@@ -1,7 +1,7 @@
 package com.meetspace.app.ui
 
-import android.content.ClipData
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Login
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -52,7 +53,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
@@ -60,8 +60,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.ClipEntry
-import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
@@ -72,7 +70,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.meetspace.core.data.MeetingInvites
 import com.meetspace.app.MeetingTime
 import com.meetspace.core.designsystem.MeetSpaceTokens
 import com.meetspace.core.model.Meeting
@@ -92,7 +92,6 @@ import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import kotlinx.coroutines.launch
 
 /** Transient presentation data. Meetings and invitation codes are never saved in a Bundle. */
 data class MeetingsLoad<T>(val data: T? = null, val loading: Boolean = false, val error: String? = null)
@@ -115,6 +114,7 @@ data class MeetingsUiState(
     val self: MeetingsLoad<MeetingParticipant> = MeetingsLoad(),
     val history: MeetingsLoad<MeetingHistory> = MeetingsLoad(),
     val invitation: MeetingRoomUiState = MeetingRoomUiState(),
+    val folderAssignment: MeetingFolderAssignmentState = MeetingFolderAssignmentState(),
     val actionBusy: Boolean = false,
     val profileBusy: Boolean = false,
     val creationUncertain: Boolean = false,
@@ -154,9 +154,12 @@ data class MeetingsActions(
     val acknowledgeUncertainCreate: () -> Unit = {},
     val clearMessage: () -> Unit = {},
     val invitations: MeetingRoomActions = MeetingRoomActions(),
+    val folders: MeetingFolderActions = MeetingFolderActions(),
 )
 
 private data class MeetingForm(val scheduled: Boolean, val meeting: Meeting? = null)
+
+private enum class MeetingDetailPage { DETAILS, LINK, PEOPLE, FOLDERS }
 
 /** Workspace data and mutations come exclusively from the authenticated repository. */
 @Composable
@@ -191,6 +194,9 @@ fun MeetingsWorkspace(
         observedDetailId = state.detailId
     }
     BackHandler(enabled = state.detailId != null && !state.actionBusy, onBack = actions.closeDetail)
+    var detailPage by remember(state.detailId, repository.selectedProfileId, repository.session?.user?.id, tab) {
+        mutableStateOf(MeetingDetailPage.DETAILS)
+    }
     val feedback: @Composable () -> Unit = {
     MeetingsMessage(state.error, state.notice, actions.clearMessage)
     if (state.actionBusy) Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -243,18 +249,50 @@ fun MeetingsWorkspace(
         }
     }
     if (state.detailId != null && tab in setOf(WorkspaceTab.CALLS, WorkspaceTab.CALENDAR)) {
-        AlertDialog(onDismissRequest = { if (!state.actionBusy) actions.closeDetail() },
-            modifier = Modifier.padding(horizontal = 20.dp).widthIn(max = 440.dp).fillMaxWidth().testTag("meeting-detail-dialog"),
-            properties = DialogProperties(usePlatformDefaultWidth = false), containerColor = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(24.dp), tonalElevation = 0.dp,
-            title = { Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(if (state.detail.data?.isClosed == true) "Материалы встречи" else "О встрече", Modifier.weight(1f), fontSize = 21.sp, lineHeight = 27.sp)
-                IconButton(actions.refreshDetail, enabled = !state.actionBusy, modifier = Modifier.testTag("meeting-detail-refresh")) { Icon(CallIcons.RefreshCw, "Обновить встречу и допуск") }
-                IconButton(actions.closeDetail, enabled = !state.actionBusy, modifier = Modifier.testTag("meeting-detail-back")) { Icon(CallIcons.X, "Закрыть сведения о встрече") }
-            } },
-            text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                MeetingsMessage(state.error, state.notice, actions.clearMessage)
-                MeetingDetails(state, repository, actions, { form = MeetingForm(true, it) }, { meeting, transition -> confirmation = meeting to transition })
-            } }, confirmButton = {})
+        val meeting = state.detail.data
+        val self = state.self.data
+        val canShare = meeting != null && meeting.isKnownStatus && !meeting.isClosed
+        val owner = meeting != null && meeting.ownerId == repository.session?.user?.id
+        val canInvite = canShare && (owner || meeting?.status == "active" && self?.canParticipate == true && self.role == "co_host")
+        val activePage = when {
+            detailPage == MeetingDetailPage.PEOPLE && canInvite -> MeetingDetailPage.PEOPLE
+            detailPage == MeetingDetailPage.LINK && canShare -> MeetingDetailPage.LINK
+            detailPage == MeetingDetailPage.FOLDERS && meeting != null -> MeetingDetailPage.FOLDERS
+            else -> MeetingDetailPage.DETAILS
+        }
+        when (activePage) {
+            MeetingDetailPage.DETAILS -> MeetingDetailsDialog(state, owner, actions,
+                share = { detailPage = MeetingDetailPage.LINK },
+                addToFolder = { target ->
+                    actions.folders.load(target.id)
+                    detailPage = MeetingDetailPage.FOLDERS
+                },
+                edit = { form = MeetingForm(true, it) },
+                confirm = { target, transition -> confirmation = target to transition },
+            )
+            MeetingDetailPage.LINK -> if (meeting != null) {
+                val origin = repository.selectedProfile?.origin
+                val invitation = meeting.inviteCode.ifBlank { meeting.inviteUrl }
+                val link = remember(origin, invitation) {
+                    origin?.let { runCatching { MeetingInvites.shareUrl(it, invitation) }.getOrNull() }
+                }
+                MeetingLinkInvitationDialog(meeting.title, link, onInviteParticipants = if (canInvite) {
+                    {
+                        actions.invitations.searchUsers("")
+                        detailPage = MeetingDetailPage.PEOPLE
+                    }
+                } else null, close = { detailPage = MeetingDetailPage.DETAILS })
+            }
+            MeetingDetailPage.PEOPLE -> MeetingInvitationDialog(state.invitation, actions.invitations) {
+                detailPage = MeetingDetailPage.LINK
+            }
+            MeetingDetailPage.FOLDERS -> if (meeting != null) {
+                MeetingFolderDialog(meeting, state.folderAssignment, actions.folders, dismiss = {
+                    actions.folders.close()
+                    detailPage = MeetingDetailPage.DETAILS
+                })
+            }
+        }
     }
     form?.let { current -> MeetingFormDialog(current, state, actions, onDismiss = { form = null }) }
     if (joinDialog) MeetingJoinDialog(state.actionBusy, state.error, { joinDialog = false }, actions.join)
@@ -282,87 +320,189 @@ fun MeetingsWorkspace(
 }
 
 @Composable
-private fun MeetingDetails(state: MeetingsUiState, repository: RepositoryState, actions: MeetingsActions, edit: (Meeting) -> Unit, confirm: (Meeting, MeetingTransition) -> Unit) {
-    val meeting = state.detail.data
-    val self = state.self.data
-    val owner = meeting?.ownerId == repository.session?.user?.id
-    val clipboard = LocalClipboard.current
-    val coroutineScope = rememberCoroutineScope()
-    var invite by remember(meeting?.id) { mutableStateOf(false) }
-    var copied by remember(meeting?.id) { mutableStateOf(false) }
-    var copyError by remember(meeting?.id) { mutableStateOf(false) }
-    Column(Modifier.fillMaxWidth().testTag("meeting-detail"), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        MeetingLoadStatus(state.detail, actions.refreshDetail)
-        if (meeting != null) {
-            MeetingStatus(meeting.status)
-            Text(meeting.title, fontSize = 21.sp, lineHeight = 28.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.semantics { heading() })
-            Text(if (owner) "Вы — организатор" else "Встреча вашего пространства", style = MaterialTheme.typography.labelLarge)
-            meeting.scheduledAt?.let { Text("Запланирована: ${formatTime(it, state.zone)}") }
-            meeting.plannedDurationMin?.let { Text("Плановая длительность: $it мин") }
-            meeting.startedAt?.let { Text("Началась: ${formatTime(it, state.zone)}") }
-            meeting.finishedAt?.let { Text("Завершилась: ${formatTime(it, state.zone)}") }
-            if (meeting.status == "scheduled") Text("Встреча не начнётся автоматически.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            if (!meeting.isClosed && meeting.isKnownStatus) {
-                HorizontalDivider()
-                Text(if (meeting.waitingRoomEnabled) "Включён зал ожидания. Действительное приглашение позволяет войти без ожидания." else "Зал ожидания отключён.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                MeetingLoadStatus(state.self, actions.refreshDetail)
-                if (self != null) {
-                    Text("Ваше членство: ${participantLabel(self)}", style = MaterialTheme.typography.titleMedium, modifier = Modifier.testTag("meeting-membership"))
-                    if (self.status == "waiting" || self.admissionState == "waiting") Text("Ожидайте решения организатора. Нажмите обновление, чтобы проверить допуск.")
-                    if (self.canParticipate) Text("Допуск подтверждён. Можно подключить камеру и микрофон.", style = MaterialTheme.typography.bodyMedium)
-                    if (self.status == "left" && self.isAdmitted) Text(if (meeting.status in listOf("created", "scheduled")) "Вы зарегистрированы. Организатор ещё не начал встречу." else "Вы сейчас не находитесь во встрече. Можно войти.", style = MaterialTheme.typography.bodyMedium)
-                    if (self.status in listOf("joined", "waiting") && self.admissionState !in listOf("kicked", "rejected")) OutlinedButton(onClick = { actions.leave(meeting.id) }, enabled = !state.actionBusy, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("meeting-detail-leave")) { MeetingActionLabel(CallIcons.LogOut, "Выйти из встречи", "meeting-detail-leave-icon") }
-                }
-                if (meeting.status == "active" && actions.call != null && self?.admissionState !in listOf("kicked", "rejected", "waiting")) {
-                    Button(onClick = { actions.call.invoke(meeting) }, enabled = !state.actionBusy,
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("meeting-call")) { MeetingActionLabel(CallIcons.Video, "Подключиться к звонку", "meeting-call-icon") }
-                }
-                val joinAllowed = !state.self.loading && state.self.error == null && (self == null || (meeting.status == "active" && self.status == "left" && self.isAdmitted))
-                if (joinAllowed) Button(onClick = { actions.joinMeeting(meeting.id) }, enabled = !state.actionBusy, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("meeting-detail-join")) {
-                    val registration = meeting.status in listOf("created", "scheduled")
-                    MeetingActionLabel(if (registration) WorkspaceHeaderIcons.Calendar else Icons.AutoMirrored.Outlined.Login,
-                        if (registration) "Зарегистрироваться на встречу" else "Войти во встречу", "meeting-detail-join-icon")
-                }
-                OutlinedButton(onClick = {
-                    val origin = repository.selectedProfile?.origin ?: return@OutlinedButton
-                    coroutineScope.launch {
-                        runCatching { clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("Приглашение MeetSpace", "$origin/i/${meeting.inviteCode}"))) }
-                            .onSuccess { copied = true; copyError = false }
-                            .onFailure { copyError = true }
+private fun MeetingDetailsDialog(
+    state: MeetingsUiState,
+    owner: Boolean,
+    actions: MeetingsActions,
+    share: () -> Unit,
+    addToFolder: (Meeting) -> Unit,
+    edit: (Meeting) -> Unit,
+    confirm: (Meeting, MeetingTransition) -> Unit,
+) {
+    val colors = MaterialTheme.colorScheme
+    val close = { if (!state.actionBusy) actions.closeDetail() }
+    Dialog(onDismissRequest = close, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Surface(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp).widthIn(max = 510.dp)
+                .fillMaxWidth().testTag("meeting-detail-dialog"),
+            shape = RoundedCornerShape(24.dp),
+            color = colors.surface,
+            border = BorderStroke(1.dp, colors.outlineVariant),
+        ) {
+            Column(Modifier.fillMaxWidth()) {
+                Row(Modifier.fillMaxWidth().padding(start = 22.dp, end = 12.dp, top = 10.dp, bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Text(if (state.detail.data?.isClosed == true) "Материалы встречи" else "О встрече",
+                        Modifier.weight(1f).semantics { heading() }, fontSize = 21.sp, lineHeight = 27.sp,
+                        fontWeight = FontWeight.SemiBold)
+                    IconButton(close, enabled = !state.actionBusy, modifier = Modifier.size(48.dp).testTag("meeting-detail-back")) {
+                        Icon(CallIcons.X, "Закрыть сведения о встрече", Modifier.size(20.dp))
                     }
-                }, enabled = meeting.inviteCode.isNotBlank(), modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("meeting-copy-invite")) { MeetingActionLabel(if (copied) CallIcons.Check else ChatMessageIcons.Copy, if (copied) "Ссылка скопирована" else "Скопировать приглашение", "meeting-copy-invite-icon") }
-                if (copyError) Text("Не удалось скопировать ссылку.", color = MaterialTheme.colorScheme.error)
-                if (owner || meeting.status == "active" && self?.canParticipate == true && self.role == "co_host") OutlinedButton({ invite = true; actions.invitations.searchUsers("") }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("meeting-invite-users")) { MeetingActionLabel(ChatMessageIcons.UserPlus, "Пригласить участников", "meeting-invite-users-icon") }
-                if (owner && meeting.status in listOf("created", "scheduled")) {
-                    Button(onClick = { actions.transition(meeting.id, MeetingTransition.START) }, enabled = !state.actionBusy, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("meeting-detail-start")) { MeetingActionLabel(CallIcons.Play, "Начать встречу", "meeting-detail-start-icon") }
-                    if (meeting.status == "scheduled") OutlinedButton(onClick = { edit(meeting) }, enabled = !state.actionBusy, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("meeting-detail-edit")) { MeetingActionLabel(MeetingIcons.Edit, "Изменить расписание", "meeting-detail-edit-icon") }
-                    TextButton(onClick = { confirm(meeting, MeetingTransition.CANCEL) }, enabled = !state.actionBusy, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("meeting-detail-cancel")) { MeetingActionLabel(MeetingIcons.CancelCalendar, "Отменить встречу", "meeting-detail-cancel-icon", MaterialTheme.colorScheme.error) }
                 }
-                if (owner && meeting.status == "active") TextButton(onClick = { confirm(meeting, MeetingTransition.FINISH) }, enabled = !state.actionBusy, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("meeting-detail-finish")) { MeetingActionLabel(CallIcons.PhoneOff, "Завершить для всех", "meeting-detail-finish-icon", MaterialTheme.colorScheme.error) }
-            }
-            if (meeting.isClosed) {
-                HorizontalDivider()
-                Text("История встречи", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
-                MeetingLoadStatus(state.history, actions.refreshDetail)
-                state.history.data?.let { history ->
-                    history.ownerDisplayName?.takeIf { it.isNotBlank() }?.let { Text("Организатор: $it") }
-                    history.durationSec?.let { Text("Длительность: ${it / 60} мин ${it % 60} сек") }
-                    Text("Участников в истории: ${history.participantCount}")
-                    history.participants.forEach { person ->
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(person.displayName, style = MaterialTheme.typography.titleSmall)
-                            Text(participantLabel(person), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                    if (history.participantsTruncated) Text("Сервер вернул ограниченную часть списка участников.", style = MaterialTheme.typography.bodySmall)
-                    HorizontalDivider()
-                    if (history.recordings.ready > 0) Text("Доступные записи: ${history.recordings.ready}")
+                HorizontalDivider(color = colors.outlineVariant)
+                Column(Modifier.weight(1f, fill = false).fillMaxWidth().verticalScroll(rememberScrollState())
+                    .padding(horizontal = 22.dp, vertical = 18.dp).testTag("meeting-detail"),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    MeetingsMessage(state.error, state.notice, actions.clearMessage)
+                    MeetingLoadStatus(state.detail, actions.refreshDetail)
+                    val meeting = state.detail.data
+                    if (meeting != null) MeetingDetails(meeting, state, owner, actions, share, addToFolder, edit, confirm)
                 }
             }
-            if (meeting.status == "active" || meeting.isClosed) OutlinedButton(onClick = { actions.recordings(meeting.id) }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("meeting-detail-recordings")) { MeetingActionLabel(WorkspaceHeaderIcons.Recordings, "Записи и материалы", "meeting-detail-recordings-icon") }
         }
     }
-    if (invite) MeetingInvitationDialog(state.invitation, actions.invitations) { invite = false }
+}
+
+@Composable
+private fun MeetingDetails(
+    meeting: Meeting,
+    state: MeetingsUiState,
+    owner: Boolean,
+    actions: MeetingsActions,
+    share: () -> Unit,
+    addToFolder: (Meeting) -> Unit,
+    edit: (Meeting) -> Unit,
+    confirm: (Meeting, MeetingTransition) -> Unit,
+) {
+    val self = state.self.data
+    val colors = MaterialTheme.colorScheme
+    val enabled = !state.actionBusy
+    Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+        MeetingStatus(meeting.status)
+        Text(meeting.title, fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold,
+            modifier = Modifier.semantics { heading() })
+        Text(if (owner) "Вы — организатор" else "Встреча вашего пространства", style = MaterialTheme.typography.labelLarge,
+            color = colors.onSurfaceVariant)
+    }
+    val times = listOfNotNull(
+        meeting.scheduledAt?.let { "Запланирована: ${formatTime(it, state.zone)}" },
+        meeting.plannedDurationMin?.let { "Плановая длительность: $it мин" },
+        meeting.startedAt?.let { "Началась: ${formatTime(it, state.zone)}" },
+        meeting.finishedAt?.let { "Завершилась: ${formatTime(it, state.zone)}" },
+    )
+    val open = !meeting.isClosed && meeting.isKnownStatus
+    if (times.isNotEmpty() || open) {
+        Surface(shape = RoundedCornerShape(14.dp), color = colors.background, modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                times.forEach { Text(it, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant) }
+                if (meeting.status == "scheduled") Text("Встреча не начнётся автоматически.",
+                    style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                if (open) Text(if (meeting.waitingRoomEnabled) "Зал ожидания включён. По действительному приглашению можно войти без ожидания."
+                    else "Зал ожидания отключён.", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+            }
+        }
+    }
+
+    if (open) {
+        MeetingLoadStatus(state.self, actions.refreshDetail)
+        if (self != null) Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(participantLabel(self), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.testTag("meeting-membership"))
+            if (self.status == "waiting" || self.admissionState == "waiting") {
+                Text("Ожидайте решения организатора.", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                TextButton(actions.refreshDetail, enabled = enabled && !state.detail.loading && !state.self.loading) {
+                    Text("Проверить допуск")
+                }
+            }
+        }
+    }
+    if (meeting.isClosed) {
+        HorizontalDivider(color = colors.outlineVariant)
+        Text("История встречи", style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
+        MeetingLoadStatus(state.history, actions.refreshDetail)
+        state.history.data?.let { history ->
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                history.ownerDisplayName?.takeIf { it.isNotBlank() }?.let { Text("Организатор: $it") }
+                history.durationSec?.let { Text("Длительность: ${it / 60} мин ${it % 60} сек") }
+                Text("Участников в истории: ${history.participantCount}")
+                history.participants.forEach { person ->
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(person.displayName, style = MaterialTheme.typography.titleSmall)
+                        Text(participantLabel(person), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                    }
+                }
+                if (history.participantsTruncated) Text("Сервер вернул ограниченную часть списка участников.", style = MaterialTheme.typography.bodySmall)
+                if (history.recordings.ready > 0) Text("Доступные записи: ${history.recordings.ready}")
+            }
+        }
+    }
+
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (open) {
+            val call = actions.call
+            val canCall = meeting.status == "active" && call != null && self?.admissionState !in listOf("kicked", "rejected", "waiting")
+            if (canCall) {
+                MeetingDetailAction("Подключиться к звонку", CallIcons.Video, "meeting-call", enabled, primary = true) { call(meeting) }
+            }
+            val canJoin = !state.self.loading && state.self.error == null &&
+                (self == null || meeting.status == "active" && self.status == "left" && self.isAdmitted)
+            if (canJoin) {
+                val registration = meeting.status in listOf("created", "scheduled")
+                val label = if (registration) "Зарегистрироваться на встречу" else "Войти во встречу"
+                val icon = if (registration) WorkspaceHeaderIcons.Calendar else Icons.AutoMirrored.Outlined.Login
+                MeetingDetailAction(label, icon, "meeting-detail-join", enabled, primary = !canCall) { actions.joinMeeting(meeting.id) }
+            }
+            if (owner && meeting.status in listOf("created", "scheduled")) {
+                MeetingDetailAction("Начать встречу", CallIcons.Play, "meeting-detail-start", enabled, primary = true) {
+                    actions.transition(meeting.id, MeetingTransition.START)
+                }
+                if (meeting.status == "scheduled") {
+                    MeetingDetailAction("Изменить расписание", MeetingIcons.Edit, "meeting-detail-edit", enabled) { edit(meeting) }
+                }
+            }
+            MeetingDetailAction("Пригласить по ссылке", CallIcons.Link, "meeting-invite-link-action", enabled, action = share)
+            if (self?.status in listOf("joined", "waiting") && self?.admissionState !in listOf("kicked", "rejected")) {
+                MeetingDetailAction("Выйти из встречи", CallIcons.LogOut, "meeting-detail-leave", enabled) { actions.leave(meeting.id) }
+            }
+        }
+        MeetingDetailAction("Добавить в папку", ChatMessageIcons.FolderPlus, "meeting-add-to-folder", enabled) { addToFolder(meeting) }
+        if (meeting.status == "active" || meeting.isClosed) {
+            MeetingDetailAction("Записи и материалы", WorkspaceHeaderIcons.Recordings, "meeting-detail-recordings", enabled) {
+                actions.recordings(meeting.id)
+            }
+        }
+        if (owner && meeting.status in listOf("created", "scheduled")) {
+            MeetingDetailAction("Отменить встречу", MeetingIcons.CancelCalendar, "meeting-detail-cancel", enabled, destructive = true) {
+                confirm(meeting, MeetingTransition.CANCEL)
+            }
+        }
+        if (owner && meeting.status == "active") {
+            MeetingDetailAction("Завершить для всех", CallIcons.PhoneOff, "meeting-detail-finish", enabled, destructive = true) {
+                confirm(meeting, MeetingTransition.FINISH)
+            }
+        }
+    }
+}
+
+@Composable
+private fun MeetingDetailAction(
+    label: String,
+    icon: ImageVector,
+    tag: String,
+    enabled: Boolean,
+    primary: Boolean = false,
+    destructive: Boolean = false,
+    action: () -> Unit,
+) {
+    val modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag(tag)
+    val shape = RoundedCornerShape(12.dp)
+    val content: @Composable () -> Unit = { MeetingActionLabel(icon, label, "$tag-icon") }
+    when {
+        primary -> Button(action, modifier, enabled = enabled, shape = shape) { content() }
+        destructive -> TextButton(action, modifier, enabled = enabled, shape = shape,
+            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)) { content() }
+        else -> OutlinedButton(action, modifier, enabled = enabled, shape = shape,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) { content() }
+    }
 }
 
 @Composable

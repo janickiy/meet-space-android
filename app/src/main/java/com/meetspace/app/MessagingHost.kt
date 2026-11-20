@@ -28,6 +28,13 @@ fun MessagingHost(model: MessagingViewModel, state: MessagingUiState, pushContro
     val effects = rememberCoroutineScope()
     val selected by rememberUpdatedState(state.selectedId)
     val identity by rememberUpdatedState(authScope)
+    val chatMedia = remember(model, authScope, state.selectedId) {
+        val conversation = state.selectedId
+        conversation?.let {
+            ChatMediaLoader(model::downloadMedia, isCurrent = { identity == authScope && selected == conversation })
+        }
+    }
+    DisposableEffect(chatMedia) { onDispose { chatMedia?.close() } }
     var importTarget by remember { mutableStateOf<Pair<String, String>?>(null) }
     var exportTarget by remember { mutableStateOf<Pair<String, ChatAttachment>?>(null) }
     val avatarPicker = rememberAvatarPicker(
@@ -65,27 +72,29 @@ fun MessagingHost(model: MessagingViewModel, state: MessagingUiState, pushContro
         model.notificationPermission(NotificationManagerCompat.from(context).areNotificationsEnabled())
     }
     LaunchedEffect(authScope) { model.notificationPermission(NotificationManagerCompat.from(context).areNotificationsEnabled()) }
-    MessagingWorkspace(state.copy(pushConfigured = pushState.configured, pushEnabled = pushState.enabled,
-        pushBusy = pushState.busy, pushMessage = pushState.message), model.actions.copy(
-        enablePush = { effects.launch { pushController.enable() } },
-        disablePush = { effects.launch { pushController.disable() } },
-        pickAttachment = { selected?.let { importTarget = identity to it; picker.launch(arrayOf("*/*")) } },
-        pickGroupAvatar = avatarPicker,
-        download = { attachment -> exportTarget = identity to attachment; save.launch(MessagingFiles.safeName(attachment.filename)) },
-        openMeeting = openMeeting,
-        openNotification = openNotification ?: { item ->
-            model.readNotification(item.id)
-            val conversation = item.conversationId
-            if (conversation != null) model.open(conversation)
-            else item.conferenceId?.let(openMeeting)
-            Unit
-        },
-        requestSystemNotifications = {
-            if (Build.VERSION.SDK_INT >= 33) notifications.launch(Manifest.permission.POST_NOTIFICATIONS)
-            else model.notificationPermission(NotificationManagerCompat.from(context).areNotificationsEnabled())
-        },
-    ), modifier, inboxRequested, consumeInbox, newChatRequested, foldersRequested, consumeWorkspaceRequest, serverOrigin, onStartCall,
-        personalCallLabel = personalCall?.let { if (it.call?.status == "accepted") "${it.elapsedSeconds / 60}:${(it.elapsedSeconds % 60).toString().padStart(2, '0')}" else if (it.incoming) "Входящий вызов" else "Вы звоните…" },
-        onResumeCall = onResumeCall, notificationBell = notificationBell, onNotifications = onNotifications,
-        conversationNavigationRevision = conversationNavigationRevision)
+    CompositionLocalProvider(LocalChatMedia provides chatMedia) {
+        MessagingWorkspace(state.copy(pushConfigured = pushState.configured, pushEnabled = pushState.enabled,
+            pushBusy = pushState.busy, pushMessage = pushState.message), model.actions.copy(
+            enablePush = { effects.launch { pushController.enable() } },
+            disablePush = { effects.launch { pushController.disable() } },
+            pickAttachment = { selected?.let { importTarget = identity to it; picker.launch(arrayOf("*/*")) } },
+            pickGroupAvatar = avatarPicker,
+            download = { attachment -> exportTarget = identity to attachment; save.launch(MessagingFiles.safeName(attachment.filename)) },
+            openMeeting = openMeeting,
+            openNotification = openNotification ?: { item ->
+                model.readNotification(item.id)
+                val conversation = item.conversationId
+                if (conversation != null) model.open(conversation)
+                else item.conferenceId?.let(openMeeting)
+                Unit
+            },
+            requestSystemNotifications = {
+                if (Build.VERSION.SDK_INT >= 33) notifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+                else model.notificationPermission(NotificationManagerCompat.from(context).areNotificationsEnabled())
+            },
+        ), modifier, inboxRequested, consumeInbox, newChatRequested, foldersRequested, consumeWorkspaceRequest, serverOrigin, onStartCall,
+            personalCallLabel = personalCall?.let { if (it.call?.status == "accepted") "${it.elapsedSeconds / 60}:${(it.elapsedSeconds % 60).toString().padStart(2, '0')}" else if (it.incoming) "Входящий вызов" else "Вы звоните…" },
+            onResumeCall = onResumeCall, notificationBell = notificationBell, onNotifications = onNotifications,
+            conversationNavigationRevision = conversationNavigationRevision)
+    }
 }

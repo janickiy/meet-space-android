@@ -45,6 +45,26 @@ class RecordingsUiTest {
     }
     @get:Rule val compose = createComposeRule()
 
+    @Test fun recordingActionsStayCenteredWhenTabletRotates() {
+        var landscape by mutableStateOf(false)
+        var opened: String? = null
+        compose.setContent {
+            Screen(library, RecordingsActions(openLibrary = { _, id -> opened = id }),
+                width = if (landscape) 960 else 700, height = if (landscape) 700 else 960)
+        }
+        val cardTag = "recording-row-${record.id}"
+        for (rotated in listOf(false, true)) {
+            compose.runOnIdle { landscape = rotated }
+            compose.onNodeWithTag("recordings-library").performScrollToNode(hasTestTag(cardTag))
+            val card = compose.onNodeWithTag(cardTag).getUnclippedBoundsInRoot()
+            val icon = compose.onNodeWithContentDescription("Действия с записью", useUnmergedTree = true).getUnclippedBoundsInRoot()
+            assertEquals((card.top.value + card.bottom.value) / 2, (icon.top.value + icon.bottom.value) / 2, 1f)
+        }
+        compose.onNodeWithContentDescription("Действия с записью").performClick()
+        compose.onNodeWithText("Открыть запись").performClick()
+        compose.runOnIdle { assertEquals(record.id, opened) }
+    }
+
     @Test fun globalEntryShowsRealRecordingsAcrossMeetingsWithoutRequiringSelection() {
         val secondMeeting = meeting.copy(id = "second-meeting", title = "Обзор продукта")
         val secondRecord = record.copy(id = "second-recording", conferenceId = secondMeeting.id)
@@ -81,6 +101,35 @@ class RecordingsUiTest {
         compose.onNodeWithTag("recordings-library").performScrollToNode(hasTestTag("recordings-library-more-${meeting.id}"))
         compose.onNodeWithTag("recordings-library-more-${meeting.id}").performClick()
         compose.runOnIdle { assertEquals(meeting.id, more) }
+    }
+
+    @Test fun libraryFiltersByPeriodSortOrderAndLiveStatus() {
+        val now = Instant.now()
+        val newest = record.copy(id = "newest", createdAt = now)
+        val older = record.copy(id = "older", createdAt = now.minusSeconds(10L * 86400))
+        val live = record.copy(id = "on-air", createdAt = now, status = "recording", files = emptyList())
+        val row = RecordingLibraryMeeting(meeting, RecordingsLoad(RecordingPage(listOf(older, live, newest), null)))
+        compose.setContent { Screen(library.copy(library = RecordingLibrary(listOf(row), loaded = true, hasMore = false)), width = 834) }
+        val libraryList = compose.onNodeWithTag("recordings-library")
+        fun choose(tag: String, label: String) {
+            libraryList.performScrollToNode(hasTestTag(tag))
+            compose.onNodeWithTag(tag).performClick()
+            compose.onNode(hasText(label) and hasAnyAncestor(isPopup())).performClick()
+        }
+        fun top(id: String) = compose.onNodeWithTag("recording-row-$id").getUnclippedBoundsInRoot().top
+        libraryList.performScrollToNode(hasTestTag("recording-row-older"))
+        assertTrue(top(newest.id) < top(older.id))
+        choose("recordings-sort-filter", "Сначала старые")
+        libraryList.performScrollToNode(hasTestTag("recording-row-newest"))
+        assertTrue(top(older.id) < top(newest.id))
+        choose("recordings-period-filter", "За 7 дней")
+        libraryList.performScrollToNode(hasTestTag("recording-row-newest"))
+        compose.onNodeWithTag("recording-row-older").assertDoesNotExist()
+        libraryList.performScrollToNode(hasTestTag("recordings-live"))
+        compose.onNodeWithTag("recordings-live").performClick()
+        libraryList.performScrollToNode(hasTestTag("recording-row-on-air"))
+        compose.onNodeWithTag("recording-row-on-air").assertIsDisplayed()
+        compose.onNodeWithTag("recording-row-newest").assertDoesNotExist()
     }
 
     @Test fun librarySearchAndLargeTextKeepCardsReachableAndPrivateQueryIsNotRestored() {
@@ -160,6 +209,22 @@ class RecordingsUiTest {
         compose.runOnIdle { assertEquals(1, refresh) }
     }
 
+    @Test fun meetingMaterialsOfferTheAvailableTracksArchiveFromTheCardMenu() {
+        val archive = RecordingFile("tracks", "tracks_archive", "meeting-tracks.zip", "application/zip", 4096)
+        val tracks = record.copy(mode = "individual_tracks", files = listOf(archive))
+        var downloaded: Pair<Recording, RecordingFile>? = null
+        compose.setContent {
+            Screen(list.copy(selfId = "guest", recordings = RecordingsLoad(RecordingPage(listOf(tracks), null))),
+                RecordingsActions(download = { recording, file -> downloaded = recording to file }), width = 1194)
+        }
+        compose.onNodeWithTag("recordings-list").performScrollToNode(hasTestTag("recording-row-${tracks.id}"))
+        compose.onNodeWithText("Материалы").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Действия с записью").performClick()
+        compose.onNodeWithText("Удалить запись").assertDoesNotExist()
+        compose.onNodeWithText("Скачать запись").performClick()
+        compose.runOnIdle { assertEquals(tracks to archive, downloaded) }
+    }
+
     @Test fun tabletCentersDetailAndResizeKeepsTheSameSelection() {
         var width by mutableStateOf(1000)
         compose.setContent { Screen(detail, width = width) }
@@ -175,27 +240,70 @@ class RecordingsUiTest {
         compose.onNodeWithTag("recording-play-${file.id}").assertIsDisplayed()
     }
 
-    @Test fun recordingCardsUseTwoColumnsOnTabletAndOneForLargePhoneText() {
-        var width by mutableStateOf(1000)
-        var fontScale by mutableStateOf(1f)
+    @Test fun meetingMaterialsUseListByDefaultAndGridAdaptsToTheTabletAndPhone() {
+        var width by mutableIntStateOf(834)
         var selected: String? = null
         val second = record.copy(id = "second")
-        compose.setContent {
-            val density = LocalDensity.current
-            CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale)) {
-                Screen(list.copy(recordings = RecordingsLoad(RecordingPage(listOf(record, second), null))), RecordingsActions(open = { selected = it }), width = width)
-            }
+        val third = record.copy(id = "third")
+        val restoration = StateRestorationTester(compose)
+        restoration.setContent {
+            Screen(list.copy(recordings = RecordingsLoad(RecordingPage(listOf(record, second, third), null))),
+                RecordingsActions(open = { selected = it }), width = width, height = 1194)
         }
-        compose.onNodeWithTag("recordings-list").performScrollToNode(hasTestTag("recording-row-${second.id}"))
-        val firstBounds = compose.onNodeWithTag("recording-row-${record.id}").getUnclippedBoundsInRoot()
-        val secondBounds = compose.onNodeWithTag("recording-row-${second.id}").getUnclippedBoundsInRoot()
-        assertEquals(firstBounds.top, secondBounds.top)
-        assertTrue(secondBounds.left > firstBounds.left)
-        compose.onNodeWithTag("recording-row-${second.id}").performClick()
-        compose.runOnIdle { assertEquals(second.id, selected); width = 360; fontScale = 1.5f }
-        compose.onAllNodesWithTag("recordings-card-pair").assertCountEquals(0)
-        compose.onNodeWithTag("recordings-list").performScrollToNode(hasTestTag("recording-row-${second.id}"))
-        compose.onNodeWithTag("recording-row-${second.id}").assertIsDisplayed()
+        val scroll = compose.onNodeWithTag("recordings-list")
+        fun bounds(id: String) = compose.onNodeWithTag("recording-row-$id").getUnclippedBoundsInRoot()
+        scroll.performScrollToNode(hasTestTag("recordings-view-list"))
+        compose.onNodeWithTag("recordings-view-list").assertIsSelected()
+        scroll.performScrollToNode(hasTestTag("recording-row-${second.id}"))
+        assertEquals(bounds(record.id).left, bounds(second.id).left)
+        assertTrue(bounds(record.id).top < bounds(second.id).top)
+
+        scroll.performScrollToNode(hasTestTag("recordings-view-grid"))
+        compose.onNodeWithTag("recordings-view-grid").performClick().assertIsSelected()
+        scroll.performScrollToNode(hasTestTag("recording-row-${record.id}"))
+        assertEquals(bounds(record.id).top, bounds(second.id).top)
+        assertTrue(bounds(record.id).left < bounds(second.id).left)
+        assertEquals(bounds(record.id).left, bounds(third.id).left)
+        assertTrue(bounds(second.id).top < bounds(third.id).top)
+
+        compose.runOnIdle { width = 1194 }
+        restoration.emulateSavedInstanceStateRestore()
+        scroll.performScrollToNode(hasTestTag("recordings-view-grid"))
+        compose.onNodeWithTag("recordings-view-grid").assertIsSelected()
+        scroll.performScrollToNode(hasTestTag("recording-row-${third.id}"))
+        assertEquals(bounds(record.id).top, bounds(third.id).top)
+        assertTrue(bounds(second.id).left < bounds(third.id).left)
+        compose.onNodeWithTag("recording-row-${third.id}").performClick()
+        compose.runOnIdle { assertEquals(third.id, selected); width = 390 }
+        scroll.performScrollToNode(hasTestTag("recording-row-${second.id}"))
+        assertEquals(bounds(record.id).left, bounds(second.id).left)
+        assertTrue(bounds(record.id).top < bounds(second.id).top)
+    }
+
+    @Test fun meetingFilterStartsAtOpenedMeetingAndAllMeetingsOpensTheCatalogue() {
+        val otherMeeting = meeting.copy(id = "other", title = "Другая встреча")
+        val otherRecord = record.copy(id = "other-recording", conferenceId = otherMeeting.id)
+        val catalogue = library.copy(library = library.library.copy(meetings = library.library.meetings +
+            RecordingLibraryMeeting(otherMeeting, RecordingsLoad(RecordingPage(listOf(otherRecord), null)))))
+        var state by mutableStateOf(list)
+        var allRequests = 0
+        var opened: Pair<String, String>? = null
+        compose.setContent { Screen(state, RecordingsActions(
+            allRecordings = { allRequests++; state = catalogue },
+            openLibrary = { meetingId, recordId -> opened = meetingId to recordId },
+        ), width = 834) }
+        compose.onNodeWithTag("recordings-list").performScrollToNode(hasTestTag("recordings-meeting-filter"))
+        compose.onNodeWithTag("recordings-meeting-filter").assert(hasText(meeting.title)).performClick()
+        compose.onNodeWithText("Все встречи").performClick()
+        compose.runOnIdle { assertEquals(1, allRequests) }
+        val libraryList = compose.onNodeWithTag("recordings-library")
+        libraryList.performScrollToNode(hasTestTag("recordings-meeting-filter"))
+        compose.onNodeWithTag("recordings-meeting-filter").assert(hasText("Все встречи")).performClick()
+        compose.onNode(hasText(otherMeeting.title) and hasAnyAncestor(isPopup())).performClick()
+        libraryList.performScrollToNode(hasTestTag("recording-row-${otherRecord.id}"))
+        compose.onNodeWithTag("recording-row-${record.id}").assertDoesNotExist()
+        compose.onNodeWithTag("recording-row-${otherRecord.id}").performClick()
+        compose.runOnIdle { assertEquals(otherMeeting.id to otherRecord.id, opened) }
     }
 
     @Test fun recordingsKeepCallsSelectedAndNavigationUsesTheRequestedDestination() {

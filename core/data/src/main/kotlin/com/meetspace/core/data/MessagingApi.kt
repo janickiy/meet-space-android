@@ -155,7 +155,8 @@ internal class MessagingApi(private val api: MeetSpaceApi) {
         }
         return bytes
     }
-    suspend fun folders(origin: String, token: String): List<ChatFolder> = request(origin, token, listOf("folders")).items(100).map(::folder)
+    suspend fun folders(origin: String, token: String, query: Map<String, String> = emptyMap()): List<ChatFolder> =
+        request(origin, token, listOf("folders"), query = query).items(100).map(::folder)
     suspend fun mutateFolder(origin: String, token: String, target: List<String>, method: String,
         payload: JsonObject? = null, expected: String? = null): ChatFolder =
         folder(request(origin, token, target, method, payload).item()).also { expected?.let { id -> same(id, it.id) } }
@@ -326,7 +327,7 @@ internal class MessagingApi(private val api: MeetSpaceApi) {
                 if (call == null) "message" else "call", call, o.optionalBool("pinned") ?: false, forwardedSenderName)
         }
         fun folder(o: JsonObject): ChatFolder = ChatFolder(o.id(), o.text("name", 200), o.count("position").toInt(),
-            o.count("itemCount"), o.count("conversationCount"), o.count("conferenceCount"))
+            o.count("itemCount"), o.count("conversationCount"), o.count("conferenceCount"), o.optionalBool("contains") ?: false)
         private fun folderMeeting(o: JsonObject): Meeting = Meeting(o.id(), o.id("ownerId"), o.text("title", 800), "", "",
             o.text("status", 30), o.instant("createdAt"), o.instant("updatedAt"), o.optionalInstant("startedAt"),
             o.optionalInstant("finishedAt"), o.optionalInstant("scheduledAt"),

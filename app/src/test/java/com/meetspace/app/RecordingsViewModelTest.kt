@@ -34,6 +34,8 @@ class RecordingsViewModelTest {
         assertSame(lease, r.leases.single()); assertEquals(25000L, m.playback.value!!.seekRequest.value!!.second)
         val archive = media.copy(type = "tracks_archive", filename = "tracks.zip", mimeType = "application/zip")
         val tracks = record().copy(mode = "individual_tracks", files = listOf(archive))
+        r.detail = { tracks }
+        m.actions.refreshDetail(); runCurrent()
         assertFalse(tracks.playable); assertNotNull(m.queueExport(tracks, archive)); m.close()
     }
     @Test fun deletingRecordKeepsDataUntilAcknowledgedAndClosesPlayerThen() = runTest {
@@ -125,6 +127,38 @@ class RecordingsViewModelTest {
         m.show("room"); runCurrent(); assertNotNull(m.queueExport(record(), media))
         f.state.value = f.state.value.copy(session = null); runCurrent()
         assertFalse(m.exportTo { _, _ -> fail("Must not export") })
+    }
+    @Test fun libraryMenuExportsVisibleFileAndRechecksItAfterTheDocumentPicker() = runTest {
+        val records = Records()
+        val model = RecordingsViewModel(Foundation(), Meetings(), records)
+        model.show(); runCurrent()
+        assertNull(model.state.value.meetingId)
+        assertNull(model.queueExport(record().copy(id = "missing"), media))
+        assertNull(model.queueExport(record(), media.copy(id = "missing")))
+        assertNotNull(model.queueExport(record(), media))
+        assertNull(model.queueExport(record(), media))
+        assertTrue(model.exportTo { access, _ -> assertEquals(media, access.file) }); runCurrent()
+        assertTrue(records.leases.single().closed)
+        assertNotNull(model.queueExport(record(), media))
+        records.library = { _, _ -> RecordingLibraryPage(emptyList(), null) }
+        model.actions.refreshLibrary(); runCurrent()
+        assertFalse(model.exportTo { _, _ -> fail("Removed file should not be exported") })
+        model.close()
+    }
+
+    @Test fun liveRecordingOpensItsCurrentStatusWithoutOfferingAFile() = runTest {
+        val live = record().copy(status = "recording", files = emptyList())
+        val records = Records().apply {
+            library = { _, _ -> RecordingLibraryPage(listOf(RecordingLibraryItem(meeting(), live)), null) }
+            detail = { live }
+        }
+        val model = RecordingsViewModel(Foundation(), Meetings(), records)
+        model.show(); runCurrent()
+        model.actions.openLibrary("room", live.id); runCurrent()
+        assertEquals(live, model.state.value.detail.data)
+        assertNull(model.queueExport(live, media))
+        assertNull(model.playback.value)
+        model.close()
     }
     @Test fun failingFreshAccessRemovesEmptyCreatedDocument() = runTest {
         val r = Records().apply { access = { throw AppFailure(FailureKind.FORBIDDEN, "Нет доступа") } }

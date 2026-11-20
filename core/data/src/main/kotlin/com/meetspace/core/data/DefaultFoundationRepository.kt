@@ -237,6 +237,9 @@ internal class DefaultFoundationRepository(
         messagingApi.download(it.scope.origin, it.token, id, attachment)
     }
     override suspend fun folders() = meetingOperation(true) { messagingApi.folders(it.scope.origin, it.token) }
+    override suspend fun foldersForMeeting(meetingId: String) = meetingOperation(true) {
+        messagingApi.folders(it.scope.origin, it.token, mapOf("itemKind" to "conference", "itemId" to inputId(meetingId)))
+    }
     override suspend fun createFolder(name: String) = meetingOperation(false) {
         messagingApi.mutateFolder(it.scope.origin, it.token, listOf("folders"), "POST", fields("name" to inputText(name, 50, true)))
     }

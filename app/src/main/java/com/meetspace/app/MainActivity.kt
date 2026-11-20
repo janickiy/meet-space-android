@@ -74,13 +74,15 @@ class MainActivity : ComponentActivity() {
         if (intent.action == MessagingNotifications.OPEN_INBOX) openInbox.value = true
         setContent {
             val model: FoundationViewModel = viewModel(factory = FoundationViewModel.Factory(repository, meetSpace.pushController::beforeIdentityChange))
-            val meetingsModel: MeetingsViewModel = viewModel(factory = MeetingsViewModel.Factory(repository, meetSpace.meetingsRepository))
             val recordingsModel: RecordingsViewModel = viewModel(factory = RecordingsViewModel.Factory(repository, meetSpace.meetingsRepository, meetSpace.recordingsRepository))
             val recordingsState = recordingsModel.state.collectAsStateWithLifecycle().value
             val recordingPlayback = recordingsModel.playback.collectAsStateWithLifecycle().value
             val foundationHolder = rememberSaveableStateHolder()
             val messagingModel: MessagingViewModel = viewModel(factory = MessagingViewModel.Factory(
                 repository, meetSpace.messagingRepository, meetSpace.outgoingMessageStore, meetSpace.hiddenChatMessages,
+            ))
+            val meetingsModel: MeetingsViewModel = viewModel(factory = MeetingsViewModel.Factory(
+                repository, meetSpace.meetingsRepository, meetSpace.messagingRepository, messagingModel::refreshFolders,
             ))
             val messagingState = messagingModel.state.collectAsStateWithLifecycle().value
             val directCalls: DirectCallViewModel = viewModel(factory = DirectCallViewModel.Factory(repository, meetSpace.directCallsRepository, meetSpace.callEngine) {

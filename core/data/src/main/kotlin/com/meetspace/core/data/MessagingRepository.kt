@@ -41,6 +41,7 @@ interface MessagingRepository {
     suspend fun uploadAttachment(id: String, filename: String, mimeType: String, bytes: ByteArray, clientRequestId: String): ChatAttachment
     suspend fun downloadAttachment(id: String, attachment: ChatAttachment): ByteArray
     suspend fun folders(): List<ChatFolder>
+    suspend fun foldersForMeeting(meetingId: String): List<ChatFolder> = folders()
     suspend fun createFolder(name: String): ChatFolder
     suspend fun renameFolder(id: String, name: String): ChatFolder
     suspend fun deleteFolder(id: String)

@@ -268,10 +268,7 @@ class RecordingsViewModel(
     }
     private fun openLibraryRecording(meetingId: String, recordingId: String) {
         val row = state.value.library.meetings.firstOrNull { it.meeting.id == meetingId } ?: return
-        val record = row.recordings.data?.items?.firstOrNull { it.id == recordingId } ?: return
-        val readyMaterials = record.mode == "individual_tracks" && record.status in setOf("ready", "partial_ready") &&
-            record.files.any { it.available && it.type != "preview_jpg" }
-        if (!record.playable && !readyMaterials) return
+        if (row.recordings.data?.items.orEmpty().none { it.id == recordingId && it.conferenceId == meetingId }) return
         cancelDetail(); cancel("meeting"); cancel("recordings")
         mutableState.update { it.copy(meetingId = meetingId, meeting = RecordingsLoad(row.meeting), recordings = RecordingsLoad(),
             detailId = recordingId, detailFromLibrary = true, meetingPicker = false) }
@@ -433,15 +430,31 @@ class RecordingsViewModel(
         }
     }
     fun queueExport(recording: Recording, file: RecordingFile): ExportRequest? {
-        if (scope() == null || state.value.download != null || recording.status !in setOf("ready", "partial_ready") || !file.available || recording.files.none { it == file } || recording.conferenceId != state.value.meetingId) return null
-        return ExportRequest(recording.conferenceId, recording.id, file, scope()!!).also { export = it }
+        val account = scope() ?: return null
+        val request = ExportRequest(recording.conferenceId, recording.id, file, account)
+        if (export != null || !canExport(request)) return null
+        export = request
+        return request
+    }
+    private fun canExport(request: ExportRequest): Boolean {
+        val current = state.value
+        if (!current.visible || current.download != null || request.identity != identity || request.identity != scope()) return false
+        val record = when {
+            current.detailId != null -> current.detail.data
+            current.meetingId == request.conferenceId -> current.recordings.data?.items?.find { it.id == request.recordingId }
+            current.meetingId == null -> current.library.meetings.find { it.meeting.id == request.conferenceId }
+                ?.recordings?.data?.items?.find { it.id == request.recordingId }
+            else -> null
+        } ?: return false
+        return record.id == request.recordingId && record.conferenceId == request.conferenceId &&
+            record.status in setOf("ready", "partial_ready") && request.file.available && request.file in record.files
     }
     fun discardExport() { export = null }
     /** Returns false if a document picker result no longer belongs to this account/route. */
     fun exportTo(cleanup: () -> Unit = {}, writer: suspend (RecordingAccess, (Long) -> Unit) -> Unit): Boolean {
         val selected = export ?: return false
         export = null
-        if (selected.identity != scope()) return false
+        if (!canExport(selected)) return false
         mutableState.update { it.copy(download = RecordingDownloadUi(selected.file.filename, totalBytes = selected.file.sizeBytes), error = null, notice = null) }
         var completed = false
         val epoch = generation; val downloadTicket = (tickets["download"] ?: 0) + 1
@@ -474,7 +487,10 @@ class RecordingsViewModel(
             if (epoch == generation && selectedIdentity == scope()) mutableState.update { it.copy(error = "Не удалось удалить незавершённый файл. Удалите его из выбранной папки через файловый менеджер.") }
         }; Unit }
     }
-    fun exportError() { mutableState.update { it.copy(error = "Не удалось открыть место сохранения. Выберите другую папку.") } }
+    fun exportError() {
+        discardExport()
+        mutableState.update { it.copy(error = "Не удалось открыть место сохранения. Выберите другую папку.") }
+    }
 
     data class ExportRequest(val conferenceId: String, val recordingId: String, val file: RecordingFile, val identity: String)
     private fun <T> failedLoad(old: RecordingsLoad<T>, failure: AppFailure): RecordingsLoad<T> =

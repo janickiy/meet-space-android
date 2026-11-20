@@ -94,17 +94,16 @@ class CallRecordingDesignTest {
     }
 
     @Test fun captureApprovedRecordingsScreenshot() = capture("recordings", "recordings-workspace") {
-        val titles = listOf("Продукт. Следующая глава", "Дизайн-ревью мобильного приложения", "Планы на октябрь", "Демо новой версии")
-        val durations = listOf(2538L, 1866L, 1722L, 3252L)
-        val rows = titles.mapIndexed { index, title ->
-            val fixtureMeeting = meeting.copy(id = "library-meeting-$index", title = title)
-            val fixtureRecord = record.copy(id = "library-recording-$index", conferenceId = fixtureMeeting.id,
-                createdAt = Instant.parse("2026-10-09T11:00:00Z").minusSeconds(index * 172800L), durationSec = durations[index],
-                files = listOf(file.copy(id = "library-file-$index", durationSec = durations[index])))
-            RecordingLibraryMeeting(fixtureMeeting, RecordingsLoad(RecordingPage(listOf(fixtureRecord), null)))
-        }
-        val library = RecordingsUiState(visible = true, library = RecordingLibrary(meetings = rows, loaded = true, hasMore = false))
-        RecordingsWorkspace(library, RecordingsActions(), onWorkspaceTab = {}, profileLabel = self.name)
+        RecordingsWorkspace(catalogue, RecordingsActions(), onWorkspaceTab = {}, profileLabel = self.name)
+    }
+
+    @Test fun captureMeetingRecordingsListScreenshot() = capture("meeting-recordings-list", "recordings-workspace") {
+        RecordingsWorkspace(meetingMaterials, RecordingsActions(), onWorkspaceTab = {}, profileLabel = self.name)
+    }
+
+    @Test fun captureMeetingRecordingsGridScreenshot() = capture("meeting-recordings-grid", "recordings-workspace",
+        afterRender = { compose.onNodeWithTag("recordings-view-grid").performClick().assertIsSelected() }) {
+        RecordingsWorkspace(meetingMaterials, RecordingsActions(), onWorkspaceTab = {}, profileLabel = self.name)
     }
 
     @Test fun captureApprovedRecordingDetailScreenshot() = capture("recording-detail", "recordings-workspace") {
@@ -187,6 +186,36 @@ class CallRecordingDesignTest {
         private val meeting = Meeting("design-fixture", "self", "Дизайн-ревью", "", "", "finished", at, at)
         private val file = RecordingFile("design-video", "final_mp4", "design-review.mp4", "video/mp4", 134217728, durationSec = 2835)
         private val record = Recording("design-recording", meeting.id, "mixed", "ready", at, durationSec = 2835, files = listOf(file))
+
+        private fun recordingFixture(ownerMeeting: Meeting, mode: String, started: String, duration: Long): Recording {
+            val id = "${ownerMeeting.id}-$mode"
+            val media = when (mode) {
+                "audio_only" -> RecordingFile("$id-file", "final_audio", "meeting.m4a", "audio/mp4", 26214400, durationSec = duration)
+                "individual_tracks" -> RecordingFile("$id-file", "tracks_archive", "tracks.zip", "application/zip", 44040192)
+                else -> file.copy(id = "$id-file", durationSec = duration)
+            }
+            return record.copy(id = id, conferenceId = ownerMeeting.id, mode = mode, createdAt = Instant.parse(started),
+                durationSec = duration, files = listOf(media))
+        }
+        private val product = meeting.copy(id = "product", title = "Продукт. Следующая глава", participantCount = 5)
+        private val design = meeting.copy(id = "design", title = "Дизайн-ревью мобильного приложения", ownerId = "anna", participantCount = 4)
+        private val plans = meeting.copy(id = "plans", title = "Планы на октябрь", participantCount = 4)
+        private val demo = meeting.copy(id = "demo", title = "Демо новой версии", ownerId = "maxim", participantCount = 8)
+        private val catalogue = RecordingsUiState(visible = true, selfId = self.id, library = RecordingLibrary(loaded = true, hasMore = false,
+            meetings = listOf(
+                product to listOf(recordingFixture(product, "individual_tracks", "2026-10-15T07:45:00Z", 720),
+                    recordingFixture(product, "composite", "2026-10-15T07:00:00Z", 2538)),
+                design to listOf(recordingFixture(design, "composite", "2026-10-14T11:30:00Z", 1866)),
+                plans to listOf(recordingFixture(plans, "audio_only", "2026-10-12T06:00:00Z", 1722)),
+                demo to listOf(recordingFixture(demo, "composite", "2026-10-11T13:00:00Z", 3252)),
+            ).map { (meeting, records) -> RecordingLibraryMeeting(meeting, RecordingsLoad(RecordingPage(records, null))) }))
+        private val scopedMeeting = meeting.copy(title = "встреча")
+        private val meetingMaterials = RecordingsUiState(visible = true, selfId = self.id, meetingId = scopedMeeting.id,
+            meeting = RecordingsLoad(scopedMeeting), recordings = RecordingsLoad(RecordingPage(listOf(
+                recordingFixture(scopedMeeting, "individual_tracks", "2026-11-20T15:22:30Z", 20),
+                recordingFixture(scopedMeeting, "audio_only", "2026-11-20T15:22:00Z", 13),
+                recordingFixture(scopedMeeting, "composite", "2026-11-20T15:05:00Z", 25),
+            ), null)))
         private val recordings = RecordingsUiState(visible = true, meetingId = meeting.id, meeting = RecordingsLoad(meeting),
             recordings = RecordingsLoad(RecordingPage(listOf(record, record.copy(id = "second-recording", createdAt = at.minusSeconds(604800), durationSec = 2412,
                 files = listOf(file.copy(id = "second-video", durationSec = 2412)))), null)))

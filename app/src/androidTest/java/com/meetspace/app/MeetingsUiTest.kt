@@ -34,6 +34,10 @@ import androidx.compose.ui.unit.Density
 import com.meetspace.app.ui.*
 import com.meetspace.core.designsystem.MeetSpaceTheme
 import com.meetspace.core.model.*
+import com.google.zxing.BinaryBitmap
+import com.google.zxing.RGBLuminanceSource
+import com.google.zxing.common.HybridBinarizer
+import com.google.zxing.qrcode.QRCodeReader
 import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
@@ -345,8 +349,8 @@ class MeetingsUiTest {
         listOf(
             "meeting-detail-leave" to "Выйти из встречи",
             "meeting-call" to "Подключиться к звонку",
-            "meeting-copy-invite" to "Скопировать приглашение",
-            "meeting-invite-users" to "Пригласить участников",
+            "meeting-invite-link-action" to "Пригласить по ссылке",
+            "meeting-add-to-folder" to "Добавить в папку",
             "meeting-detail-finish" to "Завершить для всех",
             "meeting-detail-recordings" to "Записи и материалы",
         ).forEach { (tag, label) ->
@@ -374,6 +378,72 @@ class MeetingsUiTest {
         compose.onNodeWithTag("meeting-confirm-transition-icon", useUnmergedTree = true).assertIsDisplayed()
         compose.onNodeWithTag("meeting-confirm-transition").performClick()
         compose.runOnIdle { assertEquals(MeetingTransition.FINISH, transition) }
+    }
+
+    @Test fun meetingActionsOpenInvitationWithScannableLinkAndNameOrEmailFlow() {
+        val code = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdef"
+        val link = "https://fixture.example.test/i/$code"
+        val item = meeting.copy(title = "Обсуждение новой версии", status = "active", inviteUrl = "/api/v1/conference-invites/$code")
+        var state by mutableStateOf(ready.copy(listView = MeetingsView.ACTIVE, list = MeetingsLoad(MeetingPage(listOf(item), null))))
+        val searches = mutableListOf<String>()
+        var invited: List<String>? = null
+        val actions = MeetingsActions(
+            open = { id -> assertEquals(item.id, id); state = state.copy(detailId = id, detail = MeetingsLoad(item)) },
+            invitations = MeetingRoomActions(searchUsers = { searches += it }, invite = { _, emails -> invited = emails }),
+        )
+        compose.setContent { MeetSpaceTheme(ThemeMode.LIGHT) { MeetingsWorkspace(WorkspaceTab.CALLS, state, account, actions, {}) } }
+        compose.onNodeWithTag("meeting-options-${item.id}").performScrollTo().performClick()
+        compose.onNodeWithTag("meeting-detail-back").assertIsDisplayed()
+        compose.onNodeWithTag("meeting-detail-refresh").assertDoesNotExist()
+        compose.onNodeWithText("Скопировать приглашение").assertDoesNotExist()
+        compose.onNodeWithText("Пригласить участников").assertDoesNotExist()
+        if (InstrumentationRegistry.getArguments().getString("designScreenshots") == "true") captureDesignDialog("meeting-actions", "light")
+        compose.onNodeWithTag("meeting-invite-link-action").performScrollTo().performClick()
+        compose.onNodeWithTag("meeting-invite-link").assertTextEquals(link)
+        compose.waitUntilAtLeastOneExists(hasTestTag("meeting-invite-qr"), 5_000)
+        val qr = compose.onNodeWithTag("meeting-invite-qr")
+        qr.performScrollTo()
+        val bitmap = qr.captureToImage().asAndroidBitmap()
+        val pixels = IntArray(bitmap.width * bitmap.height)
+        bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+        val codeImage = BinaryBitmap(HybridBinarizer(RGBLuminanceSource(bitmap.width, bitmap.height, pixels)))
+        assertEquals(link, QRCodeReader().decode(codeImage).text)
+        if (InstrumentationRegistry.getArguments().getString("designScreenshots") == "true") captureDesignDialog("meeting-invite", "light")
+        compose.onNodeWithTag("meeting-invite-copy").performScrollTo().performClick()
+        compose.onNodeWithText("Ссылка скопирована").assertIsDisplayed()
+        compose.onNodeWithTag("meeting-invite-by-name").performScrollTo().performClick()
+        compose.runOnIdle { assertEquals(listOf(""), searches) }
+        compose.onNodeWithTag("invitation-emails").performScrollTo().performTextInput("guest@example.test")
+        compose.onNodeWithTag("invitation-send").performClick()
+        compose.runOnIdle { assertEquals(listOf("guest@example.test"), invited) }
+    }
+
+    @Test fun meetingActionsAddToSelectedFolderAndReturnAfterSave() {
+        val item = meeting.copy(status = "active")
+        var state by mutableStateOf(detailState(item))
+        var selected: Set<String>? = null
+        val actions = MeetingsActions(folders = MeetingFolderActions(
+            load = { id ->
+                assertEquals(item.id, id)
+                state = state.copy(folderAssignment = MeetingFolderAssignmentState(
+                    meetingId = id, folders = listOf(ChatFolder("team", "Команда"), ChatFolder("archive", "Архив", contains = true)),
+                ))
+            },
+            add = { ids ->
+                selected = ids
+                state = state.copy(folderAssignment = state.folderAssignment.copy(saved = true))
+            },
+            close = { state = state.copy(folderAssignment = MeetingFolderAssignmentState()) },
+        ))
+        compose.setContent { Screen(WorkspaceTab.CALLS, state, actions) }
+        compose.onNodeWithTag("meeting-add-to-folder").performScrollTo().performClick()
+        compose.onNodeWithTag("meeting-folder-option-archive").assertIsOn().assertIsNotEnabled()
+        compose.onNodeWithTag("meeting-folder-save").assertIsNotEnabled()
+        compose.onNodeWithTag("meeting-folder-option-team").performClick().assertIsOn()
+        compose.onNodeWithTag("meeting-folder-save").performScrollTo().performClick()
+        compose.runOnIdle { assertEquals(setOf("team"), selected) }
+        compose.onNodeWithTag("meeting-folder-dialog").assertDoesNotExist()
+        compose.onNodeWithTag("meeting-detail-dialog").assertIsDisplayed()
     }
 
     @Test fun cohostAndUnknownStatusesDoNotGrantOwnerActions() {

@@ -124,7 +124,7 @@ class RecordingPreviewTest {
             compose.waitUntil(5_000) { compose.onAllNodesWithTag("recording-cover-${record.id}").fetchSemanticsNodes().isNotEmpty() }
             compose.onNodeWithTag("recording-cover-${record.id}").assertIsDisplayed()
             compose.onNodeWithTag("recording-cover-placeholder-${record.id}").assertDoesNotExist()
-            compose.onNodeWithText("0:28").assertIsDisplayed()
+            compose.onNodeWithText("00:28").assertIsDisplayed()
             compose.runOnIdle { item = record.copy(id = "audio", mode = "audio_only", files = emptyList()) }
             compose.onNodeWithTag("recording-cover-${record.id}").assertDoesNotExist()
             compose.onNodeWithTag("recording-cover-placeholder-audio").assertIsDisplayed()

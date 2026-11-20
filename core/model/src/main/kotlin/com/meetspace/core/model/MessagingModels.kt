@@ -49,7 +49,7 @@ data class MessagePage(val items: List<ChatMessage>, val nextCursor: String? = n
     val unreadCount: Long = 0, val lastReadMessageId: String? = null)
 data class ChatReadState(val unreadCount: Long, val lastReadMessageId: String?)
 data class ChatFolder(val id: String, val name: String, val position: Int = 0, val itemCount: Long = 0,
-    val conversationCount: Long = 0, val conferenceCount: Long = 0)
+    val conversationCount: Long = 0, val conferenceCount: Long = 0, val contains: Boolean = false)
 data class FolderQuery(val type: String = "all", val search: String = "", val cursor: String? = null,
     val limit: Int = 30, val candidates: Boolean = false)
 data class FolderEntry(val type: String, val conversation: ChatConversation? = null,
