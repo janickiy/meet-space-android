@@ -127,6 +127,7 @@ class DirectCallsRepositoryTest {
         server.enqueue(response("""{"ticket":"${"a".repeat(43)}"}"""))
         server.enqueue(MockResponse().setHeader("Sec-WebSocket-Protocol", "go-recorder.v1").withWebSocketUpgrade(object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) { webSocket.send("fixture") }
+            override fun onClosing(webSocket: WebSocket, code: Int, reason: String) { webSocket.close(code, reason) }
         }))
         val signaling = repository.openDirectCall(CONFERENCE, CLIENT)
         try {

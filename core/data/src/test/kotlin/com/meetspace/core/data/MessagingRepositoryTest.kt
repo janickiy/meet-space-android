@@ -329,6 +329,7 @@ class MessagingRepositoryTest {
         login(); server.enqueue(json("""{"ticket":"${"a".repeat(43)}"}"""))
         server.enqueue(MockResponse().withWebSocketUpgrade(object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) { webSocket.send(event()) }
+            override fun onClosing(webSocket: WebSocket, code: Int, reason: String) { webSocket.close(code, reason) }
         }))
         val events = repository.openUserEvents()
         assertEquals("connected", withTimeout(3000) { events.events.receive() }.type)

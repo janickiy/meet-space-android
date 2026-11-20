@@ -17,6 +17,9 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import okhttp3.OkHttpClient
+import okhttp3.Response
+import okhttp3.WebSocket
+import okhttp3.WebSocketListener
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import okhttp3.mockwebserver.RecordedRequest
@@ -331,8 +334,9 @@ class MeetingsRepositoryTest {
         signIn()
         val ice = """{"iceServers":[{"urls":["turn:example.test:3478"],"username":"short","credential":"synthetic"}],"iceTransportPolicy":"relay","expiresAt":2000000000}"""
         server.enqueue(json(ice)); server.enqueue(json("""{"ticket":"one-time-ticket"}"""))
-        server.enqueue(MockResponse().withWebSocketUpgrade(object : okhttp3.WebSocketListener() {
-            override fun onOpen(webSocket: okhttp3.WebSocket, response: okhttp3.Response) { webSocket.send("fixture-frame") }
+        server.enqueue(MockResponse().withWebSocketUpgrade(object : WebSocketListener() {
+            override fun onOpen(webSocket: WebSocket, response: Response) { webSocket.send("fixture-frame") }
+            override fun onClosing(webSocket: WebSocket, code: Int, reason: String) { webSocket.close(code, reason) }
         }).setHeader("Sec-WebSocket-Protocol", "go-recorder.v1"))
         val call = repository.openCall(ID)
         assertEquals(ice, call.iceConfiguration)
@@ -349,8 +353,9 @@ class MeetingsRepositoryTest {
     @Test fun `logout invalidates active call before clearing credentials`() = runBlocking {
         signIn()
         server.enqueue(json("""{"iceServers":[]}""")); server.enqueue(json("""{"ticket":"one-time-ticket"}"""))
-        server.enqueue(MockResponse().withWebSocketUpgrade(object : okhttp3.WebSocketListener() {
-            override fun onOpen(webSocket: okhttp3.WebSocket, response: okhttp3.Response) { webSocket.send("open") }
+        server.enqueue(MockResponse().withWebSocketUpgrade(object : WebSocketListener() {
+            override fun onOpen(webSocket: WebSocket, response: Response) { webSocket.send("open") }
+            override fun onClosing(webSocket: WebSocket, code: Int, reason: String) { webSocket.close(code, reason) }
         }).setHeader("Sec-WebSocket-Protocol", "go-recorder.v1"))
         val call = repository.openCall(ID)
         withTimeout(3000) { call.messages.receive() }; repeat(3) { take() }
