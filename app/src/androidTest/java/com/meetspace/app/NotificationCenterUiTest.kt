@@ -196,11 +196,15 @@ class NotificationCenterUiTest {
             compose.onNodeWithTag("notification-bell").assertIsDisplayed().performClick()
             compose.onNodeWithTag("notification-bell-count", useUnmergedTree = true).assertExists()
             val header = compose.onNodeWithTag(if (showChats) "messaging-header" else "meetings-header").getUnclippedBoundsInRoot()
-            val bell = compose.onNodeWithTag("notification-bell").getUnclippedBoundsInRoot()
+            val bellNode = compose.onNodeWithTag("notification-bell")
+            val bell = bellNode.getUnclippedBoundsInRoot()
             val previous = compose.onNodeWithTag(if (showChats) "messaging-search-toggle" else "meeting-recordings").getUnclippedBoundsInRoot()
             assertTrue("Bell follows previous header action at $width/$font: $previous / $bell", bell.left >= previous.right)
             assertTrue("Bell stays within header", bell.right <= header.right && bell.bottom <= header.bottom)
-            assertTrue("Bell has full touch target", bell.right - bell.left >= 48.dp && bell.bottom - bell.top >= 48.dp)
+            val target = bellNode.fetchSemanticsNode()
+            val minimumTouchPixels = with(target.layoutInfo.density) { 48.dp.roundToPx() }
+            assertTrue("Bell touch target ${target.size} is smaller than ${minimumTouchPixels}px at $width/$font",
+                target.size.width >= minimumTouchPixels && target.size.height >= minimumTouchPixels)
             val title = compose.onNodeWithText(if (showChats) "Чаты" else "Встречи", useUnmergedTree = true).getUnclippedBoundsInRoot()
             val firstAction = compose.onNodeWithTag(if (showChats) "messaging-search-toggle" else "calls-calendar").getUnclippedBoundsInRoot()
             assertTrue("Header title never overlaps actions", title.right <= firstAction.left)
