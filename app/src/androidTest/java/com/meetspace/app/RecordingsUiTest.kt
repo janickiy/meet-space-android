@@ -21,6 +21,8 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.height
+import androidx.compose.ui.unit.width
 import androidx.test.platform.app.InstrumentationRegistry
 import com.meetspace.app.ui.*
 import com.meetspace.core.designsystem.MeetSpaceTheme
@@ -49,20 +51,60 @@ class RecordingsUiTest {
         var landscape by mutableStateOf(false)
         var opened: String? = null
         compose.setContent {
-            Screen(library, RecordingsActions(openLibrary = { _, id -> opened = id }),
-                width = if (landscape) 960 else 700, height = if (landscape) 700 else 960)
+            Screen(library.copy(selfId = meeting.ownerId), RecordingsActions(openLibrary = { _, id -> opened = id }),
+                width = if (landscape) 1194 else 834, height = if (landscape) 834 else 1194)
         }
         val cardTag = "recording-row-${record.id}"
         for (rotated in listOf(false, true)) {
             compose.runOnIdle { landscape = rotated }
             compose.onNodeWithTag("recordings-library").performScrollToNode(hasTestTag(cardTag))
             val card = compose.onNodeWithTag(cardTag).getUnclippedBoundsInRoot()
-            val icon = compose.onNodeWithContentDescription("Действия с записью", useUnmergedTree = true).getUnclippedBoundsInRoot()
-            assertEquals((card.top.value + card.bottom.value) / 2, (icon.top.value + icon.bottom.value) / 2, 1f)
+            val open = compose.onNodeWithTag("recording-open-${record.id}").assertIsDisplayed().getUnclippedBoundsInRoot()
+            val delete = compose.onNodeWithTag("recording-delete-${record.id}").assertIsDisplayed().getUnclippedBoundsInRoot()
+            val center = (card.top.value + card.bottom.value) / 2
+            assertEquals(center, (open.top.value + open.bottom.value) / 2, 1f)
+            assertEquals(center, (delete.top.value + delete.bottom.value) / 2, 1f)
         }
-        compose.onNodeWithContentDescription("Действия с записью").performClick()
-        compose.onNodeWithText("Открыть запись").performClick()
+        compose.onNodeWithTag("recording-open-${record.id}").performClick()
         compose.runOnIdle { assertEquals(record.id, opened) }
+    }
+
+    @Test fun phoneUsesEqualFiltersAndConfirmsDeletionFromTheList() {
+        var deleted: Recording? = null
+        var opened: String? = null
+        val foreign = record.copy(id = "foreign", conferenceId = "other")
+        val other = meeting.copy(id = foreign.conferenceId, ownerId = "another-user")
+        val state = library.copy(selfId = meeting.ownerId, library = library.library.copy(
+            meetings = library.library.meetings + RecordingLibraryMeeting(other, RecordingsLoad(RecordingPage(listOf(foreign), null))),
+        ))
+        compose.setContent {
+            Screen(state, RecordingsActions(delete = { deleted = it }, openLibrary = { _, id -> opened = id }), width = 390, height = 844)
+        }
+        val list = compose.onNodeWithTag("recordings-library")
+        list.performScrollToNode(hasTestTag("recordings-period-filter"))
+        val period = compose.onNodeWithTag("recordings-period-filter").getUnclippedBoundsInRoot()
+        val sort = compose.onNodeWithTag("recordings-sort-filter").getUnclippedBoundsInRoot()
+        assertEquals(period.top.value, sort.top.value, 1f)
+        assertEquals(period.width.value, sort.width.value, 1f)
+        assertEquals(48f, period.height.value, 1f)
+        assertEquals(48f, sort.height.value, 1f)
+        compose.onNodeWithTag("recordings-view-grid").assertDoesNotExist()
+        compose.onNodeWithTag("recordings-view-list").assertDoesNotExist()
+
+        list.performScrollToNode(hasTestTag("recording-row-${record.id}"))
+        compose.onNodeWithTag("recording-open-${record.id}").assertDoesNotExist()
+        val trash = compose.onNodeWithTag("recording-delete-${record.id}")
+        trash.performClick()
+        compose.onNodeWithText("Отмена").performClick()
+        compose.runOnIdle { assertNull(deleted); assertNull(opened) }
+        trash.performClick()
+        compose.onNodeWithTag("recording-delete-confirm").performClick()
+        compose.runOnIdle { assertEquals(record, deleted); assertNull(opened) }
+        compose.onNodeWithText("Отмена").performClick()
+        list.performScrollToNode(hasTestTag("recording-row-${foreign.id}"))
+        compose.onNodeWithTag("recording-delete-${foreign.id}").assertDoesNotExist()
+        compose.onNodeWithTag("recording-row-${foreign.id}").performClick()
+        compose.runOnIdle { assertEquals(foreign.id, opened) }
     }
 
     @Test fun globalEntryShowsRealRecordingsAcrossMeetingsWithoutRequiringSelection() {
@@ -209,19 +251,22 @@ class RecordingsUiTest {
         compose.runOnIdle { assertEquals(1, refresh) }
     }
 
-    @Test fun meetingMaterialsOfferTheAvailableTracksArchiveFromTheCardMenu() {
+    @Test fun meetingMaterialsOpenTheAvailableTracksArchiveFromTheCard() {
         val archive = RecordingFile("tracks", "tracks_archive", "meeting-tracks.zip", "application/zip", 4096)
         val tracks = record.copy(mode = "individual_tracks", files = listOf(archive))
         var downloaded: Pair<Recording, RecordingFile>? = null
+        var state by mutableStateOf(list.copy(selfId = "guest", recordings = RecordingsLoad(RecordingPage(listOf(tracks), null))))
         compose.setContent {
-            Screen(list.copy(selfId = "guest", recordings = RecordingsLoad(RecordingPage(listOf(tracks), null))),
-                RecordingsActions(download = { recording, file -> downloaded = recording to file }), width = 1194)
+            Screen(state, RecordingsActions(
+                open = { state = state.copy(detailId = it, detail = RecordingsLoad(tracks)) },
+                download = { recording, file -> downloaded = recording to file },
+            ), width = 1194)
         }
         compose.onNodeWithTag("recordings-list").performScrollToNode(hasTestTag("recording-row-${tracks.id}"))
-        compose.onNodeWithText("Материалы").assertIsDisplayed()
-        compose.onNodeWithContentDescription("Действия с записью").performClick()
-        compose.onNodeWithText("Удалить запись").assertDoesNotExist()
-        compose.onNodeWithText("Скачать запись").performClick()
+        compose.onNodeWithTag("recording-delete-${tracks.id}").assertDoesNotExist()
+        compose.onNodeWithTag("recording-open-${tracks.id}").assertTextContains("Материалы").performClick()
+        scrollDetail("recording-download-${archive.id}")
+        compose.onNodeWithTag("recording-download-${archive.id}").performClick()
         compose.runOnIdle { assertEquals(tracks to archive, downloaded) }
     }
 
@@ -275,9 +320,15 @@ class RecordingsUiTest {
         assertTrue(bounds(second.id).left < bounds(third.id).left)
         compose.onNodeWithTag("recording-row-${third.id}").performClick()
         compose.runOnIdle { assertEquals(third.id, selected); width = 390 }
+        compose.onNodeWithTag("recordings-view-grid").assertDoesNotExist()
+        compose.onNodeWithTag("recordings-view-list").assertDoesNotExist()
         scroll.performScrollToNode(hasTestTag("recording-row-${second.id}"))
         assertEquals(bounds(record.id).left, bounds(second.id).left)
         assertTrue(bounds(record.id).top < bounds(second.id).top)
+
+        compose.runOnIdle { width = 834 }
+        scroll.performScrollToNode(hasTestTag("recordings-view-grid"))
+        compose.onNodeWithTag("recordings-view-grid").assertIsSelected()
     }
 
     @Test fun meetingFilterStartsAtOpenedMeetingAndAllMeetingsOpensTheCatalogue() {
