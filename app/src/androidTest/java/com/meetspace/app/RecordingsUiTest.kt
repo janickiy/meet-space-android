@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.InputMode
@@ -21,8 +22,6 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.height
-import androidx.compose.ui.unit.width
 import androidx.test.platform.app.InstrumentationRegistry
 import com.meetspace.app.ui.*
 import com.meetspace.core.designsystem.MeetSpaceTheme
@@ -57,15 +56,16 @@ class RecordingsUiTest {
         val cardTag = "recording-row-${record.id}"
         fun verticalCenterPx(tag: String): Float {
             val node = compose.onNodeWithTag(tag).assertIsDisplayed().fetchSemanticsNode()
-            return node.positionInRoot.y + node.size.height / 2f
+            return node.layoutInfo.coordinates.localToRoot(Offset(0f, node.size.height / 2f)).y
         }
         for (rotated in listOf(false, true)) {
             compose.runOnIdle { landscape = rotated }
             compose.onNodeWithTag("recordings-library").performScrollToNode(hasTestTag(cardTag))
             val center = verticalCenterPx(cardTag)
-            // Two nested centering layouts can round their offsets to adjacent pixels.
-            assertEquals("Open button in landscape=$rotated", center, verticalCenterPx("recording-open-${record.id}"), 1f)
-            assertEquals("Delete button in landscape=$rotated", center, verticalCenterPx("recording-delete-${record.id}"), 1f)
+            // The card, action row, and Material button can each round fractional offsets.
+            val roundingAllowancePx = 2f
+            assertEquals("Open button in landscape=$rotated", center, verticalCenterPx("recording-open-${record.id}"), roundingAllowancePx)
+            assertEquals("Delete button in landscape=$rotated", center, verticalCenterPx("recording-delete-${record.id}"), roundingAllowancePx)
         }
         compose.onNodeWithTag("recording-open-${record.id}").performClick()
         compose.runOnIdle { assertEquals(record.id, opened) }
@@ -84,12 +84,13 @@ class RecordingsUiTest {
         }
         val list = compose.onNodeWithTag("recordings-library")
         list.performScrollToNode(hasTestTag("recordings-period-filter"))
-        val period = compose.onNodeWithTag("recordings-period-filter").getUnclippedBoundsInRoot()
-        val sort = compose.onNodeWithTag("recordings-sort-filter").getUnclippedBoundsInRoot()
-        assertEquals(period.top.value, sort.top.value, 1f)
-        assertEquals(period.width.value, sort.width.value, 1f)
-        assertEquals(48f, period.height.value, 1f)
-        assertEquals(48f, sort.height.value, 1f)
+        val period = compose.onNodeWithTag("recordings-period-filter").fetchSemanticsNode()
+        val sort = compose.onNodeWithTag("recordings-sort-filter").fetchSemanticsNode()
+        val filterHeight = with(period.layoutInfo.density) { 48.dp.roundToPx() }
+        assertEquals(period.boundsInRoot.top, sort.boundsInRoot.top, 1f)
+        assertEquals(period.size.width.toFloat(), sort.size.width.toFloat(), 1f)
+        assertEquals(filterHeight, period.size.height)
+        assertEquals(filterHeight, sort.size.height)
         compose.onNodeWithTag("recordings-view-grid").assertDoesNotExist()
         compose.onNodeWithTag("recordings-view-list").assertDoesNotExist()
 
