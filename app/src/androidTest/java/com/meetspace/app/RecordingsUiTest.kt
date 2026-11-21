@@ -55,15 +55,17 @@ class RecordingsUiTest {
                 width = if (landscape) 1194 else 834, height = if (landscape) 834 else 1194)
         }
         val cardTag = "recording-row-${record.id}"
+        fun verticalCenterPx(tag: String): Float {
+            val node = compose.onNodeWithTag(tag).assertIsDisplayed().fetchSemanticsNode()
+            return node.positionInRoot.y + node.size.height / 2f
+        }
         for (rotated in listOf(false, true)) {
             compose.runOnIdle { landscape = rotated }
             compose.onNodeWithTag("recordings-library").performScrollToNode(hasTestTag(cardTag))
-            val card = compose.onNodeWithTag(cardTag).getUnclippedBoundsInRoot()
-            val open = compose.onNodeWithTag("recording-open-${record.id}").assertIsDisplayed().getUnclippedBoundsInRoot()
-            val delete = compose.onNodeWithTag("recording-delete-${record.id}").assertIsDisplayed().getUnclippedBoundsInRoot()
-            val center = (card.top.value + card.bottom.value) / 2
-            assertEquals(center, (open.top.value + open.bottom.value) / 2, 1f)
-            assertEquals(center, (delete.top.value + delete.bottom.value) / 2, 1f)
+            val center = verticalCenterPx(cardTag)
+            // Two nested centering layouts can round their offsets to adjacent pixels.
+            assertEquals("Open button in landscape=$rotated", center, verticalCenterPx("recording-open-${record.id}"), 1f)
+            assertEquals("Delete button in landscape=$rotated", center, verticalCenterPx("recording-delete-${record.id}"), 1f)
         }
         compose.onNodeWithTag("recording-open-${record.id}").performClick()
         compose.runOnIdle { assertEquals(record.id, opened) }
