@@ -135,9 +135,10 @@ jobs:
           mkdir -p "$ANDROID_AVD_HOME"
           printf 'no\n' | "$avdmanager" create avd --force --name meetspace-ci --package 'system-images;android-35;google_apis;x86_64'
           test -s "$ANDROID_AVD_HOME/meetspace-ci.ini"
-          # The offline suite uses GLES. Avoid the additional Vulkan path on headless runners.
+          # The dedicated SwiftShader GLES mode crashed during rotation on the runner.
+          # Let the emulator choose the software backend and keep guest Vulkan disabled.
           "$emulator" -avd meetspace-ci -port 5554 -no-window -no-audio -no-boot-anim \
-            -no-snapshot -wipe-data -gpu swiftshader -feature -Vulkan -memory 2048 \
+            -no-snapshot -wipe-data -gpu software -feature -Vulkan -memory 2048 \
             > build/reports/stage09/emulator.log 2>&1 &
           emulator_pid=$!
           trap '"$adb" -s "$ANDROID_SERIAL" emu kill >/dev/null 2>&1 || true; kill "$emulator_pid" >/dev/null 2>&1 || true' EXIT
