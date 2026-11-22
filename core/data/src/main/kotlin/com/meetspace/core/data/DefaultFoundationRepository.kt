@@ -396,21 +396,26 @@ internal class DefaultFoundationRepository(
         meetingsApi.history(it.scope.origin, it.token, id)
     }
 
-    override suspend fun updateDisplayName(displayName: String): User = meetingOperation(readOnly = false) { context ->
-        val name = displayName.trim()
-        if (name.isEmpty() || name.codePointCount(0, name.length) > 100 || name.any(Char::isISOControl)) {
-            throw AppFailure(FailureKind.VALIDATION, "Имя должно содержать от 1 до 100 символов без управляющих знаков.")
+    override suspend fun updateDisplayName(displayName: String): User = updateAccountProfile(displayName, null)
+
+    override suspend fun updateAccountProfile(displayName: String?, bio: String?): User = meetingOperation(readOnly = false) { context ->
+        val name = displayName?.trim()?.also {
+            if (it.isEmpty() || it.codePointCount(0, it.length) > 100 || it.any(Char::isISOControl)) {
+                throw AppFailure(FailureKind.VALIDATION, "Имя должно содержать от 1 до 100 символов без управляющих знаков.")
+            }
         }
-        val user = api.updateDisplayName(context.scope.origin, context.token, context.jar, name)
-        val previous = state.value.session ?: throw InvalidContract()
-        if (user.id != context.scope.accountId || user.email != previous.user.email || user.isAdmin != previous.user.isAdmin) {
-            throw InvalidContract()
+        val about = bio?.let(ProfileBioValidation::normalize)?.also {
+            if (!ProfileBioValidation.isValid(it)) {
+                throw AppFailure(FailureKind.VALIDATION, "Поле «О себе» должно содержать до ${ProfileBioValidation.MAX_CHARACTERS} символов.")
+            }
+            if (state.value.session?.user?.bio == null) {
+                throw AppFailure(FailureKind.INCOMPATIBLE_SERVER, "Поле «О себе» недоступно на этом сервере.")
+            }
         }
-        context.jar.stored()?.let { credentials.write(context.scope, it) }
-        persist(state.value.copy(session = previous.copy(user = user), profiles = state.value.profiles.map {
-            if (it.id == state.value.selectedProfileId) it.copy(accountName = user.displayLabel) else it
-        }))
-        user
+        if (name == null && about == null) throw AppFailure(FailureKind.VALIDATION, "Внесите изменения в профиль.")
+        val user = api.updateAccountProfile(context.scope.origin, context.token, context.jar, name, about)
+        if (about != null && user.bio != about) throw InvalidContract()
+        applyProfileUser(context, user, storeCredentials = true)
     }
 
     override suspend fun userAvatar(userId: String) = meetingOperation(true) {
@@ -418,22 +423,24 @@ internal class DefaultFoundationRepository(
     }
 
     override suspend fun putUserAvatar(mimeType: String, bytes: ByteArray): User = meetingOperation(false) { context ->
-        applyAvatarUser(context, api.putUserAvatar(context.scope.origin, context.token, mimeType, bytes))
+        applyProfileUser(context, api.putUserAvatar(context.scope.origin, context.token, mimeType, bytes))
     }
 
     override suspend fun deleteUserAvatar(): User = meetingOperation(false) { context ->
-        applyAvatarUser(context, api.deleteUserAvatar(context.scope.origin, context.token))
+        applyProfileUser(context, api.deleteUserAvatar(context.scope.origin, context.token))
     }
 
-    private suspend fun applyAvatarUser(context: AuthContext, user: User): User {
+    private suspend fun applyProfileUser(context: AuthContext, user: User, storeCredentials: Boolean = false): User {
         val previous = state.value.session ?: throw InvalidContract()
         if (user.id != context.scope.accountId || user.email != previous.user.email || user.isAdmin != previous.user.isAdmin) {
             throw InvalidContract()
         }
-        persist(state.value.copy(session = previous.copy(user = user), profiles = state.value.profiles.map {
+        if (storeCredentials) context.jar.stored()?.let { credentials.write(context.scope, it) }
+        val updatedUser = if (user.bio == null) user.copy(bio = previous.user.bio) else user
+        persist(state.value.copy(session = previous.copy(user = updatedUser), profiles = state.value.profiles.map {
             if (it.id == state.value.selectedProfileId) it.copy(accountName = user.displayLabel) else it
         }))
-        return user
+        return updatedUser
     }
 
     /** Serialised with login/switch/logout, so requests cannot cross an account or origin change. */

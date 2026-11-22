@@ -344,7 +344,10 @@ fun CallScreen(
             }
         }
     }
-    if (recordingDialog && !prejoin) CallRecordingDialog(state.title, details.recordingState, recordingActions, LocalConfiguration.current.screenWidthDp < 600) { recordingDialog = false }
+    if (recordingDialog && !prejoin) {
+        CallRecordingDialog(state.title, details.recordingState, recordingActions,
+            phone = LocalConfiguration.current.screenWidthDp < 700, close = { recordingDialog = false })
+    }
     if (devices && prejoin) PrejoinDevices(state, joinPending, microphone, camera, route, openSystemSettings, { devices = false })
     if (settings && !prejoin) CallDeviceSettings(state, devicePreferences, updateDevicePreferences, route, refreshRoutes,
         switchCamera, openSystemSettings, onWorkspaceTab, share = { settings = false; share() }) { settings = false }

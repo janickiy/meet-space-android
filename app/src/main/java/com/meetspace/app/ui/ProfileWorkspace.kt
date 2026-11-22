@@ -52,6 +52,7 @@ import com.meetspace.app.AvatarImage
 import com.meetspace.app.AvatarEditTarget
 import com.meetspace.app.rememberAvatarPicker
 import com.meetspace.core.model.NotificationPreferences
+import com.meetspace.core.model.ProfileBioValidation
 import com.meetspace.core.model.RepositoryState
 import com.meetspace.core.model.ThemeMode
 import java.net.URI
@@ -128,8 +129,12 @@ fun ProfileWorkspace(
             BackHandler(section == AccountSection.ADD_ACCOUNT || !wide && detailOpen) { if (!busy) back() }
             val choose: (AccountSection) -> Unit = { section = it; detailOpen = true }
             val shape = RoundedCornerShape(topStart = 25.dp, topEnd = 25.dp)
+            val profilePanelVisible = section == AccountSection.PROFILE && (wide || detailOpen)
+            val panelBackground = if (profilePanelVisible || section in setOf(AccountSection.AUDIO, AccountSection.VIDEO, AccountSection.NOTIFICATIONS)) {
+                MaterialTheme.colorScheme.background
+            } else MaterialTheme.colorScheme.surface
             Surface(Modifier.fillMaxSize().padding(horizontal = if (wide) 24.dp else 0.dp).testTag(if (wide) "profile-wide" else "profile-compact"),
-                shape = shape, color = if (section in setOf(AccountSection.AUDIO, AccountSection.VIDEO, AccountSection.NOTIFICATIONS)) MaterialTheme.colorScheme.background else MaterialTheme.colorScheme.surface,
+                shape = shape, color = panelBackground,
                 border = if (wide) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant) else null) {
                 Row(Modifier.fillMaxSize()) {
                     if (wide || !detailOpen) {
@@ -161,16 +166,32 @@ fun ProfileWorkspace(
                                         Modifier.padding(bottom = 24.dp))
                                     avatarError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall,
                                         modifier = Modifier.padding(bottom = 16.dp).testTag("account-avatar-error")) }
-                                    var draft by remember(user?.id, user?.displayName) { mutableStateOf(user?.displayName.orEmpty()) }
-                                    val clean = draft.trim()
-                                    val valid = clean.codePointCount(0, clean.length) in 1..100 && clean.none { Character.isISOControl(it) }
-                                    AccountField("Имя для встреч", draft, { draft = it.take(200) }, "account-name", !meetings.profileBusy,
-                                        hint = if (valid || draft.isEmpty()) "От 1 до 100 символов." else "Введите имя от 1 до 100 символов.", error = !valid && draft.isNotEmpty())
+                                    val storedName = user?.displayName.orEmpty()
+                                    val storedBio = user?.bio
+                                    var nameDraft by remember(origin, user?.id, storedName) { mutableStateOf(storedName) }
+                                    var bioDraft by remember(origin, user?.id, storedBio) { mutableStateOf(storedBio.orEmpty()) }
+                                    val cleanName = nameDraft.trim()
+                                    val validName = cleanName.codePointCount(0, cleanName.length) in 1..100 && cleanName.none { Character.isISOControl(it) }
+                                    val editedName = cleanName.takeIf { it != storedName.trim() }
+                                    val editedBio = ProfileBioValidation.normalize(bioDraft).takeIf {
+                                        storedBio != null && it != ProfileBioValidation.normalize(storedBio)
+                                    }
+                                    val editable = user != null && !busy && !meetings.profileBusy && !meetings.actionBusy
+                                    AccountField("Имя для встреч", nameDraft, { nameDraft = it.take(200) }, "account-name", editable,
+                                        hint = if (validName || nameDraft.isEmpty()) "От 1 до 100 символов." else "Введите имя от 1 до 100 символов.", error = !validName && nameDraft.isNotEmpty())
+                                    Spacer(Modifier.height(26.dp))
+                                    AccountField("О себе", bioDraft, { bioDraft = ProfileBioValidation.fit(it) }, "account-bio",
+                                        enabled = editable && storedBio != null, multiline = true, placeholder = "Расскажите о себе",
+                                        shape = RoundedCornerShape(if (wide) 10.dp else 12.dp),
+                                        hint = if (user != null && storedBio == null) "Поле недоступно на этом сервере." else null)
                                     Spacer(Modifier.height(26.dp))
                                     AccountField("Email", user?.email.orEmpty(), {}, "account-email", readOnly = true,
                                         hint = "Адрес используется для входа. Изменение email пока недоступно.")
                                     Spacer(Modifier.height(26.dp))
-                                    AccountSave("Сохранить имя", "account-save", valid && clean != user?.displayName && !busy && !meetings.profileBusy && !meetings.actionBusy) { meetingsActions.updateProfile(clean) }
+                                    AccountSave("Сохранить профиль", "account-save",
+                                        editable && (editedName == null || validName) && (editedName != null || editedBio != null)) {
+                                        meetingsActions.updateAccountProfile(editedName, editedBio)
+                                    }
                                     meetings.error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 12.dp)) }
                                     meetings.notice?.let { Text(it, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 12.dp)) }
                                     Spacer(Modifier.height(if (wide) 36.dp else 30.dp)); HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -441,22 +462,45 @@ fun ProfileWorkspace(
         avatar?.let { AccountAvatar(it, if (wide) 70 else 64, avatarId, avatarVersion) }
     }
 }
-@Composable private fun AccountField(label: String, value: String, change: (String) -> Unit, tag: String, enabled: Boolean = true, readOnly: Boolean = false, hint: String? = null, error: Boolean = false, keyboardType: KeyboardType = KeyboardType.Text, password: Boolean = false) {
+@Composable private fun AccountField(
+    label: String,
+    value: String,
+    change: (String) -> Unit,
+    tag: String,
+    enabled: Boolean = true,
+    readOnly: Boolean = false,
+    hint: String? = null,
+    error: Boolean = false,
+    keyboardType: KeyboardType = KeyboardType.Text,
+    password: Boolean = false,
+    multiline: Boolean = false,
+    placeholder: String? = null,
+    shape: RoundedCornerShape = RoundedCornerShape(12.dp),
+) {
     var focused by remember { mutableStateOf(false) }
     var reveal by remember { mutableStateOf(false) }
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    val visibleLines = if (multiline) 3 else 1
+    val fieldTextStyle = MaterialTheme.typography.bodyMedium.copy(lineHeight = if (multiline) 21.sp else 20.sp)
+    Column(verticalArrangement = Arrangement.spacedBy(if (multiline) 10.dp else 8.dp)) {
         Text(label, fontSize = 14.sp, lineHeight = 21.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.heightIn(min = 21.dp * LocalDensity.current.fontScale))
-        BasicTextField(value, change, singleLine = true, enabled = enabled, readOnly = readOnly, keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        BasicTextField(value, change, singleLine = !multiline, minLines = visibleLines, maxLines = visibleLines,
+            enabled = enabled, readOnly = readOnly, keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
             visualTransformation = if (password && !reveal) PasswordVisualTransformation() else VisualTransformation.None,
             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-            textStyle = MaterialTheme.typography.bodyMedium.copy(lineHeight = 20.sp, color = if (readOnly) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface),
-            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).clip(RoundedCornerShape(12.dp))
+            textStyle = fieldTextStyle.copy(color = if (readOnly) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface),
+            modifier = Modifier.fillMaxWidth().heightIn(min = if (multiline) 94.dp else 52.dp).clip(shape)
                 .background(if (readOnly) MaterialTheme.colorScheme.background else MaterialTheme.colorScheme.surface)
-                .border(if (focused) 2.dp else 1.dp, if (error) MaterialTheme.colorScheme.error else if (focused) MaterialTheme.colorScheme.primary else lerp(MaterialTheme.colorScheme.outlineVariant, MaterialTheme.colorScheme.onSurfaceVariant, .25f), RoundedCornerShape(12.dp))
+                .border(if (focused) 2.dp else 1.dp, if (error) MaterialTheme.colorScheme.error else if (focused) MaterialTheme.colorScheme.primary else lerp(MaterialTheme.colorScheme.outlineVariant, MaterialTheme.colorScheme.onSurfaceVariant, if (multiline) .65f else .25f), shape)
                 .onFocusChanged { focused = it.isFocused }
                 .testTag(tag).semantics { contentDescription = label },
-            decorationBox = { field -> Row(Modifier.padding(start = 14.dp, end = if (password) 2.dp else 14.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.weight(1f).padding(vertical = 12.dp)) { field() }
+            decorationBox = { field -> Row(Modifier.padding(start = 14.dp, end = if (password) 2.dp else 14.dp),
+                verticalAlignment = if (multiline) Alignment.Top else Alignment.CenterVertically) {
+                Box(Modifier.weight(1f).padding(vertical = 12.dp)) {
+                    if (value.isEmpty() && placeholder != null) {
+                        Text(placeholder, style = fieldTextStyle, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    field()
+                }
                 if (password) IconButton({ reveal = !reveal }, enabled = enabled) {
                     Icon(if (reveal) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
                         if (reveal) "Скрыть $label" else "Показать $label", Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)

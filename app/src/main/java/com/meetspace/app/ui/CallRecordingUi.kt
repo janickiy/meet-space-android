@@ -1,21 +1,19 @@
 package com.meetspace.app.ui
 
 import android.view.Gravity
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.foundation.selection.selectable
-import com.meetspace.core.model.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -64,7 +62,7 @@ data class CallRecordingActions(
 
 private val CallRecordingStatus.label: String get() = when (this) {
     CallRecordingStatus.UNKNOWN -> "Запись"
-    CallRecordingStatus.STOPPED -> "Записать"
+    CallRecordingStatus.STOPPED -> "Запись"
     CallRecordingStatus.STARTING -> "Запуск записи…"
     CallRecordingStatus.RECORDING -> "Идёт запись"
     CallRecordingStatus.PAUSED -> "На паузе"
@@ -104,61 +102,60 @@ internal fun CallRecordingDialog(title: String, state: CallRecordingUiState, act
         val window = (LocalView.current.parent as? DialogWindowProvider)?.window
         SideEffect { window?.setGravity(if (phone) Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL else Gravity.CENTER) }
         val colors = MaterialTheme.colorScheme
+        val padding = if (phone) 22.dp else 25.dp
+        val shape = RoundedCornerShape(if (phone) 23.dp else 24.dp)
+        val showFormats = state.status == CallRecordingStatus.STOPPED && state.canStart
         Box(Modifier.fillMaxWidth().padding(if (phone) 14.dp else 20.dp), contentAlignment = Alignment.Center) {
-            Column(Modifier.widthIn(max = 440.dp).fillMaxWidth().clip(RoundedCornerShape(if (phone) 23.dp else 24.dp))
-                .background(colors.surface).border(1.dp, colors.outlineVariant, RoundedCornerShape(if (phone) 23.dp else 24.dp))
-                .testTag("call-recording-dialog").verticalScroll(rememberScrollState()).padding(if (phone) 21.dp else 24.dp),
-                verticalArrangement = Arrangement.spacedBy(18.dp)) {
+            Column(Modifier.widthIn(max = 440.dp).fillMaxWidth().clip(shape)
+                .background(colors.surface).border(1.dp, colors.outlineVariant, shape)
+                .testTag("call-recording-dialog").verticalScroll(rememberScrollState())
+                .padding(start = padding, top = padding - 8.dp, end = padding, bottom = padding)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Запись встречи", Modifier.weight(1f).semantics { heading() }, color = colors.onSurface, fontSize = if (phone) 20.sp else 21.sp, lineHeight = 30.sp, fontWeight = FontWeight.SemiBold)
-                    IconButton(close, Modifier.size(48.dp).testTag("call-recording-close")) { Icon(CallIcons.X, "Закрыть управление записью", Modifier.size(20.dp), tint = colors.onSurfaceVariant) }
-                }
-                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(colors.surfaceContainerLow).border(1.dp, colors.outlineVariant, RoundedCornerShape(16.dp)).padding(17.dp),
-                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(15.dp)) {
-                    val active = state.status in setOf(CallRecordingStatus.RECORDING, CallRecordingStatus.STOPPING)
-                    val paused = state.status == CallRecordingStatus.PAUSED
-                    val tint = if (active) Color(0xFFD95265) else if (paused) Color(0xFFB27C14) else colors.primary
-                    Box(Modifier.size(45.dp).clip(RoundedCornerShape(13.dp)).background(tint.copy(alpha = .1f)), contentAlignment = Alignment.Center) {
-                        Icon(state.status.icon, null, Modifier.size(20.dp), tint = tint)
-                    }
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                        Text(if (state.status == CallRecordingStatus.STOPPED) "Запись остановлена" else if (state.status == CallRecordingStatus.UNKNOWN) "Состояние записи неизвестно" else state.status.label,
-                            color = colors.onSurface, fontSize = 15.sp, lineHeight = 22.sp, fontWeight = FontWeight.SemiBold)
-                        Text(title, color = colors.onSurfaceVariant, fontSize = 13.sp, lineHeight = 22.sp)
+                    Text("Запись встречи", Modifier.weight(1f).semantics { heading() }, color = colors.onSurface,
+                        fontSize = if (phone) 20.sp else 21.sp, lineHeight = 32.sp, fontWeight = FontWeight.SemiBold)
+                    IconButton(close, Modifier.offset(x = 10.dp).size(48.dp).testTag("call-recording-close")) {
+                        Icon(CallIcons.X, "Закрыть управление записью", Modifier.size(20.dp), tint = colors.onSurface)
                     }
                 }
-                if (state.busy || state.status in setOf(CallRecordingStatus.STARTING, CallRecordingStatus.STOPPING)) LinearProgressIndicator(Modifier.fillMaxWidth().testTag("call-recording-busy"))
-                state.description?.let { Text(it, color = colors.onSurfaceVariant, fontSize = 13.sp, lineHeight = 22.sp) }
-                state.unavailableReason?.let { Text(it, color = colors.onSurfaceVariant, fontSize = 13.sp, lineHeight = 22.sp, modifier = Modifier.testTag("call-recording-unavailable")) }
-                state.error?.let { error ->
-                    Text(error, color = colors.error, fontSize = 13.sp, lineHeight = 22.sp, modifier = Modifier.testTag("call-recording-error").semantics { liveRegion = LiveRegionMode.Polite })
-                    TextButton(actions.retry, Modifier.heightIn(min = 48.dp).testTag("call-recording-retry"), enabled = !state.busy) { Text("Обновить состояние") }
-                }
-                if (state.status == CallRecordingStatus.STOPPED && state.canStart) {
-                    Text("Режим записи", fontWeight = FontWeight.SemiBold)
-                    state.modes.forEach { mode ->
-                        val selected = mode == state.selectedMode
-                        Surface(shape = RoundedCornerShape(12.dp), color = if (selected) colors.primaryContainer else colors.surface,
-                            border = androidx.compose.foundation.BorderStroke(1.dp, if (selected) colors.primary else colors.outlineVariant),
-                            modifier = Modifier.fillMaxWidth().selectable(selected, enabled = !state.busy, role = Role.RadioButton) { actions.selectMode(mode) }.testTag("recording-mode-$mode")) {
-                            Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                RadioButton(selected, null)
-                                Column { Text(recordingModeName(mode), fontSize = 13.sp, fontWeight = FontWeight.SemiBold); Text(recordingModeDescription(mode), color = colors.onSurfaceVariant, fontSize = 11.sp) }
-                            }
+                Spacer(Modifier.height(9.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                    RecordingStatusSummary(title, state.status)
+                    if (state.busy || state.status in setOf(CallRecordingStatus.STARTING, CallRecordingStatus.STOPPING)) {
+                        LinearProgressIndicator(Modifier.fillMaxWidth().testTag("call-recording-busy"))
+                    }
+                    state.description?.let { RecordingHint(it) }
+                    state.error?.let { error ->
+                        Column {
+                            Text(error, color = colors.error, fontSize = 13.sp, lineHeight = 22.sp,
+                                modifier = Modifier.testTag("call-recording-error").semantics { liveRegion = LiveRegionMode.Polite })
+                            TextButton(actions.retry, Modifier.heightIn(min = 48.dp).testTag("call-recording-retry"),
+                                enabled = !state.busy) { Text("Обновить состояние") }
                         }
                     }
-                }
-                val enabled = !state.busy
-                when (state.status) {
-                    CallRecordingStatus.STOPPED -> RecordingAction("Начать запись", CallIcons.Circle, enabled && state.canStart, "start", actions.start)
-                    CallRecordingStatus.RECORDING -> if (state.canPause) RecordingAction("Приостановить запись", CallIcons.Pause, enabled, "pause", actions.pause)
-                    CallRecordingStatus.PAUSED -> RecordingAction("Продолжить запись", CallIcons.Play, enabled && state.canResume, "resume", actions.resume)
-                    else -> Unit
-                }
-                if (state.status in setOf(CallRecordingStatus.STARTING, CallRecordingStatus.RECORDING, CallRecordingStatus.PAUSED)) {
-                    OutlinedButton(actions.stop, enabled = enabled && state.canStop, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("call-recording-stop"), shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFC64858))) {
-                        Icon(CallIcons.Square, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text("Остановить запись")
+                    if (showFormats) {
+                        RecordingFormats(state, phone, actions.selectMode)
+                    }
+                    val enabled = !state.busy
+                    when (state.status) {
+                        CallRecordingStatus.STOPPED -> RecordingAction("Начать запись", CallIcons.Circle, enabled && state.canStart, "start", actions.start)
+                        CallRecordingStatus.RECORDING -> if (state.canPause) RecordingAction("Приостановить запись", CallIcons.Pause, enabled, "pause", actions.pause)
+                        CallRecordingStatus.PAUSED -> RecordingAction("Продолжить запись", CallIcons.Play, enabled && state.canResume, "resume", actions.resume)
+                        else -> Unit
+                    }
+                    if (state.status in setOf(CallRecordingStatus.STARTING, CallRecordingStatus.RECORDING, CallRecordingStatus.PAUSED)) {
+                        OutlinedButton(actions.stop, enabled = enabled && state.canStop,
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("call-recording-stop"),
+                            shape = RoundedCornerShape(14.dp), colors = ButtonDefaults.outlinedButtonColors(contentColor = colors.error)) {
+                            Icon(CallIcons.Square, null, Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Остановить запись")
+                        }
+                    }
+                    if (showFormats) {
+                        val permission = state.unavailableReason ?: "Остановить запись может её инициатор или организатор встречи."
+                        RecordingHint("По умолчанию записи хранятся 7 дней. $permission")
+                    } else {
+                        state.unavailableReason?.let { RecordingHint(it, Modifier.testTag("call-recording-unavailable")) }
                     }
                 }
             }
@@ -167,11 +164,100 @@ internal fun CallRecordingDialog(title: String, state: CallRecordingUiState, act
 }
 
 @Composable
+private fun RecordingStatusSummary(title: String, status: CallRecordingStatus) {
+    val colors = MaterialTheme.colorScheme
+    val stopped = status == CallRecordingStatus.STOPPED
+    val tint = when (status) {
+        CallRecordingStatus.RECORDING, CallRecordingStatus.STOPPING -> colors.error
+        CallRecordingStatus.PAUSED -> Color(0xFFB27C14)
+        else -> colors.primary
+    }
+    val background = when (status) {
+        CallRecordingStatus.RECORDING, CallRecordingStatus.STOPPING -> colors.errorContainer
+        CallRecordingStatus.PAUSED -> tint.copy(alpha = .1f)
+        else -> colors.primaryContainer
+    }
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Box(Modifier.size(46.dp).background(background, RoundedCornerShape(13.dp)), contentAlignment = Alignment.Center) {
+            Icon(if (stopped) CallIcons.Video else status.icon, null, Modifier.size(20.dp), tint = tint)
+        }
+        Column(Modifier.weight(1f)) {
+            Text(if (status == CallRecordingStatus.UNKNOWN) "Состояние записи неизвестно" else status.label,
+                color = colors.onSurface, fontSize = 15.sp, lineHeight = 23.sp, fontWeight = FontWeight.SemiBold)
+            Text(title, color = colors.onSurfaceVariant, fontSize = 12.sp, lineHeight = 19.sp)
+        }
+    }
+}
+
+@Composable
+private fun RecordingFormats(state: CallRecordingUiState, phone: Boolean, select: (String) -> Unit) {
+    val columns = if (phone) 1 else 2
+    Column(Modifier.fillMaxWidth().selectableGroup().padding(bottom = if (phone) 8.dp else 0.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Формат записи", Modifier.semantics { heading() }.padding(bottom = 2.dp),
+            color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold)
+        state.modes.chunked(columns).forEach { row ->
+            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                row.forEach { mode ->
+                    RecordingFormatCard(mode, mode == state.selectedMode, !state.busy, phone,
+                        Modifier.weight(1f).fillMaxHeight()) { select(mode) }
+                }
+                if (row.size < columns) Spacer(Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecordingFormatCard(mode: String, selected: Boolean, enabled: Boolean, phone: Boolean, modifier: Modifier, select: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    val icon = when (mode) {
+        "audio_only" -> CallIcons.AudioLines
+        "individual_tracks" -> CallIcons.Users
+        else -> CallIcons.Video
+    }
+    val mark = if (selected) colors.primary else colors.outline
+    Surface(modifier.selectable(selected, enabled = enabled, role = Role.RadioButton, onClick = select)
+        .testTag("recording-mode-$mode"), shape = RoundedCornerShape(12.dp),
+        color = if (selected) colors.primaryContainer else colors.surface,
+        border = BorderStroke(1.dp, if (selected) colors.primary else colors.outlineVariant)) {
+        Row(Modifier.fillMaxSize().heightIn(min = if (phone) 66.dp else 74.dp)
+            .padding(start = if (phone) 16.dp else 18.dp, end = 12.dp,
+                top = if (phone) 11.dp else 13.dp, bottom = if (phone) 11.dp else 13.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(17.dp).background(colors.surface, CircleShape).border(1.dp, mark, CircleShape),
+                contentAlignment = Alignment.Center) {
+                if (selected) Box(Modifier.size(9.dp).background(mark, CircleShape))
+            }
+            Spacer(Modifier.width(15.dp))
+            Icon(icon, null, Modifier.size(20.dp), tint = colors.primary)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(recordingModeName(mode), color = colors.onSurface, fontSize = 13.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold)
+                Text(recordingModeDescription(mode), color = colors.onSurfaceVariant, fontSize = 11.sp, lineHeight = 17.sp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecordingHint(text: String, modifier: Modifier = Modifier) {
+    Text(text, modifier, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp, lineHeight = 22.sp)
+}
+
+@Composable
 private fun RecordingAction(label: String, icon: ImageVector, enabled: Boolean, tag: String, click: () -> Unit) {
-    Button(click, enabled = enabled, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("call-recording-$tag"), shape = RoundedCornerShape(14.dp)) {
-        Icon(icon, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text(label)
+    Button(click, enabled = enabled, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("call-recording-$tag"),
+        shape = RoundedCornerShape(12.dp)) {
+        Icon(icon, null, Modifier.size(20.dp))
+        Spacer(Modifier.width(9.dp))
+        Text(label, fontSize = 14.sp, lineHeight = 21.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 
 internal fun recordingModeName(mode: String) = when (mode) { "audio_only" -> "Только аудио"; "individual_tracks" -> "Отдельные дорожки"; else -> "Общая запись" }
-internal fun recordingModeDescription(mode: String) = when (mode) { "audio_only" -> "Голоса участников без видео"; "individual_tracks" -> "Файлы участников для монтажа"; else -> "Участники и демонстрация экрана" }
+internal fun recordingModeDescription(mode: String) = when (mode) {
+    "audio_only" -> "Разговор без видеодорожки"
+    "individual_tracks" -> "Дорожки участников и общий микс"
+    else -> "Видео участников, звук и демонстрация экрана"
+}

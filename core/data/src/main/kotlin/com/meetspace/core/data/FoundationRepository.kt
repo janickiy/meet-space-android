@@ -5,6 +5,7 @@ import com.meetspace.core.model.LogoutResult
 import com.meetspace.core.model.RepositoryState
 import com.meetspace.core.model.ServerProfile
 import com.meetspace.core.model.ThemeMode
+import com.meetspace.core.model.User
 import com.meetspace.core.model.RegistrationResult
 import com.meetspace.core.model.AppFailure
 import com.meetspace.core.model.FailureKind
@@ -29,6 +30,8 @@ interface FoundationRepository {
     suspend fun restore()
     suspend fun logout(): LogoutResult
     suspend fun setTheme(mode: ThemeMode)
+    suspend fun updateAccountProfile(displayName: String?, bio: String?): User =
+        throw AppFailure(FailureKind.INCOMPATIBLE_SERVER, "Изменение профиля недоступно для этого подключения.")
     /** Private bounded image bytes from the selected account's HTTPS server. */
     suspend fun userAvatar(userId: String): ByteArray =
         throw AppFailure(FailureKind.INCOMPATIBLE_SERVER, "Аватарки пользователей недоступны на этом сервере.")

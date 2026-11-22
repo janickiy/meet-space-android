@@ -650,6 +650,43 @@ class CallUiTest {
         compose.runOnIdle { assertEquals("A pending stop must not issue a second request", 1, stops) }
     }
 
+    @Test fun recordingModesAdaptAndKeepStartExplicit() {
+        var phone by mutableStateOf(true)
+        var recording by mutableStateOf(CallRecordingUiState(
+            modes = listOf("composite", "audio_only", "individual_tracks"),
+            status = CallRecordingStatus.STOPPED,
+            canStart = true,
+        ))
+        var startedMode: String? = null
+        compose.setContent {
+            MeetSpaceTheme {
+                CallRecordingDialog("Встреча", recording, CallRecordingActions(
+                    selectMode = { recording = recording.copy(selectedMode = it) },
+                    start = { startedMode = recording.selectedMode },
+                ), phone = phone, close = {})
+            }
+        }
+
+        val composite = compose.onNodeWithTag("recording-mode-composite").assertIsSelected()
+        val audio = compose.onNodeWithTag("recording-mode-audio_only")
+        val tracks = compose.onNodeWithTag("recording-mode-individual_tracks")
+        fun bounds(node: SemanticsNodeInteraction) = node.getUnclippedBoundsInRoot()
+        assertEquals(bounds(composite).left, bounds(audio).left)
+        assertTrue(bounds(audio).top > bounds(composite).bottom)
+        audio.performScrollTo().performClick().assertIsSelected()
+        compose.runOnIdle { assertNull(startedMode); phone = false }
+
+        audio.assertIsSelected()
+        assertEquals(bounds(composite).top, bounds(audio).top)
+        assertEquals(bounds(composite).bottom, bounds(audio).bottom)
+        assertTrue(bounds(audio).left > bounds(composite).right)
+        assertEquals(bounds(composite).left, bounds(tracks).left)
+        assertTrue(bounds(tracks).top > bounds(composite).bottom)
+        compose.onNodeWithTag("recording-mode-screen_focus").assertDoesNotExist()
+        compose.onNodeWithTag("call-recording-start").performScrollTo().performClick()
+        compose.runOnIdle { assertEquals("audio_only", startedMode) }
+    }
+
     @Test fun reopeningTheOnlyMeetingChatKeepsItsDraftAndDoesNotDuplicateServerHistory() {
         val editor = EditorWindow()
         val confirmed = CallTextEntry("same-server-id", "Автор встречи", "Общая история встречи", "11:04")

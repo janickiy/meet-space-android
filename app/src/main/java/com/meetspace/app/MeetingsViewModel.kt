@@ -66,6 +66,7 @@ class MeetingsViewModel(
         refreshDetail = ::refreshDetail, create = ::create, edit = ::edit,
         transition = ::transition, join = ::join, joinMeeting = ::joinMeeting, leave = ::leave,
         updateProfile = ::updateProfile, updateAvatar = ::updateAvatar, deleteAvatar = ::deleteAvatar,
+        updateAccountProfile = ::updateAccountProfile,
         acknowledgeUncertainCreate = ::acknowledgeUncertainCreate,
         clearMessage = ::clearMessage, invitations = MeetingRoomActions(searchUsers = ::searchInviteUsers, invite = ::inviteUsers),
         folders = MeetingFolderActions(load = ::loadMeetingFolders, create = ::createMeetingFolder,
@@ -428,6 +429,12 @@ class MeetingsViewModel(
         repository.updateDisplayName(name)
         checkCurrent()
         "Имя сохранено."
+    }
+
+    fun updateAccountProfile(name: String?, bio: String?) = mutate(profile = true) {
+        foundation.updateAccountProfile(name, bio)
+        checkCurrent()
+        "Профиль сохранён."
     }
 
     fun updateAvatar(mimeType: String, bytes: ByteArray) {

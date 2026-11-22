@@ -155,6 +155,7 @@ data class MeetingsActions(
     val clearMessage: () -> Unit = {},
     val invitations: MeetingRoomActions = MeetingRoomActions(),
     val folders: MeetingFolderActions = MeetingFolderActions(),
+    val updateAccountProfile: (String?, String?) -> Unit = { _, _ -> },
 )
 
 private data class MeetingForm(val scheduled: Boolean, val meeting: Meeting? = null)

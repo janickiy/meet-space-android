@@ -1,6 +1,7 @@
 package com.meetspace.core.data
 
 import com.meetspace.core.model.Capabilities
+import com.meetspace.core.model.ProfileBioValidation
 import com.meetspace.core.model.ServerVersion
 import com.meetspace.core.model.User
 import java.io.IOException
@@ -26,6 +27,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 
 internal val wireJson = Json { ignoreUnknownKeys = true }
+private const val MAX_SERVER_BIO_CHARACTERS = 1000
 internal class HttpFailure(val statusCode: Int) : Exception()
 internal class InvalidContract : Exception()
 
@@ -131,9 +133,9 @@ internal class MeetSpaceApi(
         if (response.status != "success") throw InvalidContract()
     }
 
-    suspend fun updateDisplayName(origin: String, token: String, jar: SessionCookieJar, displayName: String): User {
+    suspend fun updateAccountProfile(origin: String, token: String, jar: SessionCookieJar, displayName: String?, bio: String?): User {
         val response = decode<MeDto>(authenticatedRequest(origin, listOf("auth", "me"), token,
-            method = "PATCH", payload = wireJson.encodeToString(ProfileRequest(displayName)), jar = jar))
+            method = "PATCH", payload = wireJson.encodeToString(ProfileRequest(displayName, bio)), jar = jar))
         if (response.status != "success") throw InvalidContract()
         return response.user.asAccount()
     }
@@ -320,7 +322,7 @@ private data class LoginRequest(val email: String, val password: String)
 @Serializable
 private data class RegisterRequest(val email: String, val password: String, val displayName: String)
 @Serializable
-private data class ProfileRequest(val displayName: String)
+private data class ProfileRequest(val displayName: String? = null, val bio: String? = null)
 @Serializable
 private data class DeleteAccountRequest(val password: String)
 @Serializable
@@ -332,6 +334,7 @@ private data class UserDto(
     val guestConferenceId: String? = null,
     val createdAt: String? = null,
     val avatarVersion: String? = null,
+    val bio: String? = null,
 ) {
     fun asAccount(): User = asUser(null)
     fun asGuest(conferenceId: String): User {
@@ -343,8 +346,10 @@ private data class UserDto(
             email.length > 254 || email.any(Char::isISOControl) || guestConferenceId != guestScope ||
             (displayName?.length ?: 0) > 256 || displayName?.any(Char::isISOControl) == true ||
             avatarVersion?.let { !MessagingApi.validId(it) } == true) throw InvalidContract()
+        val accountBio = bio?.takeIf { guestScope == null }?.let(ProfileBioValidation::normalize)
+            ?.takeIf { ProfileBioValidation.isValid(it, limit = MAX_SERVER_BIO_CHARACTERS) }
         return User(id, email, displayName, isAdmin,
-            createdAt?.takeIf { it.length <= 64 && runCatching { java.time.Instant.parse(it) }.isSuccess }, avatarVersion)
+            createdAt?.takeIf { it.length <= 64 && runCatching { java.time.Instant.parse(it) }.isSuccess }, avatarVersion, accountBio)
     }
 }
 @Serializable

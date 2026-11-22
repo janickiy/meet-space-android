@@ -175,8 +175,7 @@ class CallRecordingDesignTest {
                 CallParticipant("maxim", "Максим Петров", true, false, false)))
         private val callDetails = CallUiDetails(elapsedSeconds = 768, recording = true,
             room = MeetingRoomUiState(selfId = "self", participants = call.participants.map { MeetingParticipant(it.id, "design-fixture", it.id, it.name, if (it.id == "self") "owner" else "participant", "joined", "admitted") } + MeetingParticipant("waiting", "design-fixture", null, "Елена Смирнова", "guest", "waiting", "waiting")),
-            recordingState = CallRecordingUiState(status = CallRecordingStatus.STOPPED, canStart = true, modes = listOf("composite", "audio_only", "individual_tracks"),
-                description = "Видео, звук и демонстрация экрана в одной записи."),
+            recordingState = CallRecordingUiState(status = CallRecordingStatus.STOPPED, canStart = true, modes = listOf("composite", "audio_only", "individual_tracks")),
             chat = CallTextPanelState(canSend = true, canAttach = true, participantCount = 5, entries = listOf(
                 CallTextEntry("chat-one", "Мария Полякова", "Хорошо видно, можем начинать!", "10:02", dateLabel = "Сегодня"),
                 CallTextEntry("chat-two", "Анна Кузнецова", "Прикрепляю повестку. Здесь же можно оставить вопросы к встрече.", "10:05",

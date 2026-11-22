@@ -31,12 +31,12 @@ class ProfileDesignTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
     private val server = ServerProfile("test-server", "https://team.example", "test-user", "member@example.test", "Александр Соколов")
     private val repository = RepositoryState(profiles = listOf(server), selectedProfileId = server.id,
-        session = AccountSession(User("test-user", "member@example.test", "Александр Соколов", createdAt = "2026-10-03T16:17:00Z"), Capabilities(), true), theme = ThemeMode.DARK)
+        session = AccountSession(User("test-user", "member@example.test", "Александр Соколов", createdAt = "2026-10-03T16:17:00Z", bio = ""), Capabilities(), true), theme = ThemeMode.DARK)
     private val settings = AppSettingsUiState("0.2.0-beta", 17, true, true, false, false, false)
 
     @Composable private fun Profile(repo: RepositoryState = repository, onTheme: (ThemeMode) -> Unit = {}, onLogout: () -> Unit = {}, onFolders: () -> Unit = {}, updateName: (String) -> Unit = {}, section: String? = null,
         onSelectAccount: (String) -> Unit = {}, onAddAccount: (String, String, String, String?, String) -> Unit = { _, _, _, _, _ -> }, onDeleteAccount: (String) -> Unit = {}) {
-        ProfileWorkspace(repo, MeetingsUiState(), MeetingsActions(updateProfile = updateName), settings, AppSettingsActions(),
+        ProfileWorkspace(repo, MeetingsUiState(), MeetingsActions(updateAccountProfile = { name, _ -> name?.let(updateName) }), settings, AppSettingsActions(),
             onTheme = onTheme, onLogout = onLogout, onServers = {}, onFolders = onFolders,
             initialSection = section, messaging = MessagingUiState(notificationPreferences = MessagingLoad(NotificationPreferences())), onServerAddress = {},
             onSelectAccount = onSelectAccount, onAddAccount = onAddAccount, onDeleteAccount = onDeleteAccount)

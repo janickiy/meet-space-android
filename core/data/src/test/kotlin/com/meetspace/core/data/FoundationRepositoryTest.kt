@@ -2,6 +2,7 @@ package com.meetspace.core.data
 
 import com.meetspace.core.model.AppFailure
 import com.meetspace.core.model.FailureKind
+import com.meetspace.core.model.ProfileBioValidation
 import com.meetspace.core.model.ServerProfile
 import com.meetspace.core.model.ThemeMode
 import java.util.concurrent.TimeUnit
@@ -11,6 +12,7 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import kotlinx.serialization.json.JsonPrimitive
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -212,6 +214,68 @@ class FoundationRepositoryTest {
         assertEquals("user-a", restored.state.value.session!!.user.id)
         assertEquals("rotated-cookie", credentials.values.values.single().value)
         assertEquals(listOf("composite", "individual_tracks"), restored.state.value.session!!.capabilities.recordingModes)
+    }
+
+    @Test fun `profile patches both edited fields restores bio and clears it independently`() = runBlocking {
+        connectAndLogin(bio = "")
+        repeat(4) { take() }
+        assertEquals("", repository.state.value.session!!.user.bio)
+        val input = "🙂".repeat(497) + "\r\n\t "
+        val saved = "🙂".repeat(497) + "\n\t "
+        assertEquals(500, ProfileBioValidation.characterCount(input))
+        assertEquals(saved, ProfileBioValidation.fit(input + "🙂"))
+        assertEquals("🙂", ProfileBioValidation.fit("\u0000\uD800🙂"))
+
+        server.enqueue(json(profileBody("Новое имя", saved)))
+        val updated = repository.updateAccountProfile(" Новое имя ", input)
+        assertEquals(saved, updated.bio)
+        assertEquals("Новое имя", repository.state.value.selectedProfile!!.accountName)
+        val patch = take()
+        assertEquals("PATCH", patch.method)
+        assertEquals("$AUTH_PATH/me", patch.path)
+        assertEquals("Bearer first-access", patch.getHeader("Authorization"))
+        assertEquals("""{"displayName":"Новое имя","bio":${JsonPrimitive(saved)}}""", patch.body.readUtf8())
+        assertFalse(preferences.value.toString().contains(saved))
+
+        val restored = newRepository()
+        enqueueVersion(); enqueueLogin("renewed-access", "rotated-cookie")
+        server.enqueue(json(profileBody("Новое имя", saved))); enqueueCapabilities()
+        restored.restore()
+        repeat(4) { take() }
+        assertEquals(saved, restored.state.value.session!!.user.bio)
+
+        server.enqueue(json(profileBody("Новое имя", "")))
+        assertEquals("", restored.updateAccountProfile(null, "").bio)
+        assertEquals("""{"bio":""}""", take().body.readUtf8())
+        assertEquals("Новое имя", restored.state.value.session!!.user.displayName)
+    }
+
+    @Test fun `profile rejects overlong invalid or unconfirmed bio without changing the active account`() = runBlocking {
+        connectAndLogin(bio = "Исходный текст")
+        repeat(4) { take() }
+        val before = server.requestCount
+        listOf("🙂".repeat(501), "text\u0000", "\uD800").forEach {
+            assertEquals(FailureKind.VALIDATION, failure { repository.updateAccountProfile(null, it) }.kind)
+        }
+        assertEquals(before, server.requestCount)
+
+        server.enqueue(json(ME))
+        assertEquals(FailureKind.INVALID_RESPONSE, failure { repository.updateAccountProfile(null, "Изменение") }.kind)
+        assertEquals("""{"bio":"Изменение"}""", take().body.readUtf8())
+        assertEquals("Исходный текст", repository.state.value.session!!.user.bio)
+    }
+
+    @Test fun `an older server still accepts name changes when the bio field is absent`() = runBlocking {
+        connectAndLogin()
+        repeat(4) { take() }
+        assertNull(repository.state.value.session!!.user.bio)
+        val before = server.requestCount
+        assertEquals(FailureKind.INCOMPATIBLE_SERVER, failure { repository.updateAccountProfile(null, "Текст") }.kind)
+        assertEquals(before, server.requestCount)
+
+        server.enqueue(json(ME.replace("\"Test\"", "\"New name\"")))
+        assertEquals("New name", repository.updateAccountProfile("New name", null).displayName)
+        assertEquals("""{"displayName":"New name"}""", take().body.readUtf8())
     }
 
     @Test fun `registered login still rejects an empty email in the server response`() = runBlocking {
@@ -734,11 +798,14 @@ class FoundationRepositoryTest {
     }
 
     private fun newRepository() = DefaultFoundationRepository(preferences, credentials, api)
-    private suspend fun connectAndLogin() {
+    private suspend fun connectAndLogin(bio: String? = null) {
         enqueueVersion(); repository.addServer(origin)
-        enqueueLogin("first-access", "first-cookie"); enqueueMe(); enqueueCapabilities()
+        enqueueLogin("first-access", "first-cookie")
+        server.enqueue(json(bio?.let { profileBody("Test", it) } ?: ME)); enqueueCapabilities()
         repository.login("test@example.com", "synthetic-password")
     }
+    private fun profileBody(name: String, bio: String) =
+        """{"status":"success","user":{"id":"user-a","email":"test@example.com","displayName":${JsonPrimitive(name)},"isAdmin":false,"bio":${JsonPrimitive(bio)}}}"""
     private fun enqueueVersion() { server.enqueue(json(VERSION)) }
     private fun enqueueMe() { server.enqueue(json(ME)) }
     private fun enqueueCapabilities() { server.enqueue(json(CAPABILITIES)) }
